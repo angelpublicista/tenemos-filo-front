@@ -25,7 +25,15 @@ const customTheme = createTheme({
         },
       }
     }
-  }
+  },
+  label: {
+    root: {
+      base: "text-sm",
+      colors: {
+        gray: "text-gray-600",
+      },
+    },
+  },
 });
 
 export const metadata: Metadata = {

@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import FormRegisterHost from '@/components/FormRegisterHost'
 import FormRegisterGuest from '@/components/FormRegisterGuest'
 import FiloLogo from '@/components/FiloLogo'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 
-export default function Register() {
+function RegisterContent() {
   const [isHost, setIsHost] = useState(true)
   const searchParams = useSearchParams()
 
@@ -38,5 +38,13 @@ export default function Register() {
           ¿Ya tienes una cuenta? <Link href="/login" className='hover:text-[#f26726] transition underline'>Inicia sesión</Link>
         </p>
     </div>
+  )
+}
+
+export default function Register() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <RegisterContent />
+    </Suspense>
   )
 }

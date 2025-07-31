@@ -111,7 +111,7 @@ export default function FormRegisterHost() {
           </Label>
         </div>
         <Button type="submit" color="primary" className="w-full">
-          Registrarse
+          Registrarse como anfitrión
         </Button>
       </form>
     </div>

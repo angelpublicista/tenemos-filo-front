@@ -76,7 +76,7 @@ export default function Login() {
         </div>
 
         <p className="text-sm text-gray-500">
-          No tienes una cuenta?{" "}
+          ¿No tienes una cuenta?{" "}
           <Link
             href="/register"
             className="underline hover:text-[#f26726] transition"

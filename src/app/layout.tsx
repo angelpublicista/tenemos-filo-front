@@ -34,6 +34,14 @@ const customTheme = createTheme({
       },
     },
   },
+  checkbox: {
+    root: {
+      base: "rounded-sm",
+    },
+    color: {
+      white: "text-gray-600 bg-white",
+    },
+  },
 });
 
 export const metadata: Metadata = {

@@ -13,7 +13,7 @@ const customTheme = createTheme({
   button: {
     base: "rounded-full p-6 cursor-pointer",
     color: {
-      primary: "bg-[#f26726] text-white",
+      primary: "bg-[#f26726] text-white hover:bg-[#f26726]/80 transition",
     }
   },
   textInput: {

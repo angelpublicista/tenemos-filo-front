@@ -2,6 +2,8 @@ import { useForm } from "react-hook-form";
 import { TextInput, Button, Checkbox, Label } from "flowbite-react";
 import Link from "next/link";
 import "react-international-phone/style.css";
+import { useState } from "react";
+import { useAuth } from "@/lib/firebase/AuthContext";
 
 interface formData {
   fname: string;
@@ -12,14 +14,36 @@ interface formData {
 }
 
 export default function FormRegisterGuest() {
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { register: authRegister } = useAuth();
+  
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<formData>();
 
-  const onSubmit = (data: formData) => {
-    console.log(data);
+  const onSubmit = async (data: formData) => {
+    setError(null);
+    setLoading(true);
+    
+    try {
+      // Registrar usuario en Firebase Auth
+      await authRegister(data.email, data.password);
+      
+      // Aquí podrías guardar los datos adicionales en Firestore
+      const userData = {
+        ...data,
+        userType: 'guest'
+      };
+      console.log('Usuario registrado:', userData);
+      
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Error al registrarse');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,8 +110,20 @@ export default function FormRegisterGuest() {
             <span className="text-red-500">*</span>
           </Label>
         </div>
-        <Button type="submit" color="primary" className="w-full">
-          Registrarse como Comensal
+        
+        {error && (
+          <div className="w-full p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+        
+        <Button 
+          type="submit" 
+          color="primary" 
+          className="w-full"
+          disabled={loading}
+        >
+          {loading ? 'Registrando...' : 'Registrarse como comensal'}
         </Button>
       </form>
     </div>

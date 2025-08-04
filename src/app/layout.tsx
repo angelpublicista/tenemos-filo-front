@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider, createTheme } from "flowbite-react";
+import { AuthProvider } from "@/lib/firebase/AuthContext";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -60,7 +61,9 @@ export default function RootLayout({
         className={`${poppins.variable} antialiased`}
       >
         <ThemeProvider theme={customTheme}>
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

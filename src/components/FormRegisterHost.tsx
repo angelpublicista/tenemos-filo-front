@@ -3,7 +3,8 @@ import { TextInput, Button, Checkbox, Label } from "flowbite-react";
 import Link from "next/link";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useAuth } from "@/lib/firebase/AuthContext";
 
 interface formData {
   fname: string;
@@ -16,19 +17,37 @@ interface formData {
 
 export default function FormRegisterHost() {
   const [phone, setPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { register: authRegister } = useAuth();
+  
   const {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
   } = useForm<formData>();
 
-  const onSubmit = (data: formData) => {
-    const formDataWithPhone = {
-      ...data,
-      phone: phone // Usar el valor del estado phone
-    };
-    console.log(formDataWithPhone);
+  const onSubmit = async (data: formData) => {
+    setError(null);
+    setLoading(true);
+    
+    try {
+      // Registrar usuario en Firebase Auth
+      await authRegister(data.email, data.password);
+      
+      // Aquí podrías guardar los datos adicionales (nombres, teléfono, etc.) en Firestore
+      const userData = {
+        ...data,
+        phone: phone,
+        userType: 'host'
+      };
+      console.log('Usuario registrado:', userData);
+      
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Error al registrarse');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePhoneChange = (value: string) => {
@@ -110,8 +129,20 @@ export default function FormRegisterHost() {
             <span className="text-red-500">*</span>
           </Label>
         </div>
-        <Button type="submit" color="primary" className="w-full">
-          Registrarse como anfitrión
+        
+        {error && (
+          <div className="w-full p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+        
+        <Button 
+          type="submit" 
+          color="primary" 
+          className="w-full"
+          disabled={loading}
+        >
+          {loading ? 'Registrando...' : 'Registrarse como anfitrión'}
         </Button>
       </form>
     </div>

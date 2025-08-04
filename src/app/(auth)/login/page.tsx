@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
 import FiloLogo from "@/components/FiloLogo";
 import Link from "next/link";
-// react hook form
 import { useForm } from "react-hook-form";
+import { useAuth } from "@/lib/firebase/AuthContext";
 
 interface formData {
   email: string;
@@ -13,15 +13,27 @@ interface formData {
 }
 
 export default function Login() {
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<formData>();
 
-  const onSubmit = (data: formData) => {
-    console.log(data);
+  const onSubmit = async (data: formData) => {
+    setError(null);
+    setLoading(true);
+    
+    try {
+      await login(data.email, data.password);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Error al iniciar sesión');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,9 +81,21 @@ export default function Login() {
             </p>
           )}
         </div>
+        {error && (
+          <div className="w-full p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+        
         <div className="flex flex-col items-center justify-center w-full">
-          <Button type="submit" fullSized className="w-full" color="primary">
-            Iniciar sesión
+          <Button 
+            type="submit" 
+            fullSized 
+            className="w-full" 
+            color="primary"
+            disabled={loading}
+          >
+            {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
           </Button>
         </div>
 

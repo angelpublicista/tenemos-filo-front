@@ -1,23 +1,37 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
 import FiloLogo from "@/components/FiloLogo";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/lib/firebase/AuthContext";
 import { LoginFormData } from "@/types";
+import { useSearchParams } from "next/navigation";
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const searchParams = useSearchParams();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormData>();
+
+  // Verificar mensajes de URL al cargar la página
+  useEffect(() => {
+    const message = searchParams.get('message');
+    if (message === 'account-pending') {
+      setError('Tu cuenta está pendiente de activación. Por favor, contacta al administrador.');
+    } else if (message === 'user-not-found') {
+      setError('Usuario no encontrado en la base de datos.');
+    } else if (message === 'registration-success') {
+      setError('Registro exitoso. Tu cuenta está pendiente de activación por parte del administrador.');
+    }
+  }, [searchParams]);
 
   const onSubmit = async (data: LoginFormData) => {
     setError(null);

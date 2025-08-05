@@ -6,14 +6,22 @@ import { useEffect } from "react";
 import { ProtectedRouteProps } from "@/types";
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+  const { user, sanityUser, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
+    if (!loading) {
+      if (!user) {
+        router.push('/login');
+      } else if (!sanityUser) {
+        // Si hay usuario de Firebase pero no de Sanity
+        router.push('/login?message=user-not-found');
+      } else if (!sanityUser.isActive) {
+        // Si el usuario no está activo
+        router.push('/login?message=account-pending');
+      }
     }
-  }, [user, loading, router]);
+  }, [user, sanityUser, loading, router]);
 
   if (loading) {
     return (
@@ -26,7 +34,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) {
+  if (!user || !sanityUser || !sanityUser.isActive) {
     return null;
   }
 

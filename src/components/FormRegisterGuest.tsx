@@ -4,14 +4,7 @@ import Link from "next/link";
 import "react-international-phone/style.css";
 import { useState } from "react";
 import { useAuth } from "@/lib/firebase/AuthContext";
-
-interface formData {
-  fname: string;
-  lname: string;
-  email: string;
-  password: string;
-  terms: boolean;
-}
+import { RegisterFormData } from "@/types";
 
 export default function FormRegisterGuest() {
   const [error, setError] = useState<string | null>(null);
@@ -22,22 +15,25 @@ export default function FormRegisterGuest() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<formData>();
+  } = useForm<RegisterFormData>();
 
-  const onSubmit = async (data: formData) => {
+  const onSubmit = async (data: RegisterFormData) => {
     setError(null);
     setLoading(true);
     
     try {
-      // Registrar usuario en Firebase Auth
-      await authRegister(data.email, data.password);
-      
-      // Aquí podrías guardar los datos adicionales en Firestore
+      // Preparar datos para Sanity
       const userData = {
-        ...data,
-        userType: 'guest'
+        name: `${data.fname} ${data.lname}`,
+        email: data.email,
+        role: 'guest' as const,
+        phone: '', // Guest no tiene teléfono en el formulario actual
       };
-      console.log('Usuario registrado:', userData);
+      
+      // Registrar usuario en Firebase Auth y Sanity
+      await authRegister(data.email, data.password, userData);
+      
+      console.log('Usuario registrado exitosamente en Firebase y Sanity');
       
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Error al registrarse');

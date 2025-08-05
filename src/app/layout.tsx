@@ -15,6 +15,7 @@ const customTheme = createTheme({
     base: "rounded-full p-6 cursor-pointer",
     color: {
       primary: "bg-[#f26726] text-white hover:bg-[#f26726]/80 transition",
+      gray: "bg-gray-200 text-gray-700 hover:bg-gray-300 transition",
     }
   },
   textInput: {
@@ -56,7 +57,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body
         className={`${poppins.variable} antialiased`}
       >

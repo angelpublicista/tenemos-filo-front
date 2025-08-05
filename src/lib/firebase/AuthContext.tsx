@@ -2,17 +2,11 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "firebase/auth";
+import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "./firebaseConfig";
 import { useRouter } from "next/navigation";
-
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
-}
+import { createUserInSanity } from "../sanity/userService";
+import { AuthContextType, CreateUserData } from "@/types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -50,10 +44,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (email: string, password: string) => {
+           const register = async (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>) => {
+           try {
+             // Crear usuario en Firebase Auth
+             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+             
+             // Crear usuario en Sanity con los datos adicionales
+             const sanityUserData: CreateUserData = {
+               firebaseId: userCredential.user.uid,
+               name: userData.name,
+               email: userData.email,
+               role: userData.role,
+               phone: userData.phone,
+             };
+             
+             await createUserInSanity(sanityUserData);
+             
+             router.push('/dashboard'); // Redirigir al dashboard después del registro
+             
+             return userCredential; // Retornar el UserCredential
+           } catch (error: unknown) {
+             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+             throw new Error(errorMessage);
+           }
+         };
+
+  const resetPassword = async (email: string) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard'); // Redirigir al dashboard después del registro
+      await sendPasswordResetEmail(auth, email);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       throw new Error(errorMessage);
@@ -61,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

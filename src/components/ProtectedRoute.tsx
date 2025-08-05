@@ -3,10 +3,7 @@
 import { useAuth } from "@/lib/firebase/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
+import { ProtectedRouteProps } from "@/types";
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();

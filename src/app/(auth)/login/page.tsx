@@ -6,11 +6,7 @@ import FiloLogo from "@/components/FiloLogo";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/lib/firebase/AuthContext";
-
-interface formData {
-  email: string;
-  password: string;
-}
+import { LoginFormData } from "@/types";
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
@@ -21,9 +17,9 @@ export default function Login() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<formData>();
+  } = useForm<LoginFormData>();
 
-  const onSubmit = async (data: formData) => {
+  const onSubmit = async (data: LoginFormData) => {
     setError(null);
     setLoading(true);
     
@@ -37,8 +33,9 @@ export default function Login() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen space-y-4">
+    <div className="flex flex-col items-center justify-center min-h-screen space-y-4 w-full max-w-md mx-auto py-10 px-4">
       <FiloLogo className="w-full max-w-[200px] mb-10" />
+      
       <form
         className="flex flex-col items-center justify-center max-w-md w-full space-y-4"
         onSubmit={handleSubmit(onSubmit)}
@@ -106,6 +103,16 @@ export default function Login() {
             className="underline hover:text-[#f26726] transition"
           >
             Regístrate
+          </Link>
+        </p>
+
+        <p className="text-sm text-gray-500">
+          ¿Olvidaste tu contraseña?{" "}
+          <Link
+            href="/reset-password"
+            className="underline hover:text-[#f26726] transition"
+          >
+            Recupérala aquí
           </Link>
         </p>
       </form>

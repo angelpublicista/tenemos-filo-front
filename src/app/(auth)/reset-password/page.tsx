@@ -105,12 +105,16 @@ export default function ResetPassword() {
               Hemos enviado un enlace de recuperación a tu correo electrónico. 
               Revisa tu bandeja de entrada y sigue las instrucciones.
             </p>
+          </div>
+
+          <div className="w-full space-y-3">
             <Button
+              href="/login"
               color="primary"
+              fullSized
               className="w-full"
-              onClick={() => window.location.href = '/login'}
             >
-              Volver al login
+              Volver al inicio de sesión
             </Button>
           </div>
         </div>

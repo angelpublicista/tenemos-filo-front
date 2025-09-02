@@ -66,7 +66,8 @@ export const sendWelcomeEmail = async (userEmail: string, userName: string, role
     <body>
       <div class="container">
         <div class="header">
-          <h1>¡Bienvenido a Tenemos Filo!</h1>
+          <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'}/FILO-LOGO-ORGINAL.png" alt="Tenemos Filo" style="max-width: 180px; height: auto; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto; background-color: white; padding: 10px; border-radius: 8px;">
+          <h1 style="margin-top: 20px; margin-bottom: 0;">¡Bienvenido a Tenemos Filo!</h1>
         </div>
         <div class="content">
           <h2>¡Hola ${userName}!</h2>
@@ -128,7 +129,8 @@ export const sendPasswordResetEmail = async (userEmail: string, resetToken: stri
     <body>
       <div class="container">
         <div class="header">
-          <h1>Recuperar Contraseña</h1>
+          <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'}/FILO-LOGO-ORGINAL.png" alt="Tenemos Filo" style="max-width: 180px; height: auto; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto; background-color: white; padding: 10px; border-radius: 8px;">
+          <h1 style="margin-top: 20px; margin-bottom: 0;">Recuperar Contraseña</h1>
         </div>
         <div class="content">
           <h2>Hola,</h2>
@@ -191,7 +193,8 @@ export const sendEmailVerification = async (userEmail: string, verificationToken
     <body>
       <div class="container">
         <div class="header">
-          <h1>Verificar tu Email</h1>
+          <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'}/FILO-LOGO-ORGINAL.png" alt="Tenemos Filo" style="max-width: 180px; height: auto; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto; background-color: white; padding: 10px; border-radius: 8px;">
+          <h1 style="margin-top: 20px; margin-bottom: 0;">Verificar tu Email</h1>
         </div>
         <div class="content">
           <h2>¡Gracias por registrarte!</h2>

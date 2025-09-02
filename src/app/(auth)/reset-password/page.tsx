@@ -5,6 +5,7 @@ import { Button, TextInput, Label } from "flowbite-react";
 import FiloLogo from "@/components/FiloLogo";
 import Link from "next/link";
 import { useAuth } from "@/lib/firebase/AuthContext";
+import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
 
 export default function ResetPassword() {
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export default function ResetPassword() {
       setResetSuccess(true);
       setResetEmail("");
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Error al enviar el correo de recuperación');
+      setError(getTranslatedFirebaseError(error));
     } finally {
       setResetLoading(false);
     }

@@ -8,9 +8,11 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "@/lib/firebase/AuthContext";
 import { LoginFormData } from "@/types";
 import { useSearchParams } from "next/navigation";
+import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const searchParams = useSearchParams();
@@ -27,9 +29,11 @@ export default function Login() {
     if (message === 'account-pending') {
       setError('Tu cuenta está pendiente de activación. Por favor, contacta al administrador.');
     } else if (message === 'user-not-found') {
-      setError('Usuario no encontrado en la base de datos.');
+      setError('Credenciales incorrectas. Verifica tu email y contraseña.');
     } else if (message === 'registration-success') {
-      setError('Registro exitoso. Tu cuenta está pendiente de activación por parte del administrador.');
+      setSuccess('¡Registro exitoso! Tu cuenta ha sido creada. Ya puedes iniciar sesión.');
+    } else if (message === 'login-success') {
+      setSuccess('¡Inicio de sesión exitoso!');
     }
   }, [searchParams]);
 
@@ -40,7 +44,7 @@ export default function Login() {
     try {
       await login(data.email, data.password);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Error al iniciar sesión');
+      setError(getTranslatedFirebaseError(error));
     } finally {
       setLoading(false);
     }
@@ -95,6 +99,11 @@ export default function Login() {
         {error && (
           <div className="w-full p-3 bg-red-100 border border-red-400 text-red-700 rounded">
             {error}
+          </div>
+        )}
+        {success && (
+          <div className="w-full p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+            {success}
           </div>
         )}
         

@@ -7,6 +7,7 @@ import { auth } from "./firebaseConfig";
 import { useRouter } from "next/navigation";
 import { createUserInSanity, getUserByFirebaseId } from "../sanity/userService";
 import { AuthContextType, CreateUserData, SanityUser } from "@/types";
+import { getTranslatedFirebaseError } from "./firebaseErrors";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -14,6 +15,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [sanityUser, setSanityUser] = useState<SanityUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRegistering, setIsRegistering] = useState(false);
   const router = useRouter();
 
   // Función para obtener y verificar el usuario de Sanity
@@ -33,18 +35,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       
-      if (currentUser) {
-        // Si hay un usuario de Firebase, obtener los datos de Sanity
+      if (currentUser && !isRegistering) {
+        // Si hay un usuario de Firebase y no está en proceso de registro, obtener los datos de Sanity
         await fetchSanityUser(currentUser);
-      } else {
+      } else if (!currentUser) {
         setSanityUser(null);
       }
       
-      setLoading(false);
+      // Solo marcar como no cargando si no estamos en proceso de registro
+      if (!isRegistering) {
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [isRegistering]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -55,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (!userData) {
         await signOut(auth);
-        throw new Error('Usuario no encontrado en la base de datos');
+        throw new Error('Credenciales incorrectas. Verifica tu email y contraseña.');
       }
       
       // Los usuarios ahora se crean activos por defecto, no necesitamos verificar isActive
@@ -66,7 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       router.push('/dashboard');
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage = getTranslatedFirebaseError(error);
       throw new Error(errorMessage);
     }
   };
@@ -77,7 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSanityUser(null);
       router.push('/login');
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage = getTranslatedFirebaseError(error);
       throw new Error(errorMessage);
     }
   };
@@ -86,6 +91,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let userCredential: any = null;
     
     try {
+      // Marcar que estamos en proceso de registro
+      setIsRegistering(true);
+      
       // Crear usuario en Firebase Auth
       userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
@@ -101,6 +109,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
       
       await createUserInSanity(sanityUserData);
+      
+      // Obtener el usuario de Sanity para establecer el estado
+      const newSanityUser = await fetchSanityUser(userCredential.user);
       
       // Enviar email de bienvenida
       try {
@@ -121,12 +132,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // No fallar el registro si el email falla
       }
       
-      // Los usuarios se crean activos por defecto, redirigir al login con mensaje de éxito
-      await signOut(auth);
-      router.push('/login?message=registration-success');
+      // Marcar que ya no estamos en proceso de registro
+      setIsRegistering(false);
+      setLoading(false);
+      
+      // Los usuarios se crean activos por defecto, redirigir al dashboard después de un breve delay
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1500);
       
       return userCredential;
     } catch (error: unknown) {
+      // Marcar que ya no estamos en proceso de registro
+      setIsRegistering(false);
+      setLoading(false);
+      
       // Si hay un error en Sanity, eliminar el usuario de Firebase
       if (error instanceof Error && (error.message.includes('email') || error.message.includes('documento'))) {
         // Intentar eliminar el usuario de Firebase si ya se creó
@@ -139,7 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage = getTranslatedFirebaseError(error);
       throw new Error(errorMessage);
     }
   };
@@ -148,7 +168,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await sendPasswordResetEmail(auth, email);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage = getTranslatedFirebaseError(error);
       throw new Error(errorMessage);
     }
   };

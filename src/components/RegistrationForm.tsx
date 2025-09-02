@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "@/lib/firebase/AuthContext";
 import { GuestStep1Data } from "@/types";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { testSanityConnection } from "@/lib/sanity/userService";
+import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
 
 interface RegistrationFormProps {
   role: 'guest' | 'host';
@@ -18,6 +18,7 @@ interface RegistrationFormProps {
 export default function RegistrationForm({ role }: RegistrationFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { register: authRegister } = useAuth();
@@ -29,19 +30,6 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
 
   const handlePhoneChange = (value: string) => {
     setPhone(value);
-  };
-
-  // Función para probar la conexión con Sanity
-  const testConnection = async () => {
-    try {
-      const result = await testSanityConnection();
-      console.log('Resultado de la prueba de conexión:', result);
-      if (!result.success) {
-        setError(`Error de conexión: ${result.message}`);
-      }
-    } catch (error) {
-      console.error('Error al probar conexión:', error);
-    }
   };
 
   const handleSubmit = async (data: GuestStep1Data) => {
@@ -70,16 +58,18 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
       await authRegister(data.email, data.password, userData);
 
       console.log(`${role === 'host' ? 'Anfitrión' : 'Comensal'} registrado exitosamente en Firebase y Sanity`);
+      
+      // Mostrar mensaje de redirección
+      setLoading(false);
+      setRedirecting(true);
 
     } catch (error) {
-      // Manejar errores específicos de duplicados y permisos
+      // Manejar errores específicos de duplicados y permisos de Sanity primero
       if (error instanceof Error) {
-        if (error.message.includes('email')) {
+        if (error.message.includes('email') && !error.message.includes('auth/')) {
           setError('Ya existe un usuario registrado con este email. Por favor, utiliza otro email o inicia sesión.');
         } else if (error.message.includes('documento')) {
           setError('Ya existe un usuario registrado con este número de documento. Por favor, verifica tus datos.');
-        } else if (error.message.includes('auth/email-already-in-use')) {
-          setError('Ya existe una cuenta con este email. Por favor, utiliza otro email o inicia sesión.');
         } else if (error.message.includes('Error de permisos en Sanity')) {
           setError('Error de configuración: No se pueden crear usuarios en la base de datos. Contacta al administrador.');
         } else if (error.message.includes('Error de autenticación en Sanity')) {
@@ -87,13 +77,17 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
         } else if (error.message.includes('Error de configuración en Sanity')) {
           setError('Error de configuración: Problema con la configuración de la base de datos. Contacta al administrador.');
         } else {
-          setError(error.message);
+          // Para todos los demás errores (especialmente de Firebase), usar la traducción
+          setError(getTranslatedFirebaseError(error));
         }
       } else {
-        setError('Error al registrarse. Por favor, intenta nuevamente.');
+        // Para errores no identificados, usar la función de traducción
+        setError(getTranslatedFirebaseError(error));
       }
     } finally {
-      setLoading(false);
+      if (!redirecting) {
+        setLoading(false);
+      }
     }
   };
 
@@ -286,13 +280,19 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
           </div>
         )}
 
+        {redirecting && (
+          <div className="w-full p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+            ¡Registro exitoso! Redirigiendo al dashboard...
+          </div>
+        )}
+
         <Button
           type="submit"
           color="primary"
           className="w-full"
-          disabled={loading}
+          disabled={loading || redirecting}
         >
-          {loading ? 'Registrando...' : 'Completar Registro'}
+          {loading ? 'Registrando...' : redirecting ? 'Redirigiendo...' : 'Completar Registro'}
         </Button>
       </form>
     </div>

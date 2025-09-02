@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail, UserCredential } from "firebase/auth";
 import { auth } from "./firebaseConfig";
 import { useRouter } from "next/navigation";
 import { createUserInSanity, getUserByFirebaseId } from "../sanity/userService";
@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>) => {
-    let userCredential: any = null;
+    let userCredential: UserCredential | null = null;
     
     try {
       // Marcar que estamos en proceso de registro
@@ -111,7 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await createUserInSanity(sanityUserData);
       
       // Obtener el usuario de Sanity para establecer el estado
-      const newSanityUser = await fetchSanityUser(userCredential.user);
+      await fetchSanityUser(userCredential.user);
       
       // Enviar email de bienvenida
       try {

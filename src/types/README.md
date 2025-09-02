@@ -11,6 +11,9 @@ Este archivo centraliza todos los tipos de TypeScript utilizados en el proyecto.
 - `HostStep1Data`: Datos personales del anfitrión (Paso 1)
 - `HostStep2Data`: Datos de la empresa (Paso 2)
 - `HostStep3Data`: Datos de la sede principal (Paso 3)
+- `GuestStep1Data`: Datos personales del comensal (Paso 1)
+- `GuestStep2Data`: Datos de la empresa donde trabaja (Paso 2)
+- `GuestStep3Data`: Información laboral del comensal (Paso 3)
 
 ### Sanity CMS
 - `CreateUserData`: Datos para crear usuario en Sanity

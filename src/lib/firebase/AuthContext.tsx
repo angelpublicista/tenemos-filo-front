@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Verificar si el usuario está activo en Sanity
+      // Verificar si el usuario existe en Sanity
       const userData = await fetchSanityUser(userCredential.user);
       
       if (!userData) {
@@ -58,10 +58,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Usuario no encontrado en la base de datos');
       }
       
-      if (!userData.isActive) {
-        await signOut(auth);
-        throw new Error('Tu cuenta está pendiente de activación. Por favor, contacta al administrador.');
-      }
+      // Los usuarios ahora se crean activos por defecto, no necesitamos verificar isActive
+      // if (!userData.isActive) {
+      //   await signOut(auth);
+      //   throw new Error('Tu cuenta está pendiente de activación. Por favor, contacta al administrador.');
+      // }
       
       router.push('/dashboard');
     } catch (error: unknown) {
@@ -82,9 +83,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>) => {
+    let userCredential: any = null;
+    
     try {
       // Crear usuario en Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
       // Crear usuario en Sanity con los datos adicionales
       const sanityUserData: CreateUserData = {
@@ -93,16 +96,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: userData.email,
         role: userData.role,
         phone: userData.phone,
+        typeDocument: userData.typeDocument,
+        documentNumber: userData.documentNumber,
       };
       
       await createUserInSanity(sanityUserData);
       
-      // No redirigir automáticamente al dashboard ya que el usuario no está activo
+      // Enviar email de bienvenida
+      try {
+        await fetch('/api/email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'welcome',
+            email: userData.email,
+            name: userData.name,
+            role: userData.role,
+          }),
+        });
+      } catch (emailError) {
+        console.error('Error enviando email de bienvenida:', emailError);
+        // No fallar el registro si el email falla
+      }
+      
+      // Los usuarios se crean activos por defecto, redirigir al login con mensaje de éxito
       await signOut(auth);
       router.push('/login?message=registration-success');
       
       return userCredential;
     } catch (error: unknown) {
+      // Si hay un error en Sanity, eliminar el usuario de Firebase
+      if (error instanceof Error && (error.message.includes('email') || error.message.includes('documento'))) {
+        // Intentar eliminar el usuario de Firebase si ya se creó
+        try {
+          if (userCredential?.user) {
+            await userCredential.user.delete();
+          }
+        } catch (firebaseError) {
+          console.error('Error deleting Firebase user after Sanity error:', firebaseError);
+        }
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       throw new Error(errorMessage);
     }

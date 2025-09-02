@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect, Suspense } from 'react'
-import HostRegistrationSteps from '@/components/HostRegistrationSteps'
-import FormRegisterGuest from '@/components/FormRegisterGuest'
+import RegistrationForm from '@/components/RegistrationForm'
 import FiloLogo from '@/components/FiloLogo'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -40,7 +39,24 @@ function RegisterContent() {
                 </Tooltip>
             </button>
         </div>
-        {isHost ? <HostRegistrationSteps /> : <FormRegisterGuest />}
+        {isHost ? 
+        <>
+          <div className='mb-4'>
+            <p className='text-sm text-gray-500 text-center'>
+              Registrate como anfitrión para gestionar tus experiencias.
+            </p>
+          </div>
+          <RegistrationForm role="host" />
+        </>
+        : 
+        <>
+        <div className='mb-4'>
+          <p className='text-sm text-gray-500 text-center'>
+            Registrate como comensal para consultar experiencias, cotizar y reservar.
+          </p>
+        </div>
+        <RegistrationForm role="guest" />
+        </>}
 
         <p className='text-sm text-gray-500'>
           ¿Ya tienes una cuenta? <Link href="/login" className='hover:text-[#f26726] transition underline'>Inicia sesión</Link>

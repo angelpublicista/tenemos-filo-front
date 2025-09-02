@@ -24,6 +24,8 @@ export interface CreateUserData {
   email: string;
   role: 'guest' | 'host' | 'admin';
   phone: string;
+  typeDocument: 'cc' | 'ce' | 'ti' | 'pp';
+  documentNumber: string;
 }
 
 export interface SanityUser {
@@ -135,6 +137,9 @@ export interface HostStep1Data {
   phone: string;
   email: string;
   password: string;
+  confirmPassword: string;
+  typeDocument: 'cc' | 'ce' | 'ti' | 'pp';
+  documentNumber: string;
   terms: boolean;
 }
 
@@ -184,4 +189,31 @@ export interface Reservation {
   status: 'pending' | 'confirmed' | 'cancelled';
   createdAt: string;
   updatedAt: string;
+}
+
+// Tipos para formularios de registro por pasos del comensal
+export interface GuestStep1Data {
+  fname: string;
+  lname: string;
+  phone: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  typeDocument: 'cc' | 'ce' | 'ti' | 'pp';
+  documentNumber: string;
+  terms: boolean;
+}
+
+export interface GuestStep2Data {
+  companyName: string;
+  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other' | null;
+  companyEmail: string;
+  companyPhone: string;
+  jobTitle?: string;
+  department?: string;
+}
+
+export interface GuestStep3Data {
+  jobTitle?: string;
+  department?: string;
 } 

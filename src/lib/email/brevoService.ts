@@ -13,6 +13,10 @@ const createTransporter = () => {
   });
 };
 
+// Configuración de la API REST de Brevo para plantillas
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+
 // Interfaz para los datos del email
 interface EmailData {
   to: string;
@@ -21,7 +25,15 @@ interface EmailData {
   text?: string;
 }
 
-// Función para enviar emails
+// Interfaz para enviar email con plantilla de Brevo
+interface BrevoTemplateEmailData {
+  to: string;
+  templateId: number;
+  params?: { [key: string]: string | number };
+  subject?: string; // Opcional si la plantilla ya tiene asunto
+}
+
+// Función para enviar emails con HTML personalizado (SMTP)
 export const sendEmail = async (emailData: EmailData) => {
   try {
     const transporter = createTransporter();
@@ -43,7 +55,80 @@ export const sendEmail = async (emailData: EmailData) => {
   }
 };
 
-// Función para enviar email de bienvenida
+// Función para enviar emails usando plantillas de Brevo (API REST)
+export const sendTemplateEmail = async (templateData: BrevoTemplateEmailData) => {
+  try {
+    if (!BREVO_API_KEY) {
+      throw new Error('BREVO_API_KEY no está configurada en las variables de entorno');
+    }
+
+    const payload = {
+      sender: { 
+        name: "Tenemos Filo", 
+        email: process.env.BREVO_FROM_EMAIL || 'noreply@tenemosfilo.com' 
+      },
+      to: [{ email: templateData.to }],
+      templateId: templateData.templateId,
+      params: templateData.params || {},
+      ...(templateData.subject && { subject: templateData.subject })
+    };
+
+    const response = await fetch(BREVO_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'api-key': BREVO_API_KEY,
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Error de Brevo API: ${errorData.message || response.statusText}`);
+    }
+
+    const result = await response.json();
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error enviando email con plantilla:', error);
+    throw new Error(`Error enviando email con plantilla: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+  }
+};
+
+// Función para enviar email de bienvenida usando plantilla de Brevo
+export const sendWelcomeEmailWithTemplate = async (
+  userEmail: string, 
+  userName: string, 
+  role: 'guest' | 'host',
+  templateId?: number
+) => {
+  // Si se proporciona un templateId Y hay API key configurada, usar la plantilla de Brevo
+  if (templateId && BREVO_API_KEY) {
+    try {
+      return await sendTemplateEmail({
+        to: userEmail,
+        templateId: templateId,
+        params: {
+          FIRSTNAME: userName,
+          ROLE: role === 'host' ? 'Anfitrión' : 'Comensal',
+          ROLE_BENEFITS: role === 'host' 
+            ? 'Crear experiencias gastronómicas únicas, Gestionar tus eventos y reservas, Conectar con comensales apasionados'
+            : 'Descubrir experiencias gastronómicas únicas, Reservar en eventos exclusivos, Conectar con anfitriones talentosos',
+          APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'
+        }
+      });
+    } catch {
+      // Fallback automático si falla la plantilla
+      return sendWelcomeEmail(userEmail, userName, role);
+    }
+  }
+  
+  // Fallback: usar HTML personalizado
+  return sendWelcomeEmail(userEmail, userName, role);
+};
+
+// Función para enviar email de bienvenida (HTML personalizado)
 export const sendWelcomeEmail = async (userEmail: string, userName: string, role: 'guest' | 'host') => {
   const roleText = role === 'host' ? 'Anfitrión' : 'Comensal';
   
@@ -105,7 +190,36 @@ export const sendWelcomeEmail = async (userEmail: string, userName: string, role
   });
 };
 
-// Función para enviar email de recuperación de contraseña
+// Función para enviar email de recuperación de contraseña usando plantilla de Brevo
+export const sendPasswordResetEmailWithTemplate = async (
+  userEmail: string, 
+  resetToken: string, 
+  templateId?: number
+) => {
+  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'}/reset-password?token=${resetToken}`;
+  
+  // Si se proporciona un templateId Y hay API key configurada, usar la plantilla de Brevo
+  if (templateId && BREVO_API_KEY) {
+    try {
+      return await sendTemplateEmail({
+        to: userEmail,
+        templateId: templateId,
+        params: {
+          RESET_URL: resetUrl,
+          APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'
+        }
+      });
+    } catch {
+      // Fallback automático si falla la plantilla
+      return sendPasswordResetEmail(userEmail, resetToken);
+    }
+  }
+  
+  // Fallback: usar HTML personalizado
+  return sendPasswordResetEmail(userEmail, resetToken);
+};
+
+// Función para enviar email de recuperación de contraseña (HTML personalizado)
 export const sendPasswordResetEmail = async (userEmail: string, resetToken: string) => {
   const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'}/reset-password?token=${resetToken}`;
   
@@ -170,7 +284,36 @@ export const sendPasswordResetEmail = async (userEmail: string, resetToken: stri
   });
 };
 
-// Función para enviar email de verificación de email
+// Función para enviar email de verificación usando plantilla de Brevo
+export const sendEmailVerificationWithTemplate = async (
+  userEmail: string, 
+  verificationToken: string, 
+  templateId?: number
+) => {
+  const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'}/verify-email?token=${verificationToken}`;
+  
+  // Si se proporciona un templateId Y hay API key configurada, usar la plantilla de Brevo
+  if (templateId && BREVO_API_KEY) {
+    try {
+      return await sendTemplateEmail({
+        to: userEmail,
+        templateId: templateId,
+        params: {
+          VERIFICATION_URL: verificationUrl,
+          APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'
+        }
+      });
+    } catch {
+      // Fallback automático si falla la plantilla
+      return sendEmailVerification(userEmail, verificationToken);
+    }
+  }
+  
+  // Fallback: usar HTML personalizado
+  return sendEmailVerification(userEmail, verificationToken);
+};
+
+// Función para enviar email de verificación (HTML personalizado)
 export const sendEmailVerification = async (userEmail: string, verificationToken: string) => {
   const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'}/verify-email?token=${verificationToken}`;
   

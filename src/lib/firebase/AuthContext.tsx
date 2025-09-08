@@ -125,6 +125,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             email: userData.email,
             name: userData.name,
             role: userData.role,
+            // Probar plantillas de Brevo con el fix del sender
+            useTemplate: true,
+            templateId: Number(process.env.BREVO_TEMPLATE_WELCOME_ID) || 1
           }),
         });
       } catch (emailError) {

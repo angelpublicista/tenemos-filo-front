@@ -19,5 +19,4 @@ export const sanityClient = createClient({
   apiVersion: '2024-01-01',
   useCdn: false,
   token: token, // Token para escritura
-  withCredentials: true, // Incluir credenciales en las peticiones
 }); 

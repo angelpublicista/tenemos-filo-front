@@ -6,6 +6,8 @@ interface EmailRequest {
   name?: string;
   role?: 'guest' | 'host';
   token?: string;
+  templateId?: number;
+  useTemplate?: boolean;
 }
 
 interface EmailResponse {
@@ -56,28 +58,47 @@ export const useEmailService = () => {
     }
   };
 
-  const sendWelcomeEmail = async (email: string, name: string, role: 'guest' | 'host') => {
+  const sendWelcomeEmail = async (
+    email: string, 
+    name: string, 
+    role: 'guest' | 'host',
+    options?: { templateId?: number; useTemplate?: boolean }
+  ) => {
     return sendEmail({
       type: 'welcome',
       email,
       name,
       role,
+      ...(options?.templateId && { templateId: options.templateId }),
+      ...(options?.useTemplate && { useTemplate: options.useTemplate }),
     });
   };
 
-  const sendPasswordResetEmail = async (email: string, token: string) => {
+  const sendPasswordResetEmail = async (
+    email: string, 
+    token: string,
+    options?: { templateId?: number; useTemplate?: boolean }
+  ) => {
     return sendEmail({
       type: 'password-reset',
       email,
       token,
+      ...(options?.templateId && { templateId: options.templateId }),
+      ...(options?.useTemplate && { useTemplate: options.useTemplate }),
     });
   };
 
-  const sendEmailVerification = async (email: string, token: string) => {
+  const sendEmailVerification = async (
+    email: string, 
+    token: string,
+    options?: { templateId?: number; useTemplate?: boolean }
+  ) => {
     return sendEmail({
       type: 'email-verification',
       email,
       token,
+      ...(options?.templateId && { templateId: options.templateId }),
+      ...(options?.useTemplate && { useTemplate: options.useTemplate }),
     });
   };
 

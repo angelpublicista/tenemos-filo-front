@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendWelcomeEmail, sendPasswordResetEmail, sendEmailVerification } from '@/lib/email/brevoService';
+import { 
+  sendWelcomeEmail, 
+  sendPasswordResetEmail, 
+  sendEmailVerification,
+  sendWelcomeEmailWithTemplate,
+  sendPasswordResetEmailWithTemplate,
+  sendEmailVerificationWithTemplate
+} from '@/lib/email/brevoService';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, email, name, role, token } = body;
+    const { type, email, name, role, token, useTemplate } = body;
+    
+    // Convertir templateId a number si está presente
+    const templateId = body.templateId ? Number(body.templateId) : undefined;
 
     if (!email) {
       return NextResponse.json(
@@ -23,7 +33,12 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        result = await sendWelcomeEmail(email, name, role);
+        // Usar plantilla de Brevo si se especifica
+        if (useTemplate && templateId && !isNaN(templateId)) {
+          result = await sendWelcomeEmailWithTemplate(email, name, role, templateId);
+        } else {
+          result = await sendWelcomeEmail(email, name, role);
+        }
         break;
 
       case 'password-reset':
@@ -33,7 +48,12 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        result = await sendPasswordResetEmail(email, token);
+        // Usar plantilla de Brevo si se especifica
+        if (useTemplate && templateId && !isNaN(templateId)) {
+          result = await sendPasswordResetEmailWithTemplate(email, token, templateId);
+        } else {
+          result = await sendPasswordResetEmail(email, token);
+        }
         break;
 
       case 'email-verification':
@@ -43,7 +63,12 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        result = await sendEmailVerification(email, token);
+        // Usar plantilla de Brevo si se especifica
+        if (useTemplate && templateId && !isNaN(templateId)) {
+          result = await sendEmailVerificationWithTemplate(email, token, templateId);
+        } else {
+          result = await sendEmailVerification(email, token);
+        }
         break;
 
       default:

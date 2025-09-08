@@ -58,6 +58,7 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   register: (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>) => Promise<{ user: { uid: string } }>;
   resetPassword: (email: string) => Promise<void>;
+  sendVerificationEmail: () => Promise<{ success: boolean; message: string }>;
 }
 
 // Tipos para componentes

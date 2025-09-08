@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail, UserCredential } from "firebase/auth";
+import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, UserCredential } from "firebase/auth";
 import { auth } from "./firebaseConfig";
 import { useRouter } from "next/navigation";
 import { createUserInSanity, getUserByFirebaseId } from "../sanity/userService";
@@ -110,6 +110,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       await createUserInSanity(sanityUserData);
       
+      // Enviar email de verificación de Firebase
+      try {
+        await sendEmailVerification(userCredential.user);
+        console.log('Email de verificación de Firebase enviado');
+      } catch (verificationError) {
+        console.error('Error enviando email de verificación de Firebase:', verificationError);
+        // No fallar el registro si el email de verificación falla
+      }
+
       // Obtener el usuario de Sanity para establecer el estado
       await fetchSanityUser(userCredential.user);
       
@@ -176,8 +185,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const sendVerificationEmail = async () => {
+    try {
+      if (!user) {
+        throw new Error('No hay usuario autenticado');
+      }
+      
+      if (user.emailVerified) {
+        throw new Error('El email ya está verificado');
+      }
+
+      await sendEmailVerification(user);
+      return { success: true, message: 'Email de verificación enviado correctamente' };
+    } catch (error: unknown) {
+      const errorMessage = getTranslatedFirebaseError(error);
+      throw new Error(errorMessage);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, sanityUser, loading, login, logout, register, resetPassword }}>
+    <AuthContext.Provider value={{ user, sanityUser, loading, login, logout, register, resetPassword, sendVerificationEmail }}>
       {children}
     </AuthContext.Provider>
   );

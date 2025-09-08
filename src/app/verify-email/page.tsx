@@ -6,7 +6,7 @@ import { applyActionCode, checkActionCode } from 'firebase/auth';
 import { auth } from '@/lib/firebase/firebaseConfig';
 import { Card } from 'flowbite-react';
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi';
-import { FiloLogo } from '@/components/FiloLogo';
+import FiloLogo from '@/components/FiloLogo';
 
 export default function VerifyEmailPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'invalid'>('loading');
@@ -39,14 +39,18 @@ export default function VerifyEmailPage() {
           router.push('/dashboard');
         }, 3000);
         
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error verificando email:', error);
         setStatus('error');
         
-        if (error.code === 'auth/invalid-action-code') {
-          setMessage('El código de verificación ha expirado o ya ha sido usado.');
-        } else if (error.code === 'auth/expired-action-code') {
-          setMessage('El código de verificación ha expirado. Solicita uno nuevo.');
+        if (error && typeof error === 'object' && 'code' in error) {
+          if (error.code === 'auth/invalid-action-code') {
+            setMessage('El código de verificación ha expirado o ya ha sido usado.');
+          } else if (error.code === 'auth/expired-action-code') {
+            setMessage('El código de verificación ha expirado. Solicita uno nuevo.');
+          } else {
+            setMessage('Error verificando el email. Intenta de nuevo más tarde.');
+          }
         } else {
           setMessage('Error verificando el email. Intenta de nuevo más tarde.');
         }

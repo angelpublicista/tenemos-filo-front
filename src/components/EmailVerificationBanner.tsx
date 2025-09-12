@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { Alert } from 'flowbite-react';
 import { HiInformationCircle } from 'react-icons/hi';
+import { FirebaseDebugInfo } from './FirebaseDebugInfo';
 
 export const EmailVerificationBanner = () => {
   const { user, sendVerificationEmail } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [lastError, setLastError] = useState<unknown>(null);
 
   // No mostrar si el usuario no existe, ya está verificado, o fue descartado
   if (!user || user.emailVerified || isDismissed) {
@@ -19,12 +21,14 @@ export const EmailVerificationBanner = () => {
   const handleSendVerification = async () => {
     setIsLoading(true);
     setMessage(null);
+    setLastError(null);
     
     try {
       const result = await sendVerificationEmail();
       setMessage(result.message);
       setTimeout(() => setMessage(null), 5000); // Limpiar mensaje después de 5 segundos
     } catch (error) {
+      setLastError(error);
       setMessage(error instanceof Error ? error.message : 'Error enviando email de verificación');
       setTimeout(() => setMessage(null), 5000);
     } finally {
@@ -67,6 +71,11 @@ export const EmailVerificationBanner = () => {
           </div>
         )}
       </Alert>
+      
+      {/* Mostrar información de debugging en ambiente de desarrollo */}
+      {lastError && process.env.NODE_ENV === 'development' && (
+        <FirebaseDebugInfo error={lastError} showDebug={true} />
+      )}
     </div>
   );
 };

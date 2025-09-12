@@ -116,6 +116,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('Email de verificación de Firebase enviado');
       } catch (verificationError) {
         console.error('Error enviando email de verificación de Firebase:', verificationError);
+        // Log detallado para debugging
+        if (verificationError && typeof verificationError === 'object' && 'code' in verificationError) {
+          console.error('Código de error Firebase:', verificationError.code);
+          if (verificationError.code === 'auth/unauthorized-domain') {
+            console.error('SOLUCIÓN: Agrega el dominio actual a los dominios autorizados en Firebase Console > Authentication > Settings > Authorized domains');
+          }
+        }
         // No fallar el registro si el email de verificación falla
       }
 
@@ -195,9 +202,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('El email ya está verificado');
       }
 
+      console.log('Enviando email de verificación desde dominio:', window.location.hostname);
       await sendEmailVerification(user);
       return { success: true, message: 'Email de verificación enviado correctamente' };
     } catch (error: unknown) {
+      console.error('Error detallado en sendVerificationEmail:', error);
+      // Log específico para errores de dominio
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/unauthorized-domain') {
+        console.error('DOMINIO NO AUTORIZADO:', window.location.hostname);
+        console.error('SOLUCIÓN: Agrega este dominio a Firebase Console > Authentication > Settings > Authorized domains');
+      }
       const errorMessage = getTranslatedFirebaseError(error);
       throw new Error(errorMessage);
     }

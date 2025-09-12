@@ -21,7 +21,7 @@ export default function Dashboard() {
       change: '+2.5%',
       changeType: 'positive',
       icon: AiOutlineCalendar,
-      color: 'bg-blue-500'
+      color: 'bg-[#F26726]' // Naranja principal
     },
     {
       title: 'Reservas Pendientes',
@@ -29,7 +29,7 @@ export default function Dashboard() {
       change: '+12%',
       changeType: 'positive',
       icon: AiOutlineTeam,
-      color: 'bg-green-500'
+      color: 'bg-[#19A3A2]' // Teal/Cyan
     },
     {
       title: 'Ingresos del Mes',
@@ -37,7 +37,7 @@ export default function Dashboard() {
       change: '+8.1%',
       changeType: 'positive',
       icon: AiOutlineDollar,
-      color: 'bg-yellow-500'
+      color: 'bg-[#EBD52C]' // Amarillo
     },
     {
       title: 'Crecimiento',
@@ -45,7 +45,7 @@ export default function Dashboard() {
       change: '+5.2%',
       changeType: 'positive',
       icon: AiOutlineRise,
-      color: 'bg-purple-500'
+      color: 'bg-[#E23694]' // Rosa/Magenta
     }
   ];
 
@@ -82,21 +82,21 @@ export default function Dashboard() {
       description: 'Organiza un nuevo evento',
       icon: BiBuildingHouse,
       href: '/events/create',
-      color: 'bg-[#f26726] hover:bg-[#f26726]/80'
+      color: 'bg-[#F26726] hover:bg-[#F26726]/80' // Naranja principal
     },
     {
       title: 'Ver Reservas',
       description: 'Gestiona las reservas pendientes',
       icon: AiOutlineTeam,
       href: '/reservations',
-      color: 'bg-green-600 hover:bg-green-700'
+      color: 'bg-[#19A3A2] hover:bg-[#19A3A2]/80' // Teal/Cyan
     },
     {
       title: 'Mis Eventos',
       description: 'Revisa tus eventos activos',
       icon: AiOutlineCalendar,
       href: '/my-events',
-      color: 'bg-blue-600 hover:bg-blue-700'
+      color: 'bg-[#334C5D] hover:bg-[#334C5D]/80' // Azul oscuro
     }
   ];
 

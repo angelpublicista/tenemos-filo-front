@@ -14,8 +14,8 @@ const customTheme = createTheme({
   button: {
     base: "rounded-full p-6 cursor-pointer",
     color: {
-      primary: "bg-[#f26726] text-white hover:bg-[#f26726]/80 transition",
-      gray: "bg-gray-200 text-gray-700 hover:bg-gray-300 transition",
+      primary: "bg-[#F26726] text-white hover:bg-[#F26726]/80 transition",
+      gray: "bg-gray-200 text-[#334C5D] hover:bg-gray-300 transition",
     }
   },
   textInput: {
@@ -23,7 +23,7 @@ const customTheme = createTheme({
       input: {
         base: "rounded-sm",
         colors: {
-          white: "bg-white text-gray-500 border-gray-300",
+          white: "bg-white text-[#334C5D] border-gray-300 focus:border-[#F26726] focus:ring-[#F26726]",
         },
       }
     }
@@ -32,7 +32,7 @@ const customTheme = createTheme({
     root: {
       base: "text-sm",
       colors: {
-        gray: "text-gray-600",
+        gray: "text-[#334C5D]",
       },
     },
   },
@@ -41,7 +41,7 @@ const customTheme = createTheme({
       base: "rounded-sm",
     },
     color: {
-      white: "text-gray-600 bg-white",
+      white: "text-[#334C5D] bg-white",
     },
   },
 });

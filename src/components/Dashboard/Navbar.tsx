@@ -47,17 +47,17 @@ export default function Navbar() {
       <NavbarToggle />
       
       <NavbarCollapse className="flex justify-end items-center [&>ul]:items-center [&>ul]:flex [&>ul]:h-full">
-        <NavbarLink href="/dashboard" className="text-gray-700 hover:text-[#f26726]">
+        <NavbarLink href="/dashboard" className="text-[#334C5D] hover:text-[#F26726]">
           Dashboard
         </NavbarLink>
-        <NavbarLink href="/events" className="text-gray-700 hover:text-[#f26726]">
+        <NavbarLink href="/events" className="text-[#334C5D] hover:text-[#F26726]">
           Eventos
         </NavbarLink>
-        <NavbarLink href="/reservations" className="text-gray-700 hover:text-[#f26726]">
+        <NavbarLink href="/reservations" className="text-[#334C5D] hover:text-[#F26726]">
           Reservas
         </NavbarLink>
         {sanityUser?.role === 'host' && (
-          <NavbarLink href="/my-events" className="text-gray-700 hover:text-[#f26726]">
+          <NavbarLink href="/my-events" className="text-[#334C5D] hover:text-[#F26726]">
             Mis Eventos
           </NavbarLink>
         )}

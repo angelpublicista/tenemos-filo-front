@@ -103,8 +103,8 @@ export default function Sidebar() {
                 href={item.href}
                 className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
                   item.current
-                    ? 'bg-[#f26726] text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-[#F26726] text-white'
+                    : 'text-[#334C5D] hover:bg-[#F26726]/10 hover:text-[#F26726]'
                 }`}
               >
                 <Icon className="w-6 h-6 flex-shrink-0" />

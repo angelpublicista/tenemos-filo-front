@@ -12,7 +12,8 @@ import {
 } from 'react-icons/ai';
 import { 
   BiBuildingHouse,
-  BiMap
+  BiMap,
+  BiStore
 } from 'react-icons/bi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -42,6 +43,12 @@ export default function Sidebar() {
       current: pathname === '/reservations'
     },
     ...(sanityUser?.role === 'host' ? [
+      {
+        name: 'Mi Empresa',
+        href: '/dashboard/company',
+        icon: BiStore,
+        current: pathname === '/dashboard/company'
+      },
       {
         name: 'Mis Eventos',
         href: '/my-events',

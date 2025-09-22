@@ -15,6 +15,7 @@ import "react-international-phone/style.css";
 import StepIndicator from './StepIndicator';
 import { CompleteCompanyData, Company } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import CompanyInfoView from './CompanyInfoView';
 
 // Esquemas de validación por pasos
 const basicInfoSchema = z.object({
@@ -245,7 +246,7 @@ export default function CompanySetupForm() {
   if (hasCompletedSetup && hasCompanyAssociated) {
     return (
       <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center mb-6">
           <div className="mb-4">
             <HiCheckCircle className="w-16 h-16 text-blue-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-[#334C5D] mb-2">
@@ -267,6 +268,13 @@ export default function CompanySetupForm() {
             Ir al Dashboard
           </Button>
         </div>
+
+        {/* Información de la Empresa */}
+        <CompanyInfoView 
+          showEditButton={true}
+          onEdit={() => setCurrentStep(1)}
+          className="mt-6"
+        />
       </div>
     );
   }

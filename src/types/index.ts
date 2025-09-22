@@ -1,3 +1,34 @@
+// Tipos para formularios de configuración de empresa por pasos
+export interface CompanyBasicInfo {
+  companyName: string;
+  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  description?: string;
+  companyEmail: string;
+  companyPhone: string;
+}
+
+export interface CompanyFiscalInfo {
+  documentType: 'nit' | 'cedula' | 'pasaporte' | 'other';
+  documentNumber: string;
+  businessName: string; // Razón social
+  website?: string;
+  address: {
+    street: string;
+    city: string;
+    state?: string;
+    postalCode?: string;
+    country: string;
+  };
+}
+
+export interface CompanySizeInfo {
+  employeeCount: '1-10' | '11-50' | '51-200' | '201-500' | '500+';
+  annualRevenue?: '0-100k' | '100k-500k' | '500k-1M' | '1M-5M' | '5M+';
+  businessYears?: '0-1' | '1-3' | '3-5' | '5-10' | '10+';
+}
+
+export interface CompleteCompanyData extends CompanyBasicInfo, CompanyFiscalInfo, CompanySizeInfo {}
+
 // Tipos para formularios de registro
 export interface RegisterFormData {
   fname: string;
@@ -24,7 +55,7 @@ export interface CreateUserData {
   email: string;
   role: 'guest' | 'host' | 'admin';
   phone: string;
-  typeDocument: 'cc' | 'ce' | 'ti' | 'pp';
+  typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
 }
 
@@ -42,6 +73,16 @@ export interface SanityUser {
   };
   role: 'guest' | 'host' | 'admin';
   phone: string;
+  typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
+  documentNumber: string;
+  company?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  locations?: Array<{
+    _ref: string;
+    _type: 'reference';
+  }>;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +90,12 @@ export interface SanityUser {
 
 // Tipos para autenticación
 import { User } from 'firebase/auth';
+
+export interface CompanySetupState {
+  hasCompletedSetup: boolean;
+  companyId?: string;
+  lastUpdated: string;
+}
 
 export interface AuthContextType {
   user: User | null;
@@ -59,6 +106,12 @@ export interface AuthContextType {
   register: (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>) => Promise<{ user: { uid: string } }>;
   resetPassword: (email: string) => Promise<void>;
   sendVerificationEmail: () => Promise<{ success: boolean; message: string }>;
+  // Funciones de company setup
+  markSetupCompleted: (companyId?: string) => void;
+  clearSetupState: () => void;
+  isSetupCompleted: () => boolean;
+  hasCompany: () => boolean;
+  companySetupState: CompanySetupState | null;
 }
 
 // Tipos para componentes
@@ -70,11 +123,12 @@ export interface ProtectedRouteProps {
 export interface Company {
   _id: string;
   _type: 'company';
-  name: string;
+  companyName: string;
   slug: {
     current: string;
     _type: 'slug';
   };
+  businessName?: string;
   description?: string;
   logo?: {
     asset: {
@@ -83,14 +137,25 @@ export interface Company {
     };
   };
   companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  companyEmail: string;
+  companyPhone: string;
+  documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
+  documentNumber?: string;
+  website?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  employeeCount?: '1-10' | '11-50' | '51-200' | '201-500' | '500+';
+  annualRevenue?: '0-100k' | '100k-500k' | '500k-1M' | '1M-5M' | '5M+';
+  businessYears?: '0-1' | '1-3' | '3-5' | '5-10' | '10+';
   locations?: Array<{
     _ref: string;
     _type: 'reference';
   }>;
-  contactInfo: {
-    email: string;
-    phone: string;
-  };
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -139,7 +204,7 @@ export interface HostStep1Data {
   email: string;
   password: string;
   confirmPassword: string;
-  typeDocument: 'cc' | 'ce' | 'ti' | 'pp';
+  typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
   terms: boolean;
 }
@@ -200,7 +265,7 @@ export interface GuestStep1Data {
   email: string;
   password: string;
   confirmPassword: string;
-  typeDocument: 'cc' | 'ce' | 'ti' | 'pp';
+  typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
   terms: boolean;
 }

@@ -66,6 +66,7 @@ export const createUserInSanity = async (userData: CreateUserData) => {
       phone: userData.phone,
       typeDocument: userData.typeDocument,
       documentNumber: userData.documentNumber,
+      hasCompletedCompanySetup: userData.role === 'host' ? false : true, // Hosts necesitan configurar empresa
       isActive: true, // Usuarios activos por defecto
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -130,5 +131,61 @@ export const updateUserLocations = async (firebaseId: string, locationIds: strin
   } catch (error) {
     console.error('Error updating user locations:', error);
     throw new Error('Failed to update user locations');
+  }
+};
+
+export const associateUserWithCompany = async (firebaseId: string, companyId: string) => {
+  try {
+    // Primero buscar el usuario por firebaseId
+    const user = await getUserByFirebaseId(firebaseId);
+    if (!user) {
+      throw new Error('Usuario no encontrado en Sanity');
+    }
+
+    // Crear la referencia a la empresa
+    const companyRef = {
+      _ref: companyId,
+      _type: 'reference',
+    };
+
+    // Actualizar el usuario con la referencia a la empresa en el campo company
+    const result = await sanityClient
+      .patch(user._id)
+      .set({ 
+        company: companyRef,
+        updatedAt: new Date().toISOString() 
+      })
+      .commit();
+
+    console.log('Usuario asociado con empresa exitosamente:', result._id);
+    return result;
+  } catch (error) {
+    console.error('Error associating user with company:', error);
+    throw new Error('Error al asociar usuario con empresa');
+  }
+};
+
+export const markCompanySetupCompleted = async (firebaseId: string) => {
+  try {
+    // Primero buscar el usuario por firebaseId
+    const user = await getUserByFirebaseId(firebaseId);
+    if (!user) {
+      throw new Error('Usuario no encontrado en Sanity');
+    }
+
+    // Solo actualizar campos que existen en el esquema de Sanity
+    // El campo hasCompletedCompanySetup se maneja en localStorage
+    const result = await sanityClient
+      .patch(user._id)
+      .set({ 
+        updatedAt: new Date().toISOString() 
+      })
+      .commit();
+
+    console.log('Setup de empresa marcado como completado:', result._id);
+    return result;
+  } catch (error) {
+    console.error('Error marking company setup as completed:', error);
+    throw new Error('Error al marcar setup como completado');
   }
 }; 

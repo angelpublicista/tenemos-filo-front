@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/firebase/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import CompanySetupAlert from "@/components/CompanySetupAlert";
 import { 
   AiOutlineCalendar,
   AiOutlineTeam,
@@ -129,6 +130,13 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Company Setup Alert */}
+        <CompanySetupAlert 
+          userRole={sanityUser?.role || 'guest'}
+          hasCompletedSetup={sanityUser?.hasCompletedCompanySetup || false}
+          hasCompanyId={!!sanityUser?.companyId}
+        />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

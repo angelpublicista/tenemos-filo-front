@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { createUserInSanity, getUserByFirebaseId } from "../sanity/userService";
 import { AuthContextType, CreateUserData, SanityUser } from "@/types";
 import { getTranslatedFirebaseError } from "./firebaseErrors";
+import { useCompanySetup } from "@/hooks/useCompanySetup";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -17,6 +18,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isRegistering, setIsRegistering] = useState(false);
   const router = useRouter();
+  const { companySetupState, markSetupCompleted, clearSetupState, isSetupCompleted, hasCompany } = useCompanySetup();
 
   // Función para obtener y verificar el usuario de Sanity
   const fetchSanityUser = async (firebaseUser: User) => {
@@ -63,11 +65,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Credenciales incorrectas. Verifica tu email y contraseña.');
       }
       
-      // Los usuarios ahora se crean activos por defecto, no necesitamos verificar isActive
-      // if (!userData.isActive) {
-      //   await signOut(auth);
-      //   throw new Error('Tu cuenta está pendiente de activación. Por favor, contacta al administrador.');
-      // }
+      // Verificar si el usuario necesita completar la configuración de empresa
+      // Usar solo localStorage como fuente de verdad
+      const hasCompletedSetup = isSetupCompleted();
+      
+      if (userData.role === 'host' && !hasCompletedSetup) {
+        router.push('/company-setup');
+        return;
+      }
       
       router.push('/dashboard');
     } catch (error: unknown) {
@@ -80,6 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await signOut(auth);
       setSanityUser(null);
+      clearSetupState(); // Limpiar el estado de company setup del localStorage
       router.push('/login');
     } catch (error: unknown) {
       const errorMessage = getTranslatedFirebaseError(error);
@@ -218,7 +224,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, sanityUser, loading, login, logout, register, resetPassword, sendVerificationEmail }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      sanityUser, 
+      loading, 
+      login, 
+      logout, 
+      register, 
+      resetPassword, 
+      sendVerificationEmail,
+      // Funciones de company setup
+      markSetupCompleted,
+      clearSetupState,
+      isSetupCompleted,
+      hasCompany,
+      companySetupState
+    }}>
       {children}
     </AuthContext.Provider>
   );

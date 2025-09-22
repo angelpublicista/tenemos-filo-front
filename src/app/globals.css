@@ -2,6 +2,22 @@
 @plugin "flowbite-react/plugin/tailwindcss";
 @source "../../.flowbite-react/class-list.json";
 
+/* Configuración de tema claro por defecto */
+:root {
+  --flowbite-theme-mode: light;
+}
+
+html {
+  color-scheme: light;
+}
+
 body {
   font-family: var(--font-poppins);
+  background-color: #f9fafb; /* bg-gray-50 */
+  color: #111827; /* text-gray-900 */
+}
+
+/* Asegurar que todos los elementos usen tema claro */
+* {
+  color-scheme: light;
 }

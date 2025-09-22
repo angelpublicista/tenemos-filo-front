@@ -188,4 +188,36 @@ export const markCompanySetupCompleted = async (firebaseId: string) => {
     console.error('Error marking company setup as completed:', error);
     throw new Error('Error al marcar setup como completado');
   }
+};
+
+export const updateUserProfile = async (firebaseId: string, updateData: Partial<SanityUser>) => {
+  try {
+    const user = await getUserByFirebaseId(firebaseId);
+    if (!user) {
+      throw new Error('Usuario no encontrado en Sanity');
+    }
+
+    // Preparar los datos de actualización
+    const updateFields = {
+      ...updateData,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Remover campos que no deben ser actualizados directamente
+    delete updateFields._id;
+    delete updateFields._type;
+    delete updateFields.firebaseId;
+    delete updateFields.createdAt;
+
+    const result = await sanityClient
+      .patch(user._id)
+      .set(updateFields)
+      .commit();
+
+    console.log('Perfil de usuario actualizado exitosamente:', result._id);
+    return result;
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw new Error('Error al actualizar el perfil del usuario');
+  }
 }; 

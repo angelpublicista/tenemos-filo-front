@@ -8,7 +8,7 @@ import { Button } from 'flowbite-react';
 import { 
   HiPencilAlt, 
   HiCheckCircle, 
-  HiExclamationTriangle,
+  HiExclamationCircle,
   HiRefresh
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
@@ -75,7 +75,7 @@ export default function CompanyInfoView({
     return (
       <div className={`bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center ${className}`}>
         <div className="mb-4">
-          <HiExclamationTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <HiExclamationCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-[#334C5D] mb-2">
             No hay información de empresa
           </h2>

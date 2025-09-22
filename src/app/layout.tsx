@@ -11,6 +11,8 @@ const poppins = Poppins({
 });
 
 const customTheme = createTheme({
+  // Configurar tema claro por defecto
+  mode: 'light',
   button: {
     base: "rounded-full p-6 cursor-pointer",
     color: {

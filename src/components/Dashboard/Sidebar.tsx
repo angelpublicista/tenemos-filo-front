@@ -8,7 +8,8 @@ import {
   AiOutlineTeam,
   AiOutlineSetting,
   AiOutlineBarChart,
-  AiOutlineBell
+  AiOutlineBell,
+  AiOutlineUser
 } from 'react-icons/ai';
 import { 
   BiBuildingHouse,
@@ -41,6 +42,12 @@ export default function Sidebar() {
       href: '/reservations',
       icon: AiOutlineTeam,
       current: pathname === '/reservations'
+    },
+    {
+      name: 'Mi Perfil',
+      href: '/dashboard/profile',
+      icon: AiOutlineUser,
+      current: pathname === '/dashboard/profile'
     },
     ...(sanityUser?.role === 'host' ? [
       {

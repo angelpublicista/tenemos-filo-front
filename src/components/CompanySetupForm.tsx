@@ -242,8 +242,8 @@ export default function CompanySetupForm() {
   });
   
   // Si el usuario ya completó el setup Y tiene empresa asociada, mostrar mensaje de completado
-  // Independientemente de si hay datos existentes o no
-  if (hasCompletedSetup && hasCompanyAssociated) {
+  // PERO solo si NO hay datos existentes para editar
+  if (hasCompletedSetup && hasCompanyAssociated && !existingCompany) {
     return (
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center mb-6">

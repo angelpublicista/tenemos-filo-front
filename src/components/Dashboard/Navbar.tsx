@@ -50,17 +50,12 @@ export default function Navbar() {
         <NavbarLink href="/dashboard" className="text-[#334C5D] hover:text-[#F26726]">
           Dashboard
         </NavbarLink>
-        <NavbarLink href="/events" className="text-[#334C5D] hover:text-[#F26726]">
-          Eventos
+        <NavbarLink href="/dashboard/experiences" className="text-[#334C5D] hover:text-[#F26726]">
+          Mis Experiencias
         </NavbarLink>
         <NavbarLink href="/reservations" className="text-[#334C5D] hover:text-[#F26726]">
           Reservas
         </NavbarLink>
-        {sanityUser?.role === 'host' && (
-          <NavbarLink href="/my-events" className="text-[#334C5D] hover:text-[#F26726]">
-            Mis Eventos
-          </NavbarLink>
-        )}
         
         <div className="flex items-center gap-3 ml-4">
           <Dropdown
@@ -79,10 +74,10 @@ export default function Navbar() {
           >
             <DropdownItem className="px-4 py-2">
               <div className="flex flex-col justify-start items-start">
-                <span className="text-sm font-medium text-gray-200">
+                <span className="text-sm font-medium">
                   {getUserDisplayName()}
                 </span>
-                <span className="text-xs text-gray-300">
+                <span className="text-xs ">
                   {sanityUser?.role === 'host' ? 'Anfitrión' : 
                    sanityUser?.role === 'admin' ? 'Administrador' : 'Comensal'}
                 </span>

@@ -50,7 +50,7 @@ const customTheme = createTheme({
 
 export const metadata: Metadata = {
   title: "Tenemos Filo",
-  description: "Plataforma de eventos gastronómicos",
+  description: "Plataforma de experiencias gastronómicas",
 };
 
 // Configuración para evitar prerenderización

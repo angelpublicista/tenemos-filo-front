@@ -230,20 +230,119 @@ export interface HostStep3Data {
   maxGuests?: number;
 }
 
-// Tipos para eventos (futuro)
-export interface Event {
+// Tipos para experiencias
+export interface Experience {
   _id: string;
-  _type: 'event';
+  _type: 'experience';
   title: string;
+  slug: {
+    _type: 'slug';
+    current: string;
+  };
+  company: {
+    _ref: string;
+    _type: 'reference';
+  };
   description: string;
-  hostId: string;
-  date: string;
-  location: string;
-  maxGuests: number;
-  price: number;
-  isActive: boolean;
+  category: 'cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other';
+  duration: number; // minutos
+  capacity: number;
+  minCapacity?: number;
+  basePrice: number;
+  currency: 'COP' | 'USD';
+  images?: Array<{
+    _key: string;
+    _type: 'image';
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+    hotspot?: {
+      x: number;
+      y: number;
+      height: number;
+      width: number;
+    };
+  }>;
+  location?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  isVirtual: boolean;
+  virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  availability?: {
+    days?: string[];
+    timeSlots?: string[];
+  };
+  requirements?: string[];
+  includes?: string[];
+  addons?: Array<{
+    _key: string;
+    name: string;
+    price: number;
+    description?: string;
+  }>;
+  status: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
+  isFeatured: boolean;
+  rating?: number;
+  totalBookings: number;
+  totalRevenue: number;
   createdAt: string;
   updatedAt: string;
+}
+
+// Tipos para crear/actualizar experiencias
+export interface CreateExperienceData {
+  title: string;
+  company: string; // company ID
+  description: string;
+  category: 'cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other';
+  duration: number;
+  capacity: number;
+  minCapacity?: number;
+  basePrice: number;
+  currency: 'COP' | 'USD';
+  images?: string[]; // URLs de imágenes
+  location?: string; // location ID
+  isVirtual: boolean;
+  virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  availability?: {
+    days?: string[];
+    timeSlots?: string[];
+  };
+  requirements?: string[];
+  includes?: string[];
+  addons?: Array<{
+    name: string;
+    price: number;
+    description?: string;
+  }>;
+  status?: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
+  isFeatured?: boolean;
+}
+
+export interface UpdateExperienceData extends Partial<CreateExperienceData> {
+  _id: string;
+}
+
+// Tipos para filtros y búsqueda
+export interface ExperienceFilters {
+  category?: string;
+  status?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  duration?: number;
+  isVirtual?: boolean;
+  isFeatured?: boolean;
+}
+
+export interface ExperienceSearchParams {
+  query?: string;
+  filters?: ExperienceFilters;
+  sortBy?: 'title' | 'price' | 'rating' | 'createdAt' | 'totalBookings';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 }
 
 // Tipos para reservas (futuro)

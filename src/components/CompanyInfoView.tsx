@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { getCompanyByUserId } from '@/lib/sanity/companyService';
 import { Company } from '@/types';
@@ -24,6 +25,7 @@ export default function CompanyInfoView({
   onEdit,
   className = ""
 }: CompanyInfoViewProps) {
+  const router = useRouter();
   const { user, hasCompany } = useAuth();
   const [existingCompany, setExistingCompany] = useState<Company | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -55,8 +57,8 @@ export default function CompanyInfoView({
     if (onEdit) {
       onEdit();
     } else {
-      // Redirigir al company-setup para editar
-      window.location.href = '/company-setup';
+      // Redirigir al company-setup para editar usando Next.js router
+      router.push('/company-setup');
     }
   };
 
@@ -79,7 +81,7 @@ export default function CompanyInfoView({
         </div>
         <Button
           color="warning"
-          onClick={() => window.location.href = '/company-setup'}
+          onClick={() => router.push('/company-setup')}
           className="px-8 py-3"
         >
           Completar Registro de Empresa
@@ -105,7 +107,7 @@ export default function CompanyInfoView({
           <Button
             color="gray"
             onClick={handleEdit}
-            className="px-6 py-2 text-white"
+            className="px-6 py-2"
           >
             <HiPencilAlt className="w-4 h-4 mr-2" />
             Editar Información
@@ -209,7 +211,7 @@ export default function CompanyInfoView({
               <label className="text-sm font-medium text-gray-500 block mb-1">
                 Número de Documento
               </label>
-              <p className="text-gray-900 font-mono">{existingCompany.documentNumber}</p>
+              <p className="text-gray-900">{existingCompany.documentNumber}</p>
             </div>
 
             {existingCompany.businessName && (

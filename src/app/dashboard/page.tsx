@@ -17,7 +17,7 @@ export default function Dashboard() {
 
   const stats = [
     {
-      title: 'Eventos Activos',
+      title: 'Experiencias Activas',
       value: '12',
       change: '+2.5%',
       changeType: 'positive',
@@ -53,8 +53,8 @@ export default function Dashboard() {
   const recentActivities = [
     {
       id: 1,
-      type: 'event',
-      title: 'Nuevo evento creado',
+      type: 'experience',
+      title: 'Nueva experiencia creada',
       description: 'Cena de gala en Restaurante El Bueno',
       time: 'Hace 2 horas',
       icon: AiOutlineCalendar
@@ -79,10 +79,10 @@ export default function Dashboard() {
 
   const quickActions = [
     {
-      title: 'Crear Evento',
-      description: 'Organiza un nuevo evento',
+      title: 'Crear Experiencia',
+      description: 'Organiza una nueva experiencia',
       icon: BiBuildingHouse,
-      href: '/events/create',
+      href: '/dashboard/experiences/create',
       color: 'bg-[#F26726] hover:bg-[#F26726]/80' // Naranja principal
     },
     {
@@ -93,10 +93,10 @@ export default function Dashboard() {
       color: 'bg-[#19A3A2] hover:bg-[#19A3A2]/80' // Teal/Cyan
     },
     {
-      title: 'Mis Eventos',
-      description: 'Revisa tus eventos activos',
+      title: 'Mis Experiencias',
+      description: 'Revisa tus experiencias activas',
       icon: AiOutlineCalendar,
-      href: '/my-events',
+      href: '/dashboard/experiences',
       color: 'bg-[#334C5D] hover:bg-[#334C5D]/80' // Azul oscuro
     }
   ];

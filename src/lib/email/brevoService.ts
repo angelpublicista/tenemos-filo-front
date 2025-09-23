@@ -113,8 +113,8 @@ export const sendWelcomeEmailWithTemplate = async (
           FIRSTNAME: userName,
           ROLE: role === 'host' ? 'Anfitrión' : 'Comensal',
           ROLE_BENEFITS: role === 'host' 
-            ? 'Crear experiencias gastronómicas únicas, Gestionar tus eventos y reservas, Conectar con comensales apasionados'
-            : 'Descubrir experiencias gastronómicas únicas, Reservar en eventos exclusivos, Conectar con anfitriones talentosos',
+            ? 'Crear experiencias gastronómicas únicas, Gestionar tus experiencias y reservas, Conectar con comensales apasionados'
+            : 'Descubrir experiencias gastronómicas únicas, Reservar en experiencias exclusivas, Conectar con anfitriones talentosos',
           APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://tenemosfilo.com'
         }
       });
@@ -163,8 +163,8 @@ export const sendWelcomeEmail = async (userEmail: string, userName: string, role
           <p>Con tu cuenta podrás:</p>
           <ul>
             ${role === 'host' 
-              ? '<li>Crear experiencias gastronómicas únicas</li><li>Gestionar tus eventos y reservas</li><li>Conectar con comensales apasionados</li>'
-              : '<li>Descubrir experiencias gastronómicas únicas</li><li>Reservar en eventos exclusivos</li><li>Conectar con anfitriones talentosos</li>'
+              ? '<li>Crear experiencias gastronómicas únicas</li><li>Gestionar tus experiencias y reservas</li><li>Conectar con comensales apasionados</li>'
+              : '<li>Descubrir experiencias gastronómicas únicas</li><li>Reservar en experiencias exclusivas</li><li>Conectar con anfitriones talentosos</li>'
             }
           </ul>
           

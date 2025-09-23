@@ -28,13 +28,13 @@ function RegisterContent() {
         <div className="flex items-center border-b border-gray-200 w-full space-x-4">
             <button className={`flex items-center gap-2 text-sm p-4 hover:text-[#f26726] transition border-b ${isHost ? 'border-[#f26726] text-[#f26726]' : 'border-transparent text-gray-500'} cursor-pointer`} onClick={() => setIsHost(true)}>
                 Anfitrión
-                <Tooltip content="Con este tipo de cuenta podrás crear eventos y gestionarlos.">
+                <Tooltip content="Con este tipo de cuenta podrás crear experiencias y gestionarlas.">
                     <RiInformationLine className='w-4 h-4' />
                 </Tooltip>
             </button>
             <button className={`flex items-center gap-2 text-sm p-4 hover:text-[#f26726] transition border-b ${isHost ? 'border-transparent text-gray-500' : 'border-[#f26726] text-[#f26726]'} cursor-pointer`} onClick={() => setIsHost(false)}>
                 Comensal
-                <Tooltip content="Con este tipo de cuenta podrás consultar eventos y reservar.">
+                <Tooltip content="Con este tipo de cuenta podrás consultar experiencias y reservar.">
                     <RiInformationLine className='w-4 h-4' />
                 </Tooltip>
             </button>

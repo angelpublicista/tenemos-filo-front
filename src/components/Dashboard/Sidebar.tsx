@@ -32,10 +32,10 @@ export default function Sidebar() {
       current: pathname === '/dashboard'
     },
     {
-      name: 'Eventos',
-      href: '/events',
+      name: 'Mis Experiencias',
+      href: '/dashboard/experiences',
       icon: AiOutlineCalendar,
-      current: pathname === '/events'
+      current: pathname === '/dashboard/experiences'
     },
     {
       name: 'Reservas',
@@ -55,12 +55,6 @@ export default function Sidebar() {
         href: '/dashboard/company',
         icon: BiStore,
         current: pathname === '/dashboard/company'
-      },
-      {
-        name: 'Mis Eventos',
-        href: '/my-events',
-        icon: BiBuildingHouse,
-        current: pathname === '/my-events'
       },
       {
         name: 'Mis Sedes',

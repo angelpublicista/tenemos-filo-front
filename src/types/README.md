@@ -27,8 +27,8 @@ Este archivo centraliza todos los tipos de TypeScript utilizados en el proyecto.
 ### Componentes
 - `ProtectedRouteProps`: Props para componente de ruta protegida
 
-### Futuro (Eventos y Reservas)
-- `Event`: Estructura de eventos
+### Futuro (Experiencias y Reservas)
+- `Experience`: Estructura de experiencias
 - `Reservation`: Estructura de reservas
 
 ## Uso

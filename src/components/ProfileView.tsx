@@ -156,7 +156,7 @@ export default function ProfileView() {
           <Button
             color="gray"
             onClick={() => setIsEditing(true)}
-            className="px-6 py-2 text-white"
+            className="px-6 py-2"
           >
             <HiPencilAlt className="w-4 h-4 mr-2" />
             Editar Perfil

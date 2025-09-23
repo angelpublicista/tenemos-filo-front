@@ -5,6 +5,18 @@ import { useAuth } from '@/lib/firebase/AuthContext';
 import { getExperiencesByCompany, getExperienceStatsByCompany } from '@/lib/sanity/experienceService';
 import { getCompanyByUserId } from '@/lib/sanity/companyService';
 import { Experience, Company } from '@/types';
+
+interface ExperienceStats {
+  total: number;
+  active: number;
+  draft: number;
+  pending: number;
+  paused: number;
+  inactive: number;
+  totalBookings: number;
+  totalRevenue: number;
+  averageRating: number;
+}
 import { Button, Card, Select, Badge } from 'flowbite-react';
 import { 
   HiPlus, 
@@ -31,7 +43,7 @@ export default function ExperiencesPage() {
   const { showError } = useSweetAlert();
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<ExperienceStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -235,7 +247,7 @@ export default function ExperiencesPage() {
             <Button
               color="primary"
               href="/dashboard/experiences/create"
-              className="px-6 py-3"
+              className="px-6 py-3 w-auto inline-flex"
             >
               <HiPlus className="w-5 h-5 mr-2" />
               Crear Primera Experiencia

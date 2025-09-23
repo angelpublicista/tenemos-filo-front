@@ -29,8 +29,11 @@ const experienceSchema = z.object({
   minCapacity: z.number().min(1).optional(),
   basePrice: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
   currency: z.enum(['COP', 'USD']),
-  isVirtual: z.boolean(),
+  experienceType: z.enum(['virtual', 'presential', 'hybrid']),
   virtualPlatform: z.enum(['zoom', 'google_meet', 'teams', 'other']).optional(),
+  location: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
   status: z.enum(['draft', 'pending', 'active', 'paused', 'inactive']),
   isFeatured: z.boolean(),
 });
@@ -66,14 +69,17 @@ export default function CreateExperiencePage() {
       minCapacity: 1,
       basePrice: 0,
       currency: 'COP',
-      isVirtual: false,
+      experienceType: 'presential',
       virtualPlatform: 'zoom',
+      location: '',
+      address: '',
+      city: '',
       status: 'draft',
       isFeatured: false,
     }
   });
 
-  const isVirtual = watch('isVirtual');
+  const experienceType = watch('experienceType');
   const minCapacity = watch('minCapacity');
   const capacity = watch('capacity');
 
@@ -151,7 +157,7 @@ export default function CreateExperiencePage() {
     setAddons(addons.filter((_, i) => i !== index));
   };
 
-  const updateAddon = (index: number, field: string, value: any) => {
+  const updateAddon = (index: number, field: string, value: string | number) => {
     const newAddons = [...addons];
     newAddons[index] = { ...newAddons[index], [field]: value };
     setAddons(newAddons);
@@ -174,6 +180,9 @@ export default function CreateExperiencePage() {
         requirements: requirements.filter(req => req.trim() !== ''),
         includes: includes.filter(inc => inc.trim() !== ''),
         addons: addons.filter(addon => addon.name.trim() !== ''),
+        presentialLocation: data.location,
+        presentialAddress: data.address,
+        presentialCity: data.city,
       };
 
       await createExperienceInSanity(experienceData);
@@ -252,7 +261,7 @@ export default function CreateExperiencePage() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="lg:col-span-2">
-              <Label htmlFor="title" value="Título de la Experiencia *" />
+              <Label htmlFor="title">Título de la Experiencia *</Label>
               <TextInput
                 {...register('title')}
                 placeholder="Ej: Clase de Cocina Italiana"
@@ -264,7 +273,7 @@ export default function CreateExperiencePage() {
             </div>
 
             <div className="lg:col-span-2">
-              <Label htmlFor="description" value="Descripción *" />
+              <Label htmlFor="description">Descripción *</Label>
               <Textarea
                 {...register('description')}
                 placeholder="Describe detalladamente tu experiencia..."
@@ -277,7 +286,7 @@ export default function CreateExperiencePage() {
             </div>
 
             <div>
-              <Label htmlFor="category" value="Categoría *" />
+              <Label htmlFor="category">Categoría *</Label>
               <Select {...register('category')} className="mt-1">
                 <option value="cooking">Cocina</option>
                 <option value="mixology">Mixología</option>
@@ -294,7 +303,7 @@ export default function CreateExperiencePage() {
             </div>
 
             <div>
-              <Label htmlFor="duration" value="Duración (minutos) *" />
+              <Label htmlFor="duration">Duración (minutos) *</Label>
               <TextInput
                 {...register('duration', { valueAsNumber: true })}
                 type="number"
@@ -317,7 +326,7 @@ export default function CreateExperiencePage() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="capacity" value="Capacidad Máxima *" />
+              <Label htmlFor="capacity">Capacidad Máxima *</Label>
               <TextInput
                 {...register('capacity', { valueAsNumber: true })}
                 type="number"
@@ -331,7 +340,7 @@ export default function CreateExperiencePage() {
             </div>
 
             <div>
-              <Label htmlFor="minCapacity" value="Capacidad Mínima" />
+              <Label htmlFor="minCapacity">Capacidad Mínima</Label>
               <TextInput
                 {...register('minCapacity', { valueAsNumber: true })}
                 type="number"
@@ -345,7 +354,7 @@ export default function CreateExperiencePage() {
             </div>
 
             <div>
-              <Label htmlFor="basePrice" value="Precio Base por Persona *" />
+              <Label htmlFor="basePrice">Precio Base por Persona *</Label>
               <TextInput
                 {...register('basePrice', { valueAsNumber: true })}
                 type="number"
@@ -359,7 +368,7 @@ export default function CreateExperiencePage() {
             </div>
 
             <div>
-              <Label htmlFor="currency" value="Moneda *" />
+              <Label htmlFor="currency">Moneda *</Label>
               <Select {...register('currency')} className="mt-1">
                 <option value="COP">Peso Colombiano (COP)</option>
                 <option value="USD">Dólar Americano (USD)</option>
@@ -378,23 +387,58 @@ export default function CreateExperiencePage() {
           </h2>
           
           <div className="space-y-4">
-            <div className="flex items-center">
-              <Checkbox
-                {...register('isVirtual')}
-                className="mr-3"
-              />
-              <Label htmlFor="isVirtual" value="Experiencia Virtual" />
+            <div>
+              <Label htmlFor="experienceType">Tipo de Experiencia *</Label>
+              <Select {...register('experienceType')} className="mt-1">
+                <option value="presential">Presencial</option>
+                <option value="virtual">Virtual</option>
+                <option value="hybrid">Híbrida (Presencial + Virtual)</option>
+              </Select>
+              {errors.experienceType && (
+                <p className="text-red-500 text-sm mt-1">{errors.experienceType.message}</p>
+              )}
             </div>
 
-            {isVirtual && (
+            {(experienceType === 'virtual' || experienceType === 'hybrid') && (
               <div>
-                <Label htmlFor="virtualPlatform" value="Plataforma Virtual" />
+                <Label htmlFor="virtualPlatform">Plataforma Virtual</Label>
                 <Select {...register('virtualPlatform')} className="mt-1">
                   <option value="zoom">Zoom</option>
                   <option value="google_meet">Google Meet</option>
                   <option value="teams">Microsoft Teams</option>
                   <option value="other">Otra</option>
                 </Select>
+              </div>
+            )}
+
+            {(experienceType === 'presential' || experienceType === 'hybrid') && (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="location">Ubicación/Nombre del Lugar</Label>
+                  <TextInput
+                    {...register('location')}
+                    placeholder="Ej: Cocina Principal, Salón de Eventos"
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="address">Dirección</Label>
+                  <TextInput
+                    {...register('address')}
+                    placeholder="Ej: Calle 123 #45-67"
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="city">Ciudad</Label>
+                  <TextInput
+                    {...register('city')}
+                    placeholder="Ej: Bogotá"
+                    className="mt-1"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -426,16 +470,16 @@ export default function CreateExperiencePage() {
                   placeholder="Ej: Conocimientos básicos de cocina"
                   className="flex-1"
                 />
-                <Button
-                  type="button"
-                  color="red"
-                  size="sm"
-                  onClick={() => removeRequirement(index)}
-                  disabled={requirements.length === 1}
-                >
-                  <HiMinus className="w-4 h-4" />
-                </Button>
-              </div>
+                  <Button
+                    type="button"
+                    color="red"
+                    size="sm"
+                    onClick={() => removeRequirement(index)}
+                    disabled={requirements.length === 1}
+                  >
+                    <HiMinus className="w-4 h-4" />
+                  </Button>
+                </div>
             ))}
           </div>
         </div>
@@ -466,16 +510,16 @@ export default function CreateExperiencePage() {
                   placeholder="Ej: Ingredientes frescos, recetario, certificado"
                   className="flex-1"
                 />
-                <Button
-                  type="button"
-                  color="red"
-                  size="sm"
-                  onClick={() => removeInclude(index)}
-                  disabled={includes.length === 1}
-                >
-                  <HiMinus className="w-4 h-4" />
-                </Button>
-              </div>
+                  <Button
+                    type="button"
+                    color="red"
+                    size="sm"
+                    onClick={() => removeInclude(index)}
+                    disabled={includes.length === 1}
+                  >
+                    <HiMinus className="w-4 h-4" />
+                  </Button>
+                </div>
             ))}
           </div>
         </div>
@@ -542,7 +586,7 @@ export default function CreateExperiencePage() {
           
           <div className="space-y-4">
             <div>
-              <Label htmlFor="status" value="Estado *" />
+              <Label htmlFor="status">Estado *</Label>
               <Select {...register('status')} className="mt-1">
                 <option value="draft">Borrador</option>
                 <option value="pending">Pendiente de Aprobación</option>
@@ -560,7 +604,7 @@ export default function CreateExperiencePage() {
                 {...register('isFeatured')}
                 className="mr-3"
               />
-              <Label htmlFor="isFeatured" value="Experiencia Destacada" />
+              <Label htmlFor="isFeatured">Experiencia Destacada</Label>
             </div>
           </div>
         </div>

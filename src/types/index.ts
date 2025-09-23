@@ -268,8 +268,11 @@ export interface Experience {
     _ref: string;
     _type: 'reference';
   };
-  isVirtual: boolean;
+  experienceType: 'virtual' | 'presential' | 'hybrid';
   virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  presentialLocation?: string;
+  presentialAddress?: string;
+  presentialCity?: string;
   availability?: {
     days?: string[];
     timeSlots?: string[];
@@ -304,8 +307,11 @@ export interface CreateExperienceData {
   currency: 'COP' | 'USD';
   images?: string[]; // URLs de imágenes
   location?: string; // location ID
-  isVirtual: boolean;
+  experienceType: 'virtual' | 'presential' | 'hybrid';
   virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  presentialLocation?: string;
+  presentialAddress?: string;
+  presentialCity?: string;
   availability?: {
     days?: string[];
     timeSlots?: string[];
@@ -332,7 +338,7 @@ export interface ExperienceFilters {
   minPrice?: number;
   maxPrice?: number;
   duration?: number;
-  isVirtual?: boolean;
+  experienceType?: 'virtual' | 'presential' | 'hybrid';
   isFeatured?: boolean;
 }
 

@@ -283,7 +283,7 @@ export const getExperienceById = async (experienceId: string): Promise<Experienc
 // Actualizar experiencia
 export const updateExperienceInSanity = async (experienceData: UpdateExperienceData) => {
   try {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       title: experienceData.title,
       description: experienceData.description,
       category: experienceData.category,
@@ -451,15 +451,15 @@ export const getExperienceStatsByCompany = async (companyId: string) => {
     
     const stats = {
       total: experiences.length,
-      active: experiences.filter(e => e.status === 'active').length,
-      draft: experiences.filter(e => e.status === 'draft').length,
-      pending: experiences.filter(e => e.status === 'pending').length,
-      paused: experiences.filter(e => e.status === 'paused').length,
-      inactive: experiences.filter(e => e.status === 'inactive').length,
-      totalBookings: experiences.reduce((sum, e) => sum + (e.totalBookings || 0), 0),
-      totalRevenue: experiences.reduce((sum, e) => sum + (e.totalRevenue || 0), 0),
+      active: experiences.filter((e: Record<string, unknown>) => e.status === 'active').length,
+      draft: experiences.filter((e: Record<string, unknown>) => e.status === 'draft').length,
+      pending: experiences.filter((e: Record<string, unknown>) => e.status === 'pending').length,
+      paused: experiences.filter((e: Record<string, unknown>) => e.status === 'paused').length,
+      inactive: experiences.filter((e: Record<string, unknown>) => e.status === 'inactive').length,
+      totalBookings: experiences.reduce((sum: number, e: Record<string, unknown>) => sum + ((e.totalBookings as number) || 0), 0),
+      totalRevenue: experiences.reduce((sum: number, e: Record<string, unknown>) => sum + ((e.totalRevenue as number) || 0), 0),
       averageRating: experiences.length > 0 
-        ? experiences.reduce((sum, e) => sum + (e.rating || 0), 0) / experiences.length 
+        ? experiences.reduce((sum: number, e: Record<string, unknown>) => sum + ((e.rating as number) || 0), 0) / experiences.length 
         : 0,
     };
 

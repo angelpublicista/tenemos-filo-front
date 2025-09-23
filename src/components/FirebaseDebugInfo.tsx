@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Alert } from 'flowbite-react';
-import { HiExclamationTriangle, HiInformationCircle } from 'react-icons/hi';
+import { HiExclamationCircle, HiInformationCircle } from 'react-icons/hi';
 
 interface FirebaseDebugInfoProps {
   error: unknown;
@@ -38,7 +38,7 @@ export const FirebaseDebugInfo = ({ error, showDebug = false }: FirebaseDebugInf
 
   return (
     <div className="mt-4">
-      <Alert color="warning" icon={HiExclamationTriangle}>
+      <Alert color="warning" icon={HiExclamationCircle}>
         <div>
           <h3 className="text-lg font-medium">Error de Firebase Detectado</h3>
           <p className="mt-2">{errorMessage}</p>

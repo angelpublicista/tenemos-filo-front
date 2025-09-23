@@ -135,12 +135,13 @@ export default function ExperienceCard({
             {experience.capacity} personas
           </div>
           <div className="flex items-center">
-            {experience.isVirtual ? (
+            {experience.experienceType === 'virtual' ? (
               <HiVideoCamera className="w-4 h-4 mr-1" />
             ) : (
               <HiLocationMarker className="w-4 h-4 mr-1" />
             )}
-            {experience.isVirtual ? 'Virtual' : 'Presencial'}
+            {experience.experienceType === 'virtual' ? 'Virtual' : 
+             experience.experienceType === 'hybrid' ? 'Híbrida' : 'Presencial'}
           </div>
         </div>
 

@@ -46,7 +46,7 @@ interface ReservationStats {
 export default function ReservationsPage() {
   const { user, sanityUser } = useAuth();
   const router = useRouter();
-  const { showSuccess, showError, showConfirm } = useSweetAlert();
+  const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
   const [stats, setStats] = useState<ReservationStats | null>(null);
@@ -511,7 +511,6 @@ export default function ReservationsPage() {
                           onChange={(e) => handleStatusChange(reservation._id, e.target.value as Reservation['status'])}
                           disabled={isUpdating === reservation._id}
                           className="w-32 text-xs"
-                          size="sm"
                         >
                           <option value="pending">Pendiente</option>
                           <option value="confirmed">Confirmada</option>
@@ -608,7 +607,6 @@ export default function ReservationsPage() {
                           onChange={(e) => handleStatusChange(reservation._id, e.target.value as Reservation['status'])}
                           disabled={isUpdating === reservation._id}
                           className="w-28 text-xs"
-                          size="xs"
                         >
                           <option value="pending">Pendiente</option>
                           <option value="confirmed">Confirmada</option>

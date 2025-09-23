@@ -28,7 +28,7 @@ export const useSweetAlert = () => {
       customClass: {
         popup: 'rounded-lg',
         title: 'text-[#334C5D] font-semibold',
-        content: 'text-gray-600',
+        htmlContainer: 'text-gray-600',
         confirmButton: 'rounded-lg px-6 py-2 font-medium',
         cancelButton: 'rounded-lg px-6 py-2 font-medium'
       }

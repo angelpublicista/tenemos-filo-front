@@ -266,7 +266,7 @@ export const getReservationById = async (reservationId: string): Promise<Reserva
 // Actualizar reserva
 export const updateReservationInSanity = async (reservationData: UpdateReservationData) => {
   try {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       client: reservationData.client,
       reservationDate: reservationData.reservationDate,
       duration: reservationData.duration,
@@ -429,20 +429,20 @@ export const getReservationStatsByCompany = async (companyId: string) => {
     
     const stats = {
       total: reservations.length,
-      pending: reservations.filter(r => r.status === 'pending').length,
-      confirmed: reservations.filter(r => r.status === 'confirmed').length,
-      inProgress: reservations.filter(r => r.status === 'in_progress').length,
-      completed: reservations.filter(r => r.status === 'completed').length,
-      cancelled: reservations.filter(r => r.status === 'cancelled').length,
-      noShow: reservations.filter(r => r.status === 'no_show').length,
-      rescheduled: reservations.filter(r => r.status === 'rescheduled').length,
-      totalRevenue: reservations.reduce((sum, r) => sum + (r.pricing?.total || 0), 0),
-      totalParticipants: reservations.reduce((sum, r) => sum + (r.participants || 0), 0),
+      pending: reservations.filter((r: Record<string, unknown>) => r.status === 'pending').length,
+      confirmed: reservations.filter((r: Record<string, unknown>) => r.status === 'confirmed').length,
+      inProgress: reservations.filter((r: Record<string, unknown>) => r.status === 'in_progress').length,
+      completed: reservations.filter((r: Record<string, unknown>) => r.status === 'completed').length,
+      cancelled: reservations.filter((r: Record<string, unknown>) => r.status === 'cancelled').length,
+      noShow: reservations.filter((r: Record<string, unknown>) => r.status === 'no_show').length,
+      rescheduled: reservations.filter((r: Record<string, unknown>) => r.status === 'rescheduled').length,
+      totalRevenue: reservations.reduce((sum: number, r: Record<string, unknown>) => sum + (((r.pricing as Record<string, unknown>)?.total as number) || 0), 0),
+      totalParticipants: reservations.reduce((sum: number, r: Record<string, unknown>) => sum + ((r.participants as number) || 0), 0),
       averageParticipants: reservations.length > 0 
-        ? reservations.reduce((sum, r) => sum + (r.participants || 0), 0) / reservations.length 
+        ? reservations.reduce((sum: number, r: Record<string, unknown>) => sum + ((r.participants as number) || 0), 0) / reservations.length 
         : 0,
-      pendingPayments: reservations.filter(r => r.paymentStatus === 'pending').length,
-      paidReservations: reservations.filter(r => r.paymentStatus === 'paid').length,
+      pendingPayments: reservations.filter((r: Record<string, unknown>) => r.paymentStatus === 'pending').length,
+      paidReservations: reservations.filter((r: Record<string, unknown>) => r.paymentStatus === 'paid').length,
     };
 
     return stats;

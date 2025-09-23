@@ -94,10 +94,6 @@ export const translateFirebaseError = (error: unknown): string => {
     'auth/invalid-dynamic-link-domain': 'Dominio de enlace dinámico no válido.',
     
     // Errores específicos de verificación de email
-    'auth/invalid-action-code': 'El código de verificación no es válido o ha expirado.',
-    'auth/expired-action-code': 'El código de verificación ha expirado.',
-    'auth/invalid-continue-uri': 'La URL de continuación no está autorizada.',
-    'auth/missing-continue-uri': 'Falta la URL de continuación.',
   };
 
   // Buscar traducción exacta por código

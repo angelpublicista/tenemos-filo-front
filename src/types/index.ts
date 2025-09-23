@@ -79,6 +79,8 @@ export interface SanityUser {
     _ref: string;
     _type: 'reference';
   };
+  companyId?: string;
+  hasCompletedCompanySetup?: boolean;
   locations?: Array<{
     _ref: string;
     _type: 'reference';
@@ -457,12 +459,17 @@ export interface Reservation {
   _type: 'reservation';
   reservationNumber: string;
   experience: {
-    _ref: string;
-    _type: 'reference';
+    _id: string;
+    title: string;
+    category: string;
+    duration: number;
+    capacity: number;
   };
   company: {
-    _ref: string;
-    _type: 'reference';
+    _id: string;
+    companyName: string;
+    companyEmail: string;
+    companyPhone: string;
   };
   client: ReservationClient;
   reservationDate: string;
@@ -474,8 +481,15 @@ export interface Reservation {
   paymentMethod?: 'advance' | 'deferred' | 'corporate_credit' | 'cash';
   paymentDetails?: ReservationPaymentDetails;
   location?: {
-    _ref: string;
-    _type: 'reference';
+    _id: string;
+    name: string;
+    address: {
+      street: string;
+      city: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
+    };
   };
   isVirtual?: boolean;
   virtualDetails?: ReservationVirtualDetails;

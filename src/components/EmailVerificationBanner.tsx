@@ -73,9 +73,9 @@ export const EmailVerificationBanner = () => {
       </Alert>
       
       {/* Mostrar información de debugging en ambiente de desarrollo */}
-      {lastError && process.env.NODE_ENV === 'development' && (
+      {lastError && process.env.NODE_ENV === 'development' ? (
         <FirebaseDebugInfo error={lastError} showDebug={true} />
-      )}
+      ) : null}
     </div>
   );
 };

@@ -5,6 +5,18 @@ import { useAuth } from '@/lib/firebase/AuthContext';
 import { getExperiencesByCompany, getExperienceStatsByCompany, updateExperienceStatus, deleteExperienceInSanity } from '@/lib/sanity/experienceService';
 import { getCompanyByUserId } from '@/lib/sanity/companyService';
 import { Experience, Company } from '@/types';
+
+interface ExperienceStats {
+  total: number;
+  active: number;
+  draft: number;
+  pending: number;
+  paused: number;
+  inactive: number;
+  totalBookings: number;
+  totalRevenue: number;
+  averageRating: number;
+}
 import { Button, Card, Select, Badge } from 'flowbite-react';
 import { 
   HiPlus, 
@@ -27,10 +39,10 @@ import ExperienceStats from '@/components/ExperienceStats';
 export default function MyExperiencesPage() {
   const { user, sanityUser } = useAuth();
   const router = useRouter();
-  const { showSuccess, showError, showConfirm } = useSweetAlert();
+  const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<ExperienceStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -113,7 +125,7 @@ export default function MyExperiencesPage() {
 
   // Eliminar experiencia
   const handleDelete = async (experienceId: string, experienceTitle: string) => {
-    const confirmed = await showConfirm(
+    const confirmed = await showConfirmation(
       'Eliminar Experiencia',
       `¿Estás seguro de que quieres eliminar "${experienceTitle}"? Esta acción no se puede deshacer.`
     );

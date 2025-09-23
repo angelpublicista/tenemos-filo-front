@@ -7,6 +7,7 @@ import { auth } from '@/lib/firebase/firebaseConfig';
 import { Card } from 'flowbite-react';
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi';
 import FiloLogo from '@/components/FiloLogo';
+import Loader from '@/components/Loader';
 
 export default function VerifyEmailPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'invalid'>('loading');
@@ -68,11 +69,7 @@ export default function VerifyEmailPage() {
       case 'invalid':
         return <HiXCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />;
       default:
-        return (
-          <div className="w-16 h-16 mx-auto mb-4">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500"></div>
-          </div>
-        );
+        return <Loader message="Verificando tu email..." size="lg" className="w-16 h-16 mx-auto mb-4" />;
     }
   };
 

@@ -8,10 +8,10 @@ import { Button } from 'flowbite-react';
 import { 
   HiPencilAlt, 
   HiCheckCircle, 
-  HiExclamationCircle,
-  HiRefresh
+  HiExclamationCircle
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import Loader from './Loader';
 
 interface CompanyInfoViewProps {
   showEditButton?: boolean;
@@ -24,10 +24,10 @@ export default function CompanyInfoView({
   onEdit,
   className = ""
 }: CompanyInfoViewProps) {
-  const { user, sanityUser, hasCompany } = useAuth();
+  const { user, hasCompany } = useAuth();
   const [existingCompany, setExistingCompany] = useState<Company | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const { showError, showSuccess } = useSweetAlert();
+  const { showError } = useSweetAlert();
 
   useEffect(() => {
     const loadCompanyData = async () => {
@@ -61,14 +61,7 @@ export default function CompanyInfoView({
   };
 
   if (isLoadingData) {
-    return (
-      <div className={`flex items-center justify-center py-12 ${className}`}>
-        <div className="text-center">
-          <HiRefresh className="w-8 h-8 text-[#F26726] animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Cargando información de la empresa...</p>
-        </div>
-      </div>
-    );
+    return <Loader message="Cargando información de la empresa..." className={className} />;
   }
 
   if (!hasCompany() || !existingCompany) {

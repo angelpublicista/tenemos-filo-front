@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Loader from './Loader';
 
 interface CompanySetupGuardProps {
   children: React.ReactNode;
@@ -23,26 +24,12 @@ export default function CompanySetupGuard({ children }: CompanySetupGuardProps) 
 
   // Mostrar loading mientras se verifica la autenticación
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F26726] mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando acceso...</p>
-        </div>
-      </div>
-    );
+    return <Loader message="Verificando acceso..." className="min-h-screen" />;
   }
 
   // Si no hay usuario autenticado, mostrar loading (ya se redirigirá en useEffect)
   if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F26726] mx-auto mb-4"></div>
-          <p className="text-gray-600">Redirigiendo al login...</p>
-        </div>
-      </div>
-    );
+    return <Loader message="Redirigiendo al login..." className="min-h-screen" />;
   }
 
   // Permitir acceso a cualquier usuario autenticado

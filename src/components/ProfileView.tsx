@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { updateUserProfile } from '@/lib/sanity/userService';
-import { SanityUser } from '@/types';
 import { Button, TextInput, Select } from 'flowbite-react';
 import { 
   HiPencilAlt, 
@@ -16,11 +15,13 @@ import {
   HiShieldCheck
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import Loader from './Loader';
 
 export default function ProfileView() {
-  const { user, sanityUser, refreshUserData } = useAuth();
+  const { user, sanityUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const { showError, showSuccess } = useSweetAlert();
 
   // Estados para el formulario de edición
@@ -30,6 +31,20 @@ export default function ProfileView() {
     typeDocument: sanityUser?.typeDocument || 'cedula',
     documentNumber: sanityUser?.documentNumber || '',
   });
+
+  // Manejar el estado de carga inicial
+  useEffect(() => {
+    if (sanityUser) {
+      setIsLoadingData(false);
+      // Actualizar formData cuando sanityUser esté disponible
+      setFormData({
+        name: sanityUser.name || '',
+        phone: sanityUser.phone || '',
+        typeDocument: sanityUser.typeDocument || 'cedula',
+        documentNumber: sanityUser.documentNumber || '',
+      });
+    }
+  }, [sanityUser]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -67,9 +82,6 @@ export default function ProfileView() {
         typeDocument: formData.typeDocument as 'nit' | 'cedula' | 'pasaporte' | 'other',
         documentNumber: formData.documentNumber.trim(),
       });
-
-      // Refrescar datos del usuario
-      await refreshUserData();
 
       showSuccess('Perfil actualizado exitosamente');
       setIsEditing(false);
@@ -111,15 +123,12 @@ export default function ProfileView() {
     }
   };
 
+  if (isLoadingData) {
+    return <Loader message="Cargando información del perfil..." />;
+  }
+
   if (!sanityUser) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <HiRefresh className="w-8 h-8 text-[#F26726] animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Cargando información del perfil...</p>
-        </div>
-      </div>
-    );
+    return <Loader message="Cargando información del perfil..." />;
   }
 
   return (
@@ -241,7 +250,7 @@ export default function ProfileView() {
                   <option value="other">Otro</option>
                 </Select>
               ) : (
-                <p className="text-gray-900">
+                <p className="text-gray-900 ">
                   {getDocumentTypeDisplayName(sanityUser.typeDocument)}
                 </p>
               )}
@@ -260,7 +269,7 @@ export default function ProfileView() {
                   className="w-full"
                 />
               ) : (
-                <p className="text-gray-900 font-mono">{sanityUser.documentNumber}</p>
+                <p className="text-gray-900">{sanityUser.documentNumber}</p>
               )}
             </div>
           </div>
@@ -313,7 +322,7 @@ export default function ProfileView() {
             color="gray"
             onClick={handleCancel}
             disabled={isLoading}
-            className="px-6 py-2"
+            className="px-6 py-2 text-white"
           >
             Cancelar
           </Button>

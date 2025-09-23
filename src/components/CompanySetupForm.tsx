@@ -16,6 +16,7 @@ import StepIndicator from './StepIndicator';
 import { CompleteCompanyData, Company } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import CompanyInfoView from './CompanyInfoView';
+import Loader from './Loader';
 
 // Esquemas de validación por pasos
 const basicInfoSchema = z.object({
@@ -218,9 +219,8 @@ export default function CompanySetupForm() {
   if (isLoadingData) {
     return (
       <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#334C5D] mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando datos de empresa...</p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <Loader message="Cargando datos de empresa..." />
         </div>
       </div>
     );

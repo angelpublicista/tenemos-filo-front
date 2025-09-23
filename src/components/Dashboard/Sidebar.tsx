@@ -41,7 +41,7 @@ export default function Sidebar() {
       name: 'Reservas',
       href: '/reservations',
       icon: AiOutlineTeam,
-      current: pathname === '/reservations'
+      current: pathname === '/dashboard/reservations'
     },
     {
       name: 'Mi Perfil',

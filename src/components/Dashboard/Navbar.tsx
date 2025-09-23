@@ -54,7 +54,7 @@ export default function Navbar() {
         <NavbarLink href="/dashboard/experiences" className="text-[#334C5D] hover:text-[#F26726]">
           Mis Experiencias
         </NavbarLink>
-        <NavbarLink href="/reservations" className="text-[#334C5D] hover:text-[#F26726]">
+        <NavbarLink href="/dashboard/reservations" className="text-[#334C5D] hover:text-[#F26726]">
           Reservas
         </NavbarLink>
         

@@ -351,8 +351,8 @@ export interface ExperienceSearchParams {
   limit?: number;
 }
 
-// Tipos para reservas (futuro)
-export interface Reservation {
+// Tipos para reservas (futuro) - DEPRECATED
+export interface OldReservation {
   _id: string;
   _type: 'reservation';
   eventId: string;
@@ -387,4 +387,144 @@ export interface GuestStep2Data {
 export interface GuestStep3Data {
   jobTitle?: string;
   department?: string;
+}
+
+// Tipos para reservas
+export interface ReservationClient {
+  name: string;
+  email: string;
+  phone: string;
+  companyName?: string;
+  contactPerson?: string;
+  notes?: string;
+}
+
+export interface ReservationPricing {
+  basePrice: number;
+  subtotal: number;
+  addons?: Array<{
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
+  addonsTotal?: number;
+  discount?: number;
+  discountCode?: string;
+  tax?: number;
+  commission?: number;
+  total: number;
+  hostEarnings?: number;
+}
+
+export interface ReservationPaymentDetails {
+  advancePayment?: number;
+  advancePaymentDate?: string;
+  remainingAmount?: number;
+  dueDate?: string;
+  paymentReference?: string;
+}
+
+export interface ReservationVirtualDetails {
+  platform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  meetingLink?: string;
+  meetingId?: string;
+  password?: string;
+}
+
+export interface ReservationCancellation {
+  cancelledAt?: string;
+  cancelledBy?: 'client' | 'host' | 'system';
+  cancellationReason?: string;
+  refundAmount?: number;
+  refundStatus?: 'pending' | 'processed' | 'completed' | 'failed';
+}
+
+export interface ReservationRescheduling {
+  originalDate?: string;
+  newDate?: string;
+  reason?: string;
+  requestedBy?: 'client' | 'host';
+}
+
+export interface ReservationRating {
+  score?: number;
+  comment?: string;
+  ratedAt?: string;
+}
+
+export interface Reservation {
+  _id: string;
+  _type: 'reservation';
+  reservationNumber: string;
+  experience: {
+    _ref: string;
+    _type: 'reference';
+  };
+  company: {
+    _ref: string;
+    _type: 'reference';
+  };
+  client: ReservationClient;
+  reservationDate: string;
+  duration: number;
+  participants: number;
+  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'rescheduled';
+  paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded' | 'failed';
+  pricing: ReservationPricing;
+  paymentMethod?: 'advance' | 'deferred' | 'corporate_credit' | 'cash';
+  paymentDetails?: ReservationPaymentDetails;
+  location?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  isVirtual?: boolean;
+  virtualDetails?: ReservationVirtualDetails;
+  specialRequirements?: string;
+  cancellation?: ReservationCancellation;
+  rescheduling?: ReservationRescheduling;
+  rating?: ReservationRating;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateReservationData {
+  experience: string;
+  company: string;
+  client: ReservationClient;
+  reservationDate: string;
+  duration: number;
+  participants: number;
+  status?: Reservation['status'];
+  paymentStatus?: Reservation['paymentStatus'];
+  pricing: ReservationPricing;
+  paymentMethod?: Reservation['paymentMethod'];
+  paymentDetails?: ReservationPaymentDetails;
+  location?: string;
+  isVirtual?: boolean;
+  virtualDetails?: ReservationVirtualDetails;
+  specialRequirements?: string;
+  notes?: string;
+}
+
+export interface UpdateReservationData extends Partial<CreateReservationData> {
+  _id: string;
+}
+
+export interface ReservationFilters {
+  status?: string;
+  paymentStatus?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  experience?: string;
+  isVirtual?: boolean;
+}
+
+export interface ReservationSearchParams {
+  query?: string;
+  filters?: ReservationFilters;
+  sortBy?: 'reservationDate' | 'createdAt' | 'total' | 'participants';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 } 

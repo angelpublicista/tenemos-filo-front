@@ -29,7 +29,7 @@ export default function ExperienceStats({ stats, className = "" }: ExperienceSta
     <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 ${className}`}>
       {/* Total Experiencias */}
       <Card className="p-6">
-        <div className="flex items-center">
+        <div className="flex items-start">
           <div className="p-2 bg-[#F26726] rounded-lg">
             <HiStar className="w-6 h-6 text-white" />
           </div>
@@ -42,7 +42,7 @@ export default function ExperienceStats({ stats, className = "" }: ExperienceSta
 
       {/* Experiencias Activas */}
       <Card className="p-6">
-        <div className="flex items-center">
+        <div className="flex items-start">
           <div className="p-2 bg-green-500 rounded-lg">
             <HiCheckCircle className="w-6 h-6 text-white" />
           </div>
@@ -58,7 +58,7 @@ export default function ExperienceStats({ stats, className = "" }: ExperienceSta
 
       {/* Total Reservas */}
       <Card className="p-6">
-        <div className="flex items-center">
+        <div className="flex items-start">
           <div className="p-2 bg-blue-500 rounded-lg">
             <HiUsers className="w-6 h-6 text-white" />
           </div>
@@ -74,7 +74,7 @@ export default function ExperienceStats({ stats, className = "" }: ExperienceSta
 
       {/* Ingresos Totales */}
       <Card className="p-6">
-        <div className="flex items-center">
+        <div className="flex items-start">
           <div className="p-2 bg-[#19A3A2] rounded-lg">
             <HiCurrencyDollar className="w-6 h-6 text-white" />
           </div>
@@ -93,7 +93,7 @@ export default function ExperienceStats({ stats, className = "" }: ExperienceSta
       {/* Calificación Promedio */}
       {stats.averageRating > 0 && (
         <Card className="p-6">
-          <div className="flex items-center">
+          <div className="flex items-start">
             <div className="p-2 bg-yellow-500 rounded-lg">
               <HiStar className="w-6 h-6 text-white" />
             </div>

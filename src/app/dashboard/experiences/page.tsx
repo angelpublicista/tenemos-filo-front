@@ -187,7 +187,7 @@ export default function ExperiencesPage() {
               Mis Experiencias
             </h1>
             <p className="text-gray-600">
-              Gestiona todas las experiencias de {company.companyName}
+              Gestiona todas las experiencias de <span className="font-bold">{company.companyName}</span>
             </p>
           </div>
           

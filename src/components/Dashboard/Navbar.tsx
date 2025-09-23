@@ -1,9 +1,10 @@
 "use client";
 
-import { Navbar as FlowbiteNavbar, NavbarBrand, NavbarToggle, NavbarCollapse, NavbarLink, Dropdown, DropdownItem, Avatar, DropdownDivider } from "flowbite-react";
+import { Navbar as FlowbiteNavbar, NavbarBrand, NavbarToggle, NavbarCollapse, NavbarLink, Dropdown, DropdownItem, Avatar, DropdownDivider, Button } from "flowbite-react";
 import { useAuth } from "@/lib/firebase/AuthContext";
 import FiloLogo from "@/components/FiloLogo";
 import { useState } from "react";
+import { HiPlus } from "react-icons/hi";
 
 export default function Navbar() {
   const { user, sanityUser, logout } = useAuth();
@@ -46,7 +47,7 @@ export default function Navbar() {
       
       <NavbarToggle />
       
-      <NavbarCollapse className="flex justify-end items-center [&>ul]:items-center [&>ul]:flex [&>ul]:h-full">
+      <NavbarCollapse className="flex justify-end items-center [&>ul]:items-center [&>ul]:flex [&>ul]:h-full [&>ul]:flex-wrap [&>ul]:gap-2">
         <NavbarLink href="/dashboard" className="text-[#334C5D] hover:text-[#F26726]">
           Dashboard
         </NavbarLink>
@@ -56,6 +57,22 @@ export default function Navbar() {
         <NavbarLink href="/reservations" className="text-[#334C5D] hover:text-[#F26726]">
           Reservas
         </NavbarLink>
+        
+        {/* Botón destacado para crear experiencias - Solo para anfitriones */}
+        {sanityUser?.role === 'host' && (
+          <div className="ml-0">
+            <Button
+              href="/dashboard/experiences/create"
+              color="primary"
+              size="sm"
+              className="px-3 md:px-4 py-2 font-medium shadow-sm hover:shadow-md transition-shadow text-sm md:text-base"
+            >
+              <HiPlus className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Crear Experiencia</span>
+              <span className="sm:hidden">Crear</span>
+            </Button>
+          </div>
+        )}
         
         <div className="flex items-center gap-3 ml-4">
           <Dropdown

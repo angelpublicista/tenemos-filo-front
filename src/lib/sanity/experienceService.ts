@@ -34,8 +34,11 @@ export const createExperienceInSanity = async (experienceData: CreateExperienceD
         _ref: experienceData.location,
         _type: 'reference',
       } : undefined,
-      isVirtual: experienceData.isVirtual,
+      experienceType: experienceData.experienceType,
       virtualPlatform: experienceData.virtualPlatform,
+      presentialLocation: experienceData.presentialLocation,
+      presentialAddress: experienceData.presentialAddress,
+      presentialCity: experienceData.presentialCity,
       availability: experienceData.availability,
       requirements: experienceData.requirements,
       includes: experienceData.includes,
@@ -101,8 +104,8 @@ export const getExperiences = async (searchParams: ExperienceSearchParams = {}):
       groqQuery += ` && duration == ${filters.duration}`;
     }
     
-    if (filters.isVirtual !== undefined) {
-      groqQuery += ` && isVirtual == ${filters.isVirtual}`;
+    if (filters.experienceType) {
+      groqQuery += ` && experienceType == "${filters.experienceType}"`;
     }
     
     if (filters.isFeatured !== undefined) {
@@ -145,8 +148,11 @@ export const getExperiences = async (searchParams: ExperienceSearchParams = {}):
         name,
         address
       },
-      isVirtual,
+      experienceType,
       virtualPlatform,
+      presentialLocation,
+      presentialAddress,
+      presentialCity,
       availability,
       requirements,
       includes,
@@ -195,8 +201,11 @@ export const getExperiencesByCompany = async (companyId: string): Promise<Experi
         name,
         address
       },
-      isVirtual,
+      experienceType,
       virtualPlatform,
+      presentialLocation,
+      presentialAddress,
+      presentialCity,
       availability,
       requirements,
       includes,
@@ -245,8 +254,11 @@ export const getExperienceById = async (experienceId: string): Promise<Experienc
         name,
         address
       },
-      isVirtual,
+      experienceType,
       virtualPlatform,
+      presentialLocation,
+      presentialAddress,
+      presentialCity,
       availability,
       requirements,
       includes,
@@ -280,8 +292,11 @@ export const updateExperienceInSanity = async (experienceData: UpdateExperienceD
       minCapacity: experienceData.minCapacity,
       basePrice: experienceData.basePrice,
       currency: experienceData.currency,
-      isVirtual: experienceData.isVirtual,
+      experienceType: experienceData.experienceType,
       virtualPlatform: experienceData.virtualPlatform,
+      presentialLocation: experienceData.presentialLocation,
+      presentialAddress: experienceData.presentialAddress,
+      presentialCity: experienceData.presentialCity,
       availability: experienceData.availability,
       requirements: experienceData.requirements,
       includes: experienceData.includes,
@@ -396,8 +411,11 @@ export const getFeaturedExperiences = async (limit: number = 6): Promise<Experie
         name,
         address
       },
-      isVirtual,
+      experienceType,
       virtualPlatform,
+      presentialLocation,
+      presentialAddress,
+      presentialCity,
       availability,
       requirements,
       includes,

@@ -30,7 +30,9 @@ import {
   HiCheckCircle,
   HiExclamationCircle,
   HiMinus,
-  HiFilter
+  HiFilter,
+  HiViewGrid,
+  HiViewList
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useRouter } from 'next/navigation';
@@ -46,6 +48,7 @@ export default function ExperiencesPage() {
   const [stats, setStats] = useState<ExperienceStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Cargar datos
   const loadData = async () => {
@@ -204,8 +207,10 @@ export default function ExperiencesPage() {
         <ExperienceStats stats={stats} className="mb-8" />
       )}
 
+      <hr className="my-8 border-gray-200" />
+
       {/* Filtros */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+      <div className="mb-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[#334C5D]">
             Experiencias ({filteredExperiences.length})
@@ -224,6 +229,26 @@ export default function ExperiencesPage() {
               <option value="paused">Pausadas</option>
               <option value="inactive">Inactivas</option>
             </Select>
+            
+            {/* Toggle de vista */}
+            <div className="flex items-center gap-2 rounded-lg p-1">
+              <Button
+                color={viewMode === 'grid' ? 'primary' : 'gray'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="px-3 py-2"
+              >
+                <HiViewGrid className="w-4 h-4" />
+              </Button>
+              <Button
+                color={viewMode === 'list' ? 'primary' : 'gray'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="px-3 py-2"
+              >
+                <HiViewList className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -255,87 +280,180 @@ export default function ExperiencesPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredExperiences.map((experience) => (
-            <Card key={experience._id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="p-6">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-[#334C5D] mb-2 line-clamp-2">
-                      {experience.title}
-                    </h3>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge color={getStatusColor(experience.status)}>
-                        {getStatusText(experience.status)}
-                      </Badge>
-                      {experience.isFeatured && (
-                        <Badge color="warning">
-                          Destacada
-                        </Badge>
-                      )}
+        <>
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredExperiences.map((experience) => (
+                <Card key={experience._id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="p-6">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-[#334C5D] mb-2 line-clamp-2">
+                          {experience.title}
+                        </h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge color={getStatusColor(experience.status)}>
+                            {getStatusText(experience.status)}
+                          </Badge>
+                          {experience.isFeatured && (
+                            <Badge color="warning">
+                              Destacada
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">
+                          {formatCategory(experience.category)}
+                        </span>
+                      </div>
                     </div>
-                    <span className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">
-                      {formatCategory(experience.category)}
-                    </span>
-                  </div>
-                </div>
 
-                {/* Descripción */}
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                  {experience.description}
-                </p>
+                    {/* Descripción */}
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                      {experience.description}
+                    </p>
 
-                {/* Detalles */}
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <HiClock className="w-4 h-4 mr-2" />
-                    {formatDuration(experience.duration)}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <HiUsers className="w-4 h-4 mr-2" />
-                    {experience.capacity} personas máximo
-                    {experience.minCapacity && ` (${experience.minCapacity} mínimo)`}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <HiCurrencyDollar className="w-4 h-4 mr-2" />
-                    {formatPrice(experience.basePrice, experience.currency)} por persona
-                  </div>
-                </div>
+                    {/* Detalles */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <HiClock className="w-4 h-4 mr-2" />
+                        {formatDuration(experience.duration)}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <HiUsers className="w-4 h-4 mr-2" />
+                        {experience.capacity} personas máximo
+                        {experience.minCapacity && ` (${experience.minCapacity} mínimo)`}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <HiCurrencyDollar className="w-4 h-4 mr-2" />
+                        {formatPrice(experience.basePrice, experience.currency)} por persona
+                      </div>
+                    </div>
 
-                {/* Estadísticas */}
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4 pt-4 border-t border-gray-200">
-                  <span>{experience.totalBookings} reservas</span>
-                  <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
-                </div>
+                    {/* Estadísticas */}
+                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4 pt-4 border-t border-gray-200">
+                      <span>{experience.totalBookings} reservas</span>
+                      <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
+                    </div>
 
-                {/* Acciones */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      color="gray"
-                      size="sm"
-                      onClick={() => router.push(`/dashboard/experiences/${experience._id}`)}
-                    >
-                      <HiEye className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      color="gray"
-                      size="sm"
-                      onClick={() => router.push(`/dashboard/experiences/${experience._id}/edit`)}
-                    >
-                      <HiPencilAlt className="w-4 h-4" />
-                    </Button>
+                    {/* Acciones */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          color="gray"
+                          size="sm"
+                          onClick={() => router.push(`/dashboard/my-experiences`)}
+                          title="Ver detalles"
+                        >
+                          <HiEye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          color="gray"
+                          size="sm"
+                          onClick={() => router.push(`/dashboard/my-experiences`)}
+                          title="Gestionar experiencia"
+                        >
+                          <HiPencilAlt className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      <Button 
+                        color="primary" 
+                        size="sm"
+                        onClick={() => router.push(`/dashboard/my-experiences`)}
+                      >
+                        Ver Detalles
+                      </Button>
+                    </div>
                   </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredExperiences.map((experience) => (
+                <Card key={experience._id} className="overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between">
+                      {/* Información principal */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-base font-semibold text-[#334C5D] truncate">
+                            {experience.title}
+                          </h3>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Badge color={getStatusColor(experience.status)} size="sm">
+                              {getStatusText(experience.status)}
+                            </Badge>
+                            {experience.isFeatured && (
+                              <Badge color="warning" size="sm">
+                                Destacada
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
 
-                  <Button color="primary" size="sm">
-                    Ver Detalles
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                          <span className="bg-gray-100 px-2 py-1 rounded text-xs">
+                            {formatCategory(experience.category)}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <HiClock className="w-3 h-3" />
+                            {formatDuration(experience.duration)}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <HiUsers className="w-3 h-3" />
+                            {experience.capacity} max
+                            {experience.minCapacity && ` (${experience.minCapacity} min)`}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <HiCurrencyDollar className="w-3 h-3" />
+                            {formatPrice(experience.basePrice, experience.currency)}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span>{experience.totalBookings} reservas</span>
+                          <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
+                        </div>
+                      </div>
+
+                      {/* Acciones */}
+                      <div className="flex items-center gap-1 ml-4 flex-shrink-0">
+                        <Button
+                          color="gray"
+                          size="xs"
+                          onClick={() => router.push(`/dashboard/my-experiences`)}
+                          className="px-2 py-1"
+                          title="Ver detalles"
+                        >
+                          <HiEye className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          color="gray"
+                          size="xs"
+                          onClick={() => router.push(`/dashboard/my-experiences`)}
+                          className="px-2 py-1"
+                          title="Gestionar experiencia"
+                        >
+                          <HiPencilAlt className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          color="primary" 
+                          size="xs" 
+                          className="px-3 py-1 text-xs"
+                          onClick={() => router.push(`/dashboard/my-experiences`)}
+                        >
+                          Ver
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -350,14 +350,22 @@ export default function MyExperiencesPage() {
                     <Button
                       color="gray"
                       size="sm"
-                      onClick={() => router.push(`/dashboard/experiences/${experience._id}`)}
+                      onClick={() => {
+                        // TODO: Implementar vista de detalles de experiencia
+                        console.log('Ver detalles de:', experience.title);
+                      }}
+                      title="Ver detalles"
                     >
                       <HiEye className="w-4 h-4" />
                     </Button>
                     <Button
                       color="gray"
                       size="sm"
-                      onClick={() => router.push(`/dashboard/experiences/${experience._id}/edit`)}
+                      onClick={() => {
+                        // TODO: Implementar edición de experiencia
+                        console.log('Editar experiencia:', experience.title);
+                      }}
+                      title="Editar experiencia"
                     >
                       <HiPencilAlt className="w-4 h-4" />
                     </Button>

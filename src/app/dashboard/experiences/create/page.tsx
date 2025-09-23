@@ -183,6 +183,8 @@ export default function CreateExperiencePage() {
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
+        // No enviar location como referencia para experiencias presenciales
+        location: undefined,
       };
 
       await createExperienceInSanity(experienceData);

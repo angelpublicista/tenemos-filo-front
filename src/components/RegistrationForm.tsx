@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Button, TextInput, Label, Select } from "flowbite-react";
 import Link from "next/link";
 import { PhoneInput } from "react-international-phone";
@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/firebase/AuthContext";
 import { GuestStep1Data } from "@/types";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
+import RecaptchaComponent from "@/components/Recaptcha";
 
 interface RegistrationFormProps {
   role: 'guest' | 'host';
@@ -21,6 +22,9 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
   const [redirecting, setRedirecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [recaptchaError, setRecaptchaError] = useState<string | null>(null);
+  const recaptchaRef = useRef<{ reset: () => void } | null>(null);
   const { register: authRegister } = useAuth();
 
   const form = useForm<GuestStep1Data>({
@@ -32,6 +36,21 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
     setPhone(value);
   };
 
+  const handleRecaptchaVerify = (token: string | null) => {
+    setRecaptchaToken(token);
+    setRecaptchaError(null);
+  };
+
+  const handleRecaptchaExpire = () => {
+    setRecaptchaToken(null);
+    setRecaptchaError('El reCAPTCHA ha expirado. Por favor, vuelve a verificarlo.');
+  };
+
+  const handleRecaptchaError = () => {
+    setRecaptchaToken(null);
+    setRecaptchaError('Error de reCAPTCHA. Por favor, recarga la página e intenta nuevamente.');
+  };
+
   const handleSubmit = async (data: GuestStep1Data) => {
     setError(null);
     setLoading(true);
@@ -40,6 +59,13 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
       // Verificar que las contraseñas coincidan
       if (data.password !== data.confirmPassword) {
         setError('Las contraseñas no coinciden');
+        setLoading(false);
+        return;
+      }
+
+      // Verificar que reCAPTCHA esté completado
+      if (!recaptchaToken && process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) {
+        setError('Por favor, completa la verificación reCAPTCHA');
         setLoading(false);
         return;
       }
@@ -58,6 +84,12 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
       await authRegister(data.email, data.password, userData);
 
       console.log(`${role === 'host' ? 'Anfitrión' : 'Comensal'} registrado exitosamente en Firebase y Sanity`);
+      
+      // Resetear reCAPTCHA después del registro exitoso
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setRecaptchaToken(null);
+      }
       
       // Mostrar mensaje de redirección
       setLoading(false);
@@ -87,6 +119,12 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
     } finally {
       if (!redirecting) {
         setLoading(false);
+      }
+      
+      // Resetear reCAPTCHA en caso de error (si no se hizo ya en el bloque de éxito)
+      if (!redirecting && recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setRecaptchaToken(null);
       }
     }
   };
@@ -284,6 +322,23 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
           <div className="w-full p-3 bg-green-100 border border-green-400 text-green-700 rounded">
             ¡Registro exitoso! Redirigiendo al dashboard...
           </div>
+        )}
+
+        {/* reCAPTCHA */}
+        {process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && (
+          <>
+            <RecaptchaComponent
+              ref={recaptchaRef}
+              onVerify={handleRecaptchaVerify}
+              onExpire={handleRecaptchaExpire}
+              onError={handleRecaptchaError}
+            />
+            {recaptchaError && (
+              <div className="w-full p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                {recaptchaError}
+              </div>
+            )}
+          </>
         )}
 
         <Button

@@ -541,4 +541,71 @@ export interface ReservationSearchParams {
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+}
+
+// Integration types
+export interface Integration {
+  _id: string;
+  userId: string;
+  type: 'google' | 'outlook' | 'calendly';
+  name: string;
+  status: 'connected' | 'disconnected' | 'pending' | 'error';
+  lastSync?: string;
+  config?: {
+    accessToken?: string;
+    refreshToken?: string;
+    expiresAt?: string;
+    calendarId?: string;
+    webhookUrl?: string;
+    autoSync?: boolean;
+    syncFrequency?: 'realtime' | '15min' | 'hourly' | 'daily';
+    events?: IntegrationEvent[];
+    [key: string]: unknown;
+  };
+  error?: string;
+  createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string;
+}
+
+export interface IntegrationEvent {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  description?: string;
+  location?: string;
+  attendees?: string[];
+  sourceCalendar: string;
+  lastModified: string;
+}
+
+export interface CreateIntegrationData {
+  userId: string;
+  type: 'google' | 'outlook' | 'calendly';
+  name: string;
+  status?: 'connected' | 'disconnected' | 'pending' | 'error';
+  config?: Integration['config'];
+}
+
+export interface UpdateIntegrationData {
+  name?: string;
+  status?: 'connected' | 'disconnected' | 'pending' | 'error';
+  config?: Integration['config'];
+  lastSync?: string;
+  error?: string;
+}
+
+export interface IntegrationSyncJob {
+  id: string;
+  integrationId: string;
+  userId: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  startedAt: string;
+  completedAt?: string;
+  eventsProcessed?: number;
+  eventsCreated?: number;
+  eventsUpdated?: number;
+  eventsDeleted?: number;
+  error?: string;
 } 

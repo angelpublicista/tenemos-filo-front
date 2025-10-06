@@ -49,6 +49,12 @@ export default function Sidebar() {
       icon: AiOutlineUser,
       current: pathname === '/dashboard/profile'
     },
+    {
+      name: 'Integraciones',
+      href: '/dashboard/integrations',
+      icon: AiOutlineSetting,
+      current: pathname === '/dashboard/integrations'
+    },
     ...(sanityUser?.role === 'host' ? [
       {
         name: 'Mi Empresa',

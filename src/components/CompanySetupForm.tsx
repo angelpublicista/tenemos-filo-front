@@ -355,6 +355,9 @@ export default function CompanySetupForm() {
         
         company = { _id: existingCompany._id };
         
+        // Asegurarse de que el usuario esté asociado con la empresa
+        await associateUserWithCompany(user.uid, existingCompany._id);
+        
         await showSuccess(
           '¡Empresa actualizada exitosamente!',
           'Tu información de empresa ha sido actualizada correctamente.'
@@ -393,8 +396,12 @@ export default function CompanySetupForm() {
       
       hideLoading();
 
-      // Redirigir al dashboard
-      window.location.href = '/dashboard';
+      // Esperar un momento para asegurar que Sanity procese los cambios
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Forzar recarga completa de la página para actualizar el AuthContext
+      // Esto asegura que sanityUser tenga el companyId actualizado
+      window.location.replace('/dashboard');
 
     } catch (error) {
       console.error('Error creating company:', error);

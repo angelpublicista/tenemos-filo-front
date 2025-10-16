@@ -34,6 +34,10 @@ export const createExperienceInSanity = async (experienceData: CreateExperienceD
         _ref: experienceData.location,
         _type: 'reference',
       } : undefined,
+      availabilitySchedule: experienceData.availabilitySchedule ? {
+        _ref: experienceData.availabilitySchedule,
+        _type: 'reference',
+      } : undefined,
       experienceType: experienceData.experienceType,
       virtualPlatform: experienceData.virtualPlatform,
       presentialLocation: experienceData.presentialLocation,

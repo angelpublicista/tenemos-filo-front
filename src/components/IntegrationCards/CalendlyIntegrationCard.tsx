@@ -34,7 +34,7 @@ export default function CalendlyIntegrationCard({
   const isConnected = integration?.status === 'connected';
 
   const getStatusBadge = () => {
-    if (!integration) return <Badge color="gray">No conectado</Buff>;
+    if (!integration) return <Badge color="gray">No conectado</Badge>;
     
     switch (integration.status) {
       case 'connected': return <Badge color="success" icon={HiCheckCircle}>Conectado</Badge>;

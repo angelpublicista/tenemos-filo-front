@@ -233,7 +233,7 @@ export async function getIntegrationStatsByUser(userId: string): Promise<Integra
     });
 
     if (latestSync) {
-      stats.lastSync = latestSync.toISOString();
+      stats.lastSync = (latestSync as Date).toISOString();
     }
 
     return stats;

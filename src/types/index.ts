@@ -270,6 +270,10 @@ export interface Experience {
     _ref: string;
     _type: 'reference';
   };
+  availabilitySchedule?: {
+    _ref: string;
+    _type: 'reference';
+  };
   experienceType: 'virtual' | 'presential' | 'hybrid';
   virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
   presentialLocation?: string;
@@ -308,7 +312,8 @@ export interface CreateExperienceData {
   basePrice: number;
   currency: 'COP' | 'USD';
   images?: string[]; // URLs de imágenes
-  location?: string; // location ID
+  location?: string; // location ID (sede)
+  availabilitySchedule?: string; // availability schedule ID
   experienceType: 'virtual' | 'presential' | 'hybrid';
   virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
   presentialLocation?: string;
@@ -608,4 +613,70 @@ export interface IntegrationSyncJob {
   eventsUpdated?: number;
   eventsDeleted?: number;
   error?: string;
+}
+
+// Tipos para disponibilidad
+export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+export interface TimeSlot {
+  startTime: string; // formato HH:mm (24h)
+  endTime: string; // formato HH:mm (24h)
+}
+
+export interface DaySchedule {
+  isActive: boolean; // Si el día está activo o no
+  timeSlots: TimeSlot[];
+}
+
+export interface WeeklySchedule {
+  monday: DaySchedule;
+  tuesday: DaySchedule;
+  wednesday: DaySchedule;
+  thursday: DaySchedule;
+  friday: DaySchedule;
+  saturday: DaySchedule;
+  sunday: DaySchedule;
+}
+
+export interface BlockedDate {
+  date: string; // formato ISO date
+  reason?: 'maintenance' | 'vacation' | 'private_event' | 'other';
+  description?: string;
+}
+
+export interface AvailabilitySchedule {
+  _id: string;
+  _type: 'availability';
+  name: string; // Nombre del calendario (ej: "Horario Verano 2025")
+  location: {
+    _ref: string;
+    _type: 'reference';
+  };
+  isMain: boolean; // Si es el calendario principal de la sede
+  isActive: boolean; // Si este calendario está activo
+  description?: string;
+  weeklySchedule: WeeklySchedule;
+  bufferTime: number; // Tiempo de buffer entre reservas (minutos)
+  minimumNotice: number; // Aviso mínimo para reservas (horas)
+  notes?: string;
+  blockedDates: BlockedDate[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAvailabilityScheduleData {
+  name: string;
+  location: string; // location ID
+  isMain?: boolean;
+  isActive?: boolean;
+  description?: string;
+  weeklySchedule: WeeklySchedule;
+  bufferTime?: number;
+  minimumNotice?: number;
+  notes?: string;
+  blockedDates?: BlockedDate[];
+}
+
+export interface UpdateAvailabilityScheduleData extends Partial<CreateAvailabilityScheduleData> {
+  _id: string;
 } 

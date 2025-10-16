@@ -100,7 +100,10 @@ export const createUserInSanity = async (userData: CreateUserData) => {
 
 export const getUserByFirebaseId = async (firebaseId: string): Promise<SanityUser | null> => {
   try {
-    const query = `*[_type == "user" && firebaseId == $firebaseId][0]`;
+    const query = `*[_type == "user" && firebaseId == $firebaseId][0]{
+      ...,
+      "companyId": company._ref
+    }`;
     const user = await sanityClient.fetch(query, { firebaseId });
     return user;
   } catch (error) {

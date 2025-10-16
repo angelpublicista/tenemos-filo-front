@@ -9,10 +9,10 @@ import {
   AiOutlineSetting,
   AiOutlineBarChart,
   AiOutlineBell,
-  AiOutlineUser
+  AiOutlineUser,
+  AiOutlineClockCircle
 } from 'react-icons/ai';
 import { 
-  BiBuildingHouse,
   BiMap,
   BiStore
 } from 'react-icons/bi';
@@ -29,63 +29,80 @@ export default function Sidebar() {
       name: 'Dashboard',
       href: '/dashboard',
       icon: AiOutlineHome,
-      current: pathname === '/dashboard'
+      current: pathname === '/dashboard',
+      enabled: true
     },
     {
       name: 'Mis Experiencias',
       href: '/dashboard/experiences',
       icon: AiOutlineCalendar,
-      current: pathname === '/dashboard/experiences'
+      current: pathname === '/dashboard/experiences',
+      enabled: true
     },
     {
       name: 'Reservas',
       href: '/dashboard/reservations',
       icon: AiOutlineTeam,
-      current: pathname === '/dashboard/reservations'
+      current: pathname === '/dashboard/reservations',
+      enabled: true
     },
     {
       name: 'Mi Perfil',
       href: '/dashboard/profile',
       icon: AiOutlineUser,
-      current: pathname === '/dashboard/profile'
+      current: pathname === '/dashboard/profile',
+      enabled: true
     },
     {
       name: 'Integraciones',
       href: '/dashboard/integrations',
       icon: AiOutlineSetting,
-      current: pathname === '/dashboard/integrations'
+      current: pathname === '/dashboard/integrations',
+      enabled: true
     },
     ...(sanityUser?.role === 'host' ? [
       {
         name: 'Mi Empresa',
         href: '/dashboard/company',
         icon: BiStore,
-        current: pathname === '/dashboard/company'
+        current: pathname === '/dashboard/company',
+        enabled: true
       },
       {
         name: 'Mis Sedes',
-        href: '/my-locations',
+        href: '/dashboard/locations',
         icon: BiMap,
-        current: pathname === '/my-locations'
+        current: pathname === '/dashboard/locations',
+        enabled: true
+      },
+      {
+        name: 'Disponibilidad',
+        href: '/dashboard/availability',
+        icon: AiOutlineClockCircle,
+        current: pathname === '/dashboard/availability',
+        enabled: true
       }
     ] : []),
     {
       name: 'Estadísticas',
       href: '/analytics',
       icon: AiOutlineBarChart,
-      current: pathname === '/analytics'
+      current: pathname === '/analytics',
+      enabled: false
     },
     {
       name: 'Notificaciones',
       href: '/notifications',
       icon: AiOutlineBell,
-      current: pathname === '/notifications'
+      current: pathname === '/notifications',
+      enabled: false
     },
     {
       name: 'Configuración',
       href: '/settings',
       icon: AiOutlineSetting,
-      current: pathname === '/settings'
+      current: pathname === '/settings',
+      enabled: false
     }
   ];
 
@@ -111,6 +128,22 @@ export default function Sidebar() {
         <nav className="flex-1 p-4 space-y-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
+            
+            if (!item.enabled) {
+              return (
+                <div
+                  key={item.name}
+                  className="flex items-center px-3 py-2 rounded-lg opacity-50 cursor-not-allowed"
+                  title="Próximamente disponible"
+                >
+                  <Icon className="w-6 h-6 flex-shrink-0 text-gray-400" />
+                  {!isCollapsed && (
+                    <span className="ml-3 text-sm font-medium text-gray-400">{item.name}</span>
+                  )}
+                </div>
+              );
+            }
+            
             return (
               <Link
                 key={item.name}

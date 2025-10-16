@@ -451,3 +451,92 @@ export const getReservationStatsByCompany = async (companyId: string) => {
     throw new Error('Failed to fetch reservation stats by company');
   }
 };
+
+/**
+ * Crear una reserva manual (para anfitriones)
+ */
+export interface CreateManualReservationData {
+  experience: string; // Experience ID
+  location: string; // Location ID
+  reservationDate: string; // ISO date string
+  participants: number;
+  specialRequests?: string;
+  clientType: 'guest' | 'registered';
+  guestInfo?: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  registeredUserId?: string; // Para clientes registrados (futuro)
+}
+
+export const createReservationManually = async (data: CreateManualReservationData) => {
+  try {
+    // Obtener información de la experiencia para calcular precios
+    const experienceQuery = `*[_type == "experience" && _id == $experienceId][0]{
+      _id,
+      title,
+      basePrice,
+      currency,
+      duration,
+      company
+    }`;
+    const experience = await sanityClient.fetch(experienceQuery, { experienceId: data.experience });
+
+    if (!experience) {
+      throw new Error('Experience not found');
+    }
+
+    const totalPrice = experience.basePrice * data.participants;
+
+    const reservationDoc = {
+      _type: 'reservation',
+      reservationNumber: generateReservationNumber(),
+      experience: {
+        _ref: data.experience,
+        _type: 'reference',
+      },
+      company: {
+        _ref: experience.company._ref,
+        _type: 'reference',
+      },
+      location: {
+        _ref: data.location,
+        _type: 'reference',
+      },
+      client: data.clientType === 'guest' && data.guestInfo ? {
+        name: data.guestInfo.name,
+        email: data.guestInfo.email,
+        phone: data.guestInfo.phone,
+      } : undefined,
+      registeredUser: data.registeredUserId ? {
+        _ref: data.registeredUserId,
+        _type: 'reference',
+      } : undefined,
+      reservationDate: data.reservationDate,
+      duration: experience.duration,
+      participants: data.participants,
+      status: 'confirmed', // Reservas manuales se confirman automáticamente
+      paymentStatus: 'pending',
+      pricing: {
+        basePrice: experience.basePrice,
+        subtotal: totalPrice,
+        tax: 0,
+        serviceFee: 0,
+        total: totalPrice,
+        currency: experience.currency,
+      },
+      specialRequirements: data.specialRequests,
+      notes: `Reserva creada manualmente. Cliente tipo: ${data.clientType === 'guest' ? 'Invitado' : 'Registrado'}`,
+      source: 'manual',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const result = await sanityClient.create(reservationDoc);
+    return result;
+  } catch (error) {
+    console.error('Error creating manual reservation:', error);
+    throw new Error('Failed to create manual reservation');
+  }
+};

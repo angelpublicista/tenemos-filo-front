@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Card, Select, Badge, Modal, ModalHeader, ModalBody, Tooltip } from 'flowbite-react';
 import { 
   HiEye, 
@@ -19,8 +19,13 @@ import {
   HiVideoCamera,
   HiChevronLeft,
   HiChevronRight,
+  HiPlus,
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import { useAuth } from '@/lib/firebase/AuthContext';
+import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
+import { Experience } from '@/types';
+import CreateReservationModal from '@/components/CreateReservationModal';
 
 // Datos hardcodeados de ejemplo
 const mockReservations = [
@@ -158,8 +163,11 @@ interface ReservationStats {
 }
 
 export default function ReservationsPage() {
+  const { sanityUser } = useAuth();
   const { showSuccess } = useSweetAlert();
   const [reservations] = useState(mockReservations);
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [stats] = useState<ReservationStats>({
     total: mockReservations.length,
     pending: mockReservations.filter(r => r.status === 'pending').length,
@@ -185,6 +193,22 @@ export default function ReservationsPage() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showReservationsModal, setShowReservationsModal] = useState(false);
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>('month');
+
+  // Cargar experiencias de la empresa
+  useEffect(() => {
+    const loadExperiences = async () => {
+      if (!sanityUser?.companyId) return;
+      
+      try {
+        const data = await getExperiencesByCompany(sanityUser.companyId);
+        setExperiences(data || []);
+      } catch (error) {
+        console.error('Error loading experiences:', error);
+      }
+    };
+
+    loadExperiences();
+  }, [sanityUser]);
 
   // Funciones para el calendario
   const getDaysInMonth = (date: Date) => {
@@ -925,6 +949,13 @@ export default function ReservationsPage() {
               Gestiona todas las reservas de tus experiencias gastronómicas
             </p>
           </div>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-[#F26726] hover:bg-[#d9571f]"
+          >
+            <HiPlus className="mr-2 h-5 w-5" />
+            Nueva Reserva
+          </Button>
         </div>
       </div>
 
@@ -1292,6 +1323,19 @@ export default function ReservationsPage() {
             </>
           )}
         </>
+      )}
+
+      {/* Modal de Crear Reserva */}
+      {showCreateModal && (
+        <CreateReservationModal
+          experiences={experiences}
+          onClose={() => setShowCreateModal(false)}
+          onReservationCreated={() => {
+            setShowCreateModal(false);
+            showSuccess('Reserva creada exitosamente');
+            // TODO: Recargar lista de reservas
+          }}
+        />
       )}
     </div>
   );

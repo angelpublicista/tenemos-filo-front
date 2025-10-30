@@ -9,14 +9,14 @@
 import { StoreInit } from "flowbite-react/store/init";
 import React from "react";
 
-export const config = {
+export const CONFIG = {
   dark: false,
   prefix: "",
   version: 4,
 };
 
 export function ThemeInit() {
-  return <StoreInit {...config} />;
+  return <StoreInit {...CONFIG} />;
 }
 
 ThemeInit.displayName = "ThemeInit";

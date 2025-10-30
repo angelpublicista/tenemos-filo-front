@@ -9,15 +9,11 @@ import { useAuth } from "@/lib/firebase/AuthContext";
 import { LoginFormData } from "@/types";
 import { useSearchParams } from "next/navigation";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
-import RecaptchaComponent from "@/components/Recaptcha";
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
-  const [recaptchaError, setRecaptchaError] = useState<string | null>(null);
-  const recaptchaRef = useRef<{ reset: () => void } | null>(null);
   const { login } = useAuth();
   const searchParams = useSearchParams();
 
@@ -41,21 +37,6 @@ export default function Login() {
     }
   }, [searchParams]);
 
-  const handleRecaptchaVerify = (token: string | null) => {
-    setRecaptchaToken(token);
-    setRecaptchaError(null);
-  };
-
-  const handleRecaptchaExpire = () => {
-    setRecaptchaToken(null);
-    setRecaptchaError('El reCAPTCHA ha expirado. Por favor, vuelve a verificarlo.');
-  };
-
-  const handleRecaptchaError = () => {
-    setRecaptchaToken(null);
-    setRecaptchaError('Error de reCAPTCHA. Por favor, recarga la página e intenta nuevamente.');
-  };
-
   if (!process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) {
     console.error('RECAPTCHA_SITE_KEY no está configurado');
   }
@@ -63,30 +44,11 @@ export default function Login() {
   const onSubmit = async (data: LoginFormData) => {
     setError(null);
     setLoading(true);
-
-    // Verificar que reCAPTCHA esté completado
-    if (!recaptchaToken) {
-      setError('Por favor, completa la verificación reCAPTCHA');
-      setLoading(false);
-      return;
-    }
     
     try {
       await login(data.email, data.password);
-      
-      // Resetear reCAPTCHA después del login exitoso
-      if (recaptchaRef.current) {
-        recaptchaRef.current.reset();
-        setRecaptchaToken(null);
-      }
     } catch (error) {
       setError(getTranslatedFirebaseError(error));
-      
-      // Resetear reCAPTCHA en caso de error
-      if (recaptchaRef.current) {
-        recaptchaRef.current.reset();
-        setRecaptchaToken(null);
-      }
     } finally {
       setLoading(false);
     }
@@ -147,23 +109,6 @@ export default function Login() {
           <div className="w-full p-3 bg-green-100 border border-green-400 text-green-700 rounded">
             {success}
           </div>
-        )}
-        
-        {/* reCAPTCHA */}
-        {process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && (
-          <>
-            <RecaptchaComponent
-              ref={recaptchaRef}
-              onVerify={handleRecaptchaVerify}
-              onExpire={handleRecaptchaExpire}
-              onError={handleRecaptchaError}
-            />
-            {recaptchaError && (
-              <div className="w-full p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                {recaptchaError}
-              </div>
-            )}
-          </>
         )}
         
         <div className="flex flex-col items-center justify-center w-full">

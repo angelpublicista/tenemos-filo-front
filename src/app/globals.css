@@ -1,23 +1,20 @@
 @import "tailwindcss";
+
+@variant dark (.dark &);
+
 @plugin "flowbite-react/plugin/tailwindcss";
 @source "../../.flowbite-react/class-list.json";
 
-/* Configuración de tema claro por defecto */
+/* Tema por defecto: claro */
 :root {
   --flowbite-theme-mode: light;
-}
-
-html {
   color-scheme: light;
 }
 
-body {
-  font-family: var(--font-poppins);
-  background-color: #f9fafb; /* bg-gray-50 */
-  color: #111827; /* text-gray-900 */
-}
-
-/* Asegurar que todos los elementos usen tema claro */
-* {
-  color-scheme: light;
+/* Tema oscuro cuando tiene la clase 'dark' */
+.dark,
+:root.dark,
+html.dark {
+  color-scheme: dark;
+  --flowbite-theme-mode: dark;
 }

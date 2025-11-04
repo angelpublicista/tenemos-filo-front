@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/firebase/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CompanySetupAlert from "@/components/CompanySetupAlert";
+import ThemeToggleButton from "@/components/ThemeToggleButton";
 import { 
   AiOutlineCalendar,
   AiOutlineTeam,
@@ -103,22 +104,23 @@ export default function Dashboard() {
 
   return (
     <ProtectedRoute>
-      <div className="p-6">
+      <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                 ¡Hola, {sanityUser?.name?.split(' ')[0] || 'Usuario'}! 👋
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
                 Bienvenido de vuelta. Aquí tienes un resumen de tu actividad.
               </p>
             </div>
             <div className="flex items-center space-x-4">
+              <ThemeToggleButton />
               <div className="text-right">
-                <p className="text-sm text-gray-500">Hoy es</p>
-                <p className="text-lg font-semibold text-gray-900">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Hoy es</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   {new Date().toLocaleDateString('es-ES', { 
                     weekday: 'long', 
                     year: 'numeric', 
@@ -143,11 +145,11 @@ export default function Dashboard() {
           {stats.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.title}</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stat.value}</p>
                   </div>
                   <div className={`${stat.color} p-3 rounded-lg`}>
                     <Icon className="w-6 h-6 text-white" />
@@ -155,11 +157,11 @@ export default function Dashboard() {
                 </div>
                 <div className="mt-4 flex items-center">
                   <span className={`text-sm font-medium ${
-                    stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                    stat.changeType === 'positive' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                   }`}>
                     {stat.change}
                   </span>
-                  <span className="text-sm text-gray-500 ml-2">vs mes anterior</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">vs mes anterior</span>
                 </div>
               </div>
             );
@@ -169,8 +171,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Quick Actions */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Acciones Rápidas</h2>
               <div className="space-y-3">
                 {quickActions.map((action, index) => {
                   const Icon = action.icon;
@@ -194,9 +196,9 @@ export default function Dashboard() {
 
           {/* Recent Activities */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Actividad Reciente</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Actividad Reciente</h2>
                 <a href="/activities" className="text-[#f26726] hover:text-[#f26726]/80 text-sm font-medium">
                   Ver todas
                 </a>
@@ -205,14 +207,14 @@ export default function Dashboard() {
                 {recentActivities.map((activity) => {
                   const Icon = activity.icon;
                   return (
-                    <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="bg-gray-100 p-2 rounded-lg">
-                        <Icon className="w-4 h-4 text-gray-600" />
+                    <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg">
+                        <Icon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">{activity.title}</p>
-                        <p className="text-sm text-gray-600">{activity.description}</p>
-                        <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{activity.title}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{activity.description}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{activity.time}</p>
                       </div>
                     </div>
                   );

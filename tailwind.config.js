@@ -1,11 +1,14 @@
+import flowbite from 'flowbite/plugin';
+
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+const config = {
+  darkMode: 'class', // Habilitar modo oscuro basado en clases
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './node_modules/flowbite-react/**/*.js',
   ],
-  darkMode: 'class', // Configurar darkMode como 'class' para control manual
   theme: {
     extend: {
       colors: {
@@ -23,5 +26,9 @@ module.exports = {
       },
     },
   },
-  plugins: [],
-} 
+  plugins: [
+    flowbite
+  ],
+};
+
+export default config;   

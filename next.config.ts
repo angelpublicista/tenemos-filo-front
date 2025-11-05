@@ -11,6 +11,16 @@ const nextConfig: NextConfig = {
   // Deshabilitar la generación estática para todas las páginas
   output: 'standalone',
   trailingSlash: false,
+  // Configuración de imágenes externas
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cdn.sanity.io',
+        pathname: '/images/**',
+      },
+    ],
+  },
 };
 
 export default withFlowbiteReact(nextConfig);

@@ -24,6 +24,7 @@ import {
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useRouter } from 'next/navigation';
 import Loader from '@/components/Loader';
+import { ImageUpload, GalleryUpload } from '@/components/ImageUpload';
 
 // Esquema de validación
 const experienceSchema = z.object({
@@ -64,6 +65,8 @@ export default function CreateExperiencePage() {
   const [showCustomSchedule, setShowCustomSchedule] = useState(false);
   const [customScheduleName, setCustomScheduleName] = useState('');
   const [customMinimumNotice, setCustomMinimumNotice] = useState(24);
+  const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
+  const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
 
   const {
     register,
@@ -224,6 +227,12 @@ export default function CreateExperiencePage() {
       return;
     }
 
+    // Validar que se haya subido la imagen destacada
+    if (!featuredImageAssetId) {
+      showError('Por favor sube una imagen destacada/portada para la experiencia');
+      return;
+    }
+
     // Validar que se haya seleccionado una sede para experiencias presenciales/híbridas
     if ((data.experienceType === 'presential' || data.experienceType === 'hybrid') && !selectedLocation) {
       showError('Por favor selecciona una sede');
@@ -276,6 +285,9 @@ export default function CreateExperiencePage() {
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
+        // Agregar imágenes
+        featuredImage: featuredImageAssetId || undefined,
+        gallery: galleryImages.length > 0 ? galleryImages : undefined,
       };
 
       await createExperienceInSanity(experienceData);
@@ -347,8 +359,8 @@ export default function CreateExperiencePage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         {/* Información Básica */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-[#334C5D] mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
             Información Básica
           </h2>
           
@@ -411,9 +423,34 @@ export default function CreateExperiencePage() {
           </div>
         </div>
 
+        {/* Imágenes */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
+            Imágenes
+          </h2>
+          
+          <div className="space-y-6">
+            <ImageUpload
+              label="Imagen Destacada/Portada"
+              value={featuredImageAssetId || undefined}
+              onChange={(assetId) => setFeaturedImageAssetId(assetId)}
+              required
+              helpText="Esta imagen se mostrará como portada de la experiencia en el marketplace"
+            />
+
+            <GalleryUpload
+              label="Galería de Imágenes"
+              values={galleryImages}
+              onChange={setGalleryImages}
+              maxImages={15}
+              helpText="Agrega hasta 15 imágenes adicionales para mostrar tu experiencia (opcional)"
+            />
+          </div>
+        </div>
+
         {/* Capacidad y Precios */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-[#334C5D] mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
             Capacidad y Precios
           </h2>
           
@@ -474,8 +511,8 @@ export default function CreateExperiencePage() {
         </div>
 
         {/* Tipo de Experiencia */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-[#334C5D] mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
             Tipo de Experiencia
           </h2>
           
@@ -580,8 +617,8 @@ export default function CreateExperiencePage() {
 
         {/* Disponibilidad Personalizada */}
         {(selectedSchedule === 'custom' || (showCustomSchedule && selectedLocation)) && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-[#334C5D] mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
               Configurar Disponibilidad Personalizada
             </h2>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -623,9 +660,9 @@ export default function CreateExperiencePage() {
         )}
 
         {/* Requisitos */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-[#334C5D]">
+            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100">
               Requisitos
             </h2>
             <Button
@@ -663,9 +700,9 @@ export default function CreateExperiencePage() {
         </div>
 
         {/* Incluye */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-[#334C5D]">
+            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100">
               Incluye
             </h2>
             <Button
@@ -703,9 +740,9 @@ export default function CreateExperiencePage() {
         </div>
 
         {/* Addons */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-[#334C5D]">
+            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100">
               Servicios Adicionales
             </h2>
             <Button
@@ -757,8 +794,8 @@ export default function CreateExperiencePage() {
         </div>
 
         {/* Configuración */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-[#334C5D] mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
             Configuración
           </h2>
           

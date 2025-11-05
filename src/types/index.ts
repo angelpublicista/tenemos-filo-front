@@ -311,7 +311,13 @@ export interface CreateExperienceData {
   minCapacity?: number;
   basePrice: number;
   currency: 'COP' | 'USD';
-  images?: string[]; // URLs de imágenes
+  images?: string[]; // URLs de imágenes (deprecated - usar featuredImage y gallery)
+  featuredImage?: string; // Asset ID de Sanity para imagen destacada/portada
+  gallery?: Array<{
+    assetId: string;
+    alt?: string;
+    caption?: string;
+  }>; // Array de imágenes de la galería
   location?: string; // location ID (sede)
   availabilitySchedule?: string; // availability schedule ID
   experienceType: 'virtual' | 'presential' | 'hybrid';

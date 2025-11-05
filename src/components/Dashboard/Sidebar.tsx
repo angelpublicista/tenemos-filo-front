@@ -16,6 +16,7 @@ import {
   BiMap,
   BiStore
 } from 'react-icons/bi';
+import { HiOutlineDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -81,6 +82,13 @@ export default function Sidebar() {
         icon: AiOutlineClockCircle,
         current: pathname === '/dashboard/availability',
         enabled: true
+      },
+      {
+        name: 'CRM',
+        href: '/dashboard/crm',
+        icon: HiOutlineDocumentText,
+        current: pathname?.startsWith('/dashboard/crm'),
+        enabled: true
       }
     ] : []),
     {
@@ -107,18 +115,18 @@ export default function Sidebar() {
   ];
 
   return (
-    <div className={`bg-white border-r border-gray-200 transition-all duration-300 flex-shrink-0 h-full ${isCollapsed ? 'w-20' : 'w-64'}`}>
+    <div className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex-shrink-0 h-full ${isCollapsed ? 'w-20' : 'w-64'}`}>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           {!isCollapsed && (
-            <h2 className="text-lg font-semibold text-gray-900">Navegación</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Navegación</h2>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -136,9 +144,9 @@ export default function Sidebar() {
                   className="flex items-center px-3 py-2 rounded-lg opacity-50 cursor-not-allowed"
                   title="Próximamente disponible"
                 >
-                  <Icon className="w-6 h-6 flex-shrink-0 text-gray-400" />
+                  <Icon className="w-6 h-6 flex-shrink-0 text-gray-400 dark:text-gray-600" />
                   {!isCollapsed && (
-                    <span className="ml-3 text-sm font-medium text-gray-400">{item.name}</span>
+                    <span className="ml-3 text-sm font-medium text-gray-400 dark:text-gray-600">{item.name}</span>
                   )}
                 </div>
               );
@@ -151,7 +159,7 @@ export default function Sidebar() {
                 className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
                   item.current
                     ? 'bg-[#F26726] text-white'
-                    : 'text-[#334C5D] hover:bg-[#F26726]/10 hover:text-[#F26726]'
+                    : 'text-[#334C5D] dark:text-gray-300 hover:bg-[#F26726]/10 dark:hover:bg-[#F26726]/20 hover:text-[#F26726]'
                 }`}
               >
                 <Icon className="w-6 h-6 flex-shrink-0" />
@@ -164,7 +172,7 @@ export default function Sidebar() {
         </nav>
 
         {/* User Info */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
             <div className="w-8 h-8 bg-[#f26726] rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white text-sm font-semibold">
@@ -173,10 +181,10 @@ export default function Sidebar() {
             </div>
             {!isCollapsed && (
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {sanityUser?.name || 'Usuario'}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   {sanityUser?.role === 'host' ? 'Anfitrión' : 
                    sanityUser?.role === 'admin' ? 'Administrador' : 'Comensal'}
                 </p>

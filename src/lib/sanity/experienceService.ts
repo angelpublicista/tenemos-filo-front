@@ -22,13 +22,22 @@ export const createExperienceInSanity = async (experienceData: CreateExperienceD
       minCapacity: experienceData.minCapacity,
       basePrice: experienceData.basePrice,
       currency: experienceData.currency,
-      images: experienceData.images?.map((url, index) => ({
-        _key: `image-${index}`,
+      featuredImage: experienceData.featuredImage ? {
         _type: 'image',
         asset: {
-          _ref: url,
+          _ref: experienceData.featuredImage,
           _type: 'reference',
         },
+      } : undefined,
+      gallery: experienceData.gallery?.map((img, index) => ({
+        _key: `gallery-${index}-${Date.now()}`,
+        _type: 'image',
+        asset: {
+          _ref: img.assetId,
+          _type: 'reference',
+        },
+        alt: img.alt || '',
+        caption: img.caption || '',
       })),
       location: experienceData.location ? {
         _ref: experienceData.location,

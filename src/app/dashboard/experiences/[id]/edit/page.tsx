@@ -123,7 +123,7 @@ export default function EditExperiencePage() {
         const experienceData = await getExperienceById(experienceId);
         if (!experienceData) {
           showError('No se encontró la experiencia');
-          router.push('/dashboard/my-experiences');
+          router.push('/dashboard/experiences');
           return;
         }
         setExperience(experienceData);
@@ -357,9 +357,9 @@ export default function EditExperiencePage() {
         presentialCity: data.city,
         status: data.status,
         isFeatured: data.isFeatured,
-        requirements: requirements.filter(req => req.trim() !== ''),
-        includes: includes.filter(inc => inc.trim() !== ''),
-        addons: addons.filter(addon => addon.name.trim() !== ''),
+        requirements: requirements.filter(req => req && req.trim() !== ''),
+        includes: includes.filter(inc => inc && inc.trim() !== ''),
+        addons: addons.filter(addon => addon && addon.name && addon.name.trim() !== ''),
         location: selectedLocation || undefined,
         availabilitySchedule: finalScheduleId,
         featuredImage: featuredImageAssetId || undefined,
@@ -369,7 +369,7 @@ export default function EditExperiencePage() {
       await updateExperienceInSanity(updateData);
       
       showSuccess('Experiencia actualizada exitosamente');
-      router.push('/dashboard/my-experiences');
+      router.push('/dashboard/experiences');
     } catch (error) {
       console.error('Error updating experience:', error);
       showError('Error al actualizar la experiencia');
@@ -395,7 +395,7 @@ export default function EditExperiencePage() {
           </p>
           <Button
             color="primary"
-            onClick={() => router.push('/dashboard/my-experiences')}
+            onClick={() => router.push('/dashboard/experiences')}
             className="px-6 py-3"
           >
             Volver a Mis Experiencias

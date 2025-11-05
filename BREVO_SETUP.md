@@ -59,7 +59,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```typescript
 // Configuración de Brevo SMTP
 const transporter = nodemailer.createTransporter({
-  host: 'smtp-relay.brevo.com',
+  host: 'smtp-relay.sendinblue.com',
   port: 587,
   secure: false,
   auth: {
@@ -68,6 +68,8 @@ const transporter = nodemailer.createTransporter({
   },
 });
 ```
+
+> **Nota:** Se usa `smtp-relay.sendinblue.com` en lugar de `smtp-relay.brevo.com` para evitar problemas de certificado SSL, especialmente en regiones como Sudamérica.
 
 ## 📊 Monitoreo y Logs
 

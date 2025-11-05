@@ -20,6 +20,8 @@ interface QuoteEmailData {
 
 export const sendQuoteEmail = async (data: QuoteEmailData): Promise<void> => {
   try {
+    console.log('🔄 Iniciando envío de cotización...');
+    
     const response = await fetch('/api/send-quote-email', {
       method: 'POST',
       headers: {
@@ -28,17 +30,22 @@ export const sendQuoteEmail = async (data: QuoteEmailData): Promise<void> => {
       body: JSON.stringify(data),
     });
 
+    const result = await response.json();
+    console.log('📨 Respuesta del servidor:', result);
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Error al enviar el email');
+      throw new Error(result.message || 'Error al enviar el email');
     }
 
-    return await response.json();
+    console.log('✅ Email enviado correctamente');
+    return result;
   } catch (error) {
-    console.error('Error sending quote email:', error);
+    console.error('❌ Error en sendQuoteEmail:', error);
     throw error;
   }
 };
+
+
 
 
 

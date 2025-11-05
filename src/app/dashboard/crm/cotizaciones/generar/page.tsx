@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Label, TextInput, Textarea } from 'flowbite-react';
-import { HiArrowLeft, HiMail, HiCheckCircle } from 'react-icons/hi';
+import { HiArrowLeft, HiMail, HiDocumentDownload } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
 import { createQuote } from '@/lib/sanity/quoteService';
 import { sendQuoteEmail } from '@/lib/email/quoteEmailService';
+import { generateQuotePDF } from '@/lib/pdf/quotePdfService';
 import { Experience } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 
@@ -61,15 +62,52 @@ export default function GenerarCotizacionPage() {
     setCustomerData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Calcular totales para cada opción individual (no acumulativo)
   const calculateTotals = () => {
     if (!quoteData) return { subtotal: 0, total: 0 };
 
     const guests = quoteData.searchParams.guests;
+    // Calculamos el promedio de las opciones solo para propósitos internos
     const subtotal = quoteData.selectedExperiences.reduce((sum, exp) => {
       return sum + (exp.basePrice * guests);
     }, 0);
 
     return { subtotal, total: subtotal };
+  };
+
+  // Descargar cotización como PDF
+  const handleDownloadPDF = () => {
+    if (!quoteData || !sanityUser) {
+      showError('No hay datos de cotización disponibles');
+      return;
+    }
+
+    // Validar que haya datos del cliente si se requieren
+    if (!customerData.name || !customerData.email) {
+      showError('Por favor completa al menos el nombre y email del cliente antes de descargar el PDF');
+      return;
+    }
+
+    try {
+      generateQuotePDF({
+        customerName: customerData.name,
+        customerEmail: customerData.email,
+        customerPhone: customerData.phone,
+        hostName: sanityUser.name || 'Anfitrión',
+        companyName: sanityUser.companyId || 'Tenemos Filo',
+        experiences: quoteData.selectedExperiences,
+        eventDate: quoteData.searchParams.date,
+        eventTime: quoteData.searchParams.time,
+        guests: quoteData.searchParams.guests,
+        location: quoteData.searchParams.location,
+        notes: customerData.notes,
+      });
+
+      showSuccess('PDF descargado exitosamente');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      showError('Error al generar el PDF');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,8 +173,6 @@ export default function GenerarCotizacionPage() {
   if (!quoteData) {
     return null;
   }
-
-  const { subtotal, total } = calculateTotals();
 
   return (
     <ProtectedRoute>
@@ -225,25 +261,39 @@ export default function GenerarCotizacionPage() {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                color="primary"
-                disabled={isLoading}
-                className="w-full"
-                size="lg"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Enviando Cotización...
-                  </>
-                ) : (
-                  <>
-                    <HiMail className="w-5 h-5 mr-2" />
-                    Enviar Cotización por Email
-                  </>
-                )}
-              </Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button
+                  type="button"
+                  color="gray"
+                  onClick={handleDownloadPDF}
+                  disabled={isLoading || !customerData.name || !customerData.email}
+                  className="w-full"
+                  size="lg"
+                >
+                  <HiDocumentDownload className="w-5 h-5 mr-2" />
+                  Descargar PDF
+                </Button>
+
+                <Button
+                  type="submit"
+                  color="primary"
+                  disabled={isLoading}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <HiMail className="w-5 h-5 mr-2" />
+                      Enviar por Email
+                    </>
+                  )}
+                </Button>
+              </div>
             </form>
           </div>
 
@@ -270,25 +320,34 @@ export default function GenerarCotizacionPage() {
                   </div>
                 </div>
 
-                {/* Experiencias Seleccionadas */}
+                {/* Opciones de Experiencias */}
                 <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                  <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-                    Experiencias ({quoteData.selectedExperiences.length})
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                    Opciones para el Cliente
                   </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    Se enviarán {quoteData.selectedExperiences.length} {quoteData.selectedExperiences.length === 1 ? 'opción' : 'opciones diferentes'}
+                  </p>
                   <div className="space-y-3">
-                    {quoteData.selectedExperiences.map((exp) => (
-                      <div key={exp._id} className="bg-gray-50 dark:bg-gray-700 rounded p-3">
+                    {quoteData.selectedExperiences.map((exp, index) => (
+                      <div key={exp._id} className="border-2 border-[#F26726]/20 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-700 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-[#F26726] to-[#E23694] text-white text-xs font-bold">
+                            {index + 1}
+                          </span>
+                          <span className="text-xs font-semibold text-[#F26726]">OPCIÓN {index + 1}</span>
+                        </div>
                         <p className="font-medium text-sm text-gray-900 dark:text-gray-100 mb-1">
                           {exp.title}
                         </p>
                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
                           {exp.duration} min • {exp.capacity} personas máx
                         </p>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">
+                        <div className="flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-600">
+                          <span className="text-gray-600 dark:text-gray-400 text-xs">
                             {formatCurrency(exp.basePrice, exp.currency)} × {quoteData.searchParams.guests}
                           </span>
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                          <span className="font-bold text-[#F26726]">
                             {formatCurrency(exp.basePrice * quoteData.searchParams.guests, exp.currency)}
                           </span>
                         </div>
@@ -297,19 +356,12 @@ export default function GenerarCotizacionPage() {
                   </div>
                 </div>
 
-                {/* Total */}
+                {/* Nota Informativa */}
                 <div className="pt-2">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">
-                      {formatCurrency(subtotal, 'COP')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold border-t border-gray-200 dark:border-gray-700 pt-2">
-                    <span className="text-gray-900 dark:text-gray-100">Total:</span>
-                    <span className="text-[#F26726]">
-                      {formatCurrency(total, 'COP')}
-                    </span>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      <span className="font-semibold">💡 Nota:</span> Cada opción se mostrará por separado en el email. El cliente podrá elegir la que más le convenga.
+                    </p>
                   </div>
                 </div>
               </div>

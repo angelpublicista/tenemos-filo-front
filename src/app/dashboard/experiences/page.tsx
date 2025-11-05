@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/firebase/AuthContext';
-import { getExperiencesByCompany, getExperienceStatsByCompany } from '@/lib/sanity/experienceService';
+import { getExperiencesByCompany, getExperienceStatsByCompany, updateExperienceStatus, deleteExperienceInSanity } from '@/lib/sanity/experienceService';
 import { getCompanyByUserId } from '@/lib/sanity/companyService';
 import { Experience, Company } from '@/types';
 
@@ -22,15 +22,11 @@ import {
   HiPlus, 
   HiPencilAlt, 
   HiTrash, 
-  HiEye, 
   HiStar,
   HiClock,
   HiUsers,
   HiCurrencyDollar,
-  HiCheckCircle,
   HiExclamationCircle,
-  HiMinus,
-  HiFilter,
   HiViewGrid,
   HiViewList
 } from 'react-icons/hi';
@@ -40,13 +36,14 @@ import Loader from '@/components/Loader';
 import ExperienceStats from '@/components/ExperienceStats';
 
 export default function ExperiencesPage() {
-  const { user, sanityUser } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
-  const { showError } = useSweetAlert();
+  const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
   const [stats, setStats] = useState<ExperienceStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -84,6 +81,7 @@ export default function ExperiencesPage() {
 
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Filtrar experiencias por estado
@@ -91,6 +89,67 @@ export default function ExperiencesPage() {
     if (statusFilter === 'all') return true;
     return experience.status === statusFilter;
   });
+
+  // Cambiar estado de experiencia
+  const handleStatusChange = async (experienceId: string, newStatus: Experience['status']) => {
+    try {
+      setIsUpdating(experienceId);
+      await updateExperienceStatus(experienceId, newStatus);
+      
+      // Actualizar estado local
+      setExperiences(prev => 
+        prev.map(exp => 
+          exp._id === experienceId 
+            ? { ...exp, status: newStatus }
+            : exp
+        )
+      );
+
+      // Recargar estadísticas
+      if (company) {
+        const newStats = await getExperienceStatsByCompany(company._id);
+        setStats(newStats);
+      }
+
+      showSuccess('Estado actualizado exitosamente');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      showError('Error al actualizar el estado');
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  // Eliminar experiencia
+  const handleDelete = async (experienceId: string, experienceTitle: string) => {
+    const confirmed = await showConfirmation(
+      'Eliminar Experiencia',
+      `¿Estás seguro de que quieres eliminar "${experienceTitle}"? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsUpdating(experienceId);
+      await deleteExperienceInSanity(experienceId);
+      
+      // Actualizar estado local
+      setExperiences(prev => prev.filter(exp => exp._id !== experienceId));
+
+      // Recargar estadísticas
+      if (company) {
+        const newStats = await getExperienceStatsByCompany(company._id);
+        setStats(newStats);
+      }
+
+      showSuccess('Experiencia eliminada exitosamente');
+    } catch (error) {
+      console.error('Error deleting experience:', error);
+      showError('Error al eliminar la experiencia');
+    } finally {
+      setIsUpdating(null);
+    }
+  };
 
   // Formatear precio
   const formatPrice = (price: number, currency: string) => {
@@ -334,38 +393,47 @@ export default function ExperiencesPage() {
 
                     {/* Estadísticas */}
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4 pt-4 border-t border-gray-200">
-                      <span>{experience.totalBookings} reservas</span>
+                      <span>{experience.totalBookings || 0} reservas</span>
                       <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
                     </div>
 
                     {/* Acciones */}
-                    <div className="flex items-center justify-between">
+                    <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Button
                           color="gray"
                           size="sm"
-                          onClick={() => router.push(`/dashboard/my-experiences`)}
-                          title="Ver detalles"
+                          onClick={() => router.push(`/dashboard/experiences/${experience._id}/edit`)}
+                          title="Editar experiencia"
+                          className="flex-1"
                         >
-                          <HiEye className="w-4 h-4" />
+                          <HiPencilAlt className="w-4 h-4 mr-1" />
+                          Editar
                         </Button>
                         <Button
-                          color="gray"
+                          color="red"
                           size="sm"
-                          onClick={() => router.push(`/dashboard/my-experiences`)}
-                          title="Gestionar experiencia"
+                          onClick={() => handleDelete(experience._id, experience.title)}
+                          disabled={isUpdating === experience._id}
+                          title="Eliminar experiencia"
                         >
-                          <HiPencilAlt className="w-4 h-4" />
+                          <HiTrash className="w-4 h-4" />
                         </Button>
                       </div>
 
-                      <Button 
-                        color="primary" 
-                        size="sm"
-                        onClick={() => router.push(`/dashboard/my-experiences`)}
+                      {/* Cambio de estado */}
+                      <Select
+                        value={experience.status}
+                        onChange={(e) => handleStatusChange(experience._id, e.target.value as Experience['status'])}
+                        disabled={isUpdating === experience._id}
+                        className="w-full text-sm"
                       >
-                        Ver Detalles
-                      </Button>
+                        <option value="draft">Borrador</option>
+                        <option value="pending">Pendiente</option>
+                        <option value="active">Activa</option>
+                        <option value="paused">Pausada</option>
+                        <option value="inactive">Inactiva</option>
+                      </Select>
                     </div>
                   </div>
                 </Card>
@@ -415,22 +483,26 @@ export default function ExperiencesPage() {
                         </div>
 
                         <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span>{experience.totalBookings} reservas</span>
+                          <span>{experience.totalBookings || 0} reservas</span>
                           <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
                         </div>
                       </div>
 
                       {/* Acciones */}
-                      <div className="flex items-center gap-1 ml-4 flex-shrink-0">
-                        <Button
-                          color="gray"
-                          size="xs"
-                          onClick={() => router.push(`/dashboard/my-experiences`)}
-                          className="px-2 py-1"
-                          title="Ver detalles"
+                      <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                        <Select
+                          value={experience.status}
+                          onChange={(e) => handleStatusChange(experience._id, e.target.value as Experience['status'])}
+                          disabled={isUpdating === experience._id}
+                          className="w-32 text-sm"
                         >
-                          <HiEye className="w-3 h-3" />
-                        </Button>
+                          <option value="draft">Borrador</option>
+                          <option value="pending">Pendiente</option>
+                          <option value="active">Activa</option>
+                          <option value="paused">Pausada</option>
+                          <option value="inactive">Inactiva</option>
+                        </Select>
+                        
                         <Button
                           color="gray"
                           size="xs"
@@ -440,13 +512,15 @@ export default function ExperiencesPage() {
                         >
                           <HiPencilAlt className="w-3 h-3" />
                         </Button>
-                        <Button 
-                          color="primary" 
-                          size="xs" 
-                          className="px-3 py-1 text-xs"
-                          onClick={() => router.push(`/dashboard/my-experiences`)}
+                        <Button
+                          color="red"
+                          size="xs"
+                          onClick={() => handleDelete(experience._id, experience.title)}
+                          disabled={isUpdating === experience._id}
+                          className="px-2 py-1"
+                          title="Eliminar experiencia"
                         >
-                          Ver
+                          <HiTrash className="w-3 h-3" />
                         </Button>
                       </div>
                     </div>

@@ -26,12 +26,32 @@ export async function POST(request: NextRequest) {
       guests,
       location,
       notes,
-      totals,
     } = data;
+
+    // Validar variables de entorno
+    if (!process.env.BREVO_SMTP_USER || !process.env.BREVO_SMTP_PASSWORD) {
+      console.error('❌ Credenciales de Brevo no configuradas');
+      return NextResponse.json(
+        { success: false, message: 'Configuración de email incompleta. Verifica las credenciales de Brevo.' },
+        { status: 500 }
+      );
+    }
+
+    if (!process.env.BREVO_FROM_EMAIL) {
+      console.error('❌ Email de origen no configurado');
+      return NextResponse.json(
+        { success: false, message: 'Email de origen no configurado.' },
+        { status: 500 }
+      );
+    }
+
+    console.log('📧 Preparando envío de cotización a:', customerEmail);
+    console.log('📤 Desde:', process.env.BREVO_FROM_EMAIL);
+    console.log('🏢 Usuario SMTP:', process.env.BREVO_SMTP_USER);
 
     // Configurar transporte de email con Brevo
     const transporter = nodemailer.createTransport({
-      host: 'smtp-relay.brevo.com',
+      host: 'smtp-relay.sendinblue.com',
       port: 587,
       secure: false,
       auth: {
@@ -40,34 +60,52 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generar HTML del email
-    const experiencesHTML = (experiences as ExperienceForEmail[]).map((exp) => `
-      <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-        <h3 style="color: #334C5D; margin: 0 0 10px 0; font-size: 18px;">${exp.title}</h3>
-        <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 14px;">${exp.description}</p>
-        <div style="display: flex; justify-content: space-between; font-size: 14px;">
+    // Verificar conexión SMTP
+    try {
+      await transporter.verify();
+      console.log('✅ Conexión SMTP verificada correctamente');
+    } catch (verifyError) {
+      console.error('❌ Error al verificar conexión SMTP:', verifyError);
+      return NextResponse.json(
+        { success: false, message: 'Error al conectar con el servidor de email. Verifica tus credenciales.' },
+        { status: 500 }
+      );
+    }
+
+    // Generar HTML del email con opciones separadas
+    const experiencesHTML = (experiences as ExperienceForEmail[]).map((exp, index) => `
+      <div style="background-color: #ffffff; border: 2px solid #e5e7eb; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+        <div style="background: linear-gradient(135deg, #F26726 0%, #E23694 100%); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 15px;">
+          <h3 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: bold;">Opción ${index + 1}</h3>
+        </div>
+        
+        <h4 style="color: #334C5D; margin: 0 0 10px 0; font-size: 18px;">${exp.title}</h4>
+        <p style="color: #6b7280; margin: 0 0 15px 0; font-size: 14px; line-height: 1.6;">${exp.description}</p>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 15px; padding: 15px; background-color: #f9fafb; border-radius: 8px;">
           <div>
             <p style="margin: 5px 0; color: #6b7280;">
-              <strong>Duración:</strong> ${exp.duration} minutos
+              <strong style="color: #334C5D;">⏱️ Duración:</strong> ${exp.duration} minutos
             </p>
             <p style="margin: 5px 0; color: #6b7280;">
-              <strong>Capacidad:</strong> ${exp.minCapacity || 1} - ${exp.capacity} personas
+              <strong style="color: #334C5D;">👥 Capacidad:</strong> ${exp.minCapacity || 1} - ${exp.capacity} personas
             </p>
           </div>
           <div style="text-align: right;">
-            <p style="margin: 5px 0; color: #6b7280;">
-              $${exp.basePrice.toLocaleString()} ${exp.currency} × ${guests}
+            <p style="margin: 5px 0; color: #6b7280; font-size: 13px;">
+              $${exp.basePrice.toLocaleString()} ${exp.currency} × ${guests} personas
             </p>
-            <p style="margin: 5px 0; color: #F26726; font-size: 16px; font-weight: bold;">
+            <p style="margin: 5px 0; color: #F26726; font-size: 20px; font-weight: bold;">
               $${(exp.basePrice * guests).toLocaleString()} ${exp.currency}
             </p>
           </div>
         </div>
+        
         ${exp.includes && exp.includes.length > 0 ? `
-          <div style="margin-top: 10px;">
-            <p style="margin: 5px 0; color: #334C5D; font-weight: 600;">Incluye:</p>
-            <ul style="margin: 5px 0; padding-left: 20px; color: #6b7280;">
-              ${exp.includes.map((item: string) => `<li>${item}</li>`).join('')}
+          <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 15px; border-radius: 4px;">
+            <p style="margin: 0 0 10px 0; color: #065f46; font-weight: 600; font-size: 14px;">✓ Esta opción incluye:</p>
+            <ul style="margin: 0; padding-left: 20px; color: #047857;">
+              ${exp.includes.map((item: string) => `<li style="margin: 5px 0;">${item}</li>`).join('')}
             </ul>
           </div>
         ` : ''}
@@ -111,44 +149,42 @@ export async function POST(request: NextRequest) {
               ${location ? `<p style="margin: 5px 0; color: #1e3a8a;"><strong>Ubicación:</strong> ${location}</p>` : ''}
             </div>
 
-            <!-- Experiencias -->
-            <h2 style="color: #334C5D; margin: 0 0 20px 0; font-size: 20px;">Experiencias Propuestas</h2>
+            <!-- Opciones de Experiencias -->
+            <h2 style="color: #334C5D; margin: 0 0 10px 0; font-size: 22px;">🎯 Opciones para tu Evento</h2>
+            <p style="color: #6b7280; font-size: 14px; margin: 0 0 25px 0; line-height: 1.6;">
+              A continuación encontrarás ${experiences.length} ${experiences.length === 1 ? 'opción' : 'opciones diferentes'} que hemos preparado especialmente para tu evento. Cada opción incluye el precio total para ${guests} personas.
+            </p>
+            
             ${experiencesHTML}
 
             ${notes ? `
-              <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 30px 0; border-radius: 8px;">
                 <h3 style="color: #92400e; margin: 0 0 10px 0; font-size: 16px;">📝 Notas Adicionales</h3>
-                <p style="color: #78350f; margin: 0; white-space: pre-wrap;">${notes}</p>
+                <p style="color: #78350f; margin: 0; white-space: pre-wrap; line-height: 1.6;">${notes}</p>
               </div>
             ` : ''}
 
-            <!-- Total -->
-            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-top: 30px;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span style="color: #6b7280; font-size: 16px;">Subtotal:</span>
-                <span style="color: #334C5D; font-size: 16px; font-weight: 600;">$${totals.subtotal.toLocaleString()} COP</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 2px solid #e5e7eb;">
-                <span style="color: #334C5D; font-size: 20px; font-weight: bold;">Total:</span>
-                <span style="color: #F26726; font-size: 24px; font-weight: bold;">$${totals.total.toLocaleString()} COP</span>
-              </div>
-            </div>
-
             <!-- Call to Action -->
-            <div style="text-align: center; margin-top: 40px;">
-              <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">
-                ¿Te interesan estas experiencias? Responde este correo para coordinar los detalles.
+            <div style="text-align: center; margin-top: 40px; background-color: #f9fafb; padding: 30px; border-radius: 12px;">
+              <p style="color: #334C5D; font-size: 16px; margin-bottom: 15px; font-weight: 600;">
+                ¿Cuál opción te gusta más? 💬
+              </p>
+              <p style="color: #6b7280; font-size: 14px; margin-bottom: 25px; line-height: 1.6;">
+                Responde este correo indicando la opción de tu preferencia o si deseas combinar elementos de diferentes opciones. ¡Estamos para ayudarte a crear el evento perfecto!
               </p>
               <a href="mailto:${process.env.BREVO_FROM_EMAIL}" 
-                 style="display: inline-block; background-color: #F26726; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                Responder
+                 style="display: inline-block; background: linear-gradient(135deg, #F26726 0%, #E23694 100%); color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(242, 103, 38, 0.3);">
+                Responder al Anfitrión
               </a>
             </div>
 
             <!-- Nota al pie -->
-            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-              <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0 0 5px 0;">
                 Esta cotización es válida por 7 días. Los precios están sujetos a disponibilidad.
+              </p>
+              <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+                Cada opción muestra el precio total para ${guests} ${guests === 1 ? 'persona' : 'personas'}.
               </p>
             </div>
           </div>
@@ -168,21 +204,38 @@ export async function POST(request: NextRequest) {
     `;
 
     // Enviar email
-    await transporter.sendMail({
+    console.log('📮 Enviando email...');
+    const mailOptions = {
       from: `"${companyName}" <${process.env.BREVO_FROM_EMAIL}>`,
       to: customerEmail,
       subject: `Cotización para tu evento - ${new Date(eventDate).toLocaleDateString('es-ES')}`,
       html: emailHTML,
-    });
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log('✅ Email enviado exitosamente');
+    console.log('📬 Message ID:', info.messageId);
+    console.log('📊 Response:', info.response);
+    console.log('👤 Destinatario:', customerEmail);
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Email enviado exitosamente' 
+      message: 'Email enviado exitosamente',
+      messageId: info.messageId
     });
   } catch (error) {
-    console.error('Error sending quote email:', error);
+    console.error('❌ Error completo al enviar email:', error);
+    
+    // Proporcionar mensaje de error más detallado
+    let errorMessage = 'Error al enviar el email';
+    if (error instanceof Error) {
+      errorMessage += `: ${error.message}`;
+      console.error('📋 Stack trace:', error.stack);
+    }
+    
     return NextResponse.json(
-      { success: false, message: 'Error al enviar el email' },
+      { success: false, message: errorMessage },
       { status: 500 }
     );
   }

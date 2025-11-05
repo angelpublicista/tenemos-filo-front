@@ -325,7 +325,7 @@ export default function CreateExperiencePage() {
       await createExperienceInSanity(experienceData);
       
       showSuccess('Experiencia creada exitosamente');
-      router.push('/dashboard/my-experiences');
+      router.push('/dashboard/experiences');
     } catch (error) {
       console.error('Error creating experience:', error);
       showError('Error al crear la experiencia');

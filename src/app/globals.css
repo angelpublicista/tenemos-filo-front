@@ -18,3 +18,12 @@ html.dark {
   color-scheme: dark;
   --flowbite-theme-mode: dark;
 }
+
+/* Aplicar Poppins globalmente */
+* {
+  font-family: var(--font-poppins), system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: var(--font-poppins), system-ui, -apple-system, sans-serif;
+}

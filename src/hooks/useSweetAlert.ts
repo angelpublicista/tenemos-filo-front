@@ -68,8 +68,8 @@ export const useSweetAlert = () => {
     text: string, 
     confirmText: string = 'Sí, continuar',
     cancelText: string = 'Cancelar'
-  ) => {
-    return showAlert({
+  ): Promise<boolean> => {
+    const result = await showAlert({
       title,
       text,
       icon: 'question',
@@ -77,6 +77,7 @@ export const useSweetAlert = () => {
       confirmButtonText: confirmText,
       cancelButtonText: cancelText
     });
+    return result.isConfirmed;
   }, [showAlert]);
 
   const showLoading = useCallback(async (title: string = 'Procesando...') => {

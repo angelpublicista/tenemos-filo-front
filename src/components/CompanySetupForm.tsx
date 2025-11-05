@@ -425,14 +425,14 @@ export default function CompanySetupForm() {
       ? 'Recuerda que no podrás crear experiencias hasta completar esta información.'
       : 'Recuerda que no podrás cotizar experiencias hasta completar esta información.';
 
-    const result = await showConfirmation(
+    const confirmed = await showConfirmation(
       warningTitle,
       warningText,
       'Sí, saltar',
       'Cancelar'
     );
     
-    if (!result.isConfirmed) {
+    if (!confirmed) {
       return; // Usuario canceló la acción
     }
 

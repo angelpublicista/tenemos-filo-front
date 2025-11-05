@@ -115,9 +115,11 @@ export default function ExperienceCard({
                 </Badge>
               )}
             </div>
-            <span className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">
-              {formatCategories(experience.categories || [])}
-            </span>
+            {experience.categories && experience.categories.length > 0 && (
+              <span className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">
+                {formatCategories(experience.categories)}
+              </span>
+            )}
           </div>
         </div>
         

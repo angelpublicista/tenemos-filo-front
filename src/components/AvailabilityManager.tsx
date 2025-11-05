@@ -180,13 +180,13 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
   };
 
   const handleDeleteSchedule = async (scheduleId: string) => {
-    const result = await showConfirmation(
+    const confirmed = await showConfirmation(
       '¿Estás seguro?',
       'Esta acción no se puede deshacer',
       'Sí, eliminar'
     );
 
-    if (result.isConfirmed) {
+    if (confirmed) {
       try {
         showLoading('Eliminando calendario...');
         await deleteAvailabilitySchedule(scheduleId);

@@ -48,13 +48,13 @@ const LocationManager: React.FC<LocationManagerProps> = ({
   };
 
   const handleDeleteLocation = async (locationId: string) => {
-    const result = await showConfirmation(
+    const confirmed = await showConfirmation(
       '¿Estás seguro?',
       'Esta acción no se puede deshacer. La sede se marcará como eliminada.',
       'Sí, eliminar'
     );
 
-    if (result.isConfirmed) {
+    if (confirmed) {
       try {
         showLoading('Eliminando sede...');
         await deleteLocationInSanity(locationId);

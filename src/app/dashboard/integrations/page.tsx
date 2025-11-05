@@ -76,12 +76,12 @@ export default function IntegrationsPage() {
 
   const handleConnect = async (type: 'google' | 'outlook' | 'calendly') => {
     try {
-      const result = await showConfirmation(
+      const confirmed = await showConfirmation(
         'Confirmar integración',
         `¿Estás seguro de que quieres conectar tu cuenta ${getIntegrationName(type)}?`,
       );
 
-      if (result.isConfirmed) {
+      if (confirmed) {
         await connectIntegration(type);
       }
     } catch {
@@ -91,12 +91,12 @@ export default function IntegrationsPage() {
 
   const handleDisconnect = async (integrationId: string, integrationName: string) => {
     try {
-      const result = await showConfirmation(
+      const confirmed = await showConfirmation(
         'Desconectar integración',
         `¿Estás seguro de que quieres desconectar ${integrationName}? Esto puede afectar la sincronización de tu calendario.`
       );
 
-      if (result.isConfirmed) {
+      if (confirmed) {
         await disconnectIntegration(integrationId);
       }
     } catch {
@@ -106,12 +106,12 @@ export default function IntegrationsPage() {
 
   const handleDelete = async (integrationId: string, integrationName: string) => {
     try {
-      const result = await showConfirmation(
+      const confirmed = await showConfirmation(
         'Eliminar integración',
         `¿Estás seguro de que quieres eliminar completamente ${integrationName}? Esta acción no se puede deshacer.`
       );
 
-      if (result.isConfirmed) {
+      if (confirmed) {
         await deleteIntegration(integrationId);
       }
     } catch {

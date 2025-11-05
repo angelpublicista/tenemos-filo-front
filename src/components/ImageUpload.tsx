@@ -27,10 +27,16 @@ const getImageUrl = (assetId: string): string => {
   const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
   const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
   
-  // Extraer el ID del asset si viene en formato completo
-  const cleanAssetId = assetId.replace('image-', '').replace(/-([a-z]+)$/, '.$1');
+  // Si el assetId ya viene en formato completo (image-xxx-dimensions-format)
+  if (assetId.startsWith('image-')) {
+    // Convertir de formato: image-abc123def456-1920x1080-jpg
+    // a formato URL: abc123def456-1920x1080.jpg
+    const cleanAssetId = assetId.replace('image-', '').replace(/-([a-z]+)$/, '.$1');
+    return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
+  }
   
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
+  // Si es solo el ID del asset sin prefijo
+  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${assetId}`;
 };
 
 // Componente para subir una sola imagen

@@ -94,10 +94,12 @@ export default function ExperiencesPage() {
 
   // Formatear precio
   const formatPrice = (price: number, currency: string) => {
-    if (currency === 'USD') {
-      return `$${price.toLocaleString()}`;
-    }
-    return `$${price.toLocaleString('es-CO')}`;
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
   };
 
   // Formatear duración
@@ -112,8 +114,8 @@ export default function ExperiencesPage() {
   };
 
   // Formatear categoría
-  const formatCategory = (category: string) => {
-    const categories: Record<string, string> = {
+  const formatCategories = (categories: string[]) => {
+    const categoryLabels: Record<string, string> = {
       'cooking': 'Cocina',
       'mixology': 'Mixología',
       'tasting': 'Degustación',
@@ -123,7 +125,7 @@ export default function ExperiencesPage() {
       'workshops': 'Talleres',
       'other': 'Otro'
     };
-    return categories[category] || category;
+    return categories.map(cat => categoryLabels[cat] || cat).join(', ');
   };
 
   // Obtener color del estado
@@ -303,7 +305,7 @@ export default function ExperiencesPage() {
                           )}
                         </div>
                         <span className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">
-                          {formatCategory(experience.category)}
+                          {formatCategories(experience.categories || [])}
                         </span>
                       </div>
                     </div>
@@ -395,7 +397,7 @@ export default function ExperiencesPage() {
 
                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                           <span className="bg-gray-100 px-2 py-1 rounded text-xs">
-                            {formatCategory(experience.category)}
+                            {formatCategories(experience.categories || [])}
                           </span>
                           <div className="flex items-center gap-1">
                             <HiClock className="w-3 h-3" />
@@ -432,9 +434,9 @@ export default function ExperiencesPage() {
                         <Button
                           color="gray"
                           size="xs"
-                          onClick={() => router.push(`/dashboard/my-experiences`)}
+                          onClick={() => router.push(`/dashboard/experiences/${experience._id}/edit`)}
                           className="px-2 py-1"
-                          title="Gestionar experiencia"
+                          title="Editar experiencia"
                         >
                           <HiPencilAlt className="w-3 h-3" />
                         </Button>

@@ -108,8 +108,8 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
       let schedule = availableSchedules.find(s => s.isMain && s.isActive);
       
       // Si la experiencia tiene un calendario asociado, usarlo
-      if (selectedExp?.availabilitySchedule?._ref) {
-        const expSchedule = availableSchedules.find(s => s._id === selectedExp?.availabilitySchedule?._ref);
+      if (selectedExp?.availabilitySchedule) {
+        const expSchedule = availableSchedules.find(s => s._id === selectedExp.availabilitySchedule);
         if (expSchedule) {
           schedule = expSchedule;
         }

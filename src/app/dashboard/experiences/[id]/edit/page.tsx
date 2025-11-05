@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/lib/firebase/AuthContext';
-import { createExperienceInSanity } from '@/lib/sanity/experienceService';
+import { getExperienceById, updateExperienceInSanity } from '@/lib/sanity/experienceService';
 import { getCompanyByUserId } from '@/lib/sanity/companyService';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { 
@@ -12,7 +12,7 @@ import {
   createAvailabilitySchedule,
   generateDefaultSchedule 
 } from '@/lib/sanity/availabilityService';
-import { CreateExperienceData, Company, Location, AvailabilitySchedule } from '@/types';
+import { UpdateExperienceData, Company, Location, AvailabilitySchedule, Experience } from '@/types';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
 import { 
   HiArrowLeft, 
@@ -22,7 +22,7 @@ import {
   HiMinus
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Loader from '@/components/Loader';
 import { ImageUpload, GalleryUpload } from '@/components/ImageUpload';
 
@@ -47,13 +47,16 @@ const experienceSchema = z.object({
 
 type ExperienceFormData = z.infer<typeof experienceSchema>;
 
-export default function CreateExperiencePage() {
+export default function EditExperiencePage() {
   const { user, sanityUser } = useAuth();
   const router = useRouter();
+  const params = useParams();
+  const experienceId = params.id as string;
   const { showSuccess, showError } = useSweetAlert();
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [company, setCompany] = useState<Company | null>(null);
+  const [experience, setExperience] = useState<Experience | null>(null);
   const [companyNotFound, setCompanyNotFound] = useState(false);
   const [requirements, setRequirements] = useState<string[]>(['']);
   const [includes, setIncludes] = useState<string[]>(['']);
@@ -74,26 +77,10 @@ export default function CreateExperiencePage() {
     handleSubmit,
     formState: { errors },
     watch,
-    setValue
+    setValue,
+    reset
   } = useForm<ExperienceFormData>({
     mode: 'onChange',
-    defaultValues: {
-      title: '',
-      description: '',
-      categories: [],
-      duration: 60,
-      capacity: 10,
-      minCapacity: 1,
-      basePrice: 0,
-      currency: 'COP',
-      experienceType: 'presential',
-      virtualPlatform: 'zoom',
-      location: '',
-      address: '',
-      city: '',
-      status: 'draft',
-      isFeatured: false,
-    }
   });
 
   const experienceType = watch('experienceType');
@@ -113,49 +100,114 @@ export default function CreateExperiencePage() {
     }).format(value);
   };
 
-  // Cargar datos de la empresa
+  // Cargar datos de la experiencia y empresa
   useEffect(() => {
-    const loadCompanyData = async () => {
-      if (!user) {
+    const loadData = async () => {
+      if (!user || !experienceId) {
         setIsLoadingData(false);
         return;
       }
 
       try {
+        // Cargar empresa
         const companyData = await getCompanyByUserId(user.uid);
         if (!companyData) {
           setCompanyNotFound(true);
-          showError('No se encontró información de empresa. Completa el registro de empresa primero.');
+          showError('No se encontró información de empresa.');
           router.push('/dashboard/company-setup');
           return;
         }
         setCompany(companyData);
-        setCompanyNotFound(false);
+
+        // Cargar experiencia
+        const experienceData = await getExperienceById(experienceId);
+        if (!experienceData) {
+          showError('No se encontró la experiencia');
+          router.push('/dashboard/my-experiences');
+          return;
+        }
+        setExperience(experienceData);
+
+        // Prellenar formulario
+        reset({
+          title: experienceData.title,
+          description: experienceData.description,
+          categories: experienceData.categories || [],
+          duration: experienceData.duration,
+          capacity: experienceData.capacity,
+          minCapacity: experienceData.minCapacity,
+          basePrice: experienceData.basePrice,
+          currency: experienceData.currency,
+          experienceType: experienceData.experienceType,
+          virtualPlatform: experienceData.virtualPlatform,
+          location: experienceData.presentialLocation || '',
+          address: experienceData.presentialAddress || '',
+          city: experienceData.presentialCity || '',
+          status: experienceData.status,
+          isFeatured: experienceData.isFeatured,
+        });
+
+        // Cargar listas
+        setRequirements(experienceData.requirements && experienceData.requirements.length > 0 ? experienceData.requirements : ['']);
+        setIncludes(experienceData.includes && experienceData.includes.length > 0 ? experienceData.includes : ['']);
         
-        // Cargar sedes de la empresa
+        // Cargar addons con compatibilidad hacia atrás (si no tienen priceType, usar 'per_person' por defecto)
+        const loadedAddons = (experienceData.addons || []).map(addon => ({
+          name: addon.name,
+          price: addon.price,
+          priceType: (addon.priceType || 'per_person') as 'per_person' | 'total',
+          description: addon.description || ''
+        }));
+        setAddons(loadedAddons);
+        
+        // Cargar categorías seleccionadas
+        setSelectedCategories(experienceData.categories || []);
+
+        // Cargar imágenes
+        console.log('🖼️ Datos de imágenes:', {
+          featuredImage: experienceData.featuredImage,
+          gallery: experienceData.gallery,
+        });
+        
+        if (experienceData.featuredImage) {
+          setFeaturedImageAssetId(experienceData.featuredImage);
+        }
+        if (experienceData.gallery && experienceData.gallery.length > 0) {
+          setGalleryImages(experienceData.gallery);
+        }
+
+        // Cargar sedes
         if (companyData._id) {
           const locationsData = await getLocationsByCompany(companyData._id);
           setLocations(locationsData || []);
+          
+          // Seleccionar sede actual si existe
+          if (experienceData.location) {
+            setSelectedLocation(experienceData.location);
+          }
         }
+
+        // Seleccionar calendario actual si existe
+        if (experienceData.availabilitySchedule) {
+          setSelectedSchedule(experienceData.availabilitySchedule);
+        }
+
       } catch (error) {
-        console.error('Error loading company data:', error);
-        setCompanyNotFound(true);
-        showError('Error al cargar la información de la empresa');
+        console.error('Error loading data:', error);
+        showError('Error al cargar los datos');
       } finally {
         setIsLoadingData(false);
       }
     };
 
-    loadCompanyData();
-  }, [user, router, showError]);
+    loadData();
+  }, [user, experienceId, router, showError, reset]);
 
   // Cargar calendarios cuando se selecciona una sede
   useEffect(() => {
     const loadSchedules = async () => {
       if (!selectedLocation) {
         setAvailableSchedules([]);
-        setSelectedSchedule('');
-        setShowCustomSchedule(false);
         return;
       }
 
@@ -163,21 +215,12 @@ export default function CreateExperiencePage() {
         const schedules = await getAvailabilitySchedulesByLocation(selectedLocation);
         setAvailableSchedules(schedules || []);
         
-        // Si no hay calendarios, mostrar opción de crear uno personalizado
         if (!schedules || schedules.length === 0) {
           setShowCustomSchedule(true);
-        } else {
-          setShowCustomSchedule(false);
-          // Seleccionar el calendario principal por defecto si existe
-          const mainSchedule = schedules.find(s => s.isMain);
-          if (mainSchedule) {
-            setSelectedSchedule(mainSchedule._id);
-          }
         }
       } catch (error) {
         console.error('Error loading schedules:', error);
         setAvailableSchedules([]);
-        setShowCustomSchedule(true);
       }
     };
 
@@ -247,8 +290,8 @@ export default function CreateExperiencePage() {
 
   // Enviar formulario
   const onSubmit = async (data: ExperienceFormData) => {
-    if (!company) {
-      showError('No se encontró información de empresa');
+    if (!company || !experience) {
+      showError('Faltan datos necesarios para actualizar la experiencia');
       return;
     }
 
@@ -270,19 +313,13 @@ export default function CreateExperiencePage() {
       return;
     }
 
-    // Validar que se haya seleccionado o configurado un calendario
-    if (selectedLocation && !selectedSchedule && !showCustomSchedule) {
-      showError('Por favor selecciona un calendario o configura uno personalizado');
-      return;
-    }
-
     try {
       setIsLoading(true);
 
       let finalScheduleId = selectedSchedule && selectedSchedule !== 'custom' ? selectedSchedule : undefined;
 
       // Si necesita crear un calendario personalizado
-      if ((selectedSchedule === 'custom' || showCustomSchedule) && selectedLocation) {
+      if ((selectedSchedule === 'custom' || showCustomSchedule) && selectedLocation && !finalScheduleId) {
         try {
           const scheduleName = customScheduleName || `Calendario - ${data.title}`;
           const newSchedule = await createAvailabilitySchedule({
@@ -298,71 +335,74 @@ export default function CreateExperiencePage() {
           finalScheduleId = newSchedule._id;
         } catch (error) {
           console.error('Error creating custom schedule:', error);
-          showError('Error al crear el calendario personalizado. La experiencia se creará sin calendario asociado.');
+          showError('Error al crear el calendario personalizado.');
         }
       }
 
-      // Validar datos adicionales
-      const experienceData: CreateExperienceData = {
-        ...data,
+      // Preparar datos de actualización
+      const updateData: UpdateExperienceData = {
+        _id: experience._id,
+        title: data.title,
+        description: data.description,
         categories: selectedCategories as ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[],
-        company: company._id,
-        requirements: requirements.filter(req => req.trim() !== ''),
-        includes: includes.filter(inc => inc.trim() !== ''),
-        addons: addons.filter(addon => addon.name.trim() !== ''),
-        // Agregar referencia a la sede seleccionada
-        location: selectedLocation || undefined,
-        // Agregar referencia al calendario seleccionado o recién creado
-        availabilitySchedule: finalScheduleId,
+        duration: data.duration,
+        capacity: data.capacity,
+        minCapacity: data.minCapacity,
+        basePrice: data.basePrice,
+        currency: data.currency,
+        experienceType: data.experienceType,
+        virtualPlatform: data.virtualPlatform,
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
-        // Agregar imágenes
+        status: data.status,
+        isFeatured: data.isFeatured,
+        requirements: requirements.filter(req => req.trim() !== ''),
+        includes: includes.filter(inc => inc.trim() !== ''),
+        addons: addons.filter(addon => addon.name.trim() !== ''),
+        location: selectedLocation || undefined,
+        availabilitySchedule: finalScheduleId,
         featuredImage: featuredImageAssetId || undefined,
         gallery: galleryImages.length > 0 ? galleryImages : undefined,
       };
 
-      await createExperienceInSanity(experienceData);
+      await updateExperienceInSanity(updateData);
       
-      showSuccess('Experiencia creada exitosamente');
+      showSuccess('Experiencia actualizada exitosamente');
       router.push('/dashboard/my-experiences');
     } catch (error) {
-      console.error('Error creating experience:', error);
-      showError('Error al crear la experiencia');
+      console.error('Error updating experience:', error);
+      showError('Error al actualizar la experiencia');
     } finally {
       setIsLoading(false);
     }
   };
 
   if (isLoadingData) {
-    return <Loader message="Cargando información de la empresa..." />;
+    return <Loader message="Cargando datos de la experiencia..." />;
   }
 
-  if (companyNotFound) {
+  if (companyNotFound || !experience) {
     return (
       <div className="p-6">
         <div className="text-center py-12">
           <HiExclamationCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-[#334C5D] mb-2">
-            Empresa no encontrada
+            Error al cargar la experiencia
           </h2>
           <p className="text-gray-600 mb-6">
-            Necesitas completar el registro de tu empresa antes de crear experiencias.
+            No se pudo cargar la información de la experiencia.
           </p>
           <Button
             color="primary"
-            onClick={() => router.push('/dashboard/company-setup')}
+            onClick={() => router.push('/dashboard/my-experiences')}
             className="px-6 py-3"
           >
-            Completar Registro de Empresa
+            Volver a Mis Experiencias
           </Button>
         </div>
       </div>
     );
-  }
-
-  if (!company) {
-    return <Loader message="Cargando información de la empresa..." />;
   }
 
   return (
@@ -380,10 +420,10 @@ export default function CreateExperiencePage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-[#334C5D]">
-              Crear Nueva Experiencia
+              Editar Experiencia
             </h1>
             <p className="text-gray-600">
-              Completa la información para crear tu experiencia gastronómica
+              Actualiza la información de tu experiencia gastronómica
             </p>
           </div>
         </div>
@@ -641,11 +681,6 @@ export default function CreateExperiencePage() {
                           ))}
                           <option value="custom">Crear calendario personalizado</option>
                         </Select>
-                        {selectedSchedule && selectedSchedule !== 'custom' && (
-                          <p className="text-sm text-gray-500">
-                            Se usará el horario del calendario seleccionado
-                          </p>
-                        )}
                       </div>
                     ) : (
                       <div className="mt-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -677,7 +712,7 @@ export default function CreateExperiencePage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <p className="text-sm text-blue-800">
                 <strong>Nota:</strong> Se creará un calendario de disponibilidad específico para esta experiencia. 
-                Puedes configurar los horarios detallados después de crear la experiencia desde la sección de Disponibilidad.
+                Puedes configurar los horarios detallados después de actualizar la experiencia desde la sección de Disponibilidad.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -685,7 +720,7 @@ export default function CreateExperiencePage() {
                 <Label>Nombre del Calendario</Label>
                 <TextInput
                   placeholder="Ej: Calendario de Clases de Cocina"
-                  value={customScheduleName || `Calendario - ${watch('title') || 'Nueva Experiencia'}`}
+                  value={customScheduleName || `Calendario - ${watch('title') || 'Experiencia'}`}
                   onChange={(e) => setCustomScheduleName(e.target.value)}
                   className="mt-1"
                 />
@@ -705,10 +740,6 @@ export default function CreateExperiencePage() {
                 </p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mt-4">
-              El calendario se creará con un horario predeterminado de lunes a viernes de 9:00 AM a 5:00 PM. 
-              Podrás personalizarlo completamente desde la sección de Disponibilidad.
-            </p>
           </div>
         )}
 
@@ -910,12 +941,12 @@ export default function CreateExperiencePage() {
             {isLoading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Creando...
+                Actualizando...
               </>
             ) : (
               <>
                 <HiCheckCircle className="w-4 h-4 mr-2" />
-                Crear Experiencia
+                Actualizar Experiencia
               </>
             )}
           </Button>
@@ -924,3 +955,4 @@ export default function CreateExperiencePage() {
     </div>
   );
 }
+

@@ -31,10 +31,12 @@ export default function ExperienceCard({
   
   // Formatear precio
   const formatPrice = (price: number, currency: string) => {
-    if (currency === 'USD') {
-      return `$${price.toLocaleString()}`;
-    }
-    return `$${price.toLocaleString('es-CO')}`;
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
   };
 
   // Formatear duración
@@ -49,8 +51,8 @@ export default function ExperienceCard({
   };
 
   // Formatear categoría
-  const formatCategory = (category: string) => {
-    const categories: Record<string, string> = {
+  const formatCategories = (categories: string[]) => {
+    const categoryLabels: Record<string, string> = {
       'cooking': 'Cocina',
       'mixology': 'Mixología',
       'tasting': 'Degustación',
@@ -60,7 +62,7 @@ export default function ExperienceCard({
       'workshops': 'Talleres',
       'other': 'Otro'
     };
-    return categories[category] || category;
+    return categories.map(cat => categoryLabels[cat] || cat).join(', ');
   };
 
   // Obtener color del estado
@@ -114,7 +116,7 @@ export default function ExperienceCard({
               )}
             </div>
             <span className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">
-              {formatCategory(experience.category)}
+              {formatCategories(experience.categories || [])}
             </span>
           </div>
         </div>

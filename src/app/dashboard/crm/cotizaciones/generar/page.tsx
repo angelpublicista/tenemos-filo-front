@@ -35,6 +35,17 @@ export default function GenerarCotizacionPage() {
     notes: '',
   });
 
+  // Formatear precio en moneda
+  const formatCurrency = (value: number, curr: string = 'COP') => {
+    if (!value || isNaN(value)) return '$0';
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: curr,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
   useEffect(() => {
     // Cargar datos de la sesión
     const savedData = sessionStorage.getItem('quoteData');
@@ -275,10 +286,10 @@ export default function GenerarCotizacionPage() {
                         </p>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600 dark:text-gray-400">
-                            ${exp.basePrice.toLocaleString()} × {quoteData.searchParams.guests}
+                            {formatCurrency(exp.basePrice, exp.currency)} × {quoteData.searchParams.guests}
                           </span>
                           <span className="font-medium text-gray-900 dark:text-gray-100">
-                            ${(exp.basePrice * quoteData.searchParams.guests).toLocaleString()} {exp.currency}
+                            {formatCurrency(exp.basePrice * quoteData.searchParams.guests, exp.currency)}
                           </span>
                         </div>
                       </div>
@@ -291,13 +302,13 @@ export default function GenerarCotizacionPage() {
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
                     <span className="font-medium text-gray-900 dark:text-gray-100">
-                      ${subtotal.toLocaleString()} COP
+                      {formatCurrency(subtotal, 'COP')}
                     </span>
                   </div>
                   <div className="flex justify-between text-lg font-bold border-t border-gray-200 dark:border-gray-700 pt-2">
                     <span className="text-gray-900 dark:text-gray-100">Total:</span>
                     <span className="text-[#F26726]">
-                      ${total.toLocaleString()} COP
+                      {formatCurrency(total, 'COP')}
                     </span>
                   </div>
                 </div>

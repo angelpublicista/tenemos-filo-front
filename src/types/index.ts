@@ -246,12 +246,18 @@ export interface Experience {
     _type: 'reference';
   };
   description: string;
-  category: 'cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other';
+  categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
   duration: number; // minutos
   capacity: number;
   minCapacity?: number;
   basePrice: number;
   currency: 'COP' | 'USD';
+  featuredImage?: string; // Asset ID de Sanity para imagen destacada/portada
+  gallery?: Array<{
+    assetId: string;
+    alt?: string;
+    caption?: string;
+  }>; // Array de imágenes de la galería
   images?: Array<{
     _key: string;
     _type: 'image';
@@ -266,14 +272,8 @@ export interface Experience {
       width: number;
     };
   }>;
-  location?: {
-    _ref: string;
-    _type: 'reference';
-  };
-  availabilitySchedule?: {
-    _ref: string;
-    _type: 'reference';
-  };
+  location?: string; // Location ID (referencia simple desde query)
+  availabilitySchedule?: string; // Availability schedule ID (referencia simple desde query)
   experienceType: 'virtual' | 'presential' | 'hybrid';
   virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
   presentialLocation?: string;
@@ -289,6 +289,7 @@ export interface Experience {
     _key: string;
     name: string;
     price: number;
+    priceType: 'per_person' | 'total';
     description?: string;
   }>;
   status: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
@@ -305,7 +306,7 @@ export interface CreateExperienceData {
   title: string;
   company: string; // company ID
   description: string;
-  category: 'cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other';
+  categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
   duration: number;
   capacity: number;
   minCapacity?: number;
@@ -334,6 +335,7 @@ export interface CreateExperienceData {
   addons?: Array<{
     name: string;
     price: number;
+    priceType: 'per_person' | 'total';
     description?: string;
   }>;
   status?: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';

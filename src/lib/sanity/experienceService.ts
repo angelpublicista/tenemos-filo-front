@@ -16,7 +16,7 @@ export const createExperienceInSanity = async (experienceData: CreateExperienceD
         _type: 'reference',
       },
       description: experienceData.description,
-      category: experienceData.category,
+      categories: experienceData.categories,
       duration: experienceData.duration,
       capacity: experienceData.capacity,
       minCapacity: experienceData.minCapacity,
@@ -59,6 +59,7 @@ export const createExperienceInSanity = async (experienceData: CreateExperienceD
         _key: `addon-${index}`,
         name: addon.name,
         price: addon.price,
+        priceType: addon.priceType,
         description: addon.description,
       })),
       status: experienceData.status || 'draft',
@@ -149,7 +150,7 @@ export const getExperiences = async (searchParams: ExperienceSearchParams = {}):
         companyPhone
       },
       description,
-      category,
+      categories,
       duration,
       capacity,
       minCapacity,
@@ -202,7 +203,7 @@ export const getExperiencesByCompany = async (companyId: string): Promise<Experi
         companyPhone
       },
       description,
-      category,
+      categories,
       duration,
       capacity,
       minCapacity,
@@ -255,18 +256,33 @@ export const getExperienceById = async (experienceId: string): Promise<Experienc
         companyPhone
       },
       description,
-      category,
+      categories,
       duration,
       capacity,
       minCapacity,
       basePrice,
       currency,
+      "featuredImage": select(
+        defined(featuredImage.asset._ref) => featuredImage.asset._ref,
+        null
+      ),
+      "gallery": select(
+        defined(gallery) => gallery[]{
+          "assetId": asset._ref,
+          alt,
+          caption
+        },
+        []
+      ),
       images,
-      location->{
-        _id,
-        name,
-        address
-      },
+      "location": select(
+        defined(location._ref) => location._ref,
+        null
+      ),
+      "availabilitySchedule": select(
+        defined(availabilitySchedule._ref) => availabilitySchedule._ref,
+        null
+      ),
       experienceType,
       virtualPlatform,
       presentialLocation,
@@ -299,7 +315,7 @@ export const updateExperienceInSanity = async (experienceData: UpdateExperienceD
     const updateData: Record<string, unknown> = {
       title: experienceData.title,
       description: experienceData.description,
-      category: experienceData.category,
+      categories: experienceData.categories,
       duration: experienceData.duration,
       capacity: experienceData.capacity,
       minCapacity: experienceData.minCapacity,
@@ -326,7 +342,32 @@ export const updateExperienceInSanity = async (experienceData: UpdateExperienceD
       };
     }
 
-    // Actualizar imágenes si se proporcionaron
+    // Actualizar imagen destacada si se proporcionó
+    if (experienceData.featuredImage) {
+      updateData.featuredImage = {
+        _type: 'image',
+        asset: {
+          _ref: experienceData.featuredImage,
+          _type: 'reference',
+        },
+      };
+    }
+
+    // Actualizar galería si se proporcionó
+    if (experienceData.gallery) {
+      updateData.gallery = experienceData.gallery.map((img, index) => ({
+        _key: `gallery-${index}-${Date.now()}`,
+        _type: 'image',
+        asset: {
+          _ref: img.assetId,
+          _type: 'reference',
+        },
+        alt: img.alt || '',
+        caption: img.caption || '',
+      }));
+    }
+
+    // Actualizar imágenes (compatibilidad con versión anterior)
     if (experienceData.images) {
       updateData.images = experienceData.images.map((url, index) => ({
         _key: `image-${index}`,
@@ -346,12 +387,21 @@ export const updateExperienceInSanity = async (experienceData: UpdateExperienceD
       };
     }
 
+    // Actualizar calendario de disponibilidad si se proporcionó
+    if (experienceData.availabilitySchedule) {
+      updateData.availabilitySchedule = {
+        _ref: experienceData.availabilitySchedule,
+        _type: 'reference',
+      };
+    }
+
     // Actualizar addons si se proporcionaron
     if (experienceData.addons) {
       updateData.addons = experienceData.addons.map((addon, index) => ({
         _key: `addon-${index}`,
         name: addon.name,
         price: addon.price,
+        priceType: addon.priceType,
         description: addon.description,
       }));
     }
@@ -412,7 +462,7 @@ export const getFeaturedExperiences = async (limit: number = 6): Promise<Experie
         companyPhone
       },
       description,
-      category,
+      categories,
       duration,
       capacity,
       minCapacity,

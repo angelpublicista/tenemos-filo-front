@@ -156,10 +156,12 @@ export default function MyExperiencesPage() {
 
   // Formatear precio
   const formatPrice = (price: number, currency: string) => {
-    if (currency === 'USD') {
-      return `$${price.toLocaleString()}`;
-    }
-    return `$${price.toLocaleString('es-CO')}`;
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
   };
 
   // Formatear duración
@@ -373,10 +375,7 @@ export default function MyExperiencesPage() {
                     <Button
                       color="gray"
                       size="sm"
-                      onClick={() => {
-                        // TODO: Implementar edición de experiencia
-                        console.log('Editar experiencia:', experience.title);
-                      }}
+                      onClick={() => router.push(`/dashboard/experiences/${experience._id}/edit`)}
                       title="Editar experiencia"
                     >
                       <HiPencilAlt className="w-4 h-4" />

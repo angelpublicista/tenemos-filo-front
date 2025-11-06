@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Experience, Location, AvailabilitySchedule } from '@/types';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
-import { getAvailabilitySchedulesByLocation } from '@/lib/sanity/availabilityService';
+import { getAvailabilityScheduleById } from '@/lib/sanity/availabilityService';
 import { createReservationManually } from '@/lib/sanity/reservationService';
 import { searchExperiencesForQuote } from '@/lib/sanity/quoteService';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
@@ -28,6 +28,13 @@ interface CreateReservationModalProps {
 
 type ClientType = 'guest' | 'registered';
 
+// Tipo extendido para experiencias con datos expandidos
+type ExpandedExperience = Omit<Experience, 'locations' | 'availabilities'> & {
+  locations?: Location[] | Array<{ _ref: string; _type: 'reference' }>;
+  availabilitySchedules?: AvailabilitySchedule[];
+  availabilities?: Array<{ _ref: string; _type: 'reference' }>;
+};
+
 const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   experiences,
   onClose,
@@ -44,9 +51,8 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     date: '',
     time: '',
     guests: 1,
-    location: '',
   });
-  const [searchResults, setSearchResults] = useState<Experience[]>([]);
+  const [searchResults, setSearchResults] = useState<ExpandedExperience[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
   // Datos de la reserva
@@ -69,40 +75,62 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<Array<{ name: string; price: number; quantity: number; priceType: string }>>([]);
 
-  // Cargar sedes cuando se selecciona una experiencia
+  // Cargar sedes y calendario cuando se selecciona una experiencia
   useEffect(() => {
     const loadLocationData = async () => {
-      if (!selectedExperience || !sanityUser?.companyId) return;
+      if (!selectedExperience) return;
 
       try {
-        const locationsData = await getLocationsByCompany(sanityUser.companyId);
-        setLocations(locationsData || []);
+        // Obtener la experiencia seleccionada de los resultados de búsqueda o props
+        const experience = (searchResults.find(exp => exp._id === selectedExperience) || 
+                          experiences.find(exp => exp._id === selectedExperience)) as ExpandedExperience;
+        
+        if (!experience) return;
+
+        // Las sedes ahora vienen expandidas en la experiencia desde la query
+        if (experience.locations && Array.isArray(experience.locations)) {
+          // Verificar si ya vienen expandidas o son solo referencias
+          const firstLocation = experience.locations[0];
+          if (firstLocation && typeof firstLocation === 'object' && '_id' in firstLocation) {
+            // Ya vienen expandidas
+            setLocations(experience.locations as Location[]);
+          } else {
+            // Son referencias, necesitamos cargarlas (fallback)
+            const locationsData = await getLocationsByCompany(sanityUser?.companyId || '');
+            setLocations(locationsData || []);
+          }
+        } else {
+          setLocations([]);
+        }
+
+        // Cargar los calendarios de disponibilidad de la experiencia
+        if (experience.availabilitySchedules && Array.isArray(experience.availabilitySchedules)) {
+          // Los calendarios ya vienen expandidos desde la query
+          setAvailableSchedules(experience.availabilitySchedules);
+        } else if (experience.availabilities && Array.isArray(experience.availabilities)) {
+          // Fallback si vienen como referencias
+          const schedules: AvailabilitySchedule[] = [];
+          for (const availRef of experience.availabilities) {
+            const ref = availRef as { _ref: string };
+            if (ref._ref) {
+              const schedule = await getAvailabilityScheduleById(ref._ref);
+              if (schedule) schedules.push(schedule);
+            }
+          }
+          setAvailableSchedules(schedules);
+        } else {
+          setAvailableSchedules([]);
+        }
       } catch (error) {
-        console.error('Error loading locations:', error);
+        console.error('Error loading locations and availability:', error);
       }
     };
 
     loadLocationData();
-  }, [selectedExperience, sanityUser]);
+  }, [selectedExperience, searchResults, experiences, sanityUser]);
 
-  // Cargar calendarios cuando se selecciona una sede
-  useEffect(() => {
-    const loadSchedules = async () => {
-      if (!selectedLocation) {
-        setAvailableSchedules([]);
-        return;
-      }
-
-      try {
-        const schedules = await getAvailabilitySchedulesByLocation(selectedLocation);
-        setAvailableSchedules(schedules || []);
-      } catch (error) {
-        console.error('Error loading schedules:', error);
-      }
-    };
-
-    loadSchedules();
-  }, [selectedLocation]);
+  // El calendario ahora se carga desde la experiencia, no desde la sede
+  // Este useEffect ya no es necesario porque el calendario se obtiene en el useEffect anterior
 
   // Actualizar cantidades de addons cuando cambian los participantes
   useEffect(() => {
@@ -134,20 +162,15 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         return;
       }
 
-      // Obtener el calendario de la experiencia o el principal
-      const selectedExp = experiences.find(exp => exp._id === selectedExperience);
-      let schedule = availableSchedules.find(s => s.isMain && s.isActive);
+      // Obtener el calendario de disponibilidad de la experiencia
+      const selectedExp = searchResults.find(exp => exp._id === selectedExperience) || 
+                         experiences.find(exp => exp._id === selectedExperience);
       
-      // Si la experiencia tiene un calendario asociado, usarlo
-      if (selectedExp?.availabilitySchedule) {
-        const expSchedule = availableSchedules.find(s => s._id === selectedExp.availabilitySchedule);
-        if (expSchedule) {
-          schedule = expSchedule;
-        }
-      }
+      // Combinar todos los slots de todos los calendarios disponibles
+      const allSlots: Set<string> = new Set();
 
-      if (!schedule) {
-        // Si no hay calendario válido, usar horario predeterminado
+      if (availableSchedules.length === 0) {
+        // Si no hay calendarios válidos, usar horario predeterminado
         const defaultSlots: string[] = [];
         for (let hour = 8; hour <= 20; hour++) {
           defaultSlots.push(`${hour.toString().padStart(2, '0')}:00`);
@@ -160,40 +183,42 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
       // Obtener el día de la semana de la fecha seleccionada
       const date = new Date(selectedDate);
       const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
-      const dayOfWeek = daysOfWeek[date.getDay()] as keyof typeof schedule.weeklySchedule;
-
-      const daySchedule = schedule.weeklySchedule[dayOfWeek];
-      
-      if (!daySchedule || !daySchedule.isActive) {
-        setAvailableTimeSlots([]);
-        return;
-      }
-
-      // Generar slots de tiempo basados en los timeSlots del día
-      const slots: string[] = [];
+      const dayOfWeek = daysOfWeek[date.getDay()];
       const experienceDuration = selectedExp?.duration || 60;
-      
-      daySchedule.timeSlots.forEach((timeSlot: { startTime: string; endTime: string }) => {
-        const [startHour, startMin] = timeSlot.startTime.split(':').map(Number);
-        const [endHour, endMin] = timeSlot.endTime.split(':').map(Number);
+
+      // Procesar cada calendario y combinar los slots disponibles
+      availableSchedules.forEach(schedule => {
+        if (!schedule.weeklySchedule) return;
         
-        const startMinutes = startHour * 60 + startMin;
-        const endMinutes = endHour * 60 + endMin;
+        const daySchedule = schedule.weeklySchedule[dayOfWeek];
         
-        // Generar slots cada 30 minutos dentro del rango
-        for (let minutes = startMinutes; minutes + experienceDuration <= endMinutes; minutes += 30) {
-          const hours = Math.floor(minutes / 60);
-          const mins = minutes % 60;
-          const timeString = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-          slots.push(timeString);
-        }
+        if (!daySchedule || !daySchedule.isActive || !daySchedule.timeSlots) return;
+
+        // Generar slots de tiempo basados en los timeSlots del día
+        daySchedule.timeSlots.forEach((timeSlot: { startTime: string; endTime: string }) => {
+          const [startHour, startMin] = timeSlot.startTime.split(':').map(Number);
+          const [endHour, endMin] = timeSlot.endTime.split(':').map(Number);
+          
+          const startMinutes = startHour * 60 + startMin;
+          const endMinutes = endHour * 60 + endMin;
+          
+          // Generar slots cada 30 minutos dentro del rango
+          for (let minutes = startMinutes; minutes + experienceDuration <= endMinutes; minutes += 30) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            const timeString = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+            allSlots.add(timeString);
+          }
+        });
       });
 
-      setAvailableTimeSlots(slots);
+      // Convertir Set a Array y ordenar
+      const slotsArray = Array.from(allSlots).sort();
+      setAvailableTimeSlots(slotsArray);
     };
 
     getAvailableSlots();
-  }, [selectedExperience, selectedDate, availableSchedules, experiences]);
+  }, [selectedExperience, selectedDate, availableSchedules, searchResults, experiences]);
 
   // Función para buscar experiencias disponibles
   const handleSearch = async (e: React.FormEvent) => {
@@ -213,10 +238,9 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         date: searchData.date,
         time: searchData.time,
         guests: searchData.guests,
-        location: searchData.location,
       });
 
-      setSearchResults(results);
+      setSearchResults(results as ExpandedExperience[]);
       setHasSearched(true);
     } catch (error) {
       console.error('Error searching experiences:', error);
@@ -227,7 +251,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   };
 
   // Seleccionar experiencia y pasar al siguiente paso
-  const handleSelectExperience = (experience: Experience) => {
+  const handleSelectExperience = (experience: ExpandedExperience) => {
     setSelectedExperience(experience._id);
     setSelectedDate(searchData.date);
     setSelectedTime(searchData.time);
@@ -425,19 +449,6 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Ciudad (Opcional)
-                      </label>
-                      <input
-                        type="text"
-                        value={searchData.location}
-                        onChange={(e) => setSearchData(prev => ({ ...prev, location: e.target.value }))}
-                        placeholder="Ej: Bogotá, Medellín..."
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                      />
-                    </div>
-
                     <button
                       type="submit"
                       disabled={isSearching}
@@ -595,10 +606,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                           </select>
                           {locations.length === 0 && (
                             <p className="text-sm text-gray-500 mt-1">
-                              No hay sedes disponibles. 
-                              <a href="/dashboard/locations" className="text-[#F26726] hover:underline ml-1">
-                                Crear una sede
-                              </a>
+                              Esta experiencia no tiene sedes configuradas.
                             </p>
                           )}
                         </div>
@@ -606,10 +614,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                         {selectedLocation && availableSchedules.length === 0 && (
                           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                             <p className="text-sm text-yellow-800">
-                              Esta sede no tiene calendarios de disponibilidad. Los horarios estarán disponibles sin restricciones.
-                              <a href="/dashboard/availability" className="text-[#F26726] hover:underline ml-1">
-                                Configurar calendarios
-                              </a>
+                              Esta experiencia no tiene calendarios de disponibilidad configurados. Los horarios estarán disponibles sin restricciones.
                             </p>
                           </div>
                         )}

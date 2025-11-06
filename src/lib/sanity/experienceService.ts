@@ -39,20 +39,22 @@ export const createExperienceInSanity = async (experienceData: CreateExperienceD
         alt: img.alt || '',
         caption: img.caption || '',
       })),
-      location: experienceData.location ? {
-        _ref: experienceData.location,
+      locations: experienceData.locations?.map((locationId, index) => ({
+        _key: `location-${index}-${Date.now()}`,
+        _ref: locationId,
         _type: 'reference',
-      } : undefined,
-      availabilitySchedule: experienceData.availabilitySchedule ? {
-        _ref: experienceData.availabilitySchedule,
+      })) || [],
+      availabilities: experienceData.availabilities?.map((availabilityId, index) => ({
+        _key: `availability-${index}-${Date.now()}`,
+        _ref: availabilityId,
         _type: 'reference',
-      } : undefined,
+      })) || [],
       experienceType: experienceData.experienceType,
+      isVirtual: experienceData.isVirtual,
       virtualPlatform: experienceData.virtualPlatform,
       presentialLocation: experienceData.presentialLocation,
       presentialAddress: experienceData.presentialAddress,
       presentialCity: experienceData.presentialCity,
-      availability: experienceData.availability,
       requirements: experienceData.requirements,
       includes: experienceData.includes,
       addons: experienceData.addons?.map((addon, index) => ({
@@ -210,17 +212,27 @@ export const getExperiencesByCompany = async (companyId: string): Promise<Experi
       basePrice,
       currency,
       images,
-      location->{
+      "locations": locations[]->{
         _id,
         name,
-        address
+        address,
+        isMain
+      },
+      "availabilitySchedules": availabilities[]->{
+        _id,
+        name,
+        weeklySchedule,
+        bufferTime,
+        minimumNotice,
+        blockedDates,
+        location
       },
       experienceType,
+      isVirtual,
       virtualPlatform,
       presentialLocation,
       presentialAddress,
       presentialCity,
-      availability,
       requirements,
       includes,
       addons,
@@ -275,20 +287,28 @@ export const getExperienceById = async (experienceId: string): Promise<Experienc
         []
       ),
       images,
-      "location": select(
-        defined(location._ref) => location._ref,
-        null
-      ),
-      "availabilitySchedule": select(
-        defined(availabilitySchedule._ref) => availabilitySchedule._ref,
-        null
-      ),
+      "locations": locations[]->{
+        _id,
+        name,
+        address,
+        isMain,
+        capacity
+      },
+      "availabilitySchedules": availabilities[]->{
+        _id,
+        name,
+        weeklySchedule,
+        bufferTime,
+        minimumNotice,
+        blockedDates,
+        location
+      },
       experienceType,
+      isVirtual,
       virtualPlatform,
       presentialLocation,
       presentialAddress,
       presentialCity,
-      availability,
       requirements,
       includes,
       addons,
@@ -322,11 +342,11 @@ export const updateExperienceInSanity = async (experienceData: UpdateExperienceD
       basePrice: experienceData.basePrice,
       currency: experienceData.currency,
       experienceType: experienceData.experienceType,
+      isVirtual: experienceData.isVirtual,
       virtualPlatform: experienceData.virtualPlatform,
       presentialLocation: experienceData.presentialLocation,
       presentialAddress: experienceData.presentialAddress,
       presentialCity: experienceData.presentialCity,
-      availability: experienceData.availability,
       requirements: experienceData.requirements,
       includes: experienceData.includes,
       status: experienceData.status,
@@ -379,20 +399,22 @@ export const updateExperienceInSanity = async (experienceData: UpdateExperienceD
       }));
     }
 
-    // Actualizar ubicación si se proporcionó
-    if (experienceData.location) {
-      updateData.location = {
-        _ref: experienceData.location,
+    // Actualizar ubicaciones si se proporcionaron (múltiples sedes)
+    if (experienceData.locations && experienceData.locations.length > 0) {
+      updateData.locations = experienceData.locations.map((locationId, index) => ({
+        _key: `location-${index}-${Date.now()}`,
+        _ref: locationId,
         _type: 'reference',
-      };
+      }));
     }
 
-    // Actualizar calendario de disponibilidad si se proporcionó
-    if (experienceData.availabilitySchedule) {
-      updateData.availabilitySchedule = {
-        _ref: experienceData.availabilitySchedule,
+    // Actualizar calendarios de disponibilidad si se proporcionaron (múltiples calendarios)
+    if (experienceData.availabilities && experienceData.availabilities.length > 0) {
+      updateData.availabilities = experienceData.availabilities.map((availabilityId, index) => ({
+        _key: `availability-${index}-${Date.now()}`,
+        _ref: availabilityId,
         _type: 'reference',
-      };
+      }));
     }
 
     // Actualizar addons si se proporcionaron
@@ -406,9 +428,11 @@ export const updateExperienceInSanity = async (experienceData: UpdateExperienceD
       }));
     }
 
+    // Actualizar documento y limpiar campos antiguos del schema
     const result = await sanityClient
       .patch(experienceData._id)
       .set(updateData)
+      .unset(['location', 'availabilitySchedule', 'category']) // Eliminar campos antiguos
       .commit();
 
     return result;

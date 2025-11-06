@@ -62,14 +62,15 @@ export default function EditExperiencePage() {
   const [includes, setIncludes] = useState<string[]>(['']);
   const [addons, setAddons] = useState<Array<{name: string, price: number, priceType: 'per_person' | 'total', description: string}>>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [availableSchedules, setAvailableSchedules] = useState<AvailabilitySchedule[]>([]);
-  const [selectedSchedule, setSelectedSchedule] = useState<string>('');
+  const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
   const [showCustomSchedule, setShowCustomSchedule] = useState(false);
   const [customScheduleName, setCustomScheduleName] = useState('');
   const [customMinimumNotice, setCustomMinimumNotice] = useState(24);
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const {
@@ -113,6 +114,7 @@ export default function EditExperiencePage() {
         const companyData = await getCompanyByUserId(user.uid);
         if (!companyData) {
           setCompanyNotFound(true);
+          setIsLoadingData(false);
           showError('No se encontró información de empresa.');
           router.push('/dashboard/company-setup');
           return;
@@ -122,6 +124,7 @@ export default function EditExperiencePage() {
         // Cargar experiencia
         const experienceData = await getExperienceById(experienceId);
         if (!experienceData) {
+          setIsLoadingData(false);
           showError('No se encontró la experiencia');
           router.push('/dashboard/experiences');
           return;
@@ -151,6 +154,14 @@ export default function EditExperiencePage() {
         setRequirements(experienceData.requirements && experienceData.requirements.length > 0 ? experienceData.requirements : ['']);
         setIncludes(experienceData.includes && experienceData.includes.length > 0 ? experienceData.includes : ['']);
         
+        // Para compatibilidad con campos antiguos del schema
+        const expData = experienceData as Experience & {
+          category?: string;
+          location?: { _ref: string } | string;
+          availabilitySchedule?: { _ref: string } | string;
+          availabilitySchedules?: Array<{ _id: string; name: string }>;
+        };
+
         // Cargar addons con compatibilidad hacia atrás (si no tienen priceType, usar 'per_person' por defecto)
         const loadedAddons = (experienceData.addons || []).map(addon => ({
           name: addon.name,
@@ -160,15 +171,17 @@ export default function EditExperiencePage() {
         }));
         setAddons(loadedAddons);
         
-        // Cargar categorías seleccionadas
-        setSelectedCategories(experienceData.categories || []);
+        // Cargar categorías seleccionadas (compatibilidad con campo antiguo 'category')
+        if (experienceData.categories && experienceData.categories.length > 0) {
+          setSelectedCategories(experienceData.categories);
+        } else if (expData.category) {
+          // Formato antiguo: una sola categoría
+          setSelectedCategories([expData.category]);
+        } else {
+          setSelectedCategories([]);
+        }
 
         // Cargar imágenes
-        console.log('🖼️ Datos de imágenes:', {
-          featuredImage: experienceData.featuredImage,
-          gallery: experienceData.gallery,
-        });
-        
         if (experienceData.featuredImage) {
           setFeaturedImageAssetId(experienceData.featuredImage);
         }
@@ -177,25 +190,63 @@ export default function EditExperiencePage() {
         }
 
         // Cargar sedes
+        
         if (companyData._id) {
           const locationsData = await getLocationsByCompany(companyData._id);
           setLocations(locationsData || []);
           
-          // Seleccionar sede actual si existe
-          if (experienceData.location) {
-            setSelectedLocation(experienceData.location);
+          // Seleccionar sedes actuales si existen (compatibilidad con campo antiguo 'location')
+          if (experienceData.locations && Array.isArray(experienceData.locations)) {
+            // Nuevo formato: múltiples sedes
+            const locationIds: string[] = experienceData.locations.map(loc => {
+              if (typeof loc === 'object' && '_id' in loc) {
+                return (loc as { _id: string })._id;
+              } else if (typeof loc === 'object' && '_ref' in loc) {
+                return (loc as { _ref: string })._ref;
+              }
+              return loc as string;
+            });
+            setSelectedLocations(locationIds);
+          } else if (expData.location) {
+            // Formato antiguo: una sola sede
+            const locationId = typeof expData.location === 'object' && '_ref' in expData.location 
+              ? expData.location._ref 
+              : expData.location;
+            setSelectedLocations([locationId]);
           }
         }
 
-        // Seleccionar calendario actual si existe
-        if (experienceData.availabilitySchedule) {
-          setSelectedSchedule(experienceData.availabilitySchedule);
+        // Seleccionar calendarios actuales si existen (compatibilidad con campo antiguo 'availabilitySchedule')
+        // La query retorna "availabilitySchedules" (expandido)
+        if (expData.availabilitySchedules && Array.isArray(expData.availabilitySchedules)) {
+          // Calendarios expandidos desde la query
+          const scheduleIds = expData.availabilitySchedules.map((schedule: { _id: string }) => schedule._id);
+          setSelectedSchedules(scheduleIds);
+        } else if (experienceData.availabilities && Array.isArray(experienceData.availabilities)) {
+          // Nuevo formato: múltiples calendarios como referencias
+          const scheduleIds: string[] = experienceData.availabilities.map(avail => {
+            if (typeof avail === 'object' && '_id' in avail) {
+              return (avail as { _id: string })._id;
+            } else if (typeof avail === 'object' && '_ref' in avail) {
+              return (avail as { _ref: string })._ref;
+            }
+            return avail as string;
+          });
+          setSelectedSchedules(scheduleIds);
+        } else if (expData.availabilitySchedule) {
+          // Formato antiguo: un solo calendario
+          const scheduleId = typeof expData.availabilitySchedule === 'object' && '_ref' in expData.availabilitySchedule
+            ? expData.availabilitySchedule._ref
+            : expData.availabilitySchedule;
+          setSelectedSchedules([scheduleId]);
         }
 
       } catch (error) {
         console.error('Error loading data:', error);
         showError('Error al cargar los datos');
       } finally {
+        // Terminar carga de datos básicos
+        // Los calendarios disponibles se cargan en background sin bloquear la UI
         setIsLoadingData(false);
       }
     };
@@ -203,29 +254,57 @@ export default function EditExperiencePage() {
     loadData();
   }, [user, experienceId, router, showError, reset]);
 
-  // Cargar calendarios cuando se selecciona una sede
+  // Cargar calendarios de todas las sedes seleccionadas
   useEffect(() => {
     const loadSchedules = async () => {
-      if (!selectedLocation) {
+      if (selectedLocations.length === 0) {
         setAvailableSchedules([]);
+        if (!isInitialLoad) {
+          setSelectedSchedules([]);
+        }
         return;
       }
 
       try {
-        const schedules = await getAvailabilitySchedulesByLocation(selectedLocation);
-        setAvailableSchedules(schedules || []);
+        // Cargar calendarios de todas las sedes seleccionadas
+        const allSchedules: AvailabilitySchedule[] = [];
         
-        if (!schedules || schedules.length === 0) {
+        for (const locationId of selectedLocations) {
+          const schedules = await getAvailabilitySchedulesByLocation(locationId);
+          if (schedules && schedules.length > 0) {
+            allSchedules.push(...schedules);
+          }
+        }
+        
+        setAvailableSchedules(allSchedules);
+        
+        // Solo filtrar calendarios seleccionados si NO es la carga inicial
+        // Durante la carga inicial, los calendarios ya se establecieron desde la base de datos
+        if (!isInitialLoad) {
+          setSelectedSchedules(prev => 
+            prev.filter(scheduleId => allSchedules.some(s => s._id === scheduleId))
+          );
+        }
+        
+        if (allSchedules.length === 0) {
           setShowCustomSchedule(true);
+        }
+        
+        // Marcar que terminó la carga inicial de calendarios
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
         }
       } catch (error) {
         console.error('Error loading schedules:', error);
         setAvailableSchedules([]);
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
       }
     };
 
     loadSchedules();
-  }, [selectedLocation]);
+  }, [selectedLocations, isInitialLoad]);
 
   // Validar capacidad mínima
   useEffect(() => {
@@ -307,35 +386,39 @@ export default function EditExperiencePage() {
       return;
     }
 
-    // Validar que se haya seleccionado una sede para experiencias presenciales/híbridas
-    if ((data.experienceType === 'presential' || data.experienceType === 'hybrid') && !selectedLocation) {
-      showError('Por favor selecciona una sede');
+    // Validar que se haya seleccionado al menos una sede para experiencias presenciales/híbridas
+    if ((data.experienceType === 'presential' || data.experienceType === 'hybrid') && selectedLocations.length === 0) {
+      showError('Por favor selecciona al menos una sede');
       return;
     }
 
     try {
       setIsLoading(true);
 
-      let finalScheduleId = selectedSchedule && selectedSchedule !== 'custom' ? selectedSchedule : undefined;
+      // eslint-disable-next-line prefer-const
+      let finalScheduleIds: string[] = [...selectedSchedules];
 
-      // Si necesita crear un calendario personalizado
-      if ((selectedSchedule === 'custom' || showCustomSchedule) && selectedLocation && !finalScheduleId) {
+      // Si necesita crear calendarios personalizados para las sedes sin calendario
+      if (showCustomSchedule && selectedLocations.length > 0 && finalScheduleIds.length === 0) {
         try {
           const scheduleName = customScheduleName || `Calendario - ${data.title}`;
-          const newSchedule = await createAvailabilitySchedule({
-            name: scheduleName,
-            location: selectedLocation,
-            description: `Calendario personalizado para la experiencia: ${data.title}`,
-            weeklySchedule: generateDefaultSchedule(),
-            blockedDates: [],
-            notes: 'Calendario generado automáticamente. Personaliza los horarios según tus necesidades.',
-            bufferTime: 0,
-            minimumNotice: customMinimumNotice,
-          });
-          finalScheduleId = newSchedule._id;
+          // Crear un calendario para cada sede seleccionada
+          for (const locationId of selectedLocations) {
+            const newSchedule = await createAvailabilitySchedule({
+              name: `${scheduleName} - ${locations.find(l => l._id === locationId)?.name || 'Sede'}`,
+              location: locationId,
+              description: `Calendario personalizado para la experiencia: ${data.title}`,
+              weeklySchedule: generateDefaultSchedule(),
+              blockedDates: [],
+              notes: 'Calendario generado automáticamente. Personaliza los horarios según tus necesidades.',
+              bufferTime: 0,
+              minimumNotice: customMinimumNotice,
+            });
+            finalScheduleIds.push(newSchedule._id);
+          }
         } catch (error) {
-          console.error('Error creating custom schedule:', error);
-          showError('Error al crear el calendario personalizado.');
+          console.error('Error creating custom schedules:', error);
+          showError('Error al crear los calendarios personalizados.');
         }
       }
 
@@ -360,8 +443,8 @@ export default function EditExperiencePage() {
         requirements: requirements.filter(req => req && req.trim() !== ''),
         includes: includes.filter(inc => inc && inc.trim() !== ''),
         addons: addons.filter(addon => addon && addon.name && addon.name.trim() !== ''),
-        location: selectedLocation || undefined,
-        availabilitySchedule: finalScheduleId,
+        locations: selectedLocations.length > 0 ? selectedLocations : undefined,
+        availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
         featuredImage: featuredImageAssetId || undefined,
         gallery: galleryImages.length > 0 ? galleryImages : undefined,
       };
@@ -637,55 +720,107 @@ export default function EditExperiencePage() {
             {(experienceType === 'presential' || experienceType === 'hybrid') && (
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="sede">Sede *</Label>
-                  <Select
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="mt-1"
-                  >
-                    <option value="">Selecciona una sede</option>
-                    {locations.map((loc) => (
-                      <option key={loc._id} value={loc._id}>
-                        {loc.name}
-                        {loc.isMain && ' (Principal)'}
-                      </option>
-                    ))}
-                  </Select>
-                  {locations.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      No tienes sedes registradas. 
-                      <a href="/dashboard/locations" className="text-[#F26726] hover:underline ml-1">
-                        Crear una sede
-                      </a>
+                  <Label>Sedes * (Selecciona una o más)</Label>
+                  <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
+                    {locations.length > 0 ? (
+                      locations.map((loc) => (
+                        <div key={loc._id} className="flex items-center">
+                          <Checkbox
+                            id={`location-${loc._id}`}
+                            checked={selectedLocations.includes(loc._id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedLocations(prev => [...prev, loc._id]);
+                              } else {
+                                setSelectedLocations(prev => prev.filter(id => id !== loc._id));
+                              }
+                            }}
+                            className="text-[#F26726] focus:ring-[#F26726]"
+                          />
+                          <Label htmlFor={`location-${loc._id}`} className="ml-2 cursor-pointer">
+                            {loc.name}
+                            {loc.isMain && ' (Principal)'}
+                            <span className="text-gray-500 text-sm ml-2">
+                              - {loc.address.city}
+                            </span>
+                          </Label>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No tienes sedes registradas. 
+                        <a href="/dashboard/locations" className="text-[#F26726] hover:underline ml-1">
+                          Crear una sede
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                  {selectedLocations.length > 0 && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      {selectedLocations.length} sede{selectedLocations.length > 1 ? 's' : ''} seleccionada{selectedLocations.length > 1 ? 's' : ''}
                     </p>
                   )}
                 </div>
 
-                {selectedLocation && (
+                {selectedLocations.length > 0 && (
                   <div>
-                    <Label htmlFor="calendario">Calendario de Disponibilidad</Label>
+                    <Label>Calendarios de Disponibilidad * (Selecciona uno o más)</Label>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Selecciona los calendarios que definirán la disponibilidad de esta experiencia
+                    </p>
                     {availableSchedules.length > 0 ? (
                       <div className="space-y-2">
-                        <Select
-                          value={selectedSchedule}
-                          onChange={(e) => setSelectedSchedule(e.target.value)}
-                          className="mt-1"
+                        <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
+                          {availableSchedules.map((schedule) => {
+                            const locationName = locations.find(l => {
+                              const schedLocation = schedule.location as { _ref: string };
+                              return l._id === schedLocation?._ref;
+                            })?.name || 'Sede';
+                            
+                            return (
+                              <div key={schedule._id} className="flex items-center">
+                                <Checkbox
+                                  id={`schedule-${schedule._id}`}
+                                  checked={selectedSchedules.includes(schedule._id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedSchedules(prev => [...prev, schedule._id]);
+                                    } else {
+                                      setSelectedSchedules(prev => prev.filter(id => id !== schedule._id));
+                                    }
+                                  }}
+                                  disabled={!schedule.isActive}
+                                  className="text-[#F26726] focus:ring-[#F26726]"
+                                />
+                                <Label htmlFor={`schedule-${schedule._id}`} className="ml-2 cursor-pointer">
+                                  {schedule.name}
+                                  {schedule.isMain && ' (Principal)'}
+                                  {!schedule.isActive && ' (Inactivo)'}
+                                  <span className="text-gray-500 text-sm ml-2">
+                                    - {locationName}
+                                  </span>
+                                </Label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {selectedSchedules.length > 0 && (
+                          <p className="text-sm text-gray-600 mt-2">
+                            {selectedSchedules.length} calendario{selectedSchedules.length > 1 ? 's' : ''} seleccionado{selectedSchedules.length > 1 ? 's' : ''}
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomSchedule(!showCustomSchedule)}
+                          className="text-sm text-[#F26726] hover:underline font-medium mt-2"
                         >
-                          <option value="">Selecciona un calendario</option>
-                          {availableSchedules.map((schedule) => (
-                            <option key={schedule._id} value={schedule._id}>
-                              {schedule.name}
-                              {schedule.isMain && ' (Principal)'}
-                              {!schedule.isActive && ' (Inactivo)'}
-                            </option>
-                          ))}
-                          <option value="custom">Crear calendario personalizado</option>
-                        </Select>
+                          {showCustomSchedule ? 'Ocultar' : 'Crear nuevo'} calendario personalizado
+                        </button>
                       </div>
                     ) : (
                       <div className="mt-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <p className="text-sm text-yellow-800 mb-2">
-                          Esta sede no tiene calendarios de disponibilidad configurados.
+                          Las sedes seleccionadas no tienen calendarios de disponibilidad configurados.
                         </p>
                         <button
                           type="button"
@@ -704,7 +839,7 @@ export default function EditExperiencePage() {
         </div>
 
         {/* Disponibilidad Personalizada */}
-        {(selectedSchedule === 'custom' || (showCustomSchedule && selectedLocation)) && (
+        {(showCustomSchedule && selectedLocations.length > 0) && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
               Configurar Disponibilidad Personalizada

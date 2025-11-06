@@ -54,6 +54,8 @@ export const searchExperiencesForQuote = async (params: SearchParams): Promise<E
       basePrice,
       currency,
       experienceType,
+      isVirtual,
+      virtualPlatform,
       presentialCity,
       presentialAddress,
       presentialLocation,
@@ -62,10 +64,16 @@ export const searchExperiencesForQuote = async (params: SearchParams): Promise<E
       requirements,
       addons,
       "companyName": company->companyName,
-      "locationName": location->name,
-      "availabilitySchedule": availabilitySchedule->{
+      "locations": locations[]->{
         _id,
-        weeklySchedule
+        name,
+        address
+      },
+      "availabilitySchedules": availabilities[]->{
+        _id,
+        weeklySchedule,
+        name,
+        location
       },
       status
     }`;
@@ -86,15 +94,18 @@ export const searchExperiencesForQuote = async (params: SearchParams): Promise<E
       const selectedDate = new Date(date + 'T12:00:00'); // Agregar hora para evitar problemas de zona horaria
       const dayOfWeek = getDayOfWeekFromDate(selectedDate);
       
-      experiences = experiences.filter((exp: Experience & { availabilitySchedule?: { weeklySchedule: Record<string, { isActive: boolean }> } }) => {
-        // Si no tiene availabilitySchedule configurado, no la incluimos
-        if (!exp.availabilitySchedule?.weeklySchedule) {
+      experiences = experiences.filter((exp: Experience & { availabilitySchedules?: Array<{ weeklySchedule: Record<string, { isActive: boolean }> }> }) => {
+        // Si no tiene calendarios configurados, no la incluimos
+        if (!exp.availabilitySchedules || exp.availabilitySchedules.length === 0) {
           return false;
         }
         
-        // Verificar si el día está activo en el horario semanal
-        const daySchedule = exp.availabilitySchedule.weeklySchedule[dayOfWeek];
-        return daySchedule?.isActive === true;
+        // Verificar si el día está activo en AL MENOS UNO de los calendarios
+        return exp.availabilitySchedules.some(schedule => {
+          if (!schedule.weeklySchedule) return false;
+          const daySchedule = schedule.weeklySchedule[dayOfWeek];
+          return daySchedule?.isActive === true;
+        });
       });
     }
     

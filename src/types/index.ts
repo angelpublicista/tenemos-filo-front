@@ -272,17 +272,20 @@ export interface Experience {
       width: number;
     };
   }>;
-  location?: string; // Location ID (referencia simple desde query)
-  availabilitySchedule?: string; // Availability schedule ID (referencia simple desde query)
+  locations?: Array<{
+    _ref: string;
+    _type: 'reference';
+  }>; // Array de referencias a sedes (múltiples sedes)
+  availabilities?: Array<{
+    _ref: string;
+    _type: 'reference';
+  }>; // Array de calendarios de disponibilidad (múltiples calendarios por sede)
   experienceType: 'virtual' | 'presential' | 'hybrid';
+  isVirtual?: boolean;
   virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
-  availability?: {
-    days?: string[];
-    timeSlots?: string[];
-  };
   requirements?: string[];
   includes?: string[];
   addons?: Array<{
@@ -297,6 +300,10 @@ export interface Experience {
   rating?: number;
   totalBookings: number;
   totalRevenue: number;
+  reservations?: Array<{
+    _ref: string;
+    _type: 'reference';
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -319,17 +326,14 @@ export interface CreateExperienceData {
     alt?: string;
     caption?: string;
   }>; // Array de imágenes de la galería
-  location?: string; // location ID (sede)
-  availabilitySchedule?: string; // availability schedule ID
+  locations?: string[]; // Array de location IDs (múltiples sedes)
+  availabilities?: string[]; // Array de IDs de calendarios de disponibilidad (múltiples calendarios)
   experienceType: 'virtual' | 'presential' | 'hybrid';
+  isVirtual?: boolean;
   virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
-  availability?: {
-    days?: string[];
-    timeSlots?: string[];
-  };
   requirements?: string[];
   includes?: string[];
   addons?: Array<{

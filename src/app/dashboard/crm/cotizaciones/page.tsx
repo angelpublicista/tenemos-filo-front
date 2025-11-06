@@ -14,7 +14,6 @@ interface SearchFormData {
   date: string;
   time: string;
   guests: number;
-  location?: string;
 }
 
 export default function CotizacionesPage() {
@@ -29,7 +28,6 @@ export default function CotizacionesPage() {
     date: '',
     time: '',
     guests: 1,
-    location: '',
   });
 
   const handleInputChange = (field: keyof SearchFormData, value: string | number) => {
@@ -54,7 +52,6 @@ export default function CotizacionesPage() {
         date: formData.date,
         time: formData.time,
         guests: formData.guests,
-        location: formData.location,
       });
 
       setSearchResults(results);
@@ -133,7 +130,7 @@ export default function CotizacionesPage() {
           </h2>
 
           <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="date">Fecha del Evento *</Label>
                 <TextInput
@@ -169,18 +166,6 @@ export default function CotizacionesPage() {
                   value={formData.guests}
                   onChange={(e) => handleInputChange('guests', parseInt(e.target.value))}
                   required
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="location">Ubicación (Opcional)</Label>
-                <TextInput
-                  id="location"
-                  type="text"
-                  placeholder="Ej: Bogotá"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
                   className="mt-1"
                 />
               </div>
@@ -288,6 +273,7 @@ export default function CotizacionesPage() {
     </ProtectedRoute>
   );
 }
+
 
 
 

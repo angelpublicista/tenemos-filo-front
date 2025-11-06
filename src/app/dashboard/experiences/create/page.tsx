@@ -59,9 +59,9 @@ export default function CreateExperiencePage() {
   const [includes, setIncludes] = useState<string[]>(['']);
   const [addons, setAddons] = useState<Array<{name: string, price: number, priceType: 'per_person' | 'total', description: string}>>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [availableSchedules, setAvailableSchedules] = useState<AvailabilitySchedule[]>([]);
-  const [selectedSchedule, setSelectedSchedule] = useState<string>('');
+  const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
   const [showCustomSchedule, setShowCustomSchedule] = useState(false);
   const [customScheduleName, setCustomScheduleName] = useState('');
   const [customMinimumNotice, setCustomMinimumNotice] = useState(24);
@@ -149,30 +149,39 @@ export default function CreateExperiencePage() {
     loadCompanyData();
   }, [user, router, showError]);
 
-  // Cargar calendarios cuando se selecciona una sede
+  // Cargar calendarios de todas las sedes seleccionadas
   useEffect(() => {
     const loadSchedules = async () => {
-      if (!selectedLocation) {
+      if (selectedLocations.length === 0) {
         setAvailableSchedules([]);
-        setSelectedSchedule('');
+        setSelectedSchedules([]);
         setShowCustomSchedule(false);
         return;
       }
 
       try {
-        const schedules = await getAvailabilitySchedulesByLocation(selectedLocation);
-        setAvailableSchedules(schedules || []);
+        // Cargar calendarios de todas las sedes seleccionadas
+        const allSchedules: AvailabilitySchedule[] = [];
+        
+        for (const locationId of selectedLocations) {
+          const schedules = await getAvailabilitySchedulesByLocation(locationId);
+          if (schedules && schedules.length > 0) {
+            allSchedules.push(...schedules);
+          }
+        }
+        
+        setAvailableSchedules(allSchedules);
+        
+        // Filtrar calendarios seleccionados que ya no están disponibles
+        setSelectedSchedules(prev => 
+          prev.filter(scheduleId => allSchedules.some(s => s._id === scheduleId))
+        );
         
         // Si no hay calendarios, mostrar opción de crear uno personalizado
-        if (!schedules || schedules.length === 0) {
+        if (allSchedules.length === 0) {
           setShowCustomSchedule(true);
         } else {
           setShowCustomSchedule(false);
-          // Seleccionar el calendario principal por defecto si existe
-          const mainSchedule = schedules.find(s => s.isMain);
-          if (mainSchedule) {
-            setSelectedSchedule(mainSchedule._id);
-          }
         }
       } catch (error) {
         console.error('Error loading schedules:', error);
@@ -182,7 +191,7 @@ export default function CreateExperiencePage() {
     };
 
     loadSchedules();
-  }, [selectedLocation]);
+  }, [selectedLocations]);
 
   // Validar capacidad mínima
   useEffect(() => {
@@ -264,41 +273,45 @@ export default function CreateExperiencePage() {
       return;
     }
 
-    // Validar que se haya seleccionado una sede para experiencias presenciales/híbridas
-    if ((data.experienceType === 'presential' || data.experienceType === 'hybrid') && !selectedLocation) {
-      showError('Por favor selecciona una sede');
+    // Validar que se haya seleccionado al menos una sede para experiencias presenciales/híbridas
+    if ((data.experienceType === 'presential' || data.experienceType === 'hybrid') && selectedLocations.length === 0) {
+      showError('Por favor selecciona al menos una sede');
       return;
     }
 
-    // Validar que se haya seleccionado o configurado un calendario
-    if (selectedLocation && !selectedSchedule && !showCustomSchedule) {
-      showError('Por favor selecciona un calendario o configura uno personalizado');
+    // Validar que se haya seleccionado al menos un calendario o configurado uno personalizado
+    if (selectedLocations.length > 0 && selectedSchedules.length === 0 && !showCustomSchedule) {
+      showError('Por favor selecciona al menos un calendario o configura uno personalizado');
       return;
     }
 
     try {
       setIsLoading(true);
 
-      let finalScheduleId = selectedSchedule && selectedSchedule !== 'custom' ? selectedSchedule : undefined;
+      // eslint-disable-next-line prefer-const
+      let finalScheduleIds: string[] = [...selectedSchedules];
 
-      // Si necesita crear un calendario personalizado
-      if ((selectedSchedule === 'custom' || showCustomSchedule) && selectedLocation) {
+      // Si necesita crear calendarios personalizados para las sedes sin calendario
+      if (showCustomSchedule && selectedLocations.length > 0 && finalScheduleIds.length === 0) {
         try {
           const scheduleName = customScheduleName || `Calendario - ${data.title}`;
-          const newSchedule = await createAvailabilitySchedule({
-            name: scheduleName,
-            location: selectedLocation,
-            description: `Calendario personalizado para la experiencia: ${data.title}`,
-            weeklySchedule: generateDefaultSchedule(),
-            blockedDates: [],
-            notes: 'Calendario generado automáticamente. Personaliza los horarios según tus necesidades.',
-            bufferTime: 0,
-            minimumNotice: customMinimumNotice,
-          });
-          finalScheduleId = newSchedule._id;
+          // Crear un calendario para cada sede seleccionada
+          for (const locationId of selectedLocations) {
+            const newSchedule = await createAvailabilitySchedule({
+              name: `${scheduleName} - ${locations.find(l => l._id === locationId)?.name || 'Sede'}`,
+              location: locationId,
+              description: `Calendario personalizado para la experiencia: ${data.title}`,
+              weeklySchedule: generateDefaultSchedule(),
+              blockedDates: [],
+              notes: 'Calendario generado automáticamente. Personaliza los horarios según tus necesidades.',
+              bufferTime: 0,
+              minimumNotice: customMinimumNotice,
+            });
+            finalScheduleIds.push(newSchedule._id);
+          }
         } catch (error) {
-          console.error('Error creating custom schedule:', error);
-          showError('Error al crear el calendario personalizado. La experiencia se creará sin calendario asociado.');
+          console.error('Error creating custom schedules:', error);
+          showError('Error al crear los calendarios personalizados. La experiencia se creará sin calendarios asociados.');
         }
       }
 
@@ -310,10 +323,10 @@ export default function CreateExperiencePage() {
         requirements: requirements.filter(req => req.trim() !== ''),
         includes: includes.filter(inc => inc.trim() !== ''),
         addons: addons.filter(addon => addon.name.trim() !== ''),
-        // Agregar referencia a la sede seleccionada
-        location: selectedLocation || undefined,
-        // Agregar referencia al calendario seleccionado o recién creado
-        availabilitySchedule: finalScheduleId,
+        // Agregar referencias a las sedes seleccionadas (múltiples sedes)
+        locations: selectedLocations.length > 0 ? selectedLocations : undefined,
+        // Agregar referencias a los calendarios seleccionados o recién creados (múltiples calendarios)
+        availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
@@ -597,60 +610,107 @@ export default function CreateExperiencePage() {
             {(experienceType === 'presential' || experienceType === 'hybrid') && (
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="sede">Sede *</Label>
-                  <Select
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="mt-1"
-                  >
-                    <option value="">Selecciona una sede</option>
-                    {locations.map((loc) => (
-                      <option key={loc._id} value={loc._id}>
-                        {loc.name}
-                        {loc.isMain && ' (Principal)'}
-                      </option>
-                    ))}
-                  </Select>
-                  {locations.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      No tienes sedes registradas. 
-                      <a href="/dashboard/locations" className="text-[#F26726] hover:underline ml-1">
-                        Crear una sede
-                      </a>
+                  <Label>Sedes * (Selecciona una o más)</Label>
+                  <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
+                    {locations.length > 0 ? (
+                      locations.map((loc) => (
+                        <div key={loc._id} className="flex items-center">
+                          <Checkbox
+                            id={`location-${loc._id}`}
+                            checked={selectedLocations.includes(loc._id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedLocations(prev => [...prev, loc._id]);
+                              } else {
+                                setSelectedLocations(prev => prev.filter(id => id !== loc._id));
+                              }
+                            }}
+                            className="text-[#F26726] focus:ring-[#F26726]"
+                          />
+                          <Label htmlFor={`location-${loc._id}`} className="ml-2 cursor-pointer">
+                            {loc.name}
+                            {loc.isMain && ' (Principal)'}
+                            <span className="text-gray-500 text-sm ml-2">
+                              - {loc.address.city}
+                            </span>
+                          </Label>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No tienes sedes registradas. 
+                        <a href="/dashboard/locations" className="text-[#F26726] hover:underline ml-1">
+                          Crear una sede
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                  {selectedLocations.length > 0 && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      {selectedLocations.length} sede{selectedLocations.length > 1 ? 's' : ''} seleccionada{selectedLocations.length > 1 ? 's' : ''}
                     </p>
                   )}
                 </div>
 
-                {selectedLocation && (
+                {selectedLocations.length > 0 && (
                   <div>
-                    <Label htmlFor="calendario">Calendario de Disponibilidad</Label>
+                    <Label>Calendarios de Disponibilidad * (Selecciona uno o más)</Label>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Selecciona los calendarios que definirán la disponibilidad de esta experiencia
+                    </p>
                     {availableSchedules.length > 0 ? (
                       <div className="space-y-2">
-                        <Select
-                          value={selectedSchedule}
-                          onChange={(e) => setSelectedSchedule(e.target.value)}
-                          className="mt-1"
-                        >
-                          <option value="">Selecciona un calendario</option>
-                          {availableSchedules.map((schedule) => (
-                            <option key={schedule._id} value={schedule._id}>
-                              {schedule.name}
-                              {schedule.isMain && ' (Principal)'}
-                              {!schedule.isActive && ' (Inactivo)'}
-                            </option>
-                          ))}
-                          <option value="custom">Crear calendario personalizado</option>
-                        </Select>
-                        {selectedSchedule && selectedSchedule !== 'custom' && (
-                          <p className="text-sm text-gray-500">
-                            Se usará el horario del calendario seleccionado
+                        <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
+                          {availableSchedules.map((schedule) => {
+                            const locationName = locations.find(l => {
+                              const schedLocation = schedule.location as { _ref: string };
+                              return l._id === schedLocation?._ref;
+                            })?.name || 'Sede';
+                            
+                            return (
+                              <div key={schedule._id} className="flex items-center">
+                                <Checkbox
+                                  id={`schedule-${schedule._id}`}
+                                  checked={selectedSchedules.includes(schedule._id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedSchedules(prev => [...prev, schedule._id]);
+                                    } else {
+                                      setSelectedSchedules(prev => prev.filter(id => id !== schedule._id));
+                                    }
+                                  }}
+                                  disabled={!schedule.isActive}
+                                  className="text-[#F26726] focus:ring-[#F26726]"
+                                />
+                                <Label htmlFor={`schedule-${schedule._id}`} className="ml-2 cursor-pointer">
+                                  {schedule.name}
+                                  {schedule.isMain && ' (Principal)'}
+                                  {!schedule.isActive && ' (Inactivo)'}
+                                  <span className="text-gray-500 text-sm ml-2">
+                                    - {locationName}
+                                  </span>
+                                </Label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {selectedSchedules.length > 0 && (
+                          <p className="text-sm text-gray-600 mt-2">
+                            {selectedSchedules.length} calendario{selectedSchedules.length > 1 ? 's' : ''} seleccionado{selectedSchedules.length > 1 ? 's' : ''}
                           </p>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomSchedule(!showCustomSchedule)}
+                          className="text-sm text-[#F26726] hover:underline font-medium mt-2"
+                        >
+                          {showCustomSchedule ? 'Ocultar' : 'Crear nuevo'} calendario personalizado
+                        </button>
                       </div>
                     ) : (
                       <div className="mt-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <p className="text-sm text-yellow-800 mb-2">
-                          Esta sede no tiene calendarios de disponibilidad configurados.
+                          Las sedes seleccionadas no tienen calendarios de disponibilidad configurados.
                         </p>
                         <button
                           type="button"
@@ -669,7 +729,7 @@ export default function CreateExperiencePage() {
         </div>
 
         {/* Disponibilidad Personalizada */}
-        {(selectedSchedule === 'custom' || (showCustomSchedule && selectedLocation)) && (
+        {(showCustomSchedule && selectedLocations.length > 0) && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
               Configurar Disponibilidad Personalizada

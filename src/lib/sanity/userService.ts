@@ -10,7 +10,7 @@ export const testSanityConnection = async () => {
     console.log('Token configurado:', !!process.env.NEXT_PUBLIC_SANITY_TOKEN);
     
     // Intentar hacer una consulta simple para verificar permisos de lectura
-    const result = await sanityClient.fetch('*[_type == "user"] | order(_createdAt desc)[0]');
+    await sanityClient.fetch('*[_type == "user"] | order(_createdAt desc)[0]');
     console.log('Conexión exitosa con Sanity');
     return { success: true, message: 'Conexión exitosa' };
   } catch (error) {

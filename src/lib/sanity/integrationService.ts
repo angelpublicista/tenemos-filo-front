@@ -1,5 +1,5 @@
 import { sanityClient } from './sanityClient';
-import { Integration, CreateIntegrationData, UpdateIntegrationData } from '@/types';
+import { Integration, CreateIntegrationData } from '@/types';
 
 export interface IntegrationFilters {
   userId?: string;

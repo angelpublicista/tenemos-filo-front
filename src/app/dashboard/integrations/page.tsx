@@ -12,13 +12,13 @@ import {
   HiTrash,
   HiOfficeBuilding
 } from 'react-icons/hi';
-import { SiGooglecalendar, SiCalendly } from 'react-icons/si';
+import { SiGooglecalendar } from 'react-icons/si';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
 
 interface Integration {
   _id: string;
-  type: 'google' | 'outlook' | 'calendly';
+  type: 'google' | 'outlook';
   name: string;
   status: 'connected' | 'disconnected' | 'pending' | 'error';
   lastSync?: string;
@@ -47,13 +47,6 @@ export default function IntegrationsPage() {
       name: 'Outlook Calendar',
       status: 'disconnected',
       createdAt: '2024-12-10T09:00:00Z'
-    },
-    {
-      _id: '3',
-      type: 'calendly',
-      name: 'Calendly',
-      status: 'pending',
-      createdAt: '2024-11-20T16:00:00Z'
     }
   ];
 
@@ -74,7 +67,7 @@ export default function IntegrationsPage() {
     }
   };
 
-  const handleConnect = async (type: 'google' | 'outlook' | 'calendly') => {
+  const handleConnect = async (type: 'google' | 'outlook') => {
     try {
       const confirmed = await showConfirmation(
         'Confirmar integración',
@@ -119,7 +112,7 @@ export default function IntegrationsPage() {
     }
   };
 
-  const connectIntegration = async (type: 'google' | 'outlook' | 'calendly') => {
+  const connectIntegration = async (type: 'google' | 'outlook') => {
     // Simular conexión
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -159,19 +152,17 @@ export default function IntegrationsPage() {
     showSuccess('Integración eliminada exitosamente');
   };
 
-  const getIntegrationName = (type: 'google' | 'outlook' | 'calendly') => {
+  const getIntegrationName = (type: 'google' | 'outlook') => {
     switch (type) {
       case 'google': return 'Google Calendar';
       case 'outlook': return 'Outlook Calendar';
-      case 'calendly': return 'Calendly';
     }
   };
 
-  const getIntegrationIcon = (type: 'google' | 'outlook' | 'calendly') => {
+  const getIntegrationIcon = (type: 'google' | 'outlook') => {
     switch (type) {
       case 'google': return <SiGooglecalendar className="w-6 h-6 text-blue-500" />;
       case 'outlook': return <HiOfficeBuilding className="w-6 h-6 text-blue-600" />;
-      case 'calendly': return <SiCalendly className="w-6 h-6 text-blue-400" />;
     }
   };
 
@@ -200,13 +191,6 @@ export default function IntegrationsPage() {
         description: 'Integra tu calendario de Outlook/Microsoft 365',
         icon: <HiOfficeBuilding className="w-8 h-8 text-blue-600" />,
         disabled: connectedTypes.includes('outlook')
-      },
-      {
-        type: 'calendly' as const,
-        name: 'Calendly',
-        description: 'Conecta con Calendly para gestión automática de citas',
-        icon: <SiCalendly className="w-8 h-8 text-blue-400" />,
-        disabled: connectedTypes.includes('calendly')
       }
     ];
   };
@@ -312,7 +296,7 @@ export default function IntegrationsPage() {
           Integraciones Disponibles
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {getAvailableIntegrations().map((integration) => (
             <Card key={integration.type} className="p-6 hover:shadow-lg transition-shadow">
               <div className="text-center">

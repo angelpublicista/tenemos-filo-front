@@ -26,7 +26,7 @@ export interface QuoteData {
 // Buscar experiencias disponibles para cotización
 export const searchExperiencesForQuote = async (params: SearchParams): Promise<Experience[]> => {
   try {
-    const { companyId, guests, location } = params;
+    const { companyId, guests, location, date } = params;
 
     // Query GROQ para buscar experiencias
     let query = `
@@ -63,6 +63,10 @@ export const searchExperiencesForQuote = async (params: SearchParams): Promise<E
       addons,
       "companyName": company->companyName,
       "locationName": location->name,
+      "availabilitySchedule": availabilitySchedule->{
+        _id,
+        weeklySchedule
+      },
       status
     }`;
 
@@ -75,13 +79,37 @@ export const searchExperiencesForQuote = async (params: SearchParams): Promise<E
       queryParams.location = `*${location}*`;
     }
 
-    const experiences = await sanityClient.fetch(query, queryParams);
+    let experiences = await sanityClient.fetch(query, queryParams);
+    
+    // Filtrar por disponibilidad del día si se especificó una fecha
+    if (date && experiences) {
+      const selectedDate = new Date(date + 'T12:00:00'); // Agregar hora para evitar problemas de zona horaria
+      const dayOfWeek = getDayOfWeekFromDate(selectedDate);
+      
+      experiences = experiences.filter((exp: Experience & { availabilitySchedule?: { weeklySchedule: Record<string, { isActive: boolean }> } }) => {
+        // Si no tiene availabilitySchedule configurado, no la incluimos
+        if (!exp.availabilitySchedule?.weeklySchedule) {
+          return false;
+        }
+        
+        // Verificar si el día está activo en el horario semanal
+        const daySchedule = exp.availabilitySchedule.weeklySchedule[dayOfWeek];
+        return daySchedule?.isActive === true;
+      });
+    }
+    
     return experiences || [];
   } catch (error) {
     console.error('Error searching experiences for quote:', error);
     throw new Error('Failed to search experiences');
   }
 };
+
+// Helper para convertir fecha a día de la semana
+function getDayOfWeekFromDate(date: Date): string {
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  return days[date.getDay()];
+}
 
 // Crear cotización
 export const createQuote = async (quoteData: QuoteData) => {

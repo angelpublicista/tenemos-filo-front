@@ -3,7 +3,7 @@ import { Integration, CreateIntegrationData, UpdateIntegrationData } from '@/typ
 
 export interface IntegrationFilters {
   userId?: string;
-  type?: 'google' | 'outlook' | 'calendly';
+  type?: 'google' | 'outlook';
   status?: 'connected' | 'disconnected' | 'pending' | 'error';
 }
 
@@ -272,7 +272,7 @@ export async function isIntegrationRecentlySynced(
  */
 export async function getConnectedIntegrationsByType(
   userId: string, 
-  type: 'google' | 'outlook' | 'calendly'
+  type: 'google' | 'outlook'
 ): Promise<Integration[]> {
   return getIntegrationsByUser(userId, { type, status: 'connected' });
 }

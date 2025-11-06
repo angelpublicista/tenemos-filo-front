@@ -560,7 +560,7 @@ export interface ReservationSearchParams {
 export interface Integration {
   _id: string;
   userId: string;
-  type: 'google' | 'outlook' | 'calendly';
+  type: 'google' | 'outlook';
   name: string;
   status: 'connected' | 'disconnected' | 'pending' | 'error';
   lastSync?: string;
@@ -595,7 +595,7 @@ export interface IntegrationEvent {
 
 export interface CreateIntegrationData {
   userId: string;
-  type: 'google' | 'outlook' | 'calendly';
+  type: 'google' | 'outlook';
   name: string;
   status?: 'connected' | 'disconnected' | 'pending' | 'error';
   config?: Integration['config'];

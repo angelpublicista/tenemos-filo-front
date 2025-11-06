@@ -142,6 +142,9 @@ const dayNames: Record<DayOfWeek, string> = {
   sunday: 'Domingo',
 };
 
+// Orden correcto de los días de la semana
+const daysOrder: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
 const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, companyId }) => {
   const [schedules, setSchedules] = useState<AvailabilitySchedule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -404,7 +407,9 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
             Horario Semanal
           </h5>
           <div className="grid grid-cols-7 gap-2">
-            {Object.entries(schedule.weeklySchedule).map(([dayKey, day]) => (
+            {daysOrder.map((dayKey) => {
+              const day = schedule.weeklySchedule[dayKey];
+              return (
               <div
                 key={dayKey}
                 className={`text-center p-2 rounded ${
@@ -416,7 +421,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                 <div className={`text-xs font-medium ${
                   day.isActive ? 'text-green-900' : 'text-gray-400'
                 }`}>
-                  {dayNames[dayKey as DayOfWeek].substring(0, 3)}
+                  {dayNames[dayKey].substring(0, 3)}
                 </div>
                 {day.isActive && day.timeSlots.length > 0 && (
                   <div className="text-xs text-gray-600 mt-1">
@@ -424,7 +429,8 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -621,7 +627,9 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
               Horario Semanal
             </h3>
             <div className="space-y-4">
-              {Object.entries(weeklySchedule).map(([dayKey, day], dayIndex) => (
+              {daysOrder.map((dayKey) => {
+                const day = weeklySchedule[dayKey];
+                return (
                 <div key={dayKey} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center">
@@ -676,7 +684,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

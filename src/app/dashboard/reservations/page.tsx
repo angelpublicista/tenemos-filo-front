@@ -2,9 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Select, Badge, Modal, ModalHeader, ModalBody, Tooltip } from 'flowbite-react';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import { es } from 'date-fns/locale';
+import 'react-datepicker/dist/react-datepicker.css';
+import '@/styles/datepicker-custom.css';
+
+registerLocale('es', es);
 import { 
   HiEye, 
-  HiPencilAlt, 
+  HiPencilAlt,
   HiCheckCircle,
   HiExclamationCircle,
   HiViewGrid,
@@ -24,23 +30,33 @@ import {
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
-import { Experience } from '@/types';
+import { getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
+import { Experience, Reservation } from '@/types';
 import CreateReservationModal from '@/components/CreateReservationModal';
 
-// Datos hardcodeados de ejemplo
-const mockReservations = [
+// Datos hardcodeados de ejemplo - Tipados como Reservation parciales
+const mockReservations: Partial<Reservation>[] = [
   {
     _id: '1',
+    _type: 'reservation',
     reservationNumber: 'RES-2025-001',
-    status: 'confirmed' as const,
-    paymentStatus: 'paid' as const,
+    status: 'confirmed',
+    paymentStatus: 'paid',
     reservationDate: '2025-01-15T10:00:00Z',
     participants: 4,
     duration: 120,
     experience: {
       _id: 'exp-1',
       title: 'Clase de Cocina Italiana',
-      experienceType: 'presential' as const
+      category: 'cooking',
+      duration: 120,
+      capacity: 10
+    },
+    company: {
+      _id: 'company-1',
+      companyName: 'Demo Company',
+      companyEmail: 'demo@company.com',
+      companyPhone: '+57 300 000 0000'
     },
     client: {
       name: 'María González',
@@ -49,21 +65,33 @@ const mockReservations = [
     },
     pricing: {
       basePrice: 250000,
+      subtotal: 1000000,
       total: 1000000
-    }
+    },
+    createdAt: '2025-01-01T10:00:00Z',
+    updatedAt: '2025-01-01T10:00:00Z'
   },
   {
     _id: '2',
+    _type: 'reservation',
     reservationNumber: 'RES-2025-002',
-    status: 'pending' as const,
-    paymentStatus: 'pending' as const,
+    status: 'pending',
+    paymentStatus: 'pending',
     reservationDate: '2025-01-20T14:30:00Z',
     participants: 2,
     duration: 90,
     experience: {
       _id: 'exp-2',
       title: 'Mixología Creativa',
-      experienceType: 'virtual' as const
+      category: 'mixology',
+      duration: 90,
+      capacity: 8
+    },
+    company: {
+      _id: 'company-1',
+      companyName: 'Demo Company',
+      companyEmail: 'demo@company.com',
+      companyPhone: '+57 300 000 0000'
     },
     client: {
       name: 'Carlos Rodríguez',
@@ -72,21 +100,33 @@ const mockReservations = [
     },
     pricing: {
       basePrice: 180000,
+      subtotal: 360000,
       total: 360000
-    }
+    },
+    createdAt: '2025-01-02T10:00:00Z',
+    updatedAt: '2025-01-02T10:00:00Z'
   },
   {
     _id: '3',
+    _type: 'reservation',
     reservationNumber: 'RES-2025-003',
-    status: 'completed' as const,
-    paymentStatus: 'paid' as const,
+    status: 'completed',
+    paymentStatus: 'paid',
     reservationDate: '2025-01-10T09:00:00Z',
     participants: 6,
     duration: 150,
     experience: {
       _id: 'exp-3',
       title: 'Degustación de Vinos',
-      experienceType: 'presential' as const
+      category: 'tasting',
+      duration: 150,
+      capacity: 12
+    },
+    company: {
+      _id: 'company-1',
+      companyName: 'Demo Company',
+      companyEmail: 'demo@company.com',
+      companyPhone: '+57 300 000 0000'
     },
     client: {
       name: 'Ana Martínez',
@@ -95,21 +135,33 @@ const mockReservations = [
     },
     pricing: {
       basePrice: 320000,
+      subtotal: 1920000,
       total: 1920000
-    }
+    },
+    createdAt: '2025-01-03T10:00:00Z',
+    updatedAt: '2025-01-03T10:00:00Z'
   },
   {
     _id: '4',
+    _type: 'reservation',
     reservationNumber: 'RES-2025-004',
-    status: 'in_progress' as const,
-    paymentStatus: 'paid' as const,
+    status: 'in_progress',
+    paymentStatus: 'paid',
     reservationDate: '2025-01-18T16:00:00Z',
     participants: 3,
     duration: 180,
     experience: {
       _id: 'exp-4',
       title: 'Taller de Repostería',
-      experienceType: 'hybrid' as const
+      category: 'workshops',
+      duration: 180,
+      capacity: 10
+    },
+    company: {
+      _id: 'company-1',
+      companyName: 'Demo Company',
+      companyEmail: 'demo@company.com',
+      companyPhone: '+57 300 000 0000'
     },
     client: {
       name: 'Pedro López',
@@ -118,21 +170,33 @@ const mockReservations = [
     },
     pricing: {
       basePrice: 280000,
+      subtotal: 840000,
       total: 840000
-    }
+    },
+    createdAt: '2025-01-04T10:00:00Z',
+    updatedAt: '2025-01-04T10:00:00Z'
   },
   {
     _id: '5',
+    _type: 'reservation',
     reservationNumber: 'RES-2025-005',
-    status: 'cancelled' as const,
-    paymentStatus: 'refunded' as const,
+    status: 'cancelled',
+    paymentStatus: 'refunded',
     reservationDate: '2025-01-12T11:30:00Z',
     participants: 5,
     duration: 120,
     experience: {
       _id: 'exp-5',
       title: 'Evento Corporativo',
-      experienceType: 'presential' as const
+      category: 'corporate',
+      duration: 120,
+      capacity: 15
+    },
+    company: {
+      _id: 'company-1',
+      companyName: 'Demo Company',
+      companyEmail: 'demo@company.com',
+      companyPhone: '+57 300 000 0000'
     },
     client: {
       name: 'Laura Jiménez',
@@ -141,8 +205,11 @@ const mockReservations = [
     },
     pricing: {
       basePrice: 350000,
+      subtotal: 1750000,
       total: 1750000
-    }
+    },
+    createdAt: '2025-01-05T10:00:00Z',
+    updatedAt: '2025-01-05T10:00:00Z'
   }
 ];
 
@@ -164,22 +231,22 @@ interface ReservationStats {
 
 export default function ReservationsPage() {
   const { sanityUser } = useAuth();
-  const { showSuccess } = useSweetAlert();
-  const [reservations] = useState(mockReservations);
+  const { showSuccess, showError } = useSweetAlert();
+  const [reservations, setReservations] = useState<Partial<Reservation>[]>(mockReservations);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [stats] = useState<ReservationStats>({
+  const [stats, setStats] = useState<ReservationStats>({
     total: mockReservations.length,
     pending: mockReservations.filter(r => r.status === 'pending').length,
     confirmed: mockReservations.filter(r => r.status === 'confirmed').length,
     inProgress: mockReservations.filter(r => r.status === 'in_progress').length,
     completed: mockReservations.filter(r => r.status === 'completed').length,
     cancelled: mockReservations.filter(r => r.status === 'cancelled').length,
-    noShow: 0, // No hay reservas con estado 'no_show' en los datos hardcodeados
-    rescheduled: 0, // No hay reservas con estado 'rescheduled' en los datos hardcodeados
-    totalRevenue: mockReservations.reduce((sum, r) => sum + r.pricing.total, 0),
-    totalParticipants: mockReservations.reduce((sum, r) => sum + r.participants, 0),
-    averageParticipants: mockReservations.reduce((sum, r) => sum + r.participants, 0) / mockReservations.length,
+    noShow: 0,
+    rescheduled: 0,
+    totalRevenue: mockReservations.reduce((sum, r) => sum + (r.pricing?.total || 0), 0),
+    totalParticipants: mockReservations.reduce((sum, r) => sum + (r.participants || 0), 0),
+    averageParticipants: mockReservations.reduce((sum, r) => sum + (r.participants || 0), 0) / mockReservations.length || 0,
     pendingPayments: mockReservations.filter(r => r.paymentStatus === 'pending').length,
     paidReservations: mockReservations.filter(r => r.paymentStatus === 'paid').length,
   });
@@ -187,27 +254,71 @@ export default function ReservationsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'calendar'>('calendar');
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 0, 1)); // Enero 2025
+  const [currentDate, setCurrentDate] = useState(new Date()); // Fecha actual (Hoy)
 
   // Estados para el calendario
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showReservationsModal, setShowReservationsModal] = useState(false);
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>('month');
 
-  // Cargar experiencias de la empresa
+  // Estados para edición de reserva
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingReservation, setEditingReservation] = useState<(Partial<Reservation> & { editDate?: string; editTime?: string }) | null>(null);
+
+  // Función para cargar reservas reales
+  const loadReservations = async () => {
+    if (!sanityUser?.companyId) return;
+    
+    try {
+      console.log('📅 Cargando reservas de la empresa:', sanityUser.companyId);
+      
+      const realReservations = await getReservationsByCompany(sanityUser.companyId);
+      console.log('✅ Reservas cargadas:', realReservations);
+      
+      // Si hay reservas reales, usarlas; si no, usar mock para demo
+      if (realReservations && realReservations.length > 0) {
+        setReservations(realReservations);
+        
+        // Actualizar estadísticas con datos reales
+        setStats({
+          total: realReservations.length,
+          pending: realReservations.filter(r => r.status === 'pending').length,
+          confirmed: realReservations.filter(r => r.status === 'confirmed').length,
+          inProgress: realReservations.filter(r => r.status === 'in_progress').length,
+          completed: realReservations.filter(r => r.status === 'completed').length,
+          cancelled: realReservations.filter(r => r.status === 'cancelled').length,
+          noShow: realReservations.filter(r => r.status === 'no_show').length,
+          rescheduled: realReservations.filter(r => r.status === 'rescheduled').length,
+          totalRevenue: realReservations.reduce((sum, r) => sum + (r.pricing?.total || 0), 0),
+          totalParticipants: realReservations.reduce((sum, r) => sum + r.participants, 0),
+          averageParticipants: realReservations.reduce((sum, r) => sum + r.participants, 0) / realReservations.length || 0,
+          pendingPayments: realReservations.filter(r => r.paymentStatus === 'pending').length,
+          paidReservations: realReservations.filter(r => r.paymentStatus === 'paid').length,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading reservations:', error);
+    }
+  };
+
+  // Cargar experiencias y reservas de la empresa
   useEffect(() => {
-    const loadExperiences = async () => {
+    const loadData = async () => {
       if (!sanityUser?.companyId) return;
       
       try {
-        const data = await getExperiencesByCompany(sanityUser.companyId);
-        setExperiences(data || []);
+        const experiencesData = await getExperiencesByCompany(sanityUser.companyId);
+        setExperiences(experiencesData || []);
+        
+        // Cargar reservas
+        await loadReservations();
       } catch (error) {
-        console.error('Error loading experiences:', error);
+        console.error('Error loading data:', error);
       }
     };
 
-    loadExperiences();
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sanityUser]);
 
   // Funciones para el calendario
@@ -222,7 +333,7 @@ export default function ReservationsPage() {
   const getReservationsForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
     return reservations.filter(reservation => 
-      reservation.reservationDate.split('T')[0] === dateStr
+      reservation.reservationDate?.split('T')[0] === dateStr
     );
   };
 
@@ -283,7 +394,8 @@ export default function ReservationsPage() {
     return ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status?: string) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -296,7 +408,8 @@ export default function ReservationsPage() {
     }
   };
 
-  const getStatusColorBadge = (status: string) => {
+  const getStatusColorBadge = (status?: string) => {
+    if (!status) return 'gray';
     switch (status) {
       case 'confirmed': return 'success';
       case 'pending': return 'warning';
@@ -315,6 +428,25 @@ export default function ReservationsPage() {
       hour: '2-digit', 
       minute: '2-digit' 
     });
+  };
+
+  // Helper para obtener info del cliente
+  const getClientName = (reservation: Partial<Reservation>): string => {
+    return reservation.client?.name || 'Cliente sin nombre';
+  };
+
+  const getClientEmail = (reservation: Partial<Reservation>): string => {
+    return reservation.client?.email || 'Sin email';
+  };
+
+  const getClientPhone = (reservation: Partial<Reservation>): string => {
+    return reservation.client?.phone || 'Sin teléfono';
+  };
+
+  // Helper para obtener tipo de experiencia (maneja diferencias entre mock y datos reales)
+  const getExperienceType = (reservation: Partial<Reservation>): 'virtual' | 'presential' | 'hybrid' | undefined => {
+    const exp = reservation.experience as { experienceType?: 'virtual' | 'presential' | 'hybrid' };
+    return exp?.experienceType;
   };
 
   // Funciones para vista de semana
@@ -345,6 +477,7 @@ export default function ReservationsPage() {
   const getReservationsForTimeSlot = (date: Date, hour: number) => {
     const dateStr = date.toISOString().split('T')[0];
     return reservations.filter(reservation => {
+      if (!reservation.reservationDate) return false;
       const reservationDate = new Date(reservation.reservationDate);
       const reservationHour = reservationDate.getHours();
       const reservationDateStr = reservation.reservationDate.split('T')[0];
@@ -389,15 +522,43 @@ export default function ReservationsPage() {
     return statusMatch && paymentStatusMatch;
   });
 
-  // Cambiar estado de reserva (simulado)
-  const handleStatusChange = async (reservationId: string, newStatus: string) => {
-    setIsUpdating(reservationId);
-    console.log(`Cambiando estado de reserva ${reservationId} a: ${newStatus}`);
-    // Simular delay de API
-    setTimeout(() => {
-      showSuccess(`Estado actualizado exitosamente a: ${newStatus}`);
+  // Cambiar estado de reserva
+  const handleStatusChange = async (reservationId: string | undefined, newStatus: string) => {
+    if (!reservationId) {
+      showError('ID de reserva no válido');
+      return;
+    }
+    
+    try {
+      setIsUpdating(reservationId);
+      await updateReservationStatus(reservationId, newStatus as Reservation['status']);
+      
+      // Actualizar estado local
+      setReservations(prev =>
+        prev.map(res =>
+          res._id === reservationId ? { ...res, status: newStatus as Reservation['status'] } : res
+        )
+      );
+      
+      showSuccess(`Estado actualizado exitosamente a: ${getStatusText(newStatus)}`);
+    } catch (error) {
+      console.error('Error al actualizar estado:', error);
+      showError('Error al actualizar el estado de la reserva');
+    } finally {
       setIsUpdating(null);
-    }, 500);
+    }
+  };
+
+  const handleEditReservation = (reservation: Partial<Reservation>) => {
+    setEditingReservation({
+      ...reservation,
+      // Extraer fecha y hora para el datepicker
+      editDate: reservation.reservationDate ? reservation.reservationDate.slice(0, 10) : '',
+      editTime: reservation.reservationDate ? reservation.reservationDate.slice(11, 16) : ''
+    });
+    // Cerrar el modal de reservas del día si está abierto
+    setShowReservationsModal(false);
+    setShowEditModal(true);
   };
 
   // Formatear fecha
@@ -429,7 +590,8 @@ export default function ReservationsPage() {
   };
 
   // Obtener texto del estado
-  const getStatusText = (status: string) => {
+  const getStatusText = (status?: string) => {
+    if (!status) return 'Sin estado';
     switch (status) {
       case 'confirmed': return 'Confirmada';
       case 'pending': return 'Pendiente';
@@ -443,7 +605,8 @@ export default function ReservationsPage() {
   };
 
   // Obtener texto del estado de pago
-  const getPaymentStatusText = (status: string) => {
+  const getPaymentStatusText = (status?: string) => {
+    if (!status) return 'Sin estado';
     switch (status) {
       case 'paid': return 'Pagado';
       case 'pending': return 'Pendiente';
@@ -578,28 +741,36 @@ export default function ReservationsPage() {
                           <div className="p-3 max-w-xs">
                             <div className="space-y-2">
                               <div className="font-medium text-white">
-                                {reservation.experience.title}
+                                {reservation.experience?.title}
                               </div>
                               <div className="space-y-1 text-xs text-gray-200">
                                 <div className="flex items-center gap-2">
                                   <HiUsers className="w-3 h-3" />
-                                  {reservation.client.name}
+                                  {getClientName(reservation)}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <HiMail className="w-3 h-3" />
-                                  {reservation.client.email}
+                                  {getClientEmail(reservation)}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <HiCalendar className="w-3 h-3" />
-                                  {formatTime(reservation.reservationDate)}
+                                  {reservation.reservationDate && formatTime(reservation.reservationDate)}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <HiUsers className="w-3 h-3" />
                                   {reservation.participants} personas
                                 </div>
-                                <div className="flex items-center gap-2">
+                                {reservation.pricing?.addons && reservation.pricing.addons.length > 0 && (
+                                  <div className="pt-1 mt-1 border-t border-gray-400">
+                                    <div className="text-yellow-300 font-semibold mb-1">+ {reservation.pricing.addons.length} Addon{reservation.pricing.addons.length > 1 ? 's' : ''}</div>
+                                    {reservation.pricing.addons.map((addon, idx: number) => (
+                                      <div key={idx} className="text-gray-300">• {addon.name}</div>
+                                    ))}
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 pt-1 mt-1 border-t border-gray-400">
                                   <HiCurrencyDollar className="w-3 h-3" />
-                                  {formatPrice(reservation.pricing.total)}
+                                  <span className="font-semibold">{formatPrice(reservation.pricing?.total || 0)}</span>
                                 </div>
                               </div>
                             </div>
@@ -610,9 +781,9 @@ export default function ReservationsPage() {
                       >
                         <div
                           className={`text-xs px-1.5 py-0.5 rounded ${getStatusColor(reservation.status)} cursor-pointer hover:scale-105 transition-transform truncate leading-tight flex-1`}
-                          title={`${formatTime(reservation.reservationDate)} - ${reservation.experience.title}`}
+                          title={`${reservation.reservationDate ? formatTime(reservation.reservationDate) : ''} - ${reservation.experience?.title || ''}`}
                         >
-                          {formatTime(reservation.reservationDate)}
+                          {reservation.reservationDate && formatTime(reservation.reservationDate)}
                         </div>
                       </Tooltip>
                       <button
@@ -699,8 +870,8 @@ export default function ReservationsPage() {
                         <div key={reservation._id} className="flex items-center justify-between bg-gray-50 rounded p-2">
                           <div className="flex items-center gap-3">
                             <HiClock className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm font-medium">{formatTime(reservation.reservationDate)}</span>
-                            <span className="text-sm text-gray-600">{reservation.experience.title}</span>
+                            <span className="text-sm font-medium">{reservation.reservationDate && formatTime(reservation.reservationDate)}</span>
+                            <span className="text-sm text-gray-600">{reservation.experience?.title}</span>
                             <Badge color={getStatusColor(reservation.status)} size="sm">
                               {reservation.status}
                             </Badge>
@@ -773,8 +944,8 @@ export default function ReservationsPage() {
                           <div key={reservation._id} className="flex items-center justify-between bg-gray-50 rounded p-2 ml-4">
                             <div className="flex items-center gap-3">
                               <HiClock className="w-4 h-4 text-gray-500" />
-                              <span className="text-sm font-medium">{formatTime(reservation.reservationDate)}</span>
-                              <span className="text-sm text-gray-600">{reservation.experience.title}</span>
+                              <span className="text-sm font-medium">{reservation.reservationDate && formatTime(reservation.reservationDate)}</span>
+                              <span className="text-sm text-gray-600">{reservation.experience?.title}</span>
                               <Badge color={getStatusColor(reservation.status)} size="sm">
                                 {reservation.status}
                               </Badge>
@@ -805,7 +976,11 @@ export default function ReservationsPage() {
         )}
         
         {/* Modal de reservas del día */}
-        <Modal show={showReservationsModal} onClose={() => setShowReservationsModal(false)} size="4xl">
+        <Modal 
+          show={showReservationsModal} 
+          onClose={() => setShowReservationsModal(false)} 
+          size="4xl"
+        >
           <ModalHeader>
             Reservas del {selectedDay?.toLocaleDateString('es-CO', { 
               weekday: 'long', 
@@ -837,24 +1012,24 @@ export default function ReservationsPage() {
                           <h4 className="font-medium text-gray-900 mb-2">Experiencia</h4>
                           <div className="space-y-2 text-sm text-gray-600">
                             <div className="flex items-center gap-2">
-                              {reservation.experience.experienceType === 'virtual' ? (
+                              {getExperienceType(reservation) === 'virtual' ? (
                                 <HiVideoCamera className="w-4 h-4 text-blue-500" />
                               ) : (
                                 <HiLocationMarker className="w-4 h-4 text-green-500" />
                               )}
-                              <span>{reservation.experience.title}</span>
+                              <span>{reservation.experience?.title}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <HiClock className="w-4 h-4" />
-                              {formatDuration(reservation.duration)}
+                              {reservation.duration && formatDuration(reservation.duration)}
                             </div>
                             <div className="flex items-center gap-2">
                               <HiCalendar className="w-4 h-4" />
-                              {formatTime(reservation.reservationDate)}
+                              {reservation.reservationDate && formatTime(reservation.reservationDate)}
                             </div>
                             <div className="flex items-center gap-2">
                               <HiCurrencyDollar className="w-4 h-4" />
-                              {formatPrice(reservation.pricing.total)}
+                              {formatPrice(reservation.pricing?.total || 0)}
                             </div>
                           </div>
                         </div>
@@ -864,22 +1039,45 @@ export default function ReservationsPage() {
                           <div className="space-y-2 text-sm text-gray-600">
                             <div className="flex items-center gap-2">
                               <HiUsers className="w-4 h-4" />
-                              {reservation.client.name}
+                              {getClientName(reservation)}
                             </div>
                             <div className="flex items-center gap-2">
                               <HiMail className="w-4 h-4" />
-                              {reservation.client.email}
+                              {getClientEmail(reservation)}
                             </div>
                             <div className="flex items-center gap-2">
                               <HiPhone className="w-4 h-4" />
-                              {reservation.client.phone}
+                              {getClientPhone(reservation)}
                             </div>
                             <div className="flex items-center gap-2">
                               <HiUsers className="w-4 h-4" />
-                              {reservation.participants} participantes
+                              {reservation.participants || 0} participantes
                             </div>
                           </div>
                         </div>
+
+                        {/* Servicios Adicionales en Modal */}
+                        {reservation.pricing?.addons && reservation.pricing.addons.length > 0 && (
+                          <div className="mt-4">
+                            <h4 className="font-medium text-gray-900 mb-2">Servicios Adicionales</h4>
+                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                              <div className="space-y-2">
+                                {reservation.pricing.addons.map((addon, idx: number) => (
+                                  <div key={idx} className="flex justify-between text-sm">
+                                    <span className="text-gray-700">• {addon.name} <span className="text-xs text-gray-500">({addon.quantity}x)</span></span>
+                                    <span className="font-medium text-[#F26726]">+${(addon.price * addon.quantity).toLocaleString()}</span>
+                                  </div>
+                                ))}
+                                <div className="pt-2 border-t border-orange-300 flex justify-between text-sm font-semibold">
+                                  <span className="text-gray-700">Total Addons:</span>
+                                  <span className="text-[#F26726]">
+                                    ${reservation.pricing.addons.reduce((sum: number, a) => sum + (a.price * a.quantity), 0).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -887,19 +1085,7 @@ export default function ReservationsPage() {
                       <Button
                         color="gray"
                         size="sm"
-                        onClick={() => {
-                          console.log('Ver detalles de:', reservation.reservationNumber);
-                        }}
-                        title="Ver detalles"
-                      >
-                        <HiEye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        color="gray"
-                        size="sm"
-                        onClick={() => {
-                          console.log('Editar reserva:', reservation.reservationNumber);
-                        }}
+                        onClick={() => handleEditReservation(reservation)}
                         title="Editar reserva"
                       >
                         <HiPencilAlt className="w-4 h-4" />
@@ -908,7 +1094,7 @@ export default function ReservationsPage() {
                         value={reservation.status}
                         onChange={(e) => handleStatusChange(reservation._id, e.target.value)}
                         disabled={isUpdating === reservation._id}
-                        className="w-28 text-xs"
+                        className="w-32 text-xs"
                       >
                         <option value="pending">Pendiente</option>
                         <option value="confirmed">Confirmada</option>
@@ -1129,14 +1315,14 @@ export default function ReservationsPage() {
 
                         {/* Tipo de experiencia */}
                         <div className="flex items-center mb-3">
-                          {reservation.experience.experienceType === 'virtual' ? (
+                          {getExperienceType(reservation) === 'virtual' ? (
                             <HiVideoCamera className="w-4 h-4 mr-1 text-blue-500" />
                           ) : (
                             <HiLocationMarker className="w-4 h-4 mr-1 text-green-500" />
                           )}
                           <span className="text-sm text-gray-600">
-                            {reservation.experience.experienceType === 'virtual' ? 'Virtual' : 
-                             reservation.experience.experienceType === 'hybrid' ? 'Híbrida' : 'Presencial'}
+                            {getExperienceType(reservation) === 'virtual' ? 'Virtual' : 
+                             getExperienceType(reservation) === 'hybrid' ? 'Híbrida' : 'Presencial'}
                           </span>
                         </div>
 
@@ -1146,15 +1332,15 @@ export default function ReservationsPage() {
                           <div className="space-y-1">
                             <div className="flex items-center text-sm text-gray-600">
                               <HiUsers className="w-4 h-4 mr-2" />
-                              {reservation.client.name}
+                              {getClientName(reservation)}
                             </div>
                             <div className="flex items-center text-sm text-gray-600">
                               <HiMail className="w-4 h-4 mr-2" />
-                              {reservation.client.email}
+                              {getClientEmail(reservation)}
                             </div>
                             <div className="flex items-center text-sm text-gray-600">
                               <HiPhone className="w-4 h-4 mr-2" />
-                              {reservation.client.phone}
+                              {getClientPhone(reservation)}
                             </div>
                           </div>
                         </div>
@@ -1163,63 +1349,68 @@ export default function ReservationsPage() {
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center text-sm text-gray-600">
                             <HiCalendar className="w-4 h-4 mr-2" />
-                            {formatDate(reservation.reservationDate)}
+                            {reservation.reservationDate && formatDate(reservation.reservationDate)}
                           </div>
                           <div className="flex items-center text-sm text-gray-600">
                             <HiUsers className="w-4 h-4 mr-2" />
-                            {reservation.participants} participantes
+                            {reservation.participants || 0} participantes
                           </div>
                           <div className="flex items-center text-sm text-gray-600">
                             <HiClock className="w-4 h-4 mr-2" />
-                            {formatDuration(reservation.duration)}
+                            {reservation.duration && formatDuration(reservation.duration)}
                           </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <HiCurrencyDollar className="w-4 h-4 mr-2" />
-                            {formatPrice(reservation.pricing.total)}
+                        </div>
+
+                        {/* Servicios Adicionales */}
+                        {reservation.pricing?.addons && reservation.pricing.addons.length > 0 && (
+                          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                            <h5 className="text-xs font-semibold text-[#334C5D] mb-2">Servicios Adicionales:</h5>
+                            <div className="space-y-1">
+                              {reservation.pricing.addons.map((addon, idx: number) => (
+                                <div key={idx} className="flex justify-between text-xs text-gray-700">
+                                  <span>• {addon.name} ({addon.quantity}x)</span>
+                                  <span className="font-medium">+${addon.price.toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Total */}
+                        <div className="pt-3 border-t border-gray-200">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 font-medium">Total:</span>
+                            <span className="text-lg font-bold text-[#F26726]">
+                              {formatPrice(reservation.pricing?.total || 0)}
+                            </span>
                           </div>
                         </div>
 
                         {/* Acciones */}
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              color="gray"
-                              size="sm"
-                              onClick={() => {
-                                console.log('Ver detalles de:', reservation.reservationNumber);
-                              }}
-                              title="Ver detalles"
-                            >
-                              <HiEye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              color="gray"
-                              size="sm"
-                              onClick={() => {
-                                console.log('Editar reserva:', reservation.reservationNumber);
-                              }}
-                              title="Editar reserva"
-                            >
-                              <HiPencilAlt className="w-4 h-4" />
-                            </Button>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Select
-                              value={reservation.status}
-                              onChange={(e) => handleStatusChange(reservation._id, e.target.value)}
-                              disabled={isUpdating === reservation._id}
-                              className="w-32 text-xs"
-                            >
-                              <option value="pending">Pendiente</option>
-                              <option value="confirmed">Confirmada</option>
-                              <option value="in_progress">En Proceso</option>
-                              <option value="completed">Completada</option>
-                              <option value="cancelled">Cancelada</option>
-                              <option value="no_show">No Show</option>
-                              <option value="rescheduled">Reagendada</option>
-                            </Select>
-                          </div>
+                        <div className="pt-4 border-t border-gray-200 space-y-2">
+                          <Button
+                            color="gray"
+                            size="sm"
+                            onClick={() => handleEditReservation(reservation)}
+                            className="w-full"
+                          >
+                            <HiPencilAlt className="w-4 h-4 mr-2" />
+                            Editar Reserva
+                          </Button>
+                          <Select
+                            value={reservation.status}
+                            onChange={(e) => handleStatusChange(reservation._id, e.target.value)}
+                            disabled={isUpdating === reservation._id}
+                            className="w-full text-sm"
+                          >
+                            <option value="pending">Pendiente</option>
+                            <option value="confirmed">Confirmada</option>
+                            <option value="in_progress">En Proceso</option>
+                            <option value="completed">Completada</option>
+                            <option value="cancelled">Cancelada</option>
+                            <option value="no_show">No Show</option>
+                            <option value="rescheduled">Reagendada</option>
+                          </Select>
                         </div>
                       </div>
                     </Card>
@@ -1253,47 +1444,39 @@ export default function ReservationsPage() {
                               </span>
                               <div className="flex items-center gap-1">
                                 <HiUsers className="w-3 h-3" />
-                                {reservation.client.name}
+                                {getClientName(reservation)}
                               </div>
                               <div className="flex items-center gap-1">
                                 <HiCalendar className="w-3 h-3" />
-                                {formatDate(reservation.reservationDate)}
+                                {reservation.reservationDate && formatDate(reservation.reservationDate)}
                               </div>
                               <div className="flex items-center gap-1">
                                 <HiUsers className="w-3 h-3" />
-                                {reservation.participants} pax
+                                {reservation.participants || 0} pax
                               </div>
                               <div className="flex items-center gap-1">
                                 <HiCurrencyDollar className="w-3 h-3" />
-                                {formatPrice(reservation.pricing.total)}
+                                {formatPrice(reservation.pricing?.total || 0)}
                               </div>
                             </div>
 
                             <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <span>{reservation.client.email}</span>
-                              <span>{reservation.client.phone}</span>
+                              <span>{getClientEmail(reservation)}</span>
+                              <span>{getClientPhone(reservation)}</span>
+                              {reservation.pricing?.addons && reservation.pricing.addons.length > 0 && (
+                                <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded font-medium">
+                                  +{reservation.pricing.addons.length} {reservation.pricing.addons.length === 1 ? 'addon' : 'addons'}
+                                </span>
+                              )}
                             </div>
                           </div>
 
                           {/* Acciones */}
-                          <div className="flex items-center gap-1 ml-4 flex-shrink-0">
+                          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
                             <Button
                               color="gray"
                               size="xs"
-                              onClick={() => {
-                                console.log('Ver detalles de:', reservation.reservationNumber);
-                              }}
-                              className="px-2 py-1"
-                              title="Ver detalles"
-                            >
-                              <HiEye className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              color="gray"
-                              size="xs"
-                              onClick={() => {
-                                console.log('Editar reserva:', reservation.reservationNumber);
-                              }}
+                              onClick={() => handleEditReservation(reservation)}
                               className="px-2 py-1"
                               title="Editar reserva"
                             >
@@ -1303,7 +1486,7 @@ export default function ReservationsPage() {
                               value={reservation.status}
                               onChange={(e) => handleStatusChange(reservation._id, e.target.value)}
                               disabled={isUpdating === reservation._id}
-                              className="w-28 text-xs"
+                              className="w-32 text-xs"
                             >
                               <option value="pending">Pendiente</option>
                               <option value="confirmed">Confirmada</option>
@@ -1332,10 +1515,249 @@ export default function ReservationsPage() {
           onClose={() => setShowCreateModal(false)}
           onReservationCreated={() => {
             setShowCreateModal(false);
-            showSuccess('Reserva creada exitosamente');
-            // TODO: Recargar lista de reservas
+            loadReservations(); // Recargar lista de reservas
+            showSuccess('Reserva creada y guardada exitosamente');
           }}
         />
+      )}
+
+      {/* Modal de Edición de Reserva */}
+      {showEditModal && editingReservation && (
+        <div style={{ zIndex: 9999, position: 'relative' }}>
+          <Modal 
+            show={showEditModal} 
+            onClose={() => setShowEditModal(false)} 
+            size="xl"
+          >
+          <ModalHeader>
+            Editar Reserva - {editingReservation.reservationNumber}
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-4">
+              {/* Información de la experiencia (solo lectura) */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium text-[#334C5D] mb-2">Experiencia</h4>
+                <p className="text-sm text-gray-600">{editingReservation.experience?.title}</p>
+              </div>
+
+              {/* Fecha y hora */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha de la Reserva *
+                  </label>
+                  <div className="relative z-[100]">
+                    <DatePicker
+                      selected={editingReservation.editDate ? new Date(editingReservation.editDate + 'T12:00:00') : null}
+                      onChange={(date: Date | null) => {
+                        if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const newDate = `${year}-${month}-${day}`;
+                          const newDateTime = `${newDate}T${editingReservation.editTime || '10:00'}:00`;
+                          setEditingReservation({
+                            ...editingReservation,
+                            editDate: newDate,
+                            reservationDate: newDateTime
+                          });
+                        }
+                      }}
+                      dateFormat="EEEE, dd 'de' MMMM 'de' yyyy"
+                      locale="es"
+                      placeholderText="Selecciona la fecha"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent text-sm"
+                      wrapperClassName="w-full"
+                      showPopperArrow={false}
+                      withPortal
+                      portalId="root"
+                      popperClassName="!z-[9999]"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Hora *
+                  </label>
+                  <input
+                    type="time"
+                    value={editingReservation.editTime || '10:00'}
+                    onChange={(e) => {
+                      const newTime = e.target.value;
+                      const newDateTime = `${editingReservation.editDate}T${newTime}:00`;
+                      setEditingReservation({
+                        ...editingReservation,
+                        editTime: newTime,
+                        reservationDate: newDateTime
+                      });
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Número de participantes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Participantes
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  defaultValue={editingReservation.participants}
+                  onChange={(e) => setEditingReservation({
+                    ...editingReservation,
+                    participants: parseInt(e.target.value)
+                  })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                />
+              </div>
+
+              {/* Información del cliente (solo lectura) */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium text-[#334C5D] mb-2">Cliente</h4>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <p><strong>Nombre:</strong> {getClientName(editingReservation)}</p>
+                  <p><strong>Email:</strong> {getClientEmail(editingReservation)}</p>
+                  <p><strong>Teléfono:</strong> {getClientPhone(editingReservation)}</p>
+                </div>
+              </div>
+
+              {/* Requisitos especiales */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Requisitos Especiales
+                </label>
+                <textarea
+                  defaultValue={editingReservation.specialRequirements || ''}
+                  onChange={(e) => setEditingReservation({
+                    ...editingReservation,
+                    specialRequirements: e.target.value
+                  })}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                  placeholder="Alergias, preferencias dietéticas, etc."
+                />
+              </div>
+
+              {/* Notas */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notas Internas
+                </label>
+                <textarea
+                  defaultValue={editingReservation.notes || ''}
+                  onChange={(e) => setEditingReservation({
+                    ...editingReservation,
+                    notes: e.target.value
+                  })}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                  placeholder="Notas internas para el equipo"
+                />
+              </div>
+
+              {/* Estados */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estado de la Reserva
+                  </label>
+                  <Select
+                    value={editingReservation.status}
+                    onChange={(e) => setEditingReservation({
+                      ...editingReservation,
+                      status: e.target.value as Reservation['status']
+                    })}
+                    className="w-full"
+                  >
+                    <option value="pending">Pendiente</option>
+                    <option value="confirmed">Confirmada</option>
+                    <option value="in_progress">En Proceso</option>
+                    <option value="completed">Completada</option>
+                    <option value="cancelled">Cancelada</option>
+                    <option value="no_show">No Show</option>
+                    <option value="rescheduled">Reagendada</option>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estado de Pago
+                  </label>
+                  <Select
+                    value={editingReservation.paymentStatus}
+                    onChange={(e) => setEditingReservation({
+                      ...editingReservation,
+                      paymentStatus: e.target.value as Reservation['paymentStatus']
+                    })}
+                    className="w-full"
+                  >
+                    <option value="pending">Pendiente</option>
+                    <option value="paid">Pagado</option>
+                    <option value="refunded">Reembolsado</option>
+                    <option value="failed">Fallido</option>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                <Button
+                  color="gray"
+                  onClick={() => setShowEditModal(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-[#F26726] hover:bg-[#d9571f]"
+                  onClick={async () => {
+                    if (!editingReservation._id) {
+                      showError('ID de reserva no válido');
+                      return;
+                    }
+
+                    try {
+                      // Actualizar en Sanity
+                      await updateReservationInSanity({
+                        _id: editingReservation._id,
+                        reservationDate: editingReservation.reservationDate,
+                        participants: editingReservation.participants,
+                        specialRequirements: editingReservation.specialRequirements,
+                        notes: editingReservation.notes,
+                        status: editingReservation.status,
+                        paymentStatus: editingReservation.paymentStatus,
+                        // Mantener otros campos existentes
+                        client: editingReservation.client,
+                        duration: editingReservation.duration,
+                        pricing: editingReservation.pricing,
+                        paymentMethod: editingReservation.paymentMethod,
+                        paymentDetails: editingReservation.paymentDetails,
+                        isVirtual: editingReservation.isVirtual,
+                        virtualDetails: editingReservation.virtualDetails,
+                        location: editingReservation.location?._id,
+                      });
+
+                      // Actualizar estado local
+                      await loadReservations();
+                      setShowEditModal(false);
+                      showSuccess('Reserva actualizada exitosamente');
+                    } catch (error) {
+                      console.error('Error al actualizar reserva:', error);
+                      showError('Error al actualizar la reserva');
+                    }
+                  }}
+                >
+                  Guardar Cambios
+                </Button>
+              </div>
+            </div>
+          </ModalBody>
+        </Modal>
+        </div>
       )}
     </div>
   );

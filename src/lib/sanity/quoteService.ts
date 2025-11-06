@@ -47,6 +47,7 @@ export const searchExperiencesForQuote = async (params: SearchParams): Promise<E
       title,
       description,
       category,
+      categories,
       duration,
       capacity,
       minCapacity,
@@ -59,6 +60,7 @@ export const searchExperiencesForQuote = async (params: SearchParams): Promise<E
       featuredImage,
       includes,
       requirements,
+      addons,
       "companyName": company->companyName,
       "locationName": location->name,
       status

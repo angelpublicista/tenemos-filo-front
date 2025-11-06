@@ -124,6 +124,15 @@ export const getReservations = async (searchParams: ReservationSearchParams = {}
         companyPhone
       },
       client,
+      clientType,
+      clientInfo,
+      user->{
+        _id,
+        name,
+        email,
+        phone
+      },
+      source,
       reservationDate,
       duration,
       participants,
@@ -177,6 +186,15 @@ export const getReservationsByCompany = async (companyId: string): Promise<Reser
         companyPhone
       },
       client,
+      clientType,
+      clientInfo,
+      user->{
+        _id,
+        name,
+        email,
+        phone
+      },
+      source,
       reservationDate,
       duration,
       participants,
@@ -231,6 +249,15 @@ export const getReservationById = async (reservationId: string): Promise<Reserva
         companyPhone
       },
       client,
+      clientType,
+      clientInfo,
+      user->{
+        _id,
+        name,
+        email,
+        phone
+      },
+      source,
       reservationDate,
       duration,
       participants,
@@ -462,16 +489,25 @@ export interface CreateManualReservationData {
   participants: number;
   specialRequests?: string;
   clientType: 'guest' | 'registered';
+  source?: string; // Origen de la reserva
   guestInfo?: {
     name: string;
     email: string;
     phone: string;
   };
   registeredUserId?: string; // Para clientes registrados (futuro)
+  selectedAddons?: Array<{
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
 }
 
 export const createReservationManually = async (data: CreateManualReservationData) => {
   try {
+    console.log('🔄 Iniciando creación de reserva manual...');
+    console.log('📋 Datos recibidos:', data);
+
     // Obtener información de la experiencia para calcular precios
     const experienceQuery = `*[_type == "experience" && _id == $experienceId][0]{
       _id,
@@ -483,8 +519,14 @@ export const createReservationManually = async (data: CreateManualReservationDat
     }`;
     const experience = await sanityClient.fetch(experienceQuery, { experienceId: data.experience });
 
+    console.log('🎯 Experiencia encontrada:', experience);
+
     if (!experience) {
-      throw new Error('Experience not found');
+      throw new Error('Experiencia no encontrada');
+    }
+
+    if (!experience.company || !experience.company._ref) {
+      throw new Error('La experiencia no tiene una empresa asociada');
     }
 
     const totalPrice = experience.basePrice * data.participants;
@@ -504,14 +546,16 @@ export const createReservationManually = async (data: CreateManualReservationDat
         _ref: data.location,
         _type: 'reference',
       },
-      client: data.clientType === 'guest' && data.guestInfo ? {
+      clientType: data.clientType,
+      source: data.source || 'manual',
+      user: data.registeredUserId ? {
+        _ref: data.registeredUserId,
+        _type: 'reference',
+      } : undefined,
+      clientInfo: data.guestInfo ? {
         name: data.guestInfo.name,
         email: data.guestInfo.email,
         phone: data.guestInfo.phone,
-      } : undefined,
-      registeredUser: data.registeredUserId ? {
-        _ref: data.registeredUserId,
-        _type: 'reference',
       } : undefined,
       reservationDate: data.reservationDate,
       duration: experience.duration,
@@ -521,22 +565,34 @@ export const createReservationManually = async (data: CreateManualReservationDat
       pricing: {
         basePrice: experience.basePrice,
         subtotal: totalPrice,
+        addons: data.selectedAddons || [],
+        addonsTotal: data.selectedAddons?.reduce((sum, addon) => sum + (addon.price * addon.quantity), 0) || 0,
+        discount: 0,
         tax: 0,
-        serviceFee: 0,
-        total: totalPrice,
-        currency: experience.currency,
+        commission: 0,
+        total: totalPrice + (data.selectedAddons?.reduce((sum, addon) => sum + (addon.price * addon.quantity), 0) || 0),
+        hostEarnings: totalPrice + (data.selectedAddons?.reduce((sum, addon) => sum + (addon.price * addon.quantity), 0) || 0),
       },
       specialRequirements: data.specialRequests,
       notes: `Reserva creada manualmente. Cliente tipo: ${data.clientType === 'guest' ? 'Invitado' : 'Registrado'}`,
-      source: 'manual',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
+    console.log('💾 Documento a guardar en Sanity:', reservationDoc);
+
     const result = await sanityClient.create(reservationDoc);
+    
+    console.log('✅ Reserva guardada exitosamente:', result);
+    
     return result;
   } catch (error) {
-    console.error('Error creating manual reservation:', error);
-    throw new Error('Failed to create manual reservation');
+    console.error('❌ Error al crear reserva manual:', error);
+    
+    // Proporcionar mensaje de error más específico
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Error al crear la reserva manual. Por favor verifica los datos e intenta nuevamente.');
   }
 };

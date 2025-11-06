@@ -39,7 +39,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (currentUser && !isRegistering) {
         // Si hay un usuario de Firebase y no está en proceso de registro, obtener los datos de Sanity
-        await fetchSanityUser(currentUser);
+        const userData = await fetchSanityUser(currentUser);
+        
+        // Sincronizar estado de company setup con Sanity
+        if (userData && userData.companyId) {
+          markSetupCompleted(userData.companyId);
+        }
       } else if (!currentUser) {
         setSanityUser(null);
       }
@@ -66,8 +71,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       // Verificar si el usuario necesita completar la configuración de empresa
-      // Usar solo localStorage como fuente de verdad
-      const hasCompletedSetup = isSetupCompleted();
+      // Verificar desde Sanity si tiene companyId asociado (fuente de verdad)
+      const hasCompletedSetup = !!(userData.companyId);
+      
+      // Si tiene empresa en Sanity, actualizar localStorage
+      if (hasCompletedSetup) {
+        markSetupCompleted(userData.companyId);
+      }
       
       if (userData.role === 'host' && !hasCompletedSetup) {
         router.push('/company-setup');

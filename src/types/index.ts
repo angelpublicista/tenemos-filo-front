@@ -691,4 +691,122 @@ export interface CreateAvailabilityScheduleData {
 
 export interface UpdateAvailabilityScheduleData extends Partial<CreateAvailabilityScheduleData> {
   _id: string;
+}
+
+// Tipos para CRM Company
+export type CRMCompanyType = 'customer' | 'supplier' | 'other';
+export type CRMCompanyStatus = 'active' | 'inactive' | 'qualified' | 'unqualified' | 'closed';
+export type CRMCompanySource = 'web' | 'referral' | 'social' | 'email' | 'event' | 'cold_call' | 'other';
+export type CRMCompanyIndustry = 
+  | 'restaurants' | 'hospitality' | 'events' | 'retail' | 'technology' | 'services' 
+  | 'manufacturing' | 'construction' | 'healthcare' | 'education' | 'finance' | 'real_estate'
+  | 'transport' | 'media' | 'energy' | 'agriculture' | 'tourism' | 'sports' | 'fashion'
+  | 'automotive' | 'pharmaceutical' | 'consulting' | 'marketing' | 'legal' | 'nonprofit'
+  | 'government' | 'other';
+
+export interface CRMCompanyAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+export interface CRMCompanySocialMedia {
+  linkedin?: string;
+  twitter?: string;
+  facebook?: string;
+  instagram?: string;
+}
+
+export interface CRMCompany {
+  _id: string;
+  _type: 'crmCompany';
+  hostCompany: {
+    _ref: string;
+    _type: 'reference';
+  };
+  companyName: string;
+  businessName?: string;
+  companyType: CRMCompanyType;
+  industry?: CRMCompanyIndustry;
+  description?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
+  documentNumber?: string;
+  address?: CRMCompanyAddress;
+  employeeCount?: '1-10' | '11-50' | '51-200' | '201-500' | '500+';
+  annualRevenue?: '0-100k' | '100k-500k' | '500k-1M' | '1M-5M' | '5M+';
+  logo?: {
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  status: CRMCompanyStatus;
+  source?: CRMCompanySource;
+  notes?: string;
+  tags?: string[];
+  socialMedia?: CRMCompanySocialMedia;
+  assignedTo?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  lastContactDate?: string;
+  nextFollowUp?: string;
+  isActive: boolean;
+  deletedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCRMCompanyData {
+  hostCompany: string; // company ID
+  companyName: string;
+  businessName?: string;
+  companyType: CRMCompanyType;
+  industry?: CRMCompanyIndustry;
+  description?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
+  documentNumber?: string;
+  address?: CRMCompanyAddress;
+  employeeCount?: '1-10' | '11-50' | '51-200' | '201-500' | '500+';
+  annualRevenue?: '0-100k' | '100k-500k' | '500k-1M' | '1M-5M' | '5M+';
+  logo?: string; // Asset ID
+  status?: CRMCompanyStatus;
+  source?: CRMCompanySource;
+  notes?: string;
+  tags?: string[];
+  socialMedia?: CRMCompanySocialMedia;
+  assignedTo?: string; // user ID
+  lastContactDate?: string;
+  nextFollowUp?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateCRMCompanyData extends Partial<CreateCRMCompanyData> {
+  _id: string;
+}
+
+export interface CRMCompanyFilters {
+  companyType?: CRMCompanyType;
+  status?: CRMCompanyStatus;
+  industry?: CRMCompanyIndustry;
+  source?: CRMCompanySource;
+  assignedTo?: string;
+  isActive?: boolean;
+}
+
+export interface CRMCompanySearchParams {
+  query?: string;
+  filters?: CRMCompanyFilters;
+  sortBy?: 'companyName' | 'createdAt' | 'lastContactDate' | 'nextFollowUp';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 } 

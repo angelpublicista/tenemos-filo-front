@@ -7,7 +7,6 @@ import {
   AiOutlineCalendar,
   AiOutlineTeam,
   AiOutlineSetting,
-  AiOutlineBarChart,
   AiOutlineBell,
   AiOutlineUser,
   AiOutlineClockCircle
@@ -91,13 +90,13 @@ export default function Sidebar() {
         enabled: true
       }
     ] : []),
-    {
-      name: 'Estadísticas',
-      href: '/analytics',
-      icon: AiOutlineBarChart,
-      current: pathname === '/analytics',
-      enabled: false
-    },
+    // {
+    //   name: 'Estadísticas',
+    //   href: '/analytics',
+    //   icon: AiOutlineBarChart,
+    //   current: pathname === '/analytics',
+    //   enabled: false
+    // },
     {
       name: 'Notificaciones',
       href: '/notifications',
@@ -107,15 +106,15 @@ export default function Sidebar() {
     },
     {
       name: 'Configuración',
-      href: '/settings',
+      href: '/dashboard/settings',
       icon: AiOutlineSetting,
-      current: pathname === '/settings',
-      enabled: false
+      current: pathname === '/dashboard/settings',
+      enabled: true
     }
   ];
 
   return (
-    <div className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex-shrink-0 h-full ${isCollapsed ? 'w-20' : 'w-64'}`}>
+    <div className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 shrink-0 h-full ${isCollapsed ? 'w-20' : 'w-64'}`}>
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -144,7 +143,7 @@ export default function Sidebar() {
                   className="flex items-center px-3 py-2 rounded-lg opacity-50 cursor-not-allowed"
                   title="Próximamente disponible"
                 >
-                  <Icon className="w-6 h-6 flex-shrink-0 text-gray-400 dark:text-gray-600" />
+                  <Icon className="w-6 h-6 shrink-0 text-gray-400 dark:text-gray-600" />
                   {!isCollapsed && (
                     <span className="ml-3 text-sm font-medium text-gray-400 dark:text-gray-600">{item.name}</span>
                   )}
@@ -162,7 +161,7 @@ export default function Sidebar() {
                     : 'text-[#334C5D] dark:text-gray-300 hover:bg-[#F26726]/10 dark:hover:bg-[#F26726]/20 hover:text-[#F26726]'
                 }`}
               >
-                <Icon className="w-6 h-6 flex-shrink-0" />
+                <Icon className="w-6 h-6 shrink-0" />
                 {!isCollapsed && (
                   <span className="ml-3 text-sm font-medium">{item.name}</span>
                 )}
@@ -174,7 +173,7 @@ export default function Sidebar() {
         {/* User Info */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
-            <div className="w-8 h-8 bg-[#f26726] rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-[#f26726] rounded-full flex items-center justify-center shrink-0">
               <span className="text-white text-sm font-semibold">
                 {sanityUser?.name?.charAt(0) || 'U'}
               </span>

@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/firebase/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineCalendar } from 'react-icons/hi';
+import { BiStore } from 'react-icons/bi';
 import Link from 'next/link';
 
 export default function CRMPage() {
@@ -18,11 +19,19 @@ export default function CRMPage() {
       available: true,
     },
     {
+      title: 'Empresas',
+      description: 'Gestiona tu base de datos de empresas CRM',
+      icon: BiStore,
+      href: '/dashboard/crm/empresas',
+      color: 'bg-[#19A3A2]',
+      available: true,
+    },
+    {
       title: 'Clientes',
       description: 'Gestiona tu base de datos de clientes',
       icon: HiOutlineUsers,
       href: '/dashboard/crm/clientes',
-      color: 'bg-[#19A3A2]',
+      color: 'bg-[#8B5CF6]',
       available: false,
     },
     {

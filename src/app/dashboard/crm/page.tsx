@@ -27,11 +27,19 @@ export default function CRMPage() {
       available: true,
     },
     {
+      title: 'Contactos',
+      description: 'Gestiona tu base de datos de contactos CRM',
+      icon: HiOutlineUsers,
+      href: '/dashboard/crm/contactos',
+      color: 'bg-[#8B5CF6]',
+      available: true,
+    },
+    {
       title: 'Clientes',
       description: 'Gestiona tu base de datos de clientes',
       icon: HiOutlineUsers,
       href: '/dashboard/crm/clientes',
-      color: 'bg-[#8B5CF6]',
+      color: 'bg-[#F59E0B]',
       available: false,
     },
     {

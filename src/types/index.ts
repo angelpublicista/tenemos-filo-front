@@ -809,4 +809,123 @@ export interface CRMCompanySearchParams {
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+}
+
+// Tipos para CRM Contact
+export type ContactType = 'customer' | 'supplier' | 'other';
+export type ContactStatus = 'active' | 'inactive' | 'qualified' | 'unqualified';
+export type ContactSource = 'web' | 'referral' | 'social' | 'email' | 'event' | 'cold_call' | 'other';
+
+export interface ContactAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+export interface ContactSocialMedia {
+  linkedin?: string;
+  twitter?: string;
+  facebook?: string;
+  instagram?: string;
+}
+
+export interface Contact {
+  _id: string;
+  _type: 'contact';
+  hostCompany: {
+    _ref: string;
+    _type: 'reference';
+  };
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  jobTitle?: string;
+  department?: string;
+  company?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  contactType: ContactType;
+  status: ContactStatus;
+  source?: ContactSource;
+  address?: ContactAddress;
+  avatar?: {
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  notes?: string;
+  tags?: string[];
+  socialMedia?: ContactSocialMedia;
+  assignedTo?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  lastContactDate?: string;
+  nextFollowUp?: string;
+  isActive: boolean;
+  createdBy: {
+    _ref: string;
+    _type: 'reference';
+  };
+  deletedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Campos expandidos desde referencias (opcionales)
+  companyName?: string;
+  hostCompanyName?: string;
+  assignedToName?: string;
+  createdByName?: string;
+}
+
+export interface CreateContactData {
+  hostCompany: string; // company ID
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  jobTitle?: string;
+  department?: string;
+  company?: string; // crmCompany ID
+  contactType: ContactType;
+  status?: ContactStatus;
+  source?: ContactSource;
+  address?: ContactAddress;
+  avatar?: string; // Asset ID
+  notes?: string;
+  tags?: string[];
+  socialMedia?: ContactSocialMedia;
+  assignedTo?: string; // user ID
+  lastContactDate?: string;
+  nextFollowUp?: string;
+  isActive?: boolean;
+  createdBy: string; // user ID
+}
+
+export interface UpdateContactData extends Partial<CreateContactData> {
+  _id: string;
+}
+
+export interface ContactFilters {
+  contactType?: ContactType;
+  status?: ContactStatus;
+  source?: ContactSource;
+  company?: string; // crmCompany ID
+  assignedTo?: string; // user ID
+  isActive?: boolean;
+}
+
+export interface ContactSearchParams {
+  query?: string;
+  filters?: ContactFilters;
+  sortBy?: 'firstName' | 'lastName' | 'createdAt' | 'lastContactDate' | 'nextFollowUp';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 } 

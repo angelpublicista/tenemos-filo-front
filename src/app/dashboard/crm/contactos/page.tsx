@@ -13,92 +13,90 @@ import {
   HiTrash,
   HiMail,
   HiPhone,
-  HiGlobe,
-  HiLocationMarker,
-  HiDownload
+  HiUser,
+  HiDownload,
 } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
-import { getCRMCompaniesByHost, deleteCRMCompany } from '@/lib/sanity/crmCompanyService';
-import { CRMCompany, CRMCompanyFilters } from '@/types';
+import { getContactsByHost, deleteContact } from '@/lib/sanity/contactService';
+import { Contact, ContactFilters } from '@/types';
 import Loader from '@/components/Loader';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
-import { exportCompaniesToExcel, exportCompaniesToCSV } from '@/utils/exportUtils';
+import { exportContactsToExcel, exportContactsToCSV } from '@/utils/exportUtils';
 
 const statusColors: Record<string, string> = {
   active: 'success',
   inactive: 'gray',
   qualified: 'info',
   unqualified: 'warning',
-  closed: 'failure',
 };
 
-const companyTypeLabels: Record<string, string> = {
+const contactTypeLabels: Record<string, string> = {
   customer: 'Cliente',
   supplier: 'Proveedor',
   other: 'Otro',
 };
 
-export default function EmpresasPage() {
+export default function ContactosPage() {
   const { user, sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
-  const [companies, setCompanies] = useState<CRMCompany[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<CRMCompanyFilters>({});
+  const [filters, setFilters] = useState<ContactFilters>({});
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (sanityUser?.companyId) {
-      loadCompanies();
+      loadContacts();
     }
   }, [sanityUser?.companyId, searchQuery, filters]);
 
-  const loadCompanies = async () => {
+  const loadContacts = async () => {
     if (!sanityUser?.companyId) return;
 
     setIsLoading(true);
     try {
-      const data = await getCRMCompaniesByHost(sanityUser.companyId, {
+      const data = await getContactsByHost(sanityUser.companyId, {
         query: searchQuery || undefined,
         filters: Object.keys(filters).length > 0 ? filters : undefined,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       });
-      setCompanies(data);
+      setContacts(data);
     } catch (error) {
-      console.error('Error loading companies:', error);
-      showError('Error al cargar las empresas');
+      console.error('Error loading contacts:', error);
+      showError('Error al cargar los contactos');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDelete = async (companyId: string, companyName: string) => {
+  const handleDelete = async (contactId: string, contactName: string) => {
     const confirmed = await showConfirmation(
       '¿Estás seguro?',
-      `Esta acción eliminará la empresa "${companyName}". Esta acción se puede deshacer.`,
+      `Esta acción eliminará el contacto "${contactName}". Esta acción se puede deshacer.`,
       'Eliminar',
       'Cancelar'
     );
 
     if (confirmed) {
-      setIsDeleting(companyId);
+      setIsDeleting(contactId);
       try {
-        await deleteCRMCompany(companyId);
-        showSuccess('Empresa eliminada correctamente');
-        loadCompanies();
+        await deleteContact(contactId);
+        showSuccess('Contacto eliminado correctamente');
+        loadContacts();
       } catch (error) {
-        console.error('Error deleting company:', error);
-        showError('Error al eliminar la empresa');
+        console.error('Error deleting contact:', error);
+        showError('Error al eliminar el contacto');
       } finally {
         setIsDeleting(null);
       }
     }
   };
 
-  const handleFilterChange = (key: keyof CRMCompanyFilters, value: string) => {
+  const handleFilterChange = (key: keyof ContactFilters, value: string) => {
     setFilters(prev => ({
       ...prev,
       [key]: value === 'all' ? undefined : value,
@@ -106,34 +104,34 @@ export default function EmpresasPage() {
   };
 
   const handleExportExcel = () => {
-    if (companies.length === 0) {
-      showError('No hay empresas para exportar');
+    if (contacts.length === 0) {
+      showError('No hay contactos para exportar');
       return;
     }
     setIsExporting(true);
     try {
-      exportCompaniesToExcel(companies, 'empresas_crm');
-      showSuccess('Empresas exportadas a Excel correctamente');
+      exportContactsToExcel(contacts, 'contactos_crm');
+      showSuccess('Contactos exportados a Excel correctamente');
     } catch (error) {
-      console.error('Error exporting companies:', error);
-      showError('Error al exportar las empresas');
+      console.error('Error exporting contacts:', error);
+      showError('Error al exportar los contactos');
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleExportCSV = () => {
-    if (companies.length === 0) {
-      showError('No hay empresas para exportar');
+    if (contacts.length === 0) {
+      showError('No hay contactos para exportar');
       return;
     }
     setIsExporting(true);
     try {
-      exportCompaniesToCSV(companies, 'empresas_crm');
-      showSuccess('Empresas exportadas a CSV correctamente');
+      exportContactsToCSV(contacts, 'contactos_crm');
+      showSuccess('Contactos exportados a CSV correctamente');
     } catch (error) {
-      console.error('Error exporting companies:', error);
-      showError('Error al exportar las empresas');
+      console.error('Error exporting contacts:', error);
+      showError('Error al exportar los contactos');
     } finally {
       setIsExporting(false);
     }
@@ -145,7 +143,7 @@ export default function EmpresasPage() {
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <div className="text-center py-12">
             <p className="text-gray-500 dark:text-gray-400">
-              Debes tener una empresa configurada para gestionar empresas CRM.
+              Debes tener una empresa configurada para gestionar contactos CRM.
             </p>
           </div>
         </div>
@@ -170,15 +168,15 @@ export default function EmpresasPage() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  Empresas CRM
+                  Contactos CRM
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Gestiona tu base de datos de empresas
+                  Gestiona tu base de datos de contactos
                 </p>
               </div>
             </div>
             <div className="flex gap-2">
-              {companies.length > 0 && (
+              {contacts.length > 0 && (
                 <Dropdown
                   label=""
                   renderTrigger={() => (
@@ -202,10 +200,10 @@ export default function EmpresasPage() {
               )}
               <Button
                 color="primary"
-                onClick={() => router.push('/dashboard/crm/empresas/crear')}
+                onClick={() => router.push('/dashboard/crm/contactos/crear')}
               >
                 <HiPlus className="w-4 h-4 mr-2" />
-                Nueva Empresa
+                Nuevo Contacto
               </Button>
             </div>
           </div>
@@ -240,16 +238,15 @@ export default function EmpresasPage() {
                 <option value="inactive">Inactivo</option>
                 <option value="qualified">Calificado</option>
                 <option value="unqualified">No Calificado</option>
-                <option value="closed">Cerrado</option>
               </Select>
             </div>
 
             <div>
-              <Label htmlFor="companyType">Tipo</Label>
+              <Label htmlFor="contactType">Tipo</Label>
               <Select
-                id="companyType"
-                value={filters.companyType || 'all'}
-                onChange={(e) => handleFilterChange('companyType', e.target.value)}
+                id="contactType"
+                value={filters.contactType || 'all'}
+                onChange={(e) => handleFilterChange('contactType', e.target.value)}
                 className="mt-1"
               >
                 <option value="all">Todos</option>
@@ -261,22 +258,22 @@ export default function EmpresasPage() {
           </div>
         </Card>
 
-        {/* Tabla de Empresas */}
+        {/* Tabla de Contactos */}
         {isLoading ? (
-          <Loader message="Cargando empresas..." />
+          <Loader message="Cargando contactos..." />
         ) : (
           <Card>
-            {companies.length === 0 ? (
+            {contacts.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500 dark:text-gray-400 mb-4">
-                  No se encontraron empresas.
+                  No se encontraron contactos.
                 </p>
                 <Button
                   color="primary"
-                  onClick={() => router.push('/dashboard/crm/empresas/crear')}
+                  onClick={() => router.push('/dashboard/crm/contactos/crear')}
                 >
                   <HiPlus className="w-4 h-4 mr-2" />
-                  Crear Primera Empresa
+                  Crear Primer Contacto
                 </Button>
               </div>
             ) : (
@@ -284,61 +281,85 @@ export default function EmpresasPage() {
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                   <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
-                      <th scope="col" className="px-6 py-3">Empresa</th>
-                      <th scope="col" className="px-6 py-3">Tipo</th>
                       <th scope="col" className="px-6 py-3">Contacto</th>
+                      <th scope="col" className="px-6 py-3">Empresa</th>
+                      <th scope="col" className="px-6 py-3">Contacto</th>
+                      <th scope="col" className="px-6 py-3">Tipo</th>
                       <th scope="col" className="px-6 py-3">Estado</th>
                       <th scope="col" className="px-6 py-3">Último Contacto</th>
                       <th scope="col" className="px-6 py-3">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {companies.map((company) => (
-                      <tr key={company._id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    {contacts.map((contact) => (
+                      <tr key={contact._id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                         <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                          <div>
-                            <div className="font-semibold">{company.companyName}</div>
-                            {company.businessName && (
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {company.businessName}
+                          <div className="flex items-center">
+                            {contact.avatar ? (
+                              <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 mr-3 flex items-center justify-center">
+                                <HiUser className="w-6 h-6 text-gray-400" />
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-[#F26726] mr-3 flex items-center justify-center">
+                                <span className="text-white font-semibold">
+                                  {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
+                                </span>
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-semibold">
+                                {contact.firstName} {contact.lastName}
+                              </div>
+                              {contact.jobTitle && (
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  {contact.jobTitle}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {contact.companyName ? (
+                            <span className="text-gray-900 dark:text-gray-100">
+                              {contact.companyName}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">Sin empresa</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            {contact.email && (
+                              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                <HiMail className="w-4 h-4 mr-1" />
+                                {contact.email}
+                              </div>
+                            )}
+                            {(contact.phone || contact.mobile) && (
+                              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                <HiPhone className="w-4 h-4 mr-1" />
+                                {contact.mobile || contact.phone}
                               </div>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <Badge color="info">
-                            {companyTypeLabels[company.companyType] || company.companyType}
+                            {contactTypeLabels[contact.contactType] || contact.contactType}
                           </Badge>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="space-y-1">
-                            {company.email && (
-                              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                <HiMail className="w-4 h-4 mr-1" />
-                                {company.email}
-                              </div>
-                            )}
-                            {company.phone && (
-                              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                <HiPhone className="w-4 h-4 mr-1" />
-                                {company.phone}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge color={statusColors[company.status] || 'gray'}>
-                            {company.status === 'active' && 'Activo'}
-                            {company.status === 'inactive' && 'Inactivo'}
-                            {company.status === 'qualified' && 'Calificado'}
-                            {company.status === 'unqualified' && 'No Calificado'}
-                            {company.status === 'closed' && 'Cerrado'}
+                          <Badge color={statusColors[contact.status] || 'gray'}>
+                            {contact.status === 'active' && 'Activo'}
+                            {contact.status === 'inactive' && 'Inactivo'}
+                            {contact.status === 'qualified' && 'Calificado'}
+                            {contact.status === 'unqualified' && 'No Calificado'}
                           </Badge>
                         </td>
                         <td className="px-6 py-4">
-                          {company.lastContactDate ? (
+                          {contact.lastContactDate ? (
                             <span className="text-sm text-gray-600 dark:text-gray-400">
-                              {new Date(company.lastContactDate).toLocaleDateString('es-ES')}
+                              {new Date(contact.lastContactDate).toLocaleDateString('es-ES')}
                             </span>
                           ) : (
                             <span className="text-sm text-gray-400">Nunca</span>
@@ -349,22 +370,22 @@ export default function EmpresasPage() {
                             <Button
                               size="xs"
                               color="light"
-                              onClick={() => router.push(`/dashboard/crm/empresas/${company._id}`)}
+                              onClick={() => router.push(`/dashboard/crm/contactos/${contact._id}`)}
                             >
                               <HiEye className="w-4 h-4" />
                             </Button>
                             <Button
                               size="xs"
                               color="light"
-                              onClick={() => router.push(`/dashboard/crm/empresas/${company._id}/editar`)}
+                              onClick={() => router.push(`/dashboard/crm/contactos/${contact._id}/editar`)}
                             >
                               <HiPencilAlt className="w-4 h-4" />
                             </Button>
                             <Button
                               size="xs"
                               color="failure"
-                              onClick={() => handleDelete(company._id, company.companyName)}
-                              disabled={isDeleting === company._id}
+                              onClick={() => handleDelete(contact._id, `${contact.firstName} ${contact.lastName}`)}
+                              disabled={isDeleting === contact._id}
                             >
                               <HiTrash className="w-4 h-4" />
                             </Button>

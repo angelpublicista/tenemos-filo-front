@@ -5,6 +5,19 @@
 
 @source "../../.flowbite-react/class-list.json";
 
+@theme {
+  --color-primary: #F26726;
+  --color-secondary: #EBD52C;
+  --color-accent: #E23694;
+  --color-teal: #19A3A2;
+  --color-dark: #334C5D;
+  --color-cortes-orange: #F26726;
+  --color-cortes-yellow: #EBD52C;
+  --color-cortes-pink: #E23694;
+  --color-cortes-teal: #19A3A2;
+  --color-cortes-dark: #334C5D;
+}
+
 /* Tema por defecto: claro */
 :root {
   --flowbite-theme-mode: light;

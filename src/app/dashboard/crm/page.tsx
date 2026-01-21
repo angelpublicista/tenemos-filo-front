@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/firebase/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineCalendar } from 'react-icons/hi';
+import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineCalendar, HiOutlineTrendingUp } from 'react-icons/hi';
 import { BiStore } from 'react-icons/bi';
 import Link from 'next/link';
 
@@ -35,19 +35,19 @@ export default function CRMPage() {
       available: true,
     },
     {
+      title: 'Oportunidades',
+      description: 'Gestiona tu pipeline de oportunidades de negocio',
+      icon: HiOutlineTrendingUp,
+      href: '/dashboard/crm/oportunidades',
+      color: 'bg-[#E23694]',
+      available: true,
+    },
+    {
       title: 'Clientes',
       description: 'Gestiona tu base de datos de clientes',
       icon: HiOutlineUsers,
       href: '/dashboard/crm/clientes',
       color: 'bg-[#F59E0B]',
-      available: false,
-    },
-    {
-      title: 'Seguimiento',
-      description: 'Seguimiento de oportunidades y ventas',
-      icon: HiOutlineCalendar,
-      href: '/dashboard/crm/seguimiento',
-      color: 'bg-[#E23694]',
       available: false,
     },
   ];

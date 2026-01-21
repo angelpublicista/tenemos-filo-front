@@ -928,4 +928,121 @@ export interface ContactSearchParams {
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+}
+
+// Tipos para CRM Opportunity
+export type OpportunityStage = 'prospecting' | 'qualification' | 'proposal' | 'negotiation' | 'approval' | 'closed_won' | 'closed_lost';
+export type OpportunityStatus = 'open' | 'won' | 'lost' | 'paused';
+export type OpportunitySource = 'web' | 'referral' | 'social' | 'email' | 'event' | 'cold_call' | 'existing_contact' | 'other';
+export type LostReason = 'price' | 'competition' | 'no_budget' | 'no_need' | 'timing' | 'other';
+export type WonReason = 'best_price' | 'best_proposal' | 'existing_relationship' | 'best_product' | 'other';
+
+export interface OpportunityExperience {
+  experience: {
+    _ref: string;
+    _type: 'reference';
+  };
+  quantity: number;
+  customPrice?: number;
+  notes?: string;
+}
+
+export interface Opportunity {
+  _id: string;
+  _type: 'opportunity';
+  name: string;
+  hostCompany: {
+    _ref: string;
+    _type: 'reference';
+  };
+  crmCompany?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  contact?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  stage: OpportunityStage;
+  status: OpportunityStatus;
+  value?: number;
+  currency: 'COP' | 'USD';
+  expectedCloseDate?: string;
+  actualCloseDate?: string;
+  description?: string;
+  lostReason?: LostReason;
+  lostReasonNotes?: string;
+  wonReason?: WonReason;
+  source?: OpportunitySource;
+  assignedTo: {
+    _ref: string;
+    _type: 'reference';
+  };
+  notes?: string;
+  tags?: string[];
+  experiences?: OpportunityExperience[];
+  decisionMakers?: Array<{
+    _ref: string;
+    _type: 'reference';
+  }>;
+  isActive: boolean;
+  createdBy: {
+    _ref: string;
+    _type: 'reference';
+  };
+  deletedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOpportunityData {
+  name: string;
+  hostCompany: string; // company ID
+  crmCompany?: string; // crmCompany ID
+  contact?: string; // contact ID
+  stage: OpportunityStage;
+  status?: OpportunityStatus;
+  value?: number;
+  currency?: 'COP' | 'USD';
+  expectedCloseDate?: string;
+  actualCloseDate?: string;
+  description?: string;
+  lostReason?: LostReason;
+  lostReasonNotes?: string;
+  wonReason?: WonReason;
+  source?: OpportunitySource;
+  assignedTo: string; // user ID
+  notes?: string;
+  tags?: string[];
+  experiences?: Array<{
+    experience: string; // experience ID
+    quantity: number;
+    customPrice?: number;
+    notes?: string;
+  }>;
+  decisionMakers?: string[]; // contact IDs
+  isActive?: boolean;
+  createdBy: string; // user ID
+}
+
+export interface UpdateOpportunityData extends Partial<CreateOpportunityData> {
+  _id: string;
+}
+
+export interface OpportunityFilters {
+  stage?: OpportunityStage;
+  status?: OpportunityStatus;
+  source?: OpportunitySource;
+  assignedTo?: string;
+  crmCompany?: string;
+  isActive?: boolean;
+}
+
+export interface OpportunitySearchParams {
+  query?: string;
+  filters?: OpportunityFilters;
+  sortBy?: 'name' | 'value' | 'stage' | 'status' | 'expectedCloseDate' | 'createdAt' | 'updatedAt';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 } 

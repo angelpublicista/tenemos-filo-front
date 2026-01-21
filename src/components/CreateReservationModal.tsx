@@ -132,16 +132,8 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   // El calendario ahora se carga desde la experiencia, no desde la sede
   // Este useEffect ya no es necesario porque el calendario se obtiene en el useEffect anterior
 
-  // Actualizar cantidades de addons cuando cambian los participantes
-  useEffect(() => {
-    if (selectedAddons.length > 0) {
-      setSelectedAddons(selectedAddons.map(addon => ({
-        ...addon,
-        quantity: addon.priceType === 'per_person' ? participants : 1
-      })));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [participants]);
+  // Nota: Las cantidades de addons "por persona" ahora se pueden seleccionar manualmente
+  // No se auto-ajustan cuando cambian los participantes para permitir flexibilidad al usuario
 
   // Obtener slots disponibles según la experiencia y el día seleccionado
   useEffect(() => {
@@ -661,44 +653,83 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                               Servicios Adicionales (Opcional)
                             </label>
                             <div className="space-y-2">
-                              {selectedExp.addons.map((addon, index) => (
-                                <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-[#F26726] transition-colors">
-                                  <div className="flex items-center gap-3 flex-1">
-                                    <input
-                                      type="checkbox"
-                                      id={`addon-${index}`}
-                                      checked={selectedAddons.some(a => a.name === addon.name)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedAddons([...selectedAddons, {
-                                            name: addon.name,
-                                            price: addon.price,
-                                            quantity: addon.priceType === 'per_person' ? participants : 1,
-                                            priceType: addon.priceType
-                                          }]);
-                                        } else {
-                                          setSelectedAddons(selectedAddons.filter(a => a.name !== addon.name));
-                                        }
-                                      }}
-                                      className="w-4 h-4 text-[#F26726] focus:ring-[#F26726] rounded"
-                                    />
-                                    <label htmlFor={`addon-${index}`} className="flex-1 cursor-pointer">
-                                      <div className="font-medium text-gray-900">{addon.name}</div>
-                                      {addon.description && (
-                                        <div className="text-xs text-gray-500">{addon.description}</div>
-                                      )}
-                                    </label>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-[#F26726]">
-                                      +${addon.price.toLocaleString()} {selectedExp.currency}
+                              {selectedExp.addons.map((addon, index) => {
+                                const isSelected = selectedAddons.some(a => a.name === addon.name);
+                                const selectedAddon = selectedAddons.find(a => a.name === addon.name);
+                                const quantity = selectedAddon?.quantity || (addon.priceType === 'per_person' ? participants : 1);
+                                
+                                return (
+                                  <div key={index} className="p-3 border border-gray-200 rounded-lg hover:border-[#F26726] transition-colors">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-3 flex-1">
+                                        <input
+                                          type="checkbox"
+                                          id={`addon-${index}`}
+                                          checked={isSelected}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setSelectedAddons([...selectedAddons, {
+                                                name: addon.name,
+                                                price: addon.price,
+                                                quantity: addon.priceType === 'per_person' ? participants : 1,
+                                                priceType: addon.priceType
+                                              }]);
+                                            } else {
+                                              setSelectedAddons(selectedAddons.filter(a => a.name !== addon.name));
+                                            }
+                                          }}
+                                          className="w-4 h-4 text-[#F26726] focus:ring-[#F26726] rounded"
+                                        />
+                                        <label htmlFor={`addon-${index}`} className="flex-1 cursor-pointer">
+                                          <div className="font-medium text-gray-900">{addon.name}</div>
+                                          {addon.description && (
+                                            <div className="text-xs text-gray-500">{addon.description}</div>
+                                          )}
+                                        </label>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="font-semibold text-[#F26726]">
+                                          +${addon.price.toLocaleString()} {selectedExp.currency}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          {addon.priceType === 'per_person' ? 'por persona' : 'precio total'}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-xs text-gray-500">
-                                      {addon.priceType === 'per_person' ? 'por persona' : 'precio total'}
-                                    </div>
+                                    
+                                    {/* Selector de cantidad para addons por persona */}
+                                    {isSelected && addon.priceType === 'per_person' && (
+                                      <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-3">
+                                        <label htmlFor={`addon-quantity-${index}`} className="text-sm text-gray-700 whitespace-nowrap">
+                                          Cantidad:
+                                        </label>
+                                        <input
+                                          type="number"
+                                          id={`addon-quantity-${index}`}
+                                          min="1"
+                                          max={participants}
+                                          value={quantity}
+                                          onChange={(e) => {
+                                            const newQuantity = Math.max(1, Math.min(participants, parseInt(e.target.value) || 1));
+                                            setSelectedAddons(selectedAddons.map(a => 
+                                              a.name === addon.name 
+                                                ? { ...a, quantity: newQuantity }
+                                                : a
+                                            ));
+                                          }}
+                                          className="w-20 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent text-sm"
+                                        />
+                                        <span className="text-sm text-gray-600">
+                                          (máx. {participants} personas)
+                                        </span>
+                                        <div className="ml-auto text-sm font-semibold text-[#F26726]">
+                                          Total: ${(addon.price * quantity).toLocaleString()} {selectedExp.currency}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -874,7 +905,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                           <>
                             {selectedAddons.map((addon, idx) => (
                               <div key={idx} className="flex justify-between text-gray-600 text-xs">
-                                <span>+ {addon.name} ({addon.priceType === 'per_person' ? `${participants}x` : '1x'})</span>
+                                <span>+ {addon.name} ({addon.quantity}x)</span>
                                 <span>${(addon.price * addon.quantity).toLocaleString()} {selectedExp.currency}</span>
                               </div>
                             ))}

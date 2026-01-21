@@ -35,6 +35,23 @@ const basicInfoSchema = z.object({
     .max(100, 'El email no puede exceder 100 caracteres'),
 });
 
+// Función helper para formatear URLs
+const formatUrl = (url: string): string => {
+  if (!url || url.trim() === '') {
+    return '';
+  }
+  
+  const trimmedUrl = url.trim();
+  
+  // Si ya tiene protocolo, retornar tal cual
+  if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+    return trimmedUrl;
+  }
+  
+  // Si no tiene protocolo, agregar https://
+  return `https://${trimmedUrl}`;
+};
+
 const fiscalInfoSchema = z.object({
   documentType: z.enum(['nit', 'cedula', 'pasaporte', 'other'], {
     message: 'Selecciona un tipo de documento válido'
@@ -46,10 +63,13 @@ const fiscalInfoSchema = z.object({
   businessName: z.string()
     .min(2, 'La razón social debe tener al menos 2 caracteres')
     .max(200, 'La razón social no puede exceder 200 caracteres'),
-  website: z.string()
-    .url('Ingresa una URL válida')
-    .optional()
-    .or(z.literal('')),
+  website: z.preprocess(
+    (val) => {
+      if (!val || val === '') return '';
+      return formatUrl(String(val));
+    },
+    z.string().url('Ingresa una URL válida').optional().or(z.literal(''))
+  ),
   address: z.object({
     street: z.string()
       .min(5, 'La dirección debe tener al menos 5 caracteres')
@@ -162,6 +182,7 @@ export default function CompanySetupForm() {
     handleSubmit,
     formState: { errors },
     getValues,
+    setValue,
     reset
   } = useForm<CompleteCompanyData>({
     mode: 'onChange',
@@ -638,10 +659,18 @@ export default function CompanySetupForm() {
         <TextInput
           id="website"
           type="url"
-          placeholder="https://www.empresa.com"
+          placeholder="https://www.empresa.com o www.empresa.com"
           icon={AiOutlineGlobal}
           color={errors.website ? 'failure' : 'white'}
-          {...register('website')}
+          {...register('website', {
+            onBlur: (e) => {
+              const value = e.target.value;
+              if (value && value.trim() !== '') {
+                const formatted = formatUrl(value);
+                setValue('website', formatted, { shouldValidate: true });
+              }
+            }
+          })}
         />
         {errors.website && (
           <p className="mt-1 text-sm text-red-600">{errors.website.message}</p>

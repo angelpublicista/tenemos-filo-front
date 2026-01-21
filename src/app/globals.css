@@ -1,8 +1,8 @@
 @import "tailwindcss";
+@import "flowbite-react/plugin/tailwindcss";
 
 @variant dark (.dark &);
 
-@plugin "flowbite-react/plugin/tailwindcss";
 @source "../../.flowbite-react/class-list.json";
 
 /* Tema por defecto: claro */

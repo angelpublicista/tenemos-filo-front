@@ -80,6 +80,8 @@ export interface SanityUser {
     _type: 'reference';
   };
   companyId?: string;
+  // hasCompletedCompanySetup se maneja en localStorage, no se almacena en Sanity
+  // Este campo es solo para compatibilidad de tipos, pero nunca se consulta desde Sanity
   hasCompletedCompanySetup?: boolean;
   locations?: Array<{
     _ref: string;

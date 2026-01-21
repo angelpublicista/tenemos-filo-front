@@ -66,7 +66,7 @@ export const createUserInSanity = async (userData: CreateUserData) => {
       phone: userData.phone,
       typeDocument: userData.typeDocument,
       documentNumber: userData.documentNumber,
-      hasCompletedCompanySetup: userData.role === 'host' ? false : true, // Hosts necesitan configurar empresa
+      // hasCompletedCompanySetup se maneja en localStorage, no en Sanity
       isActive: true, // Usuarios activos por defecto
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -100,9 +100,25 @@ export const createUserInSanity = async (userData: CreateUserData) => {
 
 export const getUserByFirebaseId = async (firebaseId: string): Promise<SanityUser | null> => {
   try {
+    // Consulta específica sin usar ... para evitar campos no definidos en el esquema
+    // hasCompletedCompanySetup se maneja en localStorage, no en Sanity
     const query = `*[_type == "user" && firebaseId == $firebaseId][0]{
-      ...,
-      "companyId": company._ref
+      _id,
+      _type,
+      firebaseId,
+      name,
+      email,
+      avatar,
+      role,
+      phone,
+      typeDocument,
+      documentNumber,
+      company,
+      "companyId": company._ref,
+      locations,
+      isActive,
+      createdAt,
+      updatedAt
     }`;
     const user = await sanityClient.fetch(query, { firebaseId });
     return user;

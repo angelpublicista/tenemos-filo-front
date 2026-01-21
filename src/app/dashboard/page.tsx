@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/firebase/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CompanySetupAlert from "@/components/CompanySetupAlert";
 import ThemeToggleButton from "@/components/ThemeToggleButton";
+import { useCompanySetup } from "@/hooks/useCompanySetup";
 import { 
   AiOutlineCalendar,
   AiOutlineTeam,
@@ -18,6 +19,7 @@ import { Spinner } from 'flowbite-react';
 
 export default function Dashboard() {
   const { user, sanityUser } = useAuth();
+  const { isSetupCompleted } = useCompanySetup();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -158,7 +160,7 @@ export default function Dashboard() {
         {/* Company Setup Alert */}
         <CompanySetupAlert 
           userRole={sanityUser?.role || 'guest'}
-          hasCompletedSetup={sanityUser?.hasCompletedCompanySetup || false}
+          hasCompletedSetup={isSetupCompleted()}
           hasCompanyId={!!sanityUser?.companyId}
         />
 

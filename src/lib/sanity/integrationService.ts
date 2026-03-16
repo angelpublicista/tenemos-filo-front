@@ -28,9 +28,9 @@ export async function getIntegrationsByUser(userId: string, filters?: Integratio
   `;
 
   const query = /* groq */ `
-    *[_type == "integration" && ${filterConditions}] | order(createdAt desc) {
+    *[_type == "integration" && ${filterConditions}] | order(_createdAt desc) {
       _id,
-      _createdAt as createdAt,
+      "createdAt": _createdAt,
       userId,
       type,
       name,
@@ -61,7 +61,7 @@ export async function getIntegrationById(integrationId: string): Promise<Integra
   const query = /* groq */ `
     *[_type == "integration" && _id == $integrationId && deletedAt == null][0] {
       _id,
-      _createdAt as createdAt,
+      "createdAt": _createdAt,
       userId,
       type,
       name,
@@ -112,7 +112,7 @@ export async function createIntegrationInSanity(integrationData: CreateIntegrati
  * Actualiza una integración existente
  */
 export async function updateIntegrationInSanity(
-  integrationId: string, 
+  integrationId: string,
   updateData: Record<string, unknown>
 ): Promise<Integration> {
   const updatePayload: Record<string, unknown> = {
@@ -124,13 +124,13 @@ export async function updateIntegrationInSanity(
     const result = await sanityClient
       .patch(integrationId)
       .set(updatePayload)
-      .commit({ returnDocuments: true });
+      .commit();
 
     return {
-      ...result.documents[0],
-      _id: result.documents[0]._id,
-      createdAt: result.documents[0]._createdAt || result.documents[0].createdAt,
-    };
+      ...result,
+      _id: result._id,
+      createdAt: result._createdAt || (result as Record<string, unknown>).createdAt,
+    } as unknown as Integration;
   } catch (error) {
     console.error('Error updating integration:', error);
     throw new Error('Error al actualizar la integración');

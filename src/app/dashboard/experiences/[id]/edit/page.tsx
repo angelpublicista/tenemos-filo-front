@@ -116,7 +116,7 @@ export default function EditExperiencePage() {
           setCompanyNotFound(true);
           setIsLoadingData(false);
           showError('No se encontró información de empresa.');
-          router.push('/dashboard/company-setup');
+          router.push('/company-setup');
           return;
         }
         setCompany(companyData);

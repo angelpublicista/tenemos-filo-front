@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { Card, Button, Badge, Tooltip } from 'flowbite-react';
-import { HiOutlineDesktopComputer, HiCheckCircle, HiRefresh, HiOutlineQuestionMarkCircle, HiLockClosed } from 'react-icons/hi';
-import { HiOfficeBuilding } from 'react-icons/hi';
+import { HiCheckCircle, HiRefresh, HiOutlineQuestionMarkCircle, HiLockClosed } from 'react-icons/hi';
+import { SiZoho } from 'react-icons/si';
 import IntegrationSetupModal from './IntegrationSetupModal';
 
-interface OutlookIntegrationCardProps {
+interface ZohoIntegrationCardProps {
   integration?: {
     _id: string;
     status: 'connected' | 'disconnected' | 'pending' | 'error';
@@ -15,7 +15,7 @@ interface OutlookIntegrationCardProps {
       calendarId?: string;
       autoSync?: boolean;
       syncFrequency?: string;
-      tenantId?: string;
+      organizationId?: string;
     };
   };
   onConnect: () => void;
@@ -25,20 +25,20 @@ interface OutlookIntegrationCardProps {
 }
 
 const SETUP_STEPS = [
-  { label: 'Ve al portal de Azure y crea una nueva App Registration' },
-  { label: 'En "API permissions" agrega el permiso', code: 'Calendars.ReadWrite' },
-  { label: 'En "Authentication" agrega el Redirect URI que aparece abajo y habilita "Access tokens"' },
-  { label: 'Copia el Application (client) ID y crea un Client Secret' },
-  { label: 'Comparte esos valores con el administrador de la plataforma' },
+  { label: 'Ve a Zoho API Console en api-console.zoho.com y crea una nueva aplicación' },
+  { label: 'Selecciona tipo "Server-based Applications"' },
+  { label: 'Agrega el Redirect URI que aparece abajo' },
+  { label: 'En Scopes selecciona', code: 'ZohoCalendar.calendar.ALL' },
+  { label: 'Comparte el Client ID y Client Secret con el administrador de la plataforma' },
 ];
 
-export default function OutlookIntegrationCard({
+export default function ZohoIntegrationCard({
   integration,
   onConnect,
   onDisconnect,
   onSync,
   available = true,
-}: OutlookIntegrationCardProps) {
+}: ZohoIntegrationCardProps) {
   const [showSetup, setShowSetup] = useState(false);
   const isConnected = integration?.status === 'connected';
 
@@ -59,20 +59,20 @@ export default function OutlookIntegrationCard({
       <Card className="p-6 flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <HiOutlineDesktopComputer className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-red-50 rounded-lg">
+              <SiZoho className="w-6 h-6 text-red-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-[#334C5D]">Outlook Calendar</h3>
-              <p className="text-sm text-gray-600">Integra tu calendario de Microsoft 365</p>
+              <h3 className="text-lg font-semibold text-[#334C5D]">Zoho Calendar</h3>
+              <p className="text-sm text-gray-600">Sincroniza con tu calendario de Zoho</p>
             </div>
           </div>
           {getStatusBadge()}
         </div>
 
         {isConnected && (
-          <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-            <h4 className="font-medium text-blue-800 mb-2">Estado de sincronización</h4>
+          <div className="mb-4 p-4 bg-red-50 rounded-lg">
+            <h4 className="font-medium text-red-800 mb-2">Estado de sincronización</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Última sincronización:</span>
@@ -94,11 +94,11 @@ export default function OutlookIntegrationCard({
                   {integration.config?.syncFrequency || '15 minutos'}
                 </span>
               </div>
-              {integration.config?.tenantId && (
+              {integration.config?.organizationId && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Tenant:</span>
+                  <span className="text-gray-600">Organización:</span>
                   <span className="font-medium text-xs">
-                    {integration.config.tenantId.slice(0, 8)}...
+                    {integration.config.organizationId.slice(0, 8)}...
                   </span>
                 </div>
               )}
@@ -110,10 +110,10 @@ export default function OutlookIntegrationCard({
           <div className="text-sm text-gray-600">
             <h4 className="font-medium text-gray-900 mb-2">Características:</h4>
             <ul className="list-disc list-inside space-y-1">
-              <li>Sincronización con Outlook y Teams</li>
-              <li>Reunión automáticamente bloqueada</li>
-              <li>Notificaciones por email</li>
-              <li>Compatibilidad con Exchange Online</li>
+              <li>Sincronización con Zoho Calendar</li>
+              <li>Integración con Zoho CRM y Meetings</li>
+              <li>Gestión de eventos y recordatorios</li>
+              <li>Compatible con Zoho One</li>
             </ul>
           </div>
 
@@ -137,7 +137,7 @@ export default function OutlookIntegrationCard({
               </>
             ) : (
               <Button size="sm" color="primary" onClick={onConnect} className="w-full">
-                Conectar con Outlook
+                Conectar con Zoho
               </Button>
             )}
           </div>
@@ -146,7 +146,7 @@ export default function OutlookIntegrationCard({
         {integration?.status === 'error' && (
           <div className="mt-4 p-3 bg-red-100 border border-red-200 rounded-lg">
             <p className="text-sm text-red-700">
-              ❌ Error en la integración. Verifica tus permisos de Microsoft y vuelve a intentar.
+              ❌ Error en la integración. Verifica tus permisos de Zoho y vuelve a intentar.
             </p>
           </div>
         )}
@@ -163,11 +163,11 @@ export default function OutlookIntegrationCard({
       <IntegrationSetupModal
         show={showSetup}
         onClose={() => setShowSetup(false)}
-        title="Outlook Calendar"
-        icon={<HiOfficeBuilding className="w-5 h-5 text-blue-600" />}
-        docsUrl="https://portal.azure.com"
+        title="Zoho Calendar"
+        icon={<SiZoho className="w-5 h-5 text-red-600" />}
+        docsUrl="https://api-console.zoho.com"
         steps={SETUP_STEPS}
-        redirectUri="/api/auth/microsoft/callback"
+        redirectUri="/api/auth/zoho/callback"
       />
     </>
   );

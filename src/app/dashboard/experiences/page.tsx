@@ -53,7 +53,7 @@ export default function ExperiencesPage() {
 
       if (!companyData) {
         showError('No se encontró información de empresa. Completa el registro de empresa primero.');
-        router.push('/dashboard/company-setup');
+        router.push('/company-setup');
         return;
       }
 
@@ -169,7 +169,7 @@ export default function ExperiencesPage() {
           </p>
           <Button
             color="primary"
-            onClick={() => router.push('/dashboard/company-setup')}
+            onClick={() => router.push('/company-setup')}
             className="px-6 py-3"
           >
             Completar Registro de Empresa

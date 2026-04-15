@@ -3,7 +3,7 @@ import { Integration, CreateIntegrationData } from '@/types';
 
 export interface IntegrationFilters {
   userId?: string;
-  type?: 'google' | 'outlook';
+  type?: 'google' | 'outlook' | 'zoho';
   status?: 'connected' | 'disconnected' | 'pending' | 'error';
 }
 
@@ -271,8 +271,8 @@ export async function isIntegrationRecentlySynced(
  * Obtiene integraciones conectadas de un tipo específico
  */
 export async function getConnectedIntegrationsByType(
-  userId: string, 
-  type: 'google' | 'outlook'
+  userId: string,
+  type: 'google' | 'outlook' | 'zoho'
 ): Promise<Integration[]> {
   return getIntegrationsByUser(userId, { type, status: 'connected' });
 }

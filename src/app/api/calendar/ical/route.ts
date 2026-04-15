@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
         const start = new Date(r.reservationDate as string);
         const end = new Date(start.getTime() + ((r.duration as number) || 60) * 60 * 1000);
 
-        const locationStr = r.isVirtual
-          ? r.meetingLink || 'Evento virtual'
+        const locationStr: string = r.isVirtual
+          ? (r.meetingLink as string) || 'Evento virtual'
           : (r.locationName as string) || '';
 
         const description = [

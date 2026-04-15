@@ -2,14 +2,15 @@
 
 import React, { useState } from 'react';
 import { useAuth } from "@/lib/firebase/AuthContext";
-import { 
+import {
   AiOutlineHome,
   AiOutlineCalendar,
   AiOutlineTeam,
   AiOutlineSetting,
   AiOutlineBell,
   AiOutlineUser,
-  AiOutlineClockCircle
+  AiOutlineClockCircle,
+  AiOutlineShareAlt
 } from 'react-icons/ai';
 import { 
   BiMap,
@@ -98,11 +99,18 @@ export default function Sidebar() {
     //   enabled: false
     // },
     {
+      name: 'Motor de reservas',
+      href: '/dashboard/booking-link',
+      icon: AiOutlineShareAlt,
+      current: pathname === '/dashboard/booking-link',
+      enabled: true
+    },
+    {
       name: 'Notificaciones',
-      href: '/notifications',
+      href: '/dashboard/notifications',
       icon: AiOutlineBell,
-      current: pathname === '/notifications',
-      enabled: false
+      current: pathname === '/dashboard/notifications',
+      enabled: true
     },
     {
       name: 'Configuración',

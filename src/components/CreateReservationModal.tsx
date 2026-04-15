@@ -12,13 +12,8 @@ import { BiTime, BiMap } from 'react-icons/bi';
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 import { useAuth } from '@/lib/firebase/AuthContext';
-import DatePicker, { registerLocale } from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import '@/styles/datepicker-custom.css';
-import { es } from 'date-fns/locale/es';
-
-// Registrar locale en español
-registerLocale('es', es);
+import CalendarPicker from '@/components/CalendarPicker';
+import TimePicker from '@/components/TimePicker';
 
 interface CreateReservationModalProps {
   experiences: Experience[];
@@ -373,7 +368,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
-          <form onSubmit={step === 0 ? handleSearch : handleSubmit} className="space-y-6">
+          <form onSubmit={step === 0 ? handleSearch : (e) => e.preventDefault()} className="space-y-6">
             {/* Paso 0: Búsqueda de Experiencias */}
             {step === 0 && (
               <>
@@ -391,23 +386,16 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Fecha del Evento *
                         </label>
-                        <DatePicker
-                          selected={searchData.date ? new Date(searchData.date + 'T12:00:00') : null}
-                          onChange={(date: Date | null) => {
-                            if (date) {
-                              const year = date.getFullYear();
-                              const month = String(date.getMonth() + 1).padStart(2, '0');
-                              const day = String(date.getDate()).padStart(2, '0');
-                              setSearchData(prev => ({ ...prev, date: `${year}-${month}-${day}` }));
-                            }
+                        <CalendarPicker
+                          value={searchData.date ? new Date(searchData.date + 'T12:00:00') : null}
+                          onChange={(date) => {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            setSearchData(prev => ({ ...prev, date: `${year}-${month}-${day}` }));
                           }}
                           minDate={new Date()}
-                          dateFormat="EEEE, dd 'de' MMMM 'de' yyyy"
-                          locale="es"
-                          placeholderText="Selecciona la fecha"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent text-sm"
-                          wrapperClassName="w-full"
-                          showPopperArrow={false}
+                          placeholder="Selecciona la fecha"
                           required
                         />
                       </div>
@@ -416,11 +404,10 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Hora Aproximada *
                         </label>
-                        <input
-                          type="time"
+                        <TimePicker
                           value={searchData.time}
-                          onChange={(e) => setSearchData(prev => ({ ...prev, time: e.target.value }))}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                          onChange={(t) => setSearchData(prev => ({ ...prev, time: t }))}
+                          placeholder="Selecciona la hora"
                           required
                         />
                       </div>
@@ -577,74 +564,91 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                       </div>
                     )}
 
-                        {selectedExperience && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                            Sede *
-                          </label>
-                          <select
-                            value={selectedLocation}
-                            onChange={(e) => setSelectedLocation(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                            required
-                          >
-                            <option value="">Selecciona una sede</option>
-                            {locations.map((loc) => (
-                              <option key={loc._id} value={loc._id}>
-                                {loc.name} - {loc.address.city}
-                              </option>
-                            ))}
-                          </select>
-                          {locations.length === 0 && (
-                            <p className="text-sm text-gray-500 mt-1">
-                              Esta experiencia no tiene sedes configuradas.
-                            </p>
-                          )}
-                        </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                        Sede *
+                      </label>
+                      <select
+                        value={selectedLocation}
+                        onChange={(e) => setSelectedLocation(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                        required
+                      >
+                        <option value="">Selecciona una sede</option>
+                        {locations.map((loc) => (
+                          <option key={loc._id} value={loc._id}>
+                            {loc.name} — {loc.address.city}
+                          </option>
+                        ))}
+                      </select>
+                      {locations.length === 0 && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Esta experiencia no tiene sedes configuradas.
+                        </p>
+                      )}
+                    </div>
 
-                        {selectedLocation && availableSchedules.length === 0 && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                            <p className="text-sm text-yellow-800">
-                              Esta experiencia no tiene calendarios de disponibilidad configurados. Los horarios estarán disponibles sin restricciones.
-                            </p>
-                          </div>
-                        )}
+                    {selectedLocation && availableSchedules.length === 0 && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className="text-sm text-yellow-800">
+                          Sin calendario de disponibilidad — cualquier horario está disponible.
+                        </p>
+                      </div>
+                    )}
 
-                        {/* Información del evento (prellenada desde búsqueda) */}
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <h4 className="font-medium text-[#334C5D] mb-3">Datos del Evento</h4>
-                          <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                              <span className="text-gray-600">Fecha:</span>
-                              <div className="font-semibold text-gray-900">
-                                {selectedDate && new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', {
-                                  weekday: 'long',
-                                  day: 'numeric',
-                                  month: 'long',
-                                  year: 'numeric'
-                                })}
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-gray-600">Hora:</span>
-                              <div className="font-semibold text-gray-900">{selectedTime}</div>
-                            </div>
-                            <div>
-                              <span className="text-gray-600">Participantes:</span>
-                              <div className="font-semibold text-gray-900">{participants} personas</div>
-                            </div>
-                            <div className="text-right">
-                              <button
-                                type="button"
-                                onClick={() => setStep(0)}
-                                className="text-xs text-[#F26726] hover:underline font-medium"
-                              >
-                                Cambiar datos del evento
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                    {/* Fecha y hora editables */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                          Fecha *
+                        </label>
+                        <CalendarPicker
+                          value={selectedDate ? new Date(selectedDate + 'T12:00:00') : null}
+                          onChange={(date) => {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            setSelectedDate(`${year}-${month}-${day}`);
+                            setSelectedTime('');
+                          }}
+                          minDate={new Date()}
+                          placeholder="Selecciona la fecha"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                          Hora *
+                        </label>
+                        <TimePicker
+                          value={selectedTime}
+                          onChange={setSelectedTime}
+                          slots={availableTimeSlots}
+                          placeholder="Selecciona la hora"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                        Número de Participantes *
+                      </label>
+                      <input
+                        type="number"
+                        value={participants}
+                        onChange={(e) => setParticipants(parseInt(e.target.value) || 1)}
+                        min="1"
+                        max={selectedExp?.capacity || 100}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                        required
+                      />
+                      {selectedExp && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Capacidad: {selectedExp.minCapacity || 1}–{selectedExp.capacity} personas
+                        </p>
+                      )}
+                    </div>
 
                         {/* Servicios Adicionales */}
                         {selectedExp && selectedExp.addons && selectedExp.addons.length > 0 && (
@@ -746,8 +750,6 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                             placeholder="Alergias, preferencias, etc..."
                           />
                         </div>
-                      </>
-                    )}
                   </div>
                 </div>
               </>
@@ -866,7 +868,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                 </div>
 
                 {/* Resumen de la Reserva */}
-                {selectedExp && clientType === 'guest' && (
+                {selectedExp && (
                   <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                     <h4 className="font-semibold text-gray-900 mb-4">Resumen de la Reserva</h4>
                     <div className="space-y-2 text-sm">
@@ -891,9 +893,21 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Cliente:</span>
-                        <span className="font-medium text-gray-900">{guestName || 'Invitado'}</span>
+                        <span className="font-medium text-gray-900">{guestName || (clientType === 'registered' ? 'Cliente registrado' : 'Invitado')}</span>
                       </div>
-                      
+                      {clientType === 'guest' && guestEmail && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Email:</span>
+                          <span className="font-medium text-gray-900">{guestEmail}</span>
+                        </div>
+                      )}
+                      {clientType === 'guest' && guestPhone && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Teléfono:</span>
+                          <span className="font-medium text-gray-900">{guestPhone}</span>
+                        </div>
+                      )}
+
                       {/* Desglose de precios */}
                       <div className="border-t border-gray-300 pt-2 mt-2 space-y-1">
                         <div className="flex justify-between text-gray-600">

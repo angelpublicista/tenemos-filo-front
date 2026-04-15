@@ -490,7 +490,9 @@ export interface Reservation {
     companyEmail: string;
     companyPhone: string;
   };
-  client: ReservationClient;
+  client?: ReservationClient;
+  clientInfo?: ReservationClient;
+  clientType?: 'guest' | 'registered';
   reservationDate: string;
   duration: number;
   participants: number;
@@ -1047,4 +1049,29 @@ export interface OpportunitySearchParams {
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+}
+
+// ─── Notificaciones ──────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'new_reservation'
+  | 'reservation_confirmed'
+  | 'reservation_cancelled'
+  | 'reservation_rescheduled'
+  | 'payment_received'
+  | 'review_received'
+  | 'system';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: { seconds: number; nanoseconds: number }; // Firestore Timestamp (serialized)
+  data?: {
+    reservationId?: string;
+    experienceId?: string;
+    [key: string]: unknown;
+  };
 } 

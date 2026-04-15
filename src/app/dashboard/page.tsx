@@ -15,7 +15,7 @@ import {
 import { BiBuildingHouse } from 'react-icons/bi';
 import { useState, useEffect } from 'react';
 import { getDashboardStats, getRecentActivities, DashboardStats, RecentActivity } from '@/lib/sanity/dashboardService';
-import { Spinner } from 'flowbite-react';
+import { SkeletonStatCard, SkeletonActivityItem } from '@/components/Skeleton';
 
 export default function Dashboard() {
   const { user, sanityUser } = useAuth();
@@ -166,8 +166,8 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <Spinner size="xl" color="warning" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
           </div>
         ) : error ? (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-8">
@@ -246,8 +246,8 @@ export default function Dashboard() {
               </div>
               <div className="space-y-4">
                 {isLoading ? (
-                  <div className="flex justify-center items-center py-8">
-                    <Spinner size="lg" color="warning" />
+                  <div className="space-y-4">
+                    {Array.from({ length: 4 }).map((_, i) => <SkeletonActivityItem key={i} />)}
                   </div>
                 ) : recentActivities.length === 0 ? (
                   <div className="text-center py-8">

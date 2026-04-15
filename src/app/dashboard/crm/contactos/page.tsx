@@ -19,7 +19,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { getContactsByHost, deleteContact } from '@/lib/sanity/contactService';
 import { Contact, ContactFilters } from '@/types';
-import Loader from '@/components/Loader';
+import { SkeletonTableRow } from '@/components/Skeleton';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { exportContactsToExcel, exportContactsToCSV } from '@/utils/exportUtils';
 
@@ -260,7 +260,15 @@ export default function ContactosPage() {
 
         {/* Tabla de Contactos */}
         {isLoading ? (
-          <Loader message="Cargando contactos..." />
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left text-gray-500">
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => <SkeletonTableRow key={i} cols={7} />)}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         ) : (
           <Card>
             {contacts.length === 0 ? (

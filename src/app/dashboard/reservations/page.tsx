@@ -2,12 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Select, Badge, Modal, ModalHeader, ModalBody, Tooltip } from 'flowbite-react';
-import DatePicker, { registerLocale } from 'react-datepicker';
-import { es } from 'date-fns/locale';
-import 'react-datepicker/dist/react-datepicker.css';
-import '@/styles/datepicker-custom.css';
-
-registerLocale('es', es);
+import CalendarPicker from '@/components/CalendarPicker';
+import TimePicker from '@/components/TimePicker';
 import { 
   HiEye, 
   HiPencilAlt,
@@ -33,185 +29,7 @@ import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import { getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
 import { Experience, Reservation } from '@/types';
 import CreateReservationModal from '@/components/CreateReservationModal';
-
-// Datos hardcodeados de ejemplo - Tipados como Reservation parciales
-const mockReservations: Partial<Reservation>[] = [
-  {
-    _id: '1',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-001',
-    status: 'confirmed',
-    paymentStatus: 'paid',
-    reservationDate: '2025-01-15T10:00:00Z',
-    participants: 4,
-    duration: 120,
-    experience: {
-      _id: 'exp-1',
-      title: 'Clase de Cocina Italiana',
-      category: 'cooking',
-      duration: 120,
-      capacity: 10
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'María González',
-      email: 'maria@email.com',
-      phone: '+57 300 123 4567'
-    },
-    pricing: {
-      basePrice: 250000,
-      subtotal: 1000000,
-      total: 1000000
-    },
-    createdAt: '2025-01-01T10:00:00Z',
-    updatedAt: '2025-01-01T10:00:00Z'
-  },
-  {
-    _id: '2',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-002',
-    status: 'pending',
-    paymentStatus: 'pending',
-    reservationDate: '2025-01-20T14:30:00Z',
-    participants: 2,
-    duration: 90,
-    experience: {
-      _id: 'exp-2',
-      title: 'Mixología Creativa',
-      category: 'mixology',
-      duration: 90,
-      capacity: 8
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'Carlos Rodríguez',
-      email: 'carlos@email.com',
-      phone: '+57 301 987 6543'
-    },
-    pricing: {
-      basePrice: 180000,
-      subtotal: 360000,
-      total: 360000
-    },
-    createdAt: '2025-01-02T10:00:00Z',
-    updatedAt: '2025-01-02T10:00:00Z'
-  },
-  {
-    _id: '3',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-003',
-    status: 'completed',
-    paymentStatus: 'paid',
-    reservationDate: '2025-01-10T09:00:00Z',
-    participants: 6,
-    duration: 150,
-    experience: {
-      _id: 'exp-3',
-      title: 'Degustación de Vinos',
-      category: 'tasting',
-      duration: 150,
-      capacity: 12
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'Ana Martínez',
-      email: 'ana@email.com',
-      phone: '+57 305 456 7890'
-    },
-    pricing: {
-      basePrice: 320000,
-      subtotal: 1920000,
-      total: 1920000
-    },
-    createdAt: '2025-01-03T10:00:00Z',
-    updatedAt: '2025-01-03T10:00:00Z'
-  },
-  {
-    _id: '4',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-004',
-    status: 'in_progress',
-    paymentStatus: 'paid',
-    reservationDate: '2025-01-18T16:00:00Z',
-    participants: 3,
-    duration: 180,
-    experience: {
-      _id: 'exp-4',
-      title: 'Taller de Repostería',
-      category: 'workshops',
-      duration: 180,
-      capacity: 10
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'Pedro López',
-      email: 'pedro@email.com',
-      phone: '+57 304 567 8901'
-    },
-    pricing: {
-      basePrice: 280000,
-      subtotal: 840000,
-      total: 840000
-    },
-    createdAt: '2025-01-04T10:00:00Z',
-    updatedAt: '2025-01-04T10:00:00Z'
-  },
-  {
-    _id: '5',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-005',
-    status: 'cancelled',
-    paymentStatus: 'refunded',
-    reservationDate: '2025-01-12T11:30:00Z',
-    participants: 5,
-    duration: 120,
-    experience: {
-      _id: 'exp-5',
-      title: 'Evento Corporativo',
-      category: 'corporate',
-      duration: 120,
-      capacity: 15
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'Laura Jiménez',
-      email: 'laura@email.com',
-      phone: '+57 306 678 9012'
-    },
-    pricing: {
-      basePrice: 350000,
-      subtotal: 1750000,
-      total: 1750000
-    },
-    createdAt: '2025-01-05T10:00:00Z',
-    updatedAt: '2025-01-05T10:00:00Z'
-  }
-];
+import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
 
 interface ReservationStats {
   total: number;
@@ -232,23 +50,15 @@ interface ReservationStats {
 export default function ReservationsPage() {
   const { sanityUser } = useAuth();
   const { showSuccess, showError } = useSweetAlert();
-  const [reservations, setReservations] = useState<Partial<Reservation>[]>(mockReservations);
+  const [reservations, setReservations] = useState<Partial<Reservation>[]>([]);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<ReservationStats>({
-    total: mockReservations.length,
-    pending: mockReservations.filter(r => r.status === 'pending').length,
-    confirmed: mockReservations.filter(r => r.status === 'confirmed').length,
-    inProgress: mockReservations.filter(r => r.status === 'in_progress').length,
-    completed: mockReservations.filter(r => r.status === 'completed').length,
-    cancelled: mockReservations.filter(r => r.status === 'cancelled').length,
-    noShow: 0,
-    rescheduled: 0,
-    totalRevenue: mockReservations.reduce((sum, r) => sum + (r.pricing?.total || 0), 0),
-    totalParticipants: mockReservations.reduce((sum, r) => sum + (r.participants || 0), 0),
-    averageParticipants: mockReservations.reduce((sum, r) => sum + (r.participants || 0), 0) / mockReservations.length || 0,
-    pendingPayments: mockReservations.filter(r => r.paymentStatus === 'pending').length,
-    paidReservations: mockReservations.filter(r => r.paymentStatus === 'paid').length,
+    total: 0, pending: 0, confirmed: 0, inProgress: 0,
+    completed: 0, cancelled: 0, noShow: 0, rescheduled: 0,
+    totalRevenue: 0, totalParticipants: 0, averageParticipants: 0,
+    pendingPayments: 0, paidReservations: 0,
   });
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -304,16 +114,21 @@ export default function ReservationsPage() {
   // Cargar experiencias y reservas de la empresa
   useEffect(() => {
     const loadData = async () => {
-      if (!sanityUser?.companyId) return;
-      
+      if (!sanityUser?.companyId) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const experiencesData = await getExperiencesByCompany(sanityUser.companyId);
         setExperiences(experiencesData || []);
-        
+
         // Cargar reservas
         await loadReservations();
       } catch (error) {
         console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -432,15 +247,15 @@ export default function ReservationsPage() {
 
   // Helper para obtener info del cliente
   const getClientName = (reservation: Partial<Reservation>): string => {
-    return reservation.client?.name || 'Cliente sin nombre';
+    return reservation.clientInfo?.name || reservation.client?.name || 'Cliente sin nombre';
   };
 
   const getClientEmail = (reservation: Partial<Reservation>): string => {
-    return reservation.client?.email || 'Sin email';
+    return reservation.clientInfo?.email || reservation.client?.email || '—';
   };
 
   const getClientPhone = (reservation: Partial<Reservation>): string => {
-    return reservation.client?.phone || 'Sin teléfono';
+    return reservation.clientInfo?.phone || reservation.client?.phone || '—';
   };
 
   // Helper para obtener tipo de experiencia (maneja diferencias entre mock y datos reales)
@@ -1146,6 +961,11 @@ export default function ReservationsPage() {
       </div>
 
       {/* Estadísticas */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card className="p-4">
           <div className="flex items-center">
@@ -1195,6 +1015,7 @@ export default function ReservationsPage() {
           </div>
         </Card>
       </div>
+      )}
 
       <hr className="my-8 border-gray-200" />
 
@@ -1266,12 +1087,16 @@ export default function ReservationsPage() {
       </div>
 
       {/* Vista del calendario */}
-      {viewMode === 'calendar' && <CalendarView />}
+      {!isLoading && viewMode === 'calendar' && <CalendarView />}
 
       {/* Vista de lista/grid */}
       {viewMode !== 'calendar' && (
         <>
-          {filteredReservations.length === 0 ? (
+          {isLoading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          ) : filteredReservations.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">
                 <HiCalendar className="w-16 h-16 mx-auto" />
@@ -1546,46 +1371,32 @@ export default function ReservationsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Fecha de la Reserva *
                   </label>
-                  <div className="relative z-[100]">
-                    <DatePicker
-                      selected={editingReservation.editDate ? new Date(editingReservation.editDate + 'T12:00:00') : null}
-                      onChange={(date: Date | null) => {
-                        if (date) {
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const day = String(date.getDate()).padStart(2, '0');
-                          const newDate = `${year}-${month}-${day}`;
-                          const newDateTime = `${newDate}T${editingReservation.editTime || '10:00'}:00`;
-                          setEditingReservation({
-                            ...editingReservation,
-                            editDate: newDate,
-                            reservationDate: newDateTime
-                          });
-                        }
-                      }}
-                      dateFormat="EEEE, dd 'de' MMMM 'de' yyyy"
-                      locale="es"
-                      placeholderText="Selecciona la fecha"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent text-sm"
-                      wrapperClassName="w-full"
-                      showPopperArrow={false}
-                      withPortal
-                      portalId="root"
-                      popperClassName="!z-[9999]"
-                      required
-                    />
-                  </div>
+                  <CalendarPicker
+                    value={editingReservation.editDate ? new Date(editingReservation.editDate + 'T12:00:00') : null}
+                    onChange={(date) => {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const newDate = `${year}-${month}-${day}`;
+                      const newDateTime = `${newDate}T${editingReservation.editTime || '10:00'}:00`;
+                      setEditingReservation({
+                        ...editingReservation,
+                        editDate: newDate,
+                        reservationDate: newDateTime
+                      });
+                    }}
+                    placeholder="Selecciona la fecha"
+                    required
+                  />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Hora *
                   </label>
-                  <input
-                    type="time"
-                    value={editingReservation.editTime || '10:00'}
-                    onChange={(e) => {
-                      const newTime = e.target.value;
+                  <TimePicker
+                    value={editingReservation.editTime || ''}
+                    onChange={(newTime) => {
                       const newDateTime = `${editingReservation.editDate}T${newTime}:00`;
                       setEditingReservation({
                         ...editingReservation,
@@ -1593,7 +1404,7 @@ export default function ReservationsPage() {
                         reservationDate: newDateTime
                       });
                     }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                    placeholder="Selecciona la hora"
                     required
                   />
                 </div>

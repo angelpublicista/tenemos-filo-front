@@ -27,8 +27,8 @@ import {
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useRouter } from 'next/navigation';
-import Loader from '@/components/Loader';
 import ExperienceStats from '@/components/ExperienceStats';
+import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
 import { ManageExperienceCard } from '@/components/ManageExperienceCard';
 
 export default function ExperiencesPage() {
@@ -152,11 +152,7 @@ export default function ExperiencesPage() {
     router.push(`/dashboard/experiences/${experienceId}/edit`);
   };
 
-  if (isLoading) {
-    return <Loader message="Cargando tus experiencias..." />;
-  }
-
-  if (!company) {
+  if (!company && !isLoading) {
     return (
       <div className="p-6">
         <div className="text-center py-12">
@@ -189,7 +185,7 @@ export default function ExperiencesPage() {
               Mis Experiencias
             </h1>
             <p className="text-gray-600">
-              Gestiona todas las experiencias de <span className="font-bold">{company.companyName}</span>
+              Gestiona todas las experiencias de <span className="font-bold">{company?.companyName}</span>
             </p>
           </div>
           
@@ -205,9 +201,13 @@ export default function ExperiencesPage() {
       </div>
 
       {/* Estadísticas */}
-      {stats && (
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+      ) : stats ? (
         <ExperienceStats stats={stats} className="mb-8" />
-      )}
+      ) : null}
 
       <hr className="my-8 border-gray-200" />
 
@@ -256,7 +256,11 @@ export default function ExperiencesPage() {
       </div>
 
       {/* Lista de Experiencias */}
-      {filteredExperiences.length === 0 ? (
+      {isLoading ? (
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-2'}>
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : filteredExperiences.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-gray-400 mb-4">
             <HiStar className="w-16 h-16 mx-auto" />

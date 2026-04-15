@@ -20,7 +20,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { getCRMCompaniesByHost, deleteCRMCompany } from '@/lib/sanity/crmCompanyService';
 import { CRMCompany, CRMCompanyFilters } from '@/types';
-import Loader from '@/components/Loader';
+import { SkeletonTableRow } from '@/components/Skeleton';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { exportCompaniesToExcel, exportCompaniesToCSV } from '@/utils/exportUtils';
 
@@ -263,7 +263,15 @@ export default function EmpresasPage() {
 
         {/* Tabla de Empresas */}
         {isLoading ? (
-          <Loader message="Cargando empresas..." />
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left text-gray-500">
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => <SkeletonTableRow key={i} cols={6} />)}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         ) : (
           <Card>
             {companies.length === 0 ? (

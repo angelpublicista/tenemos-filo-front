@@ -40,3 +40,12 @@ html.dark {
 body {
   font-family: var(--font-poppins), system-ui, -apple-system, sans-serif;
 }
+
+/* Override Tailwind preflight: no forzar height:auto en img/video —
+   dejar que las utilidades de altura (h-56, h-full, etc.) tengan efecto. */
+@layer base {
+  img,
+  video {
+    height: revert;
+  }
+}

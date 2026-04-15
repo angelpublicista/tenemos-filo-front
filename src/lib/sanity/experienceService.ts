@@ -193,7 +193,11 @@ export const getExperiences = async (searchParams: ExperienceSearchParams = {}):
 // Obtener experiencias por empresa
 export const getExperiencesByCompany = async (companyId: string): Promise<Experience[]> => {
   try {
-    const query = `*[_type == "experience" && company._ref == $companyId] | order(createdAt desc) {
+    const query = `*[
+      _type == "experience" &&
+      !(_id in path("drafts.**")) &&
+      company._ref == $companyId
+    ] | order(createdAt desc) {
       _id,
       _type,
       title,
@@ -250,6 +254,80 @@ export const getExperiencesByCompany = async (companyId: string): Promise<Experi
   } catch (error) {
     console.error('Error fetching experiences by company:', error);
     throw new Error('Failed to fetch experiences by company');
+  }
+};
+
+// Obtener experiencias activas de una empresa (motor de reservas público)
+export const getActiveExperiencesByCompany = async (companyId: string): Promise<Experience[]> => {
+  try {
+    const query = `*[
+      _type == "experience" &&
+      !(_id in path("drafts.**")) &&
+      company._ref == $companyId &&
+      (
+        status == "active" ||
+        (isActive == true && (!defined(status) || status in ["draft", "pending"]))
+      )
+    ] | order(createdAt desc) {
+      _id,
+      _type,
+      title,
+      slug,
+      company->{
+        _id,
+        companyName,
+        companyEmail,
+        companyPhone
+      },
+      description,
+      categories,
+      duration,
+      capacity,
+      minCapacity,
+      basePrice,
+      currency,
+      "featuredImage": coalesce(featuredImage.asset._ref, null),
+      images,
+      "locations": locations[]->{
+        _id,
+        name,
+        address,
+        isMain
+      },
+      "availabilitySchedules": availabilities[]->{
+        _id,
+        name,
+        weeklySchedule,
+        bufferTime,
+        minimumNotice,
+        blockedDates,
+        location
+      },
+      experienceType,
+      isVirtual,
+      virtualPlatform,
+      presentialLocation,
+      presentialAddress,
+      presentialCity,
+      requirements,
+      includes,
+      addons,
+      status,
+      isFeatured,
+      rating,
+      totalBookings,
+      createdAt
+    }`;
+
+    const experiences = await sanityClient.fetch(query, { companyId });
+    console.log('[getActiveExperiencesByCompany] companyId:', companyId, 'count:', experiences?.length ?? 0);
+    if (experiences?.length) {
+      console.log('[getActiveExperiencesByCompany] featuredImage refs:', experiences.map((e: { _id: string; title: string; featuredImage?: unknown }) => ({ id: e._id, title: e.title, featuredImage: e.featuredImage })));
+    }
+    return experiences;
+  } catch (error) {
+    console.error('Error fetching active experiences by company:', error);
+    throw new Error('Failed to fetch active experiences by company');
   }
 };
 

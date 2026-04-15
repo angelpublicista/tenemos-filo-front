@@ -21,7 +21,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { getOpportunitiesByHost, deleteOpportunity } from '@/lib/sanity/opportunityService';
 import { Opportunity, OpportunityFilters } from '@/types';
-import Loader from '@/components/Loader';
+import { SkeletonTableRow } from '@/components/Skeleton';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 
 // Tipo extendido para oportunidad con propiedades expandidas
@@ -227,7 +227,15 @@ export default function OportunidadesPage() {
 
         {/* Tabla de Oportunidades */}
         {isLoading ? (
-          <Loader message="Cargando oportunidades..." />
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left text-gray-500">
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => <SkeletonTableRow key={i} cols={8} />)}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         ) : (
           <Card>
             {opportunities.length === 0 ? (

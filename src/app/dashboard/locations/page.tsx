@@ -9,6 +9,7 @@ import { Location } from '@/types';
 import { BiMap, BiBuilding } from 'react-icons/bi';
 import { HiExclamationCircle } from 'react-icons/hi';
 import Loader from '@/components/Loader';
+import { SkeletonCard } from '@/components/Skeleton';
 import Link from 'next/link';
 
 export default function LocationsPage() {
@@ -50,13 +51,6 @@ export default function LocationsPage() {
     }
   }, [sanityUser?.companyId, loadLocations]);
 
-  if (loading) {
-    return (
-      <ProtectedRoute>
-        <Loader message="Cargando información..." />
-      </ProtectedRoute>
-    );
-  }
 
   // Si no hay usuario, mostrar mensaje de carga o error
   if (!sanityUser) {
@@ -118,7 +112,11 @@ export default function LocationsPage() {
           </p>
         </div>
 
-        {!loading && locations.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : locations.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <BiMap className="mx-auto text-6xl text-gray-300 mb-4" />
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -143,7 +141,7 @@ export default function LocationsPage() {
               </div>
             </div>
           </div>
-        ) : !loading && locations.length > 0 ? (
+        ) : locations.length > 0 ? (
           <LocationManager
             locations={locations}
             onLocationsChange={setLocations}

@@ -6,8 +6,6 @@ interface FiloLogoProps {
 
 export default function FiloLogo({ className }: FiloLogoProps) {
   return (
-    <div className={className}>
-        <img className='w-full' src={Logo.src} alt="Filo Logo" />
-    </div>
+    <img className={`block ${className ?? ''}`} src={Logo.src} alt="Filo Logo" />
   )
 }

@@ -13,6 +13,7 @@ import {
   generateDefaultSchedule 
 } from '@/lib/sanity/availabilityService';
 import { UpdateExperienceData, Company, Location, AvailabilitySchedule, Experience } from '@/types';
+import LocationModal from '@/components/LocationModal';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
 import { 
   HiArrowLeft, 
@@ -63,6 +64,7 @@ export default function EditExperiencePage() {
   const [addons, setAddons] = useState<Array<{name: string, price: number, priceType: 'per_person' | 'total', description: string}>>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [availableSchedules, setAvailableSchedules] = useState<AvailabilitySchedule[]>([]);
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
   const [showCustomSchedule, setShowCustomSchedule] = useState(false);
@@ -748,10 +750,14 @@ export default function EditExperiencePage() {
                       ))
                     ) : (
                       <p className="text-sm text-gray-500">
-                        No tienes sedes registradas. 
-                        <a href="/dashboard/locations" className="text-[#F26726] hover:underline ml-1">
+                        No tienes sedes registradas.{' '}
+                        <button
+                          type="button"
+                          onClick={() => setShowLocationModal(true)}
+                          className="text-[#F26726] hover:underline font-medium"
+                        >
                           Crear una sede
-                        </a>
+                        </button>
                       </p>
                     )}
                   </div>
@@ -1087,6 +1093,19 @@ export default function EditExperiencePage() {
           </Button>
         </div>
       </form>
+
+      {showLocationModal && company && (
+        <LocationModal
+          location={null}
+          companyId={company._id}
+          existingLocations={locations}
+          onClose={() => setShowLocationModal(false)}
+          onSave={(updatedLocations) => {
+            setLocations(updatedLocations);
+            setShowLocationModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

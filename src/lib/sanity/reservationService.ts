@@ -596,3 +596,69 @@ export const createReservationManually = async (data: CreateManualReservationDat
     throw new Error('Error al crear la reserva manual. Por favor verifica los datos e intenta nuevamente.');
   }
 };
+
+// ─── Motor de reservas público ────────────────────────────────────────────────
+
+export interface CreatePublicReservationData {
+  experience: string;       // Experience ID
+  location?: string;        // Location ID (opcional para virtuales)
+  reservationDate: string;  // ISO datetime string
+  participants: number;
+  specialRequests?: string;
+  guestInfo: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+}
+
+export const createPublicReservation = async (data: CreatePublicReservationData): Promise<{ reservationNumber: string }> => {
+  const experienceQuery = `*[_type == "experience" && _id == $experienceId][0]{
+    _id, title, basePrice, currency, duration, company
+  }`;
+  const experience = await sanityClient.fetch(experienceQuery, { experienceId: data.experience });
+
+  if (!experience) throw new Error('Experiencia no encontrada');
+  if (!experience.company?._ref) throw new Error('La experiencia no tiene empresa asociada');
+
+  const totalPrice = experience.basePrice * data.participants;
+  const reservationNumber = generateReservationNumber();
+
+  const doc = {
+    _type: 'reservation',
+    reservationNumber,
+    experience: { _ref: data.experience, _type: 'reference' },
+    company: { _ref: experience.company._ref, _type: 'reference' },
+    ...(data.location ? { location: { _ref: data.location, _type: 'reference' } } : {}),
+    clientType: 'guest',
+    source: 'booking_engine',
+    clientInfo: {
+      name: data.guestInfo.name,
+      email: data.guestInfo.email,
+      phone: data.guestInfo.phone,
+    },
+    reservationDate: data.reservationDate,
+    duration: experience.duration,
+    participants: data.participants,
+    status: 'pending',
+    paymentStatus: 'pending',
+    pricing: {
+      basePrice: experience.basePrice,
+      subtotal: totalPrice,
+      addons: [],
+      addonsTotal: 0,
+      discount: 0,
+      tax: 0,
+      commission: 0,
+      total: totalPrice,
+      hostEarnings: totalPrice,
+    },
+    specialRequirements: data.specialRequests || '',
+    notes: 'Reserva realizada desde el motor de reservas público.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await sanityClient.create(doc);
+  return { reservationNumber };
+};

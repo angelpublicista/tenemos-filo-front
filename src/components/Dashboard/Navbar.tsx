@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/firebase/AuthContext";
 import FiloLogo from "@/components/FiloLogo";
 import { useState } from "react";
 import { HiPlus } from "react-icons/hi";
+import NotificationBell from "@/components/Notifications/NotificationBell";
 
 export default function Navbar() {
   const { user, sanityUser, logout } = useAuth();
@@ -42,7 +43,7 @@ export default function Navbar() {
   return (
     <FlowbiteNavbar fluid={true} className="bg-white border-b border-gray-200">
       <NavbarBrand href="/dashboard">
-        <FiloLogo className="w-22" />
+        <FiloLogo className="h-8 w-auto" />
       </NavbarBrand>
       
       <NavbarToggle />
@@ -75,6 +76,7 @@ export default function Navbar() {
         )}
         
         <div className="flex items-center gap-3 ml-4">
+          <NotificationBell />
           <Dropdown
             label={
               <Avatar

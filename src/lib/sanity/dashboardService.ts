@@ -50,7 +50,12 @@ interface PaymentData {
 export const getDashboardStats = async (companyId: string): Promise<DashboardStats> => {
   try {
     // Contar experiencias activas
-    const activeExperiencesQuery = `count(*[_type == "experience" && company._ref == $companyId && isActive == true])`;
+    const activeExperiencesQuery = `count(*[
+      _type == "experience" &&
+      !(_id in path("drafts.**")) &&
+      company._ref == $companyId &&
+      status == "active"
+    ])`;
     const activeExperiences = await sanityClient.fetch(activeExperiencesQuery, { companyId });
 
     // Contar reservas pendientes

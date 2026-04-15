@@ -4,12 +4,6 @@ export const metadata: Metadata = {
   title: 'Reservar experiencia | Tenemos Filo',
 };
 
-export default function BookingLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: { companyId: string };
-}) {
+export default function BookingLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

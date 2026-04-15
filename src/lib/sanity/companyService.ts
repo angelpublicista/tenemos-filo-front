@@ -91,6 +91,51 @@ export const getCompanyById = async (companyId: string): Promise<Company | null>
   }
 };
 
+export interface UpdateCompanyData {
+  companyName?: string;
+  businessName?: string;
+  description?: string;
+  companyType?: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  companyEmail?: string;
+  companyPhone?: string;
+  documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
+  documentNumber?: string;
+  website?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  employeeCount?: '1-10' | '11-50' | '51-200' | '201-500' | '500+';
+  annualRevenue?: '0-100k' | '100k-500k' | '500k-1M' | '1M-5M' | '5M+';
+  businessYears?: '0-1' | '1-3' | '3-5' | '5-10' | '10+';
+}
+
+export const updateCompanyInSanity = async (companyId: string, data: UpdateCompanyData): Promise<Company> => {
+  try {
+    const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    (Object.keys(data) as (keyof UpdateCompanyData)[]).forEach(key => {
+      const value = data[key];
+      if (value !== undefined) patch[key] = value;
+    });
+
+    if (data.companyName) {
+      patch.slug = {
+        _type: 'slug',
+        current: data.companyName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+      };
+    }
+
+    const result = await sanityClient.patch(companyId).set(patch).commit();
+    return result as unknown as Company;
+  } catch (error) {
+    console.error('Error updating company in Sanity:', error);
+    throw new Error('Failed to update company in Sanity');
+  }
+};
+
 export const updateCompanyLocations = async (companyId: string, locationIds: string[]) => {
   try {
     const locationRefs = locationIds.map(id => ({

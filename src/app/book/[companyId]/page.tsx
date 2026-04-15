@@ -27,6 +27,13 @@ export interface BookingExperience extends Omit<Experience, 'locations' | 'avail
   locations?: Array<{ _id: string; name: string; address?: BookingLocationAddress | string; isMain?: boolean }>;
 }
 
+export interface SelectedAddon {
+  name: string;
+  price: number;
+  quantity: number;
+  priceType: 'per_person' | 'total';
+}
+
 export interface BookingData {
   experience: BookingExperience;
   date: Date;
@@ -34,6 +41,7 @@ export interface BookingData {
   participants: number;
   locationId?: string;
   locationName?: string;
+  selectedAddons?: SelectedAddon[];
   guestInfo: {
     name: string;
     email: string;
@@ -116,8 +124,15 @@ function BookingPageInner() {
     setStep('datetime');
   };
 
-  const handleDateTimeNext = (date: Date, time: string, participants: number, locationId?: string, locationName?: string) => {
-    setBooking(prev => ({ ...prev, date, time, participants, locationId, locationName }));
+  const handleDateTimeNext = (
+    date: Date,
+    time: string,
+    participants: number,
+    locationId?: string,
+    locationName?: string,
+    selectedAddons?: SelectedAddon[],
+  ) => {
+    setBooking(prev => ({ ...prev, date, time, participants, locationId, locationName, selectedAddons }));
     setStep('contact');
   };
 
@@ -140,6 +155,7 @@ function BookingPageInner() {
         reservationDate: reservationDate.toISOString(),
         participants: booking.participants,
         specialRequests: booking.guestInfo.notes,
+        selectedAddons: booking.selectedAddons?.map(a => ({ name: a.name, price: a.price, quantity: a.quantity })),
         guestInfo: {
           name: booking.guestInfo.name,
           email: booking.guestInfo.email,

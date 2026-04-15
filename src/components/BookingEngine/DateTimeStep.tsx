@@ -4,8 +4,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import CalendarPicker from '@/components/CalendarPicker';
 import TimePicker from '@/components/TimePicker';
 import { HiArrowLeft, HiArrowRight, HiUsers } from 'react-icons/hi';
-import type { BookingExperience, BookingLocationAddress } from '@/app/book/[companyId]/page';
+import type { BookingExperience, BookingLocationAddress, SelectedAddon } from '@/app/book/[companyId]/page';
 import type { AvailabilitySchedule } from '@/types';
+
+function formatPrice(price: number, currency: string) {
+  return price.toLocaleString('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 });
+}
 
 function formatAddress(address: BookingLocationAddress | string | undefined): string {
   if (!address) return '';
@@ -58,7 +62,7 @@ function isDateBlocked(date: Date, schedules: AvailabilitySchedule[]): boolean {
 
 interface Props {
   experience: BookingExperience;
-  onNext: (date: Date, time: string, participants: number, locationId?: string, locationName?: string) => void;
+  onNext: (date: Date, time: string, participants: number, locationId?: string, locationName?: string, selectedAddons?: SelectedAddon[]) => void;
   onBack: () => void;
 }
 
@@ -68,6 +72,12 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   const [participants, setParticipants] = useState(experience.minCapacity ?? 1);
   const [locationId, setLocationId] = useState<string | undefined>(undefined);
   const [slots, setSlots] = useState<string[]>([]);
+  const [selectedAddonKeys, setSelectedAddonKeys] = useState<Set<string>>(new Set());
+
+  const availableAddons = useMemo(
+    () => (experience.addons ?? []).filter(a => a.name && typeof a.price === 'number'),
+    [experience.addons]
+  );
 
   const schedules = useMemo(
     () => (experience.availabilitySchedules ?? []) as AvailabilitySchedule[],
@@ -96,10 +106,27 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   const canContinue = !!date && !!time && participants >= (experience.minCapacity ?? 1) &&
     (!isPresential || !hasLocations || !!locationId);
 
+  const buildSelectedAddons = (): SelectedAddon[] => {
+    return availableAddons
+      .filter(a => selectedAddonKeys.has(a._key))
+      .map(a => ({
+        name: a.name,
+        price: a.price,
+        priceType: a.priceType,
+        quantity: a.priceType === 'per_person' ? participants : 1,
+      }));
+  };
+
+  const currentAddons = buildSelectedAddons();
+  const baseSubtotal = (experience.basePrice ?? 0) * participants;
+  const addonsSubtotal = currentAddons.reduce((sum, a) => sum + a.price * a.quantity, 0);
+  const runningTotal = baseSubtotal + addonsSubtotal;
+  const currency = experience.currency ?? 'COP';
+
   const handleNext = () => {
     if (!date || !time) return;
     const loc = locations.find(l => l._id === locationId);
-    onNext(date, time, participants, locationId, loc?.name);
+    onNext(date, time, participants, locationId, loc?.name, buildSelectedAddons());
   };
 
   return (
@@ -175,6 +202,72 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
           </div>
         </div>
 
+        {/* Adiciones */}
+        {availableAddons.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2.5">
+              Adiciones <span className="text-xs font-normal text-gray-400">(opcional)</span>
+            </label>
+            <div className="space-y-2">
+              {availableAddons.map(addon => {
+                const checked = selectedAddonKeys.has(addon._key);
+                const unitLabel = addon.priceType === 'per_person' ? '/persona' : '';
+                const lineTotal = addon.priceType === 'per_person'
+                  ? addon.price * participants
+                  : addon.price;
+                return (
+                  <button
+                    key={addon._key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAddonKeys(prev => {
+                        const next = new Set(prev);
+                        if (next.has(addon._key)) next.delete(addon._key);
+                        else next.add(addon._key);
+                        return next;
+                      });
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
+                      checked
+                        ? 'border-[#F26726] bg-orange-50'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                        checked ? 'border-[#F26726] bg-[#F26726]' : 'border-gray-300 bg-white'
+                      }`}>
+                        {checked && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm font-medium text-gray-900">{addon.name}</p>
+                          <span className="text-sm font-semibold text-[#334C5D] shrink-0">
+                            {formatPrice(addon.price, experience.currency)}
+                            <span className="text-xs text-gray-400 font-normal ml-0.5">{unitLabel}</span>
+                          </span>
+                        </div>
+                        {addon.description && (
+                          <p className="text-xs text-gray-500 mt-0.5">{addon.description}</p>
+                        )}
+                        {checked && addon.priceType === 'per_person' && participants > 1 && (
+                          <p className="text-xs text-[#F26726] font-medium mt-1">
+                            {participants} × {formatPrice(addon.price, experience.currency)} = {formatPrice(lineTotal, experience.currency)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Sede */}
         {isPresential && (
           <div>
@@ -211,7 +304,37 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
         )}
       </div>
 
-      <div className="mt-7 pt-6 border-t border-gray-100">
+      <div className="mt-7 pt-6 border-t border-gray-100 space-y-4">
+        {experience.basePrice != null && (
+          <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">
+                {formatPrice(experience.basePrice, currency)} × {participants} persona{participants > 1 ? 's' : ''}
+              </span>
+              <span className="text-gray-700">{formatPrice(baseSubtotal, currency)}</span>
+            </div>
+            {currentAddons.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                {currentAddons.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500 truncate pr-2">
+                      {a.name}
+                      {a.priceType === 'per_person' && a.quantity > 1 && (
+                        <span className="text-gray-400"> ({a.quantity}×)</span>
+                      )}
+                    </span>
+                    <span className="text-gray-700 shrink-0">{formatPrice(a.price * a.quantity, currency)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-200">
+              <span className="text-sm font-semibold text-gray-900">Subtotal</span>
+              <span className="text-lg font-bold text-[#334C5D]">{formatPrice(runningTotal, currency)}</span>
+            </div>
+          </div>
+        )}
+
         <button
           onClick={handleNext}
           disabled={!canContinue}

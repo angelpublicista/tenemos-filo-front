@@ -18,8 +18,10 @@ interface Props {
 }
 
 export default function ConfirmationStep({ booking, submitting, onConfirm, onBack }: Props) {
-  const { experience, date, time, participants, locationName, guestInfo } = booking;
-  const total = experience.basePrice * participants;
+  const { experience, date, time, participants, locationName, selectedAddons, guestInfo } = booking;
+  const subtotal = experience.basePrice * participants;
+  const addonsTotal = selectedAddons?.reduce((sum, a) => sum + a.price * a.quantity, 0) ?? 0;
+  const total = subtotal + addonsTotal;
   const formattedDate = format(date, "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
 
   const rows = [
@@ -89,8 +91,24 @@ export default function ConfirmationStep({ booking, submitting, onConfirm, onBac
           <span className="text-sm text-gray-500">
             {formatPrice(experience.basePrice, experience.currency)} × {participants} persona{participants > 1 ? 's' : ''}
           </span>
-          <span className="text-sm text-gray-700">{formatPrice(total, experience.currency)}</span>
+          <span className="text-sm text-gray-700">{formatPrice(subtotal, experience.currency)}</span>
         </div>
+        {selectedAddons && selectedAddons.length > 0 && (
+          <div className="space-y-1.5 pt-2 mt-2 border-t border-gray-200">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Adiciones</p>
+            {selectedAddons.map((a, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">
+                  {a.name}
+                  {a.priceType === 'per_person' && a.quantity > 1 && (
+                    <span className="text-gray-400"> ({a.quantity} × {formatPrice(a.price, experience.currency)})</span>
+                  )}
+                </span>
+                <span className="text-sm text-gray-700">{formatPrice(a.price * a.quantity, experience.currency)}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-between border-t border-gray-200 pt-3 mt-3">
           <span className="text-sm font-bold text-gray-900">Total estimado</span>
           <span className="text-xl font-bold text-[#334C5D]">{formatPrice(total, experience.currency)}</span>

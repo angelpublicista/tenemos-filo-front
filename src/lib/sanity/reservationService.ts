@@ -605,6 +605,11 @@ export interface CreatePublicReservationData {
   reservationDate: string;  // ISO datetime string
   participants: number;
   specialRequests?: string;
+  selectedAddons?: Array<{
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
   guestInfo: {
     name: string;
     email: string;
@@ -621,7 +626,9 @@ export const createPublicReservation = async (data: CreatePublicReservationData)
   if (!experience) throw new Error('Experiencia no encontrada');
   if (!experience.company?._ref) throw new Error('La experiencia no tiene empresa asociada');
 
-  const totalPrice = experience.basePrice * data.participants;
+  const subtotal = experience.basePrice * data.participants;
+  const addonsTotal = data.selectedAddons?.reduce((sum, a) => sum + a.price * a.quantity, 0) ?? 0;
+  const total = subtotal + addonsTotal;
   const reservationNumber = generateReservationNumber();
 
   const doc = {
@@ -644,14 +651,14 @@ export const createPublicReservation = async (data: CreatePublicReservationData)
     paymentStatus: 'pending',
     pricing: {
       basePrice: experience.basePrice,
-      subtotal: totalPrice,
-      addons: [],
-      addonsTotal: 0,
+      subtotal,
+      addons: data.selectedAddons ?? [],
+      addonsTotal,
       discount: 0,
       tax: 0,
       commission: 0,
-      total: totalPrice,
-      hostEarnings: totalPrice,
+      total,
+      hostEarnings: total,
     },
     specialRequirements: data.specialRequests || '',
     notes: 'Reserva realizada desde el motor de reservas público.',

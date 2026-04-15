@@ -287,6 +287,11 @@ export const getActiveExperiencesByCompany = async (companyId: string): Promise<
       basePrice,
       currency,
       "featuredImage": coalesce(featuredImage.asset._ref, null),
+      "gallery": gallery[]{
+        "assetId": asset._ref,
+        alt,
+        caption
+      },
       images,
       "locations": locations[]->{
         _id,
@@ -320,10 +325,6 @@ export const getActiveExperiencesByCompany = async (companyId: string): Promise<
     }`;
 
     const experiences = await sanityClient.fetch(query, { companyId });
-    console.log('[getActiveExperiencesByCompany] companyId:', companyId, 'count:', experiences?.length ?? 0);
-    if (experiences?.length) {
-      console.log('[getActiveExperiencesByCompany] featuredImage refs:', experiences.map((e: { _id: string; title: string; featuredImage?: unknown }) => ({ id: e._id, title: e.title, featuredImage: e.featuredImage })));
-    }
     return experiences;
   } catch (error) {
     console.error('Error fetching active experiences by company:', error);

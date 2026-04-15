@@ -1,8 +1,9 @@
 "use client";
 
-import React from 'react';
+import { useState } from 'react';
 import { HiClock, HiUsers, HiLocationMarker, HiVideoCamera } from 'react-icons/hi';
 import type { BookingExperience } from '@/app/book/[companyId]/page';
+import ExperienceDetailModal from './ExperienceDetailModal';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -44,7 +45,8 @@ interface Props {
 }
 
 export default function ExperienceList({ experiences, onSelect }: Props) {
-  console.log('[ExperienceList] count:', experiences.length, 'data:', experiences);
+  const [detailExp, setDetailExp] = useState<BookingExperience | null>(null);
+
   if (experiences.length === 0) {
     return (
       <div className="text-center py-16">
@@ -54,6 +56,7 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
   }
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
       {experiences.map((exp) => {
         const img = getImageUrl(exp);
@@ -134,19 +137,27 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 mt-5 pt-4 border-t border-gray-100">
+                <div className="mt-5 pt-4 border-t border-gray-100 space-y-3">
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">Precio por persona</p>
                     <p className="text-xl font-bold text-[#334C5D]">
                       {exp.basePrice != null && exp.currency ? formatPrice(exp.basePrice, exp.currency) : 'Consultar'}
                     </p>
                   </div>
-                  <button
-                    onClick={() => onSelect(exp)}
-                    className="px-5 py-2.5 bg-[#F26726] hover:bg-[#d9571f] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
-                  >
-                    Reservar
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDetailExp(exp)}
+                      className="flex-1 px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors"
+                    >
+                      Ver más
+                    </button>
+                    <button
+                      onClick={() => onSelect(exp)}
+                      className="flex-1 px-4 py-2.5 bg-[#F26726] hover:bg-[#d9571f] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                    >
+                      Reservar
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -154,5 +165,17 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
         );
       })}
     </div>
+
+    {detailExp && (
+      <ExperienceDetailModal
+        experience={detailExp}
+        onClose={() => setDetailExp(null)}
+        onBook={(exp) => {
+          setDetailExp(null);
+          onSelect(exp);
+        }}
+      />
+    )}
+    </>
   );
 }

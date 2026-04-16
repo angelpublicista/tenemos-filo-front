@@ -297,6 +297,10 @@ export interface Experience {
     priceType: 'per_person' | 'total';
     description?: string;
   }>;
+  startDate?: string;   // ISO date string (YYYY-MM-DD), opcional
+  endDate?: string;     // ISO date string (YYYY-MM-DD), opcional
+  startTime?: string;   // HH:mm, opcional
+  endTime?: string;     // HH:mm, opcional
   status: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
   isFeatured: boolean;
   rating?: number;
@@ -344,6 +348,10 @@ export interface CreateExperienceData {
     priceType: 'per_person' | 'total';
     description?: string;
   }>;
+  startDate?: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
   status?: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
   isFeatured?: boolean;
 }
@@ -664,11 +672,15 @@ export interface AvailabilitySchedule {
   _id: string;
   _type: 'availability';
   name: string; // Nombre del calendario (ej: "Horario Verano 2025")
-  location: {
+  location?: {
     _ref: string;
     _type: 'reference';
   };
-  isMain: boolean; // Si es el calendario principal de la sede
+  experience?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  isMain: boolean; // Si es el calendario principal de la sede/experiencia
   isActive: boolean; // Si este calendario está activo
   description?: string;
   weeklySchedule: WeeklySchedule;
@@ -682,7 +694,8 @@ export interface AvailabilitySchedule {
 
 export interface CreateAvailabilityScheduleData {
   name: string;
-  location: string; // location ID
+  location?: string; // location ID (opcional si se usa experience)
+  experience?: string; // experience ID (opcional si se usa location)
   isMain?: boolean;
   isActive?: boolean;
   description?: string;

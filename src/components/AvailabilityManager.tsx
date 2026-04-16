@@ -1,17 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  AvailabilitySchedule, 
-  DaySchedule, 
-  TimeSlot, 
+import {
+  AvailabilitySchedule,
+  DaySchedule,
+  TimeSlot,
   BlockedDate,
   DayOfWeek,
   Location,
+  Experience,
   WeeklySchedule
 } from '@/types';
 import {
   getAvailabilitySchedulesByLocation,
+  getAvailabilitySchedulesByExperience,
   createAvailabilitySchedule,
   updateAvailabilitySchedule,
   deleteAvailabilitySchedule,
@@ -19,118 +21,20 @@ import {
   generateDefaultSchedule
 } from '@/lib/sanity/availabilityService';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
-import { 
-  AiOutlinePlus, 
-  AiOutlineEdit, 
-  AiOutlineDelete, 
+import {
+  AiOutlinePlus,
+  AiOutlineEdit,
+  AiOutlineDelete,
   AiOutlineStar,
   AiOutlineCheck,
-  AiOutlineClose 
+  AiOutlineClose
 } from 'react-icons/ai';
 import { BiCalendar, BiTime } from 'react-icons/bi';
 import Loader from '@/components/Loader';
 
-interface AvailabilityManagerProps {
-  location: Location;
-  companyId: string;
-}
-
-// Datos de ejemplo para calendarios de disponibilidad
-const generateMockSchedules = (locationId: string, companyId: string): AvailabilitySchedule[] => {
-  const baseSchedule = generateDefaultSchedule();
-  
-  return [
-    {
-      _id: `schedule-${locationId}-1`,
-      _type: 'availability',
-      name: 'Horario Principal',
-      location: { _ref: locationId, _type: 'reference' },
-      isActive: true,
-      isMain: true,
-      description: 'Horario estándar de operación',
-      weeklySchedule: baseSchedule,
-      blockedDates: [
-        {
-          date: '2025-12-25',
-          reason: 'other',
-          description: 'Navidad',
-        },
-        {
-          date: '2025-01-01',
-          reason: 'other',
-          description: 'Año Nuevo',
-        },
-      ],
-      bufferTime: 15,
-      minimumNotice: 24,
-      notes: 'Horario estándar de operación',
-      createdAt: '2025-01-01T00:00:00Z',
-      updatedAt: '2025-01-01T00:00:00Z',
-    },
-    {
-      _id: `schedule-${locationId}-2`,
-      _type: 'availability',
-      name: 'Horario de Verano',
-      location: { _ref: locationId, _type: 'reference' },
-      isActive: false,
-      isMain: false,
-      description: 'Horario extendido para la temporada de verano',
-      weeklySchedule: {
-        monday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        tuesday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        wednesday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        thursday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        friday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        saturday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '10:00', endTime: '18:00' },
-          ],
-        },
-        sunday: {
-          isActive: false,
-          timeSlots: [],
-        },
-      },
-      blockedDates: [],
-      bufferTime: 30,
-      minimumNotice: 48,
-      notes: 'Horario extendido para la temporada de verano',
-      createdAt: '2025-02-01T00:00:00Z',
-      updatedAt: '2025-02-15T00:00:00Z',
-    },
-  ];
-};
+type AvailabilityManagerProps =
+  | { mode: 'location'; location: Location; companyId: string }
+  | { mode: 'experience'; experience: Experience; companyId: string };
 
 const dayNames: Record<DayOfWeek, string> = {
   monday: 'Lunes',
@@ -142,31 +46,33 @@ const dayNames: Record<DayOfWeek, string> = {
   sunday: 'Domingo',
 };
 
-// Orden correcto de los días de la semana
 const daysOrder: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, companyId }) => {
+const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
   const [schedules, setSchedules] = useState<AvailabilitySchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<AvailabilitySchedule | null>(null);
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
 
+  const contextId = props.mode === 'location' ? props.location._id : props.experience._id;
+  const contextLabel = props.mode === 'location' ? props.location.name : props.experience.title;
+
   useEffect(() => {
     loadSchedules();
-  }, [location._id]);
+  }, [contextId]);
 
   const loadSchedules = async () => {
     try {
       setLoading(true);
-      const data = await getAvailabilitySchedulesByLocation(location._id);
+      const data = props.mode === 'location'
+        ? await getAvailabilitySchedulesByLocation(props.location._id)
+        : await getAvailabilitySchedulesByExperience(props.experience._id);
       setSchedules(data);
     } catch (error) {
       showError('Error al cargar los calendarios de disponibilidad');
       console.error(error);
-      // Fallback a datos mock si hay error
-      const mockData = generateMockSchedules(location._id, companyId);
-      setSchedules(mockData);
+      setSchedules([]);
     } finally {
       setLoading(false);
     }
@@ -207,7 +113,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
   const handleSetPrimary = async (scheduleId: string) => {
     try {
       showLoading('Estableciendo como principal...');
-      await setPrimarySchedule(scheduleId, location._id);
+      await setPrimarySchedule(scheduleId, contextId, props.mode);
       hideLoading();
       await loadSchedules();
       showSuccess('Calendario establecido como principal');
@@ -228,8 +134,8 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
       hideLoading();
       await loadSchedules();
       showSuccess(
-        schedule.isActive 
-          ? 'Calendario desactivado exitosamente' 
+        schedule.isActive
+          ? 'Calendario desactivado exitosamente'
           : 'Calendario activado exitosamente'
       );
     } catch (error) {
@@ -252,7 +158,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
             Calendarios de Disponibilidad
           </h3>
           <p className="text-sm text-gray-600 mt-1">
-            Gestiona los horarios de disponibilidad para {location.name}
+            Gestiona los horarios de disponibilidad para {contextLabel}
           </p>
         </div>
         <button
@@ -272,7 +178,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
             No hay calendarios de disponibilidad
           </h3>
           <p className="text-gray-600 mb-4">
-            Crea tu primer calendario para definir los horarios disponibles de esta sede
+            Crea tu primer calendario para definir los horarios disponibles
           </p>
           <button
             onClick={handleCreateSchedule}
@@ -301,8 +207,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
       {showCreateModal && (
         <ScheduleModal
           schedule={editingSchedule}
-          locationId={location._id}
-          companyId={companyId}
+          contextId={contextId}
+          contextType={props.mode}
+          companyId={props.companyId}
           onClose={() => {
             setShowCreateModal(false);
             setEditingSchedule(null);
@@ -334,7 +241,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   onToggleActive,
 }) => {
   const activeDays = Object.values(schedule.weeklySchedule).filter(day => day.isActive);
-  
+
   return (
     <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
       <div className="p-6">
@@ -351,8 +258,8 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                 </span>
               )}
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                schedule.isActive 
-                  ? 'bg-green-100 text-green-800' 
+                schedule.isActive
+                  ? 'bg-green-100 text-green-800'
                   : 'bg-gray-100 text-gray-800'
               }`}>
                 {schedule.isActive ? 'Activo' : 'Inactivo'}
@@ -413,8 +320,8 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
               <div
                 key={dayKey}
                 className={`text-center p-2 rounded ${
-                  day.isActive 
-                    ? 'bg-green-50 border border-green-200' 
+                  day.isActive
+                    ? 'bg-green-50 border border-green-200'
                     : 'bg-gray-50 border border-gray-200'
                 }`}
               >
@@ -434,7 +341,6 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           </div>
         </div>
 
-        {/* Additional Info */}
         {(schedule.description || schedule.notes) && (
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
             {schedule.description && (
@@ -452,7 +358,8 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
 
 interface ScheduleModalProps {
   schedule: AvailabilitySchedule | null;
-  locationId: string;
+  contextId: string;
+  contextType: 'location' | 'experience';
   companyId: string;
   onClose: () => void;
   onSave: () => void;
@@ -460,8 +367,8 @@ interface ScheduleModalProps {
 
 const ScheduleModal: React.FC<ScheduleModalProps> = ({
   schedule,
-  locationId,
-  companyId,
+  contextId,
+  contextType,
   onClose,
   onSave,
 }) => {
@@ -487,9 +394,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
     try {
       setSaving(true);
-      
+
       if (schedule) {
-        // Update existing schedule
         await updateAvailabilitySchedule({
           _id: schedule._id,
           name,
@@ -502,10 +408,9 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
         });
         showSuccess('Calendario actualizado exitosamente');
       } else {
-        // Create new schedule
         await createAvailabilitySchedule({
           name,
-          location: locationId,
+          ...(contextType === 'location' ? { location: contextId } : { experience: contextId }),
           description,
           weeklySchedule,
           blockedDates,
@@ -515,7 +420,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
         });
         showSuccess('Calendario creado exitosamente');
       }
-      
+
       onSave();
     } catch (error) {
       showError('Error al guardar el calendario');
@@ -543,7 +448,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
         startTime: lastSlot ? lastSlot.endTime : '09:00',
         endTime: lastSlot ? '18:00' : '13:00',
       };
-      
+
       return {
         ...prev,
         [day]: {
@@ -574,7 +479,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
       ...prev,
       [day]: {
         ...prev[day],
-        timeSlots: prev[day].timeSlots.map((slot, index) => 
+        timeSlots: prev[day].timeSlots.map((slot, index) =>
           index === slotIndex ? { ...slot, [field]: value } : slot
         ),
       },
@@ -653,7 +558,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                       </button>
                     )}
                   </div>
-                  
+
                   {day.isActive && (
                     <div className="space-y-2 ml-8">
                       {day.timeSlots.map((slot: TimeSlot, slotIndex: number) => (
@@ -763,4 +668,3 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
 };
 
 export default AvailabilityManager;
-

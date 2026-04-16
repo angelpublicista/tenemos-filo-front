@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/lib/firebase/AuthContext';
-import { createExperienceInSanity } from '@/lib/sanity/experienceService';
+import { createExperienceInSanity, updateExperienceInSanity } from '@/lib/sanity/experienceService';
 import { getCompanyByUserId } from '@/lib/sanity/companyService';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { 
@@ -59,6 +59,10 @@ export default function CreateExperiencePage() {
   const [requirements, setRequirements] = useState<string[]>(['']);
   const [includes, setIncludes] = useState<string[]>(['']);
   const [addons, setAddons] = useState<Array<{name: string, price: number, priceType: 'per_person' | 'total', description: string}>>([]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -67,6 +71,7 @@ export default function CreateExperiencePage() {
   const [showCustomSchedule, setShowCustomSchedule] = useState(false);
   const [customScheduleName, setCustomScheduleName] = useState('');
   const [customMinimumNotice, setCustomMinimumNotice] = useState(24);
+  const [availabilityMode, setAvailabilityMode] = useState<'location' | 'experience'>('location');
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -290,14 +295,13 @@ export default function CreateExperiencePage() {
     try {
       setIsLoading(true);
 
-      // eslint-disable-next-line prefer-const
+      // Calendarios a vincular (modo sede: se crean antes de la experiencia)
       let finalScheduleIds: string[] = [...selectedSchedules];
 
-      // Si necesita crear calendarios personalizados para las sedes sin calendario
-      if (showCustomSchedule && selectedLocations.length > 0 && finalScheduleIds.length === 0) {
+      // Modo sede: crear calendarios personalizados vinculados a la sede
+      if (availabilityMode === 'location' && showCustomSchedule && selectedLocations.length > 0 && finalScheduleIds.length === 0) {
         try {
           const scheduleName = customScheduleName || `Calendario - ${data.title}`;
-          // Crear un calendario para cada sede seleccionada
           for (const locationId of selectedLocations) {
             const newSchedule = await createAvailabilitySchedule({
               name: `${scheduleName} - ${locations.find(l => l._id === locationId)?.name || 'Sede'}`,
@@ -312,12 +316,11 @@ export default function CreateExperiencePage() {
             finalScheduleIds.push(newSchedule._id);
           }
         } catch (error) {
-          console.error('Error creating custom schedules:', error);
-          showError('Error al crear los calendarios personalizados. La experiencia se creará sin calendarios asociados.');
+          console.error('Error creating location schedules:', error);
+          showError('Error al crear los calendarios. La experiencia se creará sin calendarios asociados.');
         }
       }
 
-      // Validar datos adicionales
       const experienceData: CreateExperienceData = {
         ...data,
         categories: selectedCategories as ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[],
@@ -325,20 +328,45 @@ export default function CreateExperiencePage() {
         requirements: requirements.filter(req => req.trim() !== ''),
         includes: includes.filter(inc => inc.trim() !== ''),
         addons: addons.filter(addon => addon.name.trim() !== ''),
-        // Agregar referencias a las sedes seleccionadas (múltiples sedes)
         locations: selectedLocations.length > 0 ? selectedLocations : undefined,
-        // Agregar referencias a los calendarios seleccionados o recién creados (múltiples calendarios)
         availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
-        // Agregar imágenes
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        startTime: startTime || undefined,
+        endTime: endTime || undefined,
         featuredImage: featuredImageAssetId || undefined,
         gallery: galleryImages.length > 0 ? galleryImages : undefined,
       };
 
-      await createExperienceInSanity(experienceData);
-      
+      const newExperience = await createExperienceInSanity(experienceData);
+
+      // Modo experiencia: crear calendario vinculado a la experiencia recién creada
+      if (availabilityMode === 'experience' && newExperience?._id) {
+        try {
+          const scheduleName = customScheduleName || `Calendario - ${data.title}`;
+          const newSchedule = await createAvailabilitySchedule({
+            name: scheduleName,
+            experience: newExperience._id,
+            description: `Disponibilidad propia de la experiencia: ${data.title}`,
+            weeklySchedule: generateDefaultSchedule(),
+            blockedDates: [],
+            notes: 'Calendario generado automáticamente. Personaliza los horarios en la sección de Disponibilidad.',
+            bufferTime: 0,
+            minimumNotice: customMinimumNotice,
+          });
+          await updateExperienceInSanity({
+            _id: newExperience._id,
+            availabilities: [newSchedule._id],
+          });
+        } catch (error) {
+          console.error('Error creating experience schedule:', error);
+          // No bloqueamos: la experiencia ya fue creada
+        }
+      }
+
       showSuccess('Experiencia creada exitosamente');
       router.push('/dashboard/experiences');
     } catch (error) {
@@ -381,23 +409,24 @@ export default function CreateExperiencePage() {
   }
 
   return (
-    <div className="p-6">
+    <div>
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center mb-6">
+      <div className="mb-6">
+        <div className="flex items-start gap-3 mb-2">
           <Button
             color="gray"
             onClick={() => router.back()}
-            className="mr-4"
+            size="sm"
+            className="shrink-0 mt-0.5"
           >
-            <HiArrowLeft className="w-4 h-4 mr-2" />
-            Volver
+            <HiArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline ml-1">Volver</span>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-[#334C5D]">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#334C5D]">
               Crear Nueva Experiencia
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-600">
               Completa la información para crear tu experiencia gastronómica
             </p>
           </div>
@@ -440,7 +469,7 @@ export default function CreateExperiencePage() {
             <div className="lg:col-span-2">
               <Label>Categorías *</Label>
               <p className="text-sm text-gray-500 mb-3">Selecciona una o más categorías para tu experiencia</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {[
                   { value: 'cooking', label: 'Cocina' },
                   { value: 'mixology', label: 'Mixología' },
@@ -481,6 +510,71 @@ export default function CreateExperiencePage() {
               {errors.duration && (
                 <p className="text-red-500 text-sm mt-1">{errors.duration.message}</p>
               )}
+            </div>
+          </div>
+
+          {/* Fecha y hora (opcionales) */}
+          <div className="mt-6 pt-6 border-t border-gray-100">
+            <p className="text-sm font-medium text-gray-700 mb-1">Fecha y hora fijas <span className="text-gray-400 font-normal">(opcional)</span></p>
+            <p className="text-xs text-gray-500 mb-4">Útil para experiencias con fecha o turno específico. Déjalo vacío si la disponibilidad la controla el calendario.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="startDate">Fecha de inicio</Label>
+                <TextInput
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate">Fecha de fin</Label>
+                <TextInput
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  min={startDate || undefined}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="startTime">Hora de inicio</Label>
+                <select
+                  id="startTime"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-[#F26726] focus:ring-[#F26726]"
+                >
+                  <option value="">-- Sin hora --</option>
+                  {['06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30',
+                    '10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30',
+                    '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
+                    '18:00','18:30','19:00','19:30','20:00','20:30','21:00','21:30',
+                    '22:00','22:30','23:00','23:30'].map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="endTime">Hora de fin</Label>
+                <select
+                  id="endTime"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-[#F26726] focus:ring-[#F26726]"
+                >
+                  <option value="">-- Sin hora --</option>
+                  {['06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30',
+                    '10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30',
+                    '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
+                    '18:00','18:30','19:00','19:30','20:00','20:30','21:00','21:30',
+                    '22:00','22:30','23:00','23:30'].map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -659,72 +753,136 @@ export default function CreateExperiencePage() {
                 </div>
 
                 {selectedLocations.length > 0 && (
-                  <div>
-                    <Label>Calendarios de Disponibilidad * (Selecciona uno o más)</Label>
-                    <p className="text-sm text-gray-600 mb-2">
-                      Selecciona los calendarios que definirán la disponibilidad de esta experiencia
-                    </p>
-                    {availableSchedules.length > 0 ? (
-                      <div className="space-y-2">
-                        <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
-                          {availableSchedules.map((schedule) => {
-                            const locationName = locations.find(l => {
-                              const schedLocation = schedule.location as { _ref: string };
-                              return l._id === schedLocation?._ref;
-                            })?.name || 'Sede';
-                            
-                            return (
-                              <div key={schedule._id} className="flex items-center">
-                                <Checkbox
-                                  id={`schedule-${schedule._id}`}
-                                  checked={selectedSchedules.includes(schedule._id)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedSchedules(prev => [...prev, schedule._id]);
-                                    } else {
-                                      setSelectedSchedules(prev => prev.filter(id => id !== schedule._id));
-                                    }
-                                  }}
-                                  disabled={!schedule.isActive}
-                                  className="text-[#F26726] focus:ring-[#F26726]"
-                                />
-                                <Label htmlFor={`schedule-${schedule._id}`} className="ml-2 cursor-pointer">
-                                  {schedule.name}
-                                  {schedule.isMain && ' (Principal)'}
-                                  {!schedule.isActive && ' (Inactivo)'}
-                                  <span className="text-gray-500 text-sm ml-2">
-                                    - {locationName}
-                                  </span>
-                                </Label>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {selectedSchedules.length > 0 && (
-                          <p className="text-sm text-gray-600 mt-2">
-                            {selectedSchedules.length} calendario{selectedSchedules.length > 1 ? 's' : ''} seleccionado{selectedSchedules.length > 1 ? 's' : ''}
-                          </p>
-                        )}
+                  <div className="space-y-4">
+                    {/* Selector de modo de disponibilidad */}
+                    <div>
+                      <Label>Disponibilidad *</Label>
+                      <p className="text-sm text-gray-500 mb-3">
+                        ¿Cómo quieres definir los horarios de esta experiencia?
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <button
                           type="button"
-                          onClick={() => setShowCustomSchedule(!showCustomSchedule)}
-                          className="text-sm text-[#F26726] hover:underline font-medium mt-2"
+                          onClick={() => { setAvailabilityMode('location'); setShowCustomSchedule(false); }}
+                          className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
+                            availabilityMode === 'location'
+                              ? 'border-[#F26726] bg-orange-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
                         >
-                          {showCustomSchedule ? 'Ocultar' : 'Crear nuevo'} calendario personalizado
+                          <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                            availabilityMode === 'location' ? 'border-[#F26726]' : 'border-gray-400'
+                          }`}>
+                            {availabilityMode === 'location' && (
+                              <div className="w-2 h-2 rounded-full bg-[#F26726]" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">Usar calendario de sede</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Esta experiencia comparte la disponibilidad configurada en la sede
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setAvailabilityMode('experience'); setSelectedSchedules([]); setShowCustomSchedule(true); }}
+                          className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
+                            availabilityMode === 'experience'
+                              ? 'border-[#F26726] bg-orange-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                            availabilityMode === 'experience' ? 'border-[#F26726]' : 'border-gray-400'
+                          }`}>
+                            {availabilityMode === 'experience' && (
+                              <div className="w-2 h-2 rounded-full bg-[#F26726]" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">Disponibilidad propia</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Esta experiencia tiene sus propios horarios, independientes de la sede
+                            </p>
+                          </div>
                         </button>
                       </div>
-                    ) : (
-                      <div className="mt-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800 mb-2">
-                          Las sedes seleccionadas no tienen calendarios de disponibilidad configurados.
+                    </div>
+
+                    {/* Modo sede: selector de calendarios */}
+                    {availabilityMode === 'location' && (
+                      <div>
+                        {availableSchedules.length > 0 ? (
+                          <div className="space-y-2">
+                            <div className="space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
+                              {availableSchedules.map((schedule) => {
+                                const locationName = locations.find(l => {
+                                  const schedLocation = schedule.location as { _ref: string };
+                                  return l._id === schedLocation?._ref;
+                                })?.name || 'Sede';
+                                return (
+                                  <div key={schedule._id} className="flex items-center">
+                                    <Checkbox
+                                      id={`schedule-${schedule._id}`}
+                                      checked={selectedSchedules.includes(schedule._id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedSchedules(prev => [...prev, schedule._id]);
+                                        } else {
+                                          setSelectedSchedules(prev => prev.filter(id => id !== schedule._id));
+                                        }
+                                      }}
+                                      disabled={!schedule.isActive}
+                                      className="text-[#F26726] focus:ring-[#F26726]"
+                                    />
+                                    <Label htmlFor={`schedule-${schedule._id}`} className="ml-2 cursor-pointer">
+                                      {schedule.name}
+                                      {schedule.isMain && ' (Principal)'}
+                                      {!schedule.isActive && ' (Inactivo)'}
+                                      <span className="text-gray-500 text-sm ml-2">- {locationName}</span>
+                                    </Label>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {selectedSchedules.length > 0 && (
+                              <p className="text-sm text-gray-600">
+                                {selectedSchedules.length} calendario{selectedSchedules.length > 1 ? 's' : ''} seleccionado{selectedSchedules.length > 1 ? 's' : ''}
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setShowCustomSchedule(!showCustomSchedule)}
+                              className="text-sm text-[#F26726] hover:underline font-medium"
+                            >
+                              {showCustomSchedule ? 'Ocultar' : 'Crear nuevo'} calendario para la sede
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-sm text-yellow-800 mb-2">
+                              Las sedes seleccionadas no tienen calendarios configurados.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setShowCustomSchedule(!showCustomSchedule)}
+                              className="text-sm text-[#F26726] hover:underline font-medium"
+                            >
+                              {showCustomSchedule ? 'Ocultar' : 'Configurar'} calendario para la sede
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Modo experiencia: mensaje informativo */}
+                    {availabilityMode === 'experience' && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          Se creará un calendario de disponibilidad propio para esta experiencia con horario estándar (lun–vie 9:00–17:00).
+                          Podrás personalizarlo desde <strong>Disponibilidad → Por Experiencia</strong> después de guardar.
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => setShowCustomSchedule(!showCustomSchedule)}
-                          className="text-sm text-[#F26726] hover:underline font-medium"
-                        >
-                          {showCustomSchedule ? 'Ocultar' : 'Configurar'} disponibilidad personalizada
-                        </button>
                       </div>
                     )}
                   </div>
@@ -734,19 +892,13 @@ export default function CreateExperiencePage() {
           </div>
         </div>
 
-        {/* Disponibilidad Personalizada */}
+        {/* Configuración básica del calendario (modo sede custom o modo experiencia) */}
         {(showCustomSchedule && selectedLocations.length > 0) && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
-              Configurar Disponibilidad Personalizada
+            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-4">
+              {availabilityMode === 'experience' ? 'Disponibilidad de la Experiencia' : 'Nuevo Calendario para la Sede'}
             </h2>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <p className="text-sm text-blue-800">
-                <strong>Nota:</strong> Se creará un calendario de disponibilidad específico para esta experiencia. 
-                Puedes configurar los horarios detallados después de crear la experiencia desde la sección de Disponibilidad.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Nombre del Calendario</Label>
                 <TextInput
@@ -771,9 +923,8 @@ export default function CreateExperiencePage() {
                 </p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mt-4">
-              El calendario se creará con un horario predeterminado de lunes a viernes de 9:00 AM a 5:00 PM. 
-              Podrás personalizarlo completamente desde la sección de Disponibilidad.
+            <p className="text-sm text-gray-500 mt-4">
+              Se creará con horario lun–vie 9:00–17:00 por defecto. Personalízalo desde <strong>Disponibilidad</strong> después de guardar.
             </p>
           </div>
         )}
@@ -889,7 +1040,7 @@ export default function CreateExperiencePage() {
                     <HiMinus className="w-4 h-4" />
                   </Button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <TextInput
                     value={addon.name}
                     onChange={(e) => updateAddon(index, 'name', e.target.value)}

@@ -7,19 +7,15 @@ import {
 } from '@/types';
 
 /**
- * Crea un nuevo calendario de disponibilidad para una sede
+ * Crea un nuevo calendario de disponibilidad para una sede o experiencia
  */
 export const createAvailabilitySchedule = async (
   data: CreateAvailabilityScheduleData
 ): Promise<AvailabilitySchedule> => {
   try {
     const doc = {
-      _type: 'availability',
+      _type: 'availability' as const,
       name: data.name,
-      location: {
-        _ref: data.location,
-        _type: 'reference',
-      },
       isMain: data.isMain ?? false,
       isActive: data.isActive ?? true,
       description: data.description,
@@ -30,6 +26,8 @@ export const createAvailabilitySchedule = async (
       blockedDates: data.blockedDates || [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      ...(data.location ? { location: { _ref: data.location, _type: 'reference' as const } } : {}),
+      ...(data.experience ? { experience: { _ref: data.experience, _type: 'reference' as const } } : {}),
     };
 
     const result = await sanityClient.create(doc);
@@ -138,6 +136,38 @@ export const getAvailabilitySchedulesByCompany = async (
 };
 
 /**
+ * Obtiene todos los calendarios de disponibilidad de una experiencia
+ */
+export const getAvailabilitySchedulesByExperience = async (
+  experienceId: string
+): Promise<AvailabilitySchedule[]> => {
+  try {
+    const query = `*[_type == "availability" && experience._ref == $experienceId] | order(isMain desc, createdAt desc) {
+      _id,
+      _type,
+      name,
+      experience,
+      location,
+      isMain,
+      isActive,
+      description,
+      weeklySchedule,
+      bufferTime,
+      minimumNotice,
+      notes,
+      blockedDates,
+      createdAt,
+      updatedAt
+    }`;
+    const schedules = await sanityClient.fetch(query, { experienceId });
+    return schedules;
+  } catch (error) {
+    console.error('Error fetching availability schedules by experience:', error);
+    throw new Error('Failed to fetch availability schedules');
+  }
+};
+
+/**
  * Actualiza un calendario de disponibilidad
  */
 export const updateAvailabilitySchedule = async (
@@ -181,17 +211,18 @@ export const deleteAvailabilitySchedule = async (scheduleId: string): Promise<vo
 };
 
 /**
- * Establece un calendario como principal para una sede
- * (desactiva los demás calendarios principales de la misma sede)
+ * Establece un calendario como principal para una sede o experiencia
+ * (desactiva los demás calendarios principales del mismo contexto)
  */
 export const setPrimarySchedule = async (
   scheduleId: string,
-  locationId: string
+  contextId: string,
+  contextType: 'location' | 'experience' = 'location'
 ): Promise<void> => {
   try {
-    // Primero, desactivar todos los calendarios principales de esta sede
-    const currentPrimaryQuery = `*[_type == "availability" && location._ref == $locationId && isMain == true]`;
-    const currentPrimary = await sanityClient.fetch(currentPrimaryQuery, { locationId });
+    const field = contextType === 'experience' ? 'experience._ref' : 'location._ref';
+    const currentPrimaryQuery = `*[_type == "availability" && ${field} == $contextId && isMain == true]`;
+    const currentPrimary = await sanityClient.fetch(currentPrimaryQuery, { contextId });
 
     if (currentPrimary && currentPrimary.length > 0) {
       const transaction = sanityClient.transaction();
@@ -201,7 +232,6 @@ export const setPrimarySchedule = async (
       await transaction.commit();
     }
 
-    // Luego, establecer el nuevo calendario como principal
     await sanityClient
       .patch(scheduleId)
       .set({ isMain: true, updatedAt: new Date().toISOString() })

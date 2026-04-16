@@ -25,7 +25,19 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const navigationItems = [
+  type NavItem =
+    | { type: 'section'; name: string }
+    | { type: 'divider' }
+    | {
+        type?: 'link';
+        name: string;
+        href: string;
+        icon: React.ComponentType<{ className?: string }>;
+        current: boolean;
+        enabled: boolean;
+      };
+
+  const navigationItems: NavItem[] = [
     {
       name: 'Dashboard',
       href: '/dashboard',
@@ -33,6 +45,22 @@ export default function Sidebar() {
       current: pathname === '/dashboard',
       enabled: true
     },
+    ...(sanityUser?.role === 'host' ? [
+      {
+        name: 'Mis Sedes',
+        href: '/dashboard/locations',
+        icon: BiMap,
+        current: pathname === '/dashboard/locations',
+        enabled: true
+      },
+      {
+        name: 'Disponibilidad',
+        href: '/dashboard/availability',
+        icon: AiOutlineClockCircle,
+        current: pathname === '/dashboard/availability',
+        enabled: true
+      }
+    ] as NavItem[] : []),
     {
       name: 'Mis Experiencias',
       href: '/dashboard/experiences',
@@ -47,18 +75,29 @@ export default function Sidebar() {
       current: pathname === '/dashboard/reservations',
       enabled: true
     },
+    { type: 'section', name: 'Herramientas' },
+    {
+      name: 'Motor de reservas',
+      href: '/dashboard/booking-link',
+      icon: AiOutlineShareAlt,
+      current: pathname === '/dashboard/booking-link',
+      enabled: true
+    },
+    ...(sanityUser?.role === 'host' ? [
+      {
+        name: 'CRM',
+        href: '/dashboard/crm',
+        icon: HiOutlineDocumentText,
+        current: pathname?.startsWith('/dashboard/crm') ?? false,
+        enabled: true
+      }
+    ] as NavItem[] : []),
+    { type: 'divider' },
     {
       name: 'Mi Perfil',
       href: '/dashboard/profile',
       icon: AiOutlineUser,
       current: pathname === '/dashboard/profile',
-      enabled: true
-    },
-    {
-      name: 'Integraciones',
-      href: '/dashboard/integrations',
-      icon: AiOutlineSetting,
-      current: pathname === '/dashboard/integrations',
       enabled: true
     },
     ...(sanityUser?.role === 'host' ? [
@@ -68,43 +107,8 @@ export default function Sidebar() {
         icon: BiStore,
         current: pathname === '/dashboard/company',
         enabled: true
-      },
-      {
-        name: 'Mis Sedes',
-        href: '/dashboard/locations',
-        icon: BiMap,
-        current: pathname === '/dashboard/locations',
-        enabled: true
-      },
-      {
-        name: 'Disponibilidad',
-        href: '/dashboard/availability',
-        icon: AiOutlineClockCircle,
-        current: pathname === '/dashboard/availability',
-        enabled: true
-      },
-      {
-        name: 'CRM',
-        href: '/dashboard/crm',
-        icon: HiOutlineDocumentText,
-        current: pathname?.startsWith('/dashboard/crm'),
-        enabled: true
       }
-    ] : []),
-    // {
-    //   name: 'Estadísticas',
-    //   href: '/analytics',
-    //   icon: AiOutlineBarChart,
-    //   current: pathname === '/analytics',
-    //   enabled: false
-    // },
-    {
-      name: 'Motor de reservas',
-      href: '/dashboard/booking-link',
-      icon: AiOutlineShareAlt,
-      current: pathname === '/dashboard/booking-link',
-      enabled: true
-    },
+    ] as NavItem[] : []),
     {
       name: 'Notificaciones',
       href: '/dashboard/notifications',
@@ -141,9 +145,37 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2">
-          {navigationItems.map((item) => {
+          {navigationItems.map((item, idx) => {
+            if (item.type === 'section') {
+              if (isCollapsed) {
+                return (
+                  <div
+                    key={`section-${item.name}`}
+                    className="my-2 border-t border-gray-200 dark:border-gray-700"
+                  />
+                );
+              }
+              return (
+                <div
+                  key={`section-${item.name}`}
+                  className="pt-3 pb-1 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"
+                >
+                  {item.name}
+                </div>
+              );
+            }
+
+            if (item.type === 'divider') {
+              return (
+                <div
+                  key={`divider-${idx}`}
+                  className="my-2 border-t border-gray-200 dark:border-gray-700"
+                />
+              );
+            }
+
             const Icon = item.icon;
-            
+
             if (!item.enabled) {
               return (
                 <div
@@ -158,7 +190,7 @@ export default function Sidebar() {
                 </div>
               );
             }
-            
+
             return (
               <Link
                 key={item.name}

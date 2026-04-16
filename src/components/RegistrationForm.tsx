@@ -237,12 +237,13 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
               color="white"
               type={showPassword ? "text" : "password"}
               placeholder="Contraseña"
-              {...form.register("password", { 
+              {...form.register("password", {
                 required: true,
                 minLength: {
                   value: 6,
                   message: "La contraseña debe tener al menos 6 caracteres"
-                }
+                },
+                deps: ["confirmPassword"]
               })}
             />
             <button

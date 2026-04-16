@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { HiCalendar, HiArrowRight } from "react-icons/hi";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/lib/firebase/AuthContext";
 import { getCompanyById, updateCompanyInSanity, type UpdateCompanyData } from "@/lib/sanity/companyService";
@@ -508,6 +510,38 @@ export default function SettingsPage() {
               />
             </div>
           </div>
+        </section>
+
+        {/* Integraciones */}
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-[#334C5D]">
+                Integraciones
+              </h2>
+              <p className="text-sm text-gray-500">
+                Conecta TenemosFilo con tus herramientas externas como calendarios y otras plataformas.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/dashboard/integrations"
+            className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 p-4 transition hover:border-[#F26726]/30 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-[#F26726]/10 p-2">
+                <HiCalendar className="h-5 w-5 text-[#F26726]" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#334C5D]">Integraciones de calendario</p>
+                <p className="text-sm text-gray-500">
+                  Sincroniza tu agenda con iCal, Google Calendar, Outlook y más.
+                </p>
+              </div>
+            </div>
+            <HiArrowRight className="h-5 w-5 shrink-0 text-gray-400" />
+          </Link>
         </section>
 
         {/* Notificaciones */}

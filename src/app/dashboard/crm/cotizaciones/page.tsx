@@ -102,12 +102,12 @@ export default function CotizacionesPage() {
     <ProtectedRoute>
       <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center mb-6">
+        <div className="mb-4">
+          <div className="flex items-center">
             <Button
               color="gray"
               onClick={() => router.push('/dashboard/crm')}
-              className="mr-4"
+              className="mr-3"
             >
               <HiArrowLeft className="w-4 h-4 mr-2" />
               Volver
@@ -116,7 +116,7 @@ export default function CotizacionesPage() {
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 Generar Cotización
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Busca experiencias disponibles y genera cotizaciones personalizadas
               </p>
             </div>
@@ -124,13 +124,13 @@ export default function CotizacionesPage() {
         </div>
 
         {/* Formulario de Búsqueda */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
             Datos del Evento
           </h2>
 
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <form onSubmit={handleSearch} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <Label htmlFor="date">Fecha del Evento *</Label>
                 <TextInput
@@ -196,9 +196,9 @@ export default function CotizacionesPage() {
         {isSearching && <Loader message="Buscando experiencias disponibles..." />}
 
         {hasSearched && !isSearching && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Resultados ({searchResults.length})
               </h2>
               {selectedExperiences.length > 0 && (

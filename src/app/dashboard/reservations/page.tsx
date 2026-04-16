@@ -940,13 +940,13 @@ export default function ReservationsPage() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div className="mb-6 lg:mb-0">
-            <h1 className="text-3xl font-bold text-[#334C5D] mb-2">
+          <div className="mb-3 lg:mb-0">
+            <h1 className="text-2xl font-bold text-[#334C5D]">
               Mis Reservas
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-600">
               Gestiona todas las reservas de tus experiencias gastronómicas
             </p>
           </div>
@@ -962,62 +962,60 @@ export default function ReservationsPage() {
 
       {/* Estadísticas */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
         </div>
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card className="p-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <Card className="p-3">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <HiCalendar className="w-6 h-6 text-blue-600" />
+              <HiCalendar className="w-5 h-5 text-blue-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Reservas</p>
-              <p className="text-2xl font-bold text-[#334C5D]">{stats.total}</p>
+            <div className="ml-3 min-w-0">
+              <p className="text-xs font-medium text-gray-600">Total</p>
+              <p className="text-xl font-bold text-[#334C5D] leading-tight">{stats.total}</p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card className="p-3">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
-              <HiCheckCircle className="w-6 h-6 text-green-600" />
+              <HiCheckCircle className="w-5 h-5 text-green-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Confirmadas</p>
-              <p className="text-2xl font-bold text-[#334C5D]">{stats.confirmed}</p>
+            <div className="ml-3 min-w-0">
+              <p className="text-xs font-medium text-gray-600">Confirmadas</p>
+              <p className="text-xl font-bold text-[#334C5D] leading-tight">{stats.confirmed}</p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card className="p-3">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-100 rounded-lg">
-              <HiExclamationCircle className="w-6 h-6 text-yellow-600" />
+              <HiExclamationCircle className="w-5 h-5 text-yellow-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Pendientes</p>
-              <p className="text-2xl font-bold text-[#334C5D]">{stats.pending}</p>
+            <div className="ml-3 min-w-0">
+              <p className="text-xs font-medium text-gray-600">Pendientes</p>
+              <p className="text-xl font-bold text-[#334C5D] leading-tight">{stats.pending}</p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card className="p-3">
           <div className="flex items-center">
             <div className="p-2 bg-purple-100 rounded-lg">
-              <HiCurrencyDollar className="w-6 h-6 text-purple-600" />
+              <HiCurrencyDollar className="w-5 h-5 text-purple-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Ingresos</p>
-              <p className="text-2xl font-bold text-[#334C5D]">{formatPrice(stats.totalRevenue)}</p>
+            <div className="ml-3 min-w-0">
+              <p className="text-xs font-medium text-gray-600">Ingresos</p>
+              <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{formatPrice(stats.totalRevenue)}</p>
             </div>
           </div>
         </Card>
       </div>
       )}
-
-      <hr className="my-8 border-gray-200" />
 
       {/* Filtros */}
       <div className="mb-4">
@@ -1117,14 +1115,14 @@ export default function ReservationsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredReservations.map((reservation) => (
                     <Card key={reservation._id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                      <div className="p-6">
+                      <div className="p-4">
                         {/* Header */}
-                        <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-[#334C5D] mb-2">
+                            <h3 className="text-base font-semibold text-[#334C5D] mb-1">
                               {reservation.reservationNumber}
                             </h3>
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-1">
                               <Badge color={getStatusColor(reservation.status)}>
                                 {getStatusText(reservation.status)}
                               </Badge>
@@ -1139,7 +1137,7 @@ export default function ReservationsPage() {
                         </div>
 
                         {/* Tipo de experiencia */}
-                        <div className="flex items-center mb-3">
+                        <div className="flex items-center mb-2">
                           {getExperienceType(reservation) === 'virtual' ? (
                             <HiVideoCamera className="w-4 h-4 mr-1 text-blue-500" />
                           ) : (
@@ -1152,8 +1150,8 @@ export default function ReservationsPage() {
                         </div>
 
                         {/* Cliente */}
-                        <div className="mb-4">
-                          <h4 className="text-sm font-medium text-gray-900 mb-2">Cliente</h4>
+                        <div className="mb-3">
+                          <h4 className="text-sm font-medium text-gray-900 mb-1">Cliente</h4>
                           <div className="space-y-1">
                             <div className="flex items-center text-sm text-gray-600">
                               <HiUsers className="w-4 h-4 mr-2" />
@@ -1171,7 +1169,7 @@ export default function ReservationsPage() {
                         </div>
 
                         {/* Detalles */}
-                        <div className="space-y-2 mb-4">
+                        <div className="space-y-1 mb-3">
                           <div className="flex items-center text-sm text-gray-600">
                             <HiCalendar className="w-4 h-4 mr-2" />
                             {reservation.reservationDate && formatDate(reservation.reservationDate)}
@@ -1188,7 +1186,7 @@ export default function ReservationsPage() {
 
                         {/* Servicios Adicionales */}
                         {reservation.pricing?.addons && reservation.pricing.addons.length > 0 && (
-                          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded-lg">
                             <h5 className="text-xs font-semibold text-[#334C5D] mb-2">Servicios Adicionales:</h5>
                             <div className="space-y-1">
                               {reservation.pricing.addons.map((addon, idx: number) => (
@@ -1202,17 +1200,17 @@ export default function ReservationsPage() {
                         )}
 
                         {/* Total */}
-                        <div className="pt-3 border-t border-gray-200">
+                        <div className="pt-2 border-t border-gray-200">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600 font-medium">Total:</span>
-                            <span className="text-lg font-bold text-[#F26726]">
+                            <span className="text-base font-bold text-[#F26726]">
                               {formatPrice(reservation.pricing?.total || 0)}
                             </span>
                           </div>
                         </div>
 
                         {/* Acciones */}
-                        <div className="pt-4 border-t border-gray-200 space-y-2">
+                        <div className="pt-3 mt-2 border-t border-gray-200 space-y-2">
                           <Button
                             color="gray"
                             size="sm"
@@ -1245,7 +1243,7 @@ export default function ReservationsPage() {
                 <div className="space-y-2">
                   {filteredReservations.map((reservation) => (
                     <Card key={reservation._id} className="overflow-hidden hover:shadow-md transition-shadow">
-                      <div className="p-4">
+                      <div className="p-3">
                         <div className="flex items-center justify-between">
                           {/* Información principal */}
                           <div className="flex-1 min-w-0">

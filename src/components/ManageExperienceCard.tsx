@@ -92,9 +92,9 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
   if (viewMode === 'grid') {
     return (
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-        <div className="p-6">
+        <div className="p-4">
           {/* Header */}
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-[#334C5D] mb-2 line-clamp-2">
                 {experience.title}
@@ -118,12 +118,12 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
           </div>
 
           {/* Descripción */}
-          <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+          <p className="text-gray-600 text-sm mb-3 line-clamp-2">
             {experience.description}
           </p>
 
           {/* Detalles */}
-          <div className="space-y-2 mb-4">
+          <div className="space-y-1.5 mb-3">
             <div className="flex items-center text-sm text-gray-600">
               <HiClock className="w-4 h-4 mr-2" />
               {formatDuration(experience.duration)}
@@ -140,13 +140,13 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
           </div>
 
           {/* Estadísticas */}
-          <div className="flex items-center justify-between text-sm text-gray-500 mb-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between text-xs text-gray-500 mb-3 pt-3 border-t border-gray-200">
             <span>{experience.totalBookings || 0} reservas</span>
             <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
           </div>
 
           {/* Acciones */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Button
                 color="gray"
@@ -191,7 +191,7 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
   // Vista Lista
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
-      <div className="p-4">
+      <div className="p-3">
         <div className="flex items-center justify-between">
           {/* Información principal */}
           <div className="flex-1 min-w-0">

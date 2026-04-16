@@ -155,13 +155,13 @@ export default function ContactosPage() {
     <ProtectedRoute>
       <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+        <div className="mb-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Button
                 color="gray"
                 onClick={() => router.push('/dashboard/crm')}
-                className="mr-4"
+                className="mr-3"
               >
                 <HiArrowLeft className="w-4 h-4 mr-2" />
                 Volver
@@ -170,7 +170,7 @@ export default function ContactosPage() {
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   Contactos CRM
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Gestiona tu base de datos de contactos
                 </p>
               </div>
@@ -210,8 +210,8 @@ export default function ContactosPage() {
         </div>
 
         {/* Filtros y Búsqueda */}
-        <Card className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="md:col-span-2">
               <Label htmlFor="search">Buscar</Label>
               <TextInput

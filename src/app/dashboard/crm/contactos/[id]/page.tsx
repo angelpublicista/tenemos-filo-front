@@ -132,34 +132,33 @@ export default function ContactoDetailPage() {
 
   return (
     <ProtectedRoute>
-      <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
+            <div className="flex items-start gap-3">
               <Button
                 color="gray"
                 onClick={() => router.push('/dashboard/crm/contactos')}
-                className="mr-4"
               >
                 <HiArrowLeft className="w-4 h-4 mr-2" />
                 Volver
               </Button>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                 {contact.avatar ? (
-                  <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                    <HiUser className="w-8 h-8 text-gray-400" />
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                    <HiUser className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
                   </div>
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-[#F26726] flex items-center justify-center">
-                    <span className="text-white font-semibold text-xl">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#F26726] flex items-center justify-center shrink-0">
+                    <span className="text-white font-semibold text-lg sm:text-xl">
                       {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
                     </span>
                   </div>
                 )}
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {fullName}
                     </h1>
                     <Badge color={statusColors[contact.status] || 'gray'}>
@@ -177,7 +176,7 @@ export default function ContactoDetailPage() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 color="primary"
                 onClick={() => router.push(`/dashboard/crm/contactos/${contact._id}/editar`)}

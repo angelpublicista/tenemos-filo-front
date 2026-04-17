@@ -68,9 +68,9 @@ export default function SharingPanel({ companyId }: Props) {
   ];
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-5">
-        <div>
+    <Card>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+        <div className="min-w-0">
           <h3 className="text-lg font-semibold text-[#334C5D]">Catálogo digital</h3>
           <p className="text-sm text-gray-500 mt-0.5">
             Comparte tu catálogo digital o incrústalo en tu sitio web
@@ -80,7 +80,7 @@ export default function SharingPanel({ companyId }: Props) {
           href={bookingUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-sm text-[#F26726] hover:underline font-medium"
+          className="flex items-center gap-1.5 text-sm text-[#F26726] hover:underline font-medium shrink-0"
         >
           <HiExternalLink className="w-4 h-4" />
           Ver página
@@ -88,33 +88,36 @@ export default function SharingPanel({ companyId }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-5 w-fit max-w-full overflow-x-auto">
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-5 max-w-full overflow-x-auto">
         <button
           onClick={() => setTab('link')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-1 sm:flex-none ${
             tab === 'link' ? 'bg-white text-[#334C5D] shadow-sm' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
           <HiLink className="w-4 h-4" />
-          Enlace directo
+          <span className="hidden sm:inline">Enlace directo</span>
+          <span className="sm:hidden">Enlace</span>
         </button>
         <button
           onClick={() => setTab('share')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-1 sm:flex-none ${
             tab === 'share' ? 'bg-white text-[#334C5D] shadow-sm' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
           <HiShare className="w-4 h-4" />
-          Enviar por
+          <span className="hidden sm:inline">Enviar por</span>
+          <span className="sm:hidden">Enviar</span>
         </button>
         <button
           onClick={() => setTab('iframe')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-1 sm:flex-none ${
             tab === 'iframe' ? 'bg-white text-[#334C5D] shadow-sm' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
           <HiCode className="w-4 h-4" />
-          Insertar en web
+          <span className="hidden sm:inline">Insertar en web</span>
+          <span className="sm:hidden">Insertar</span>
         </button>
       </div>
 

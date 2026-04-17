@@ -66,7 +66,7 @@ export default function ICalIntegrationCard({ companyId }: ICalIntegrationCardPr
 
   return (
     <>
-      <Card className="p-6 flex flex-col">
+      <Card>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-50 rounded-lg">

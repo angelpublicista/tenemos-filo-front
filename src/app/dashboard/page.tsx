@@ -128,31 +128,40 @@ export default function Dashboard() {
 
   return (
     <ProtectedRoute>
-      <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <div className="mb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                 ¡Hola, {sanityUser?.name?.split(' ')[0] || 'Usuario'}! 👋
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Bienvenido de vuelta. Aquí tienes un resumen de tu actividad.
               </p>
             </div>
-            <div className="flex items-center space-x-4">
-              <ThemeToggleButton />
-              <div className="text-right">
+            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+              <div className="text-left sm:text-right">
                 <p className="text-xs text-gray-500 dark:text-gray-400">Hoy es</p>
                 <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {new Date().toLocaleDateString('es-ES', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
+                  <span className="sm:hidden">
+                    {new Date().toLocaleDateString('es-ES', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {new Date().toLocaleDateString('es-ES', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </span>
                 </p>
               </div>
+              <ThemeToggleButton />
             </div>
           </div>
         </div>

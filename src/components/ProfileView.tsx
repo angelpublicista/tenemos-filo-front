@@ -132,31 +132,31 @@ export default function ProfileView() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center">
-          <div className="w-16 h-16 bg-[#F26726] rounded-full flex items-center justify-center mr-4">
-            <HiUser className="w-8 h-8 text-white" />
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
+        <div className="flex items-center min-w-0">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#F26726] rounded-full flex items-center justify-center mr-3 sm:mr-4 shrink-0">
+            <HiUser className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
-          <div>
-            <h3 className="text-2xl font-semibold text-[#334C5D] mb-1">
+          <div className="min-w-0">
+            <h3 className="text-xl sm:text-2xl font-semibold text-[#334C5D] mb-1 truncate">
               {sanityUser.name}
             </h3>
             <div className="flex items-center text-green-600">
-              <HiShieldCheck className="w-4 h-4 mr-2" />
+              <HiShieldCheck className="w-4 h-4 mr-2 shrink-0" />
               <span className="text-sm font-medium">
                 {getRoleDisplayName(sanityUser.role)}
               </span>
             </div>
           </div>
         </div>
-        
+
         {!isEditing && (
           <Button
             color="gray"
             onClick={() => setIsEditing(true)}
-            className="px-6 py-2"
+            className="w-full sm:w-auto"
           >
             <HiPencilAlt className="w-4 h-4 mr-2" />
             Editar Perfil
@@ -165,10 +165,10 @@ export default function ProfileView() {
       </div>
 
       {/* Profile Information */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Información Personal */}
         <div className="space-y-6">
-          <h4 className="text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
+          <h4 className="text-lg sm:text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
             Información Personal
           </h4>
           
@@ -227,7 +227,7 @@ export default function ProfileView() {
 
         {/* Información de Documento */}
         <div className="space-y-6">
-          <h4 className="text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
+          <h4 className="text-lg sm:text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
             Información de Documento
           </h4>
 
@@ -277,11 +277,11 @@ export default function ProfileView() {
 
         {/* Información de Cuenta */}
         <div className="space-y-6 lg:col-span-2">
-          <h4 className="text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
+          <h4 className="text-lg sm:text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
             Información de Cuenta
           </h4>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
             <div className="bg-gray-50 rounded-lg p-4">
               <label className="text-sm font-medium text-gray-500 block mb-2">
                 Estado de la Cuenta
@@ -317,12 +317,12 @@ export default function ProfileView() {
 
       {/* Action Buttons */}
       {isEditing && (
-        <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
+        <div className="mt-8 pt-6 border-t border-gray-200 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-4">
           <Button
             color="gray"
             onClick={handleCancel}
             disabled={isLoading}
-            className="px-6 py-2 text-white"
+            className="w-full sm:w-auto"
           >
             Cancelar
           </Button>
@@ -330,7 +330,7 @@ export default function ProfileView() {
             color="success"
             onClick={handleSave}
             disabled={isLoading}
-            className="px-6 py-2"
+            className="w-full sm:w-auto"
           >
             {isLoading ? (
               <>
@@ -349,7 +349,7 @@ export default function ProfileView() {
 
       {/* Footer Info */}
       <div className="mt-8 pt-6 border-t border-gray-200">
-        <div className="flex justify-between items-center text-sm text-gray-500">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 text-xs sm:text-sm text-gray-500 break-all">
           <p>
             ID de usuario: {sanityUser._id}
           </p>

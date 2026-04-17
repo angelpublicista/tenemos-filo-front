@@ -203,7 +203,7 @@ export default function SettingsPage() {
           <Badge color="warning" className="w-fit border border-[#F26726]/10 bg-[#F26726]/10 text-[#F26726]">
             Configuración
           </Badge>
-          <h1 className="text-3xl font-bold text-[#334C5D]">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#334C5D]">
             Centro de Configuración
           </h1>
           <p className="max-w-3xl text-gray-600">

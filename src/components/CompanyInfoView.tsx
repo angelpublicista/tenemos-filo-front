@@ -145,21 +145,21 @@ export default function CompanyInfoView({
 
   if (!hasCompany() || !existingCompany) {
     return (
-      <div className={`bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center ${className}`}>
+      <div className={`bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-8 text-center ${className}`}>
         <div className="mb-4">
-          <HiExclamationCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-[#334C5D] mb-2">
+          <HiExclamationCircle className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl sm:text-2xl font-bold text-[#334C5D] mb-2">
             No hay información de empresa
           </h2>
-          <p className="text-gray-600 text-lg mb-6">
-            Aún no has completado la configuración de tu empresa. 
+          <p className="text-gray-600 text-base sm:text-lg mb-6">
+            Aún no has completado la configuración de tu empresa.
             Completa el registro para acceder a todas las funcionalidades.
           </p>
         </div>
         <Button
           color="warning"
           onClick={() => router.push('/company-setup')}
-          className="px-8 py-3"
+          className="w-full sm:w-auto"
         >
           Completar Registro de Empresa
         </Button>
@@ -168,13 +168,13 @@ export default function CompanyInfoView({
   }
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8 ${className}`}>
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-8 ${className}`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           {/* Logo */}
           <div className="relative shrink-0">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center">
               {existingCompany.logo?.asset?._ref ? (
                 <Image
                   src={getLogoUrl(existingCompany.logo.asset._ref)}
@@ -214,11 +214,11 @@ export default function CompanyInfoView({
           </div>
 
           <div className="min-w-0">
-            <h3 className="text-2xl font-semibold text-[#334C5D] mb-2 truncate">
+            <h3 className="text-xl sm:text-2xl font-semibold text-[#334C5D] mb-2 truncate">
               {existingCompany.companyName}
             </h3>
             <div className="flex items-center text-green-600">
-              <HiCheckCircle className="w-5 h-5 mr-2" />
+              <HiCheckCircle className="w-5 h-5 mr-2 shrink-0" />
               <span className="text-sm font-medium">Configuración completada</span>
             </div>
             {showEditButton && existingCompany.logo && (
@@ -238,7 +238,7 @@ export default function CompanyInfoView({
           <Button
             color="gray"
             onClick={handleEdit}
-            className="px-6 py-2 self-start sm:self-auto"
+            className="w-full sm:w-auto"
           >
             <HiPencilAlt className="w-4 h-4 mr-2" />
             Editar Información
@@ -256,10 +256,10 @@ export default function CompanyInfoView({
       )}
 
       {/* Company Information */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Información Básica */}
         <div className="space-y-6">
-          <h4 className="text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
+          <h4 className="text-lg sm:text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
             Información Básica
           </h4>
           
@@ -330,7 +330,7 @@ export default function CompanyInfoView({
 
         {/* Información Fiscal */}
         <div className="space-y-6">
-          <h4 className="text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
+          <h4 className="text-lg sm:text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
             Información Fiscal
           </h4>
 
@@ -382,11 +382,11 @@ export default function CompanyInfoView({
 
         {/* Información Empresarial */}
         <div className="space-y-6 lg:col-span-2">
-          <h4 className="text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
+          <h4 className="text-lg sm:text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
             Información Empresarial
           </h4>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
             <div className="bg-gray-50 rounded-lg p-4">
               <label className="text-sm font-medium text-gray-500 block mb-2">
                 Número de Empleados
@@ -435,7 +435,7 @@ export default function CompanyInfoView({
 
       {/* Footer Info */}
       <div className="mt-8 pt-6 border-t border-gray-200">
-        <div className="flex justify-between items-center text-sm text-gray-500">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 text-xs sm:text-sm text-gray-500 break-all">
           <p>
             Última actualización: {new Date(existingCompany.updatedAt).toLocaleDateString('es-ES')}
           </p>

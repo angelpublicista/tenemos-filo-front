@@ -99,10 +99,10 @@ export default function AvailabilityPage() {
         </div>
 
         {/* Mode Tabs */}
-        <div className="flex gap-2 mb-4 sm:mb-6 border-b border-gray-200">
+        <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 border-b border-gray-200 overflow-x-auto">
           <button
             onClick={() => setViewMode('experience')}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex items-center justify-center gap-2 px-3 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-1 sm:flex-none ${
               viewMode === 'experience'
                 ? 'border-[#F26726] text-[#F26726]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -113,7 +113,7 @@ export default function AvailabilityPage() {
           </button>
           <button
             onClick={() => setViewMode('location')}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex items-center justify-center gap-2 px-3 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-1 sm:flex-none ${
               viewMode === 'location'
                 ? 'border-[#F26726] text-[#F26726]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'

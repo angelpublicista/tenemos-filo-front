@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Card, Badge, Button, Select } from 'flowbite-react';
+import { Badge, Button, Select } from 'flowbite-react';
 import { 
   HiPencilAlt, 
   HiTrash, 
@@ -91,7 +91,7 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
   // Vista Grid
   if (viewMode === 'grid') {
     return (
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
         <div className="p-4">
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
@@ -184,13 +184,13 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
             </Select>
           </div>
         </div>
-      </Card>
+      </div>
     );
   }
 
   // Vista Lista
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
       <div className="p-3">
         <div className="flex items-center justify-between">
           {/* Información principal */}
@@ -275,7 +275,7 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 };
 

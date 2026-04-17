@@ -59,23 +59,23 @@ export default function NotificationsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
-            <HiBell className="w-7 h-7 text-[#334C5D]" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notificaciones</h1>
+            <HiBell className="w-6 h-6 sm:w-7 sm:h-7 text-[#334C5D] shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Notificaciones</h1>
               {unreadCount > 0 && (
                 <p className="text-sm text-gray-500">{unreadCount} sin leer</p>
               )}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
               >
                 <HiCheckCircle className="w-4 h-4" />
                 Marcar todo como leído
@@ -84,7 +84,7 @@ export default function NotificationsPage() {
             {notifications.length > 0 && (
               <button
                 onClick={deleteAll}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
               >
                 <HiTrash className="w-4 h-4" />
                 Eliminar todo

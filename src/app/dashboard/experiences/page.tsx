@@ -176,12 +176,12 @@ export default function ExperiencesPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
       <div className="mb-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div className="mb-3 lg:mb-0">
-            <h1 className="text-2xl font-bold text-[#334C5D]">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#334C5D]">
               Mis Experiencias
             </h1>
             <p className="text-sm text-gray-600">
@@ -192,7 +192,7 @@ export default function ExperiencesPage() {
           <Button
             color="primary"
             href="/dashboard/experiences/create"
-            className="px-4 py-2"
+            className="w-full sm:w-auto px-4 py-2"
           >
             <HiPlus className="w-5 h-5 mr-2" />
             Crear Nueva Experiencia
@@ -202,7 +202,7 @@ export default function ExperiencesPage() {
 
       {/* Estadísticas */}
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
         </div>
       ) : stats ? (
@@ -211,16 +211,16 @@ export default function ExperiencesPage() {
 
       {/* Filtros */}
       <div className="mb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#334C5D]">
             Experiencias ({filteredExperiences.length})
           </h2>
-          
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-2 sm:gap-4">
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-48"
+              className="flex-1 sm:flex-none sm:w-48"
             >
               <option value="all">Todos los estados</option>
               <option value="active">Activas</option>
@@ -229,14 +229,14 @@ export default function ExperiencesPage() {
               <option value="paused">Pausadas</option>
               <option value="inactive">Inactivas</option>
             </Select>
-            
+
             {/* Toggle de vista */}
-            <div className="flex items-center gap-2 rounded-lg p-1">
+            <div className="flex items-center gap-1 shrink-0">
               <Button
                 color={viewMode === 'grid' ? 'primary' : 'gray'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="px-3 py-2"
+                className="!p-2"
               >
                 <HiViewGrid className="w-4 h-4" />
               </Button>
@@ -244,7 +244,7 @@ export default function ExperiencesPage() {
                 color={viewMode === 'list' ? 'primary' : 'gray'}
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className="px-3 py-2"
+                className="!p-2"
               >
                 <HiViewList className="w-4 h-4" />
               </Button>

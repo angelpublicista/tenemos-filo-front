@@ -153,21 +153,20 @@ export default function ContactosPage() {
 
   return (
     <ProtectedRoute>
-      <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <div className="mb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="flex items-center gap-3">
               <Button
                 color="gray"
                 onClick={() => router.push('/dashboard/crm')}
-                className="mr-3"
               >
                 <HiArrowLeft className="w-4 h-4 mr-2" />
                 Volver
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   Contactos CRM
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -175,7 +174,7 @@ export default function ContactosPage() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               {contacts.length > 0 && (
                 <Dropdown
                   label=""

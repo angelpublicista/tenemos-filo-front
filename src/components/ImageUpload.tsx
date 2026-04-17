@@ -12,6 +12,8 @@ interface ImageUploadProps {
   onChange: (assetId: string) => void;
   required?: boolean;
   helpText?: string;
+  compact?: boolean;
+  circular?: boolean;
 }
 
 interface GalleryUploadProps {
@@ -40,7 +42,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   onChange,
   required = false,
   helpText,
+  compact = false,
+  circular = false,
 }) => {
+  const shapeClass = circular ? 'rounded-full' : 'rounded-lg';
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,26 +95,42 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
       <div className="space-y-4">
         {value ? (
-          <div className="relative group">
-            <div className="relative w-full h-64 bg-gray-100 rounded-lg overflow-hidden">
+          <div className={`relative group ${compact ? 'inline-block' : ''}`}>
+            <div
+              className={`relative bg-gray-100 border border-gray-200 ${shapeClass} overflow-hidden ${
+                compact ? 'w-32 h-32 sm:w-36 sm:h-36' : 'w-full h-64'
+              }`}
+            >
               <Image src={getImageUrl(value)} alt={label} fill className="object-cover" />
             </div>
-            <div className="absolute top-2 right-2">
-              <Button size="sm" color="failure" onClick={handleRemove} className="opacity-90 hover:opacity-100">
-                <HiTrash className="w-4 h-4" />
+            <div className={compact ? 'absolute -top-2 -right-2' : 'absolute top-2 right-2'}>
+              <Button size="xs" color="failure" onClick={handleRemove} className="opacity-90 hover:opacity-100">
+                <HiTrash className={compact ? 'w-3 h-3' : 'w-4 h-4'} />
               </Button>
             </div>
           </div>
         ) : (
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#F26726] transition-colors"
+            className={`border-2 border-dashed border-gray-300 ${shapeClass} text-center cursor-pointer hover:border-[#F26726] transition-colors ${
+              compact ? 'w-32 h-32 sm:w-36 sm:h-36 p-3 flex flex-col items-center justify-center' : 'p-8'
+            }`}
           >
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
             {isUploading ? (
-              <div className="space-y-3">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F26726] mx-auto" />
-                <p className="text-gray-600">Subiendo imagen...</p>
+              <div className={compact ? 'space-y-2' : 'space-y-3'}>
+                <div
+                  className={`animate-spin rounded-full border-b-2 border-[#F26726] mx-auto ${
+                    compact ? 'h-6 w-6' : 'h-12 w-12'
+                  }`}
+                />
+                <p className={`text-gray-600 ${compact ? 'text-xs' : ''}`}>Subiendo...</p>
+              </div>
+            ) : compact ? (
+              <div className="space-y-1.5">
+                <HiPhotograph className="w-7 h-7 text-gray-400 mx-auto" />
+                <p className="text-xs text-gray-600 leading-tight">Subir logo</p>
+                <p className="text-[10px] text-gray-400 leading-tight">PNG, JPG · 10 MB</p>
               </div>
             ) : (
               <div className="space-y-3">

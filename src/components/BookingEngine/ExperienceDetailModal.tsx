@@ -262,15 +262,29 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                 {locations.length === 1 ? 'Sede' : 'Sedes disponibles'}
               </h3>
               <div className="space-y-2">
-                {locations.map(loc => (
-                  <div key={loc._id} className="bg-gray-50 rounded-xl px-4 py-3">
-                    <p className="text-sm font-medium text-gray-900">{loc.name}</p>
-                    {formatAddress(loc.address) && (
-                      <p className="text-xs text-gray-500 mt-0.5">{formatAddress(loc.address)}</p>
-                    )}
-                  </div>
-                ))}
+                {locations.map(loc => {
+                  const cityOnly = typeof loc.address === 'object' && loc.address ? loc.address.city : '';
+                  return (
+                    <div key={loc._id} className="bg-gray-50 rounded-xl px-4 py-3">
+                      <p className="text-sm font-medium text-gray-900">{loc.name}</p>
+                      {experience.hideAddress ? (
+                        cityOnly && (
+                          <p className="text-xs text-gray-500 mt-0.5">{cityOnly}</p>
+                        )
+                      ) : (
+                        formatAddress(loc.address) && (
+                          <p className="text-xs text-gray-500 mt-0.5">{formatAddress(loc.address)}</p>
+                        )
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+              {experience.hideAddress && (
+                <p className="text-xs text-gray-500 mt-2 italic">
+                  La dirección exacta se compartirá una vez confirmemos tu reserva.
+                </p>
+              )}
             </div>
           )}
         </div>

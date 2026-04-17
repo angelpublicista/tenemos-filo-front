@@ -1,12 +1,21 @@
 import { sanityClient } from './sanityClient';
 import { Company } from '@/types';
 
+const buildLogoField = (assetId: string | undefined) => {
+  if (!assetId) return undefined;
+  return {
+    _type: 'image',
+    asset: { _type: 'reference', _ref: assetId },
+  };
+};
+
 export interface CreateCompanyData {
   companyName: string;
   companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
   description?: string;
   companyEmail: string;
   companyPhone: string;
+  logo?: string;
   // Campos fiscales y empresariales
   documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber?: string;
@@ -38,6 +47,7 @@ export const createCompanyInSanity = async (companyData: CreateCompanyData) => {
       companyType: companyData.companyType,
       companyEmail: companyData.companyEmail,
       companyPhone: companyData.companyPhone,
+      logo: buildLogoField(companyData.logo),
       documentType: companyData.documentType,
       documentNumber: companyData.documentNumber,
       website: companyData.website,
@@ -98,6 +108,7 @@ export interface UpdateCompanyData {
   companyType?: 'restaurant' | 'catering' | 'foodtruck' | 'other';
   companyEmail?: string;
   companyPhone?: string;
+  logo?: string | null;
   documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber?: string;
   website?: string;
@@ -116,9 +127,16 @@ export interface UpdateCompanyData {
 export const updateCompanyInSanity = async (companyId: string, data: UpdateCompanyData): Promise<Company> => {
   try {
     const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    const unset: string[] = [];
     (Object.keys(data) as (keyof UpdateCompanyData)[]).forEach(key => {
       const value = data[key];
-      if (value !== undefined) patch[key] = value;
+      if (value === undefined) return;
+      if (key === 'logo') {
+        if (value === null || value === '') unset.push('logo');
+        else patch.logo = buildLogoField(value as string);
+        return;
+      }
+      patch[key] = value;
     });
 
     if (data.companyName) {
@@ -128,7 +146,9 @@ export const updateCompanyInSanity = async (companyId: string, data: UpdateCompa
       };
     }
 
-    const result = await sanityClient.patch(companyId).set(patch).commit();
+    let tx = sanityClient.patch(companyId).set(patch);
+    if (unset.length) tx = tx.unset(unset);
+    const result = await tx.commit();
     return result as unknown as Company;
   } catch (error) {
     console.error('Error updating company in Sanity:', error);

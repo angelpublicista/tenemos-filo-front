@@ -274,26 +274,34 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
             <label className="block text-sm font-semibold text-gray-700 mb-2.5">Sede</label>
             {hasMultipleLocations ? (
               <div className="space-y-2">
-                {locations.map(loc => (
-                  <button
-                    key={loc._id}
-                    type="button"
-                    onClick={() => setLocationId(loc._id)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
-                      locationId === loc._id
-                        ? 'border-[#F26726] bg-orange-50 text-[#F26726] font-medium'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                    }`}
-                  >
-                    <span className="font-medium">{loc.name}</span>
-                    {formatAddress(loc.address) && <span className="text-gray-400 ml-2">— {formatAddress(loc.address)}</span>}
-                  </button>
-                ))}
+                {locations.map(loc => {
+                  const cityOnly = typeof loc.address === 'object' && loc.address ? loc.address.city : '';
+                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(loc.address);
+                  return (
+                    <button
+                      key={loc._id}
+                      type="button"
+                      onClick={() => setLocationId(loc._id)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
+                        locationId === loc._id
+                          ? 'border-[#F26726] bg-orange-50 text-[#F26726] font-medium'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      <span className="font-medium">{loc.name}</span>
+                      {display && <span className="text-gray-400 ml-2">— {display}</span>}
+                    </button>
+                  );
+                })}
               </div>
             ) : singleLocation ? (
               <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-600 border border-gray-200">
                 <span className="font-medium">{singleLocation.name}</span>
-                {formatAddress(singleLocation.address) && <span className="text-gray-400 ml-1">— {formatAddress(singleLocation.address)}</span>}
+                {(() => {
+                  const cityOnly = typeof singleLocation.address === 'object' && singleLocation.address ? singleLocation.address.city : '';
+                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(singleLocation.address);
+                  return display ? <span className="text-gray-400 ml-1">— {display}</span> : null;
+                })()}
               </div>
             ) : (
               <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">

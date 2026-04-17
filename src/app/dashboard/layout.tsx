@@ -2,6 +2,7 @@
 
 import Navbar from '@/components/Dashboard/Navbar'
 import Sidebar from '@/components/Dashboard/Sidebar'
+import MobileFAB from '@/components/Dashboard/MobileFAB'
 import { EmailVerificationBanner } from '@/components/EmailVerificationBanner'
 import React, { useState } from 'react'
 
@@ -29,6 +30,8 @@ export default function layout({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+
+      <MobileFAB hidden={sidebarOpen} />
     </div>
   )
 }

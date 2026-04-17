@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
 import { getCompanyById } from '@/lib/sanity/companyService';
 import { getActiveExperiencesByCompany } from '@/lib/sanity/experienceService';
@@ -13,6 +14,15 @@ import ContactStep from '@/components/BookingEngine/ContactStep';
 import ConfirmationStep from '@/components/BookingEngine/ConfirmationStep';
 import FiloLogo from '@/components/FiloLogo';
 import { SkeletonCard } from '@/components/Skeleton';
+
+const getCompanyLogoUrl = (assetRef: string): string => {
+  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
+  const cleanAssetId = assetRef.startsWith('image-')
+    ? assetRef.replace('image-', '').replace(/-([a-z]+)$/, '.$1')
+    : assetRef;
+  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
+};
 
 export interface BookingLocationAddress {
   street?: string;
@@ -175,30 +185,47 @@ function BookingPageInner() {
 
   const currentStepIndex = STEP_ORDER.indexOf(step);
 
-  const wrap = (content: React.ReactNode) => (
-    <div className="min-h-screen bg-gray-50">
-      {!isEmbed && (
+  const companyLogoRef = company?.logo?.asset?._ref;
+
+  const wrap = (content: React.ReactNode, options: { showHeader?: boolean } = {}) => (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {!isEmbed && options.showHeader && (
         <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <FiloLogo className="h-8 w-auto" />
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 min-w-0">
+            {companyLogoRef ? (
+              <Image
+                src={getCompanyLogoUrl(companyLogoRef)}
+                alt={company?.companyName ?? 'Logo de la empresa'}
+                width={40}
+                height={40}
+                className="w-10 h-10 rounded-full border border-gray-200 object-cover shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 shrink-0" />
+            )}
             {company && (
-              <span className="text-sm text-gray-500 font-medium truncate ml-4 max-w-xs">
+              <span className="text-sm sm:text-base font-semibold text-gray-900 truncate">
                 {company.companyName}
               </span>
             )}
           </div>
         </header>
       )}
-      <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
+      <div className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 sm:py-8">
         {content}
       </div>
       {!isEmbed && (
-        <div className="text-center pb-8 text-xs text-gray-400">
-          Powered by{' '}
-          <a href="https://tenemosfilo.com" target="_blank" rel="noopener noreferrer" className="text-[#F26726] hover:underline">
-            Tenemos Filo
+        <footer className="border-t border-gray-200 bg-white">
+          <a
+            href="https://tenemosfilo.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="max-w-6xl mx-auto px-4 py-5 flex flex-col sm:flex-row items-center justify-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <span>Powered by</span>
+            <FiloLogo className="h-5 w-auto" />
           </a>
-        </div>
+        </footer>
       )}
     </div>
   );
@@ -240,20 +267,35 @@ function BookingPageInner() {
           Hacer otra reserva
         </button>
       )}
-    </div>
+    </div>,
+    { showHeader: true }
   );
 
   return wrap(
     <>
       {/* Header empresa */}
       {step === 'experiences' && company && (
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">{company.companyName}</h1>
-          {(company as Company & { description?: string }).description && (
-            <p className="text-gray-500 mt-2 text-sm line-clamp-2 leading-relaxed">
-              {(company as Company & { description?: string }).description}
-            </p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center gap-5 text-center sm:text-left">
+          {companyLogoRef ? (
+            <Image
+              src={getCompanyLogoUrl(companyLogoRef)}
+              alt={company.companyName}
+              width={128}
+              height={128}
+              className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border border-gray-200 object-cover mx-auto sm:mx-0 shrink-0 shadow-sm"
+              priority
+            />
+          ) : (
+            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gray-100 border border-gray-200 mx-auto sm:mx-0 shrink-0" />
           )}
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{company.companyName}</h1>
+            {(company as Company & { description?: string }).description && (
+              <p className="text-gray-500 mt-2 text-sm sm:text-base leading-relaxed">
+                {(company as Company & { description?: string }).description}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -303,7 +345,8 @@ function BookingPageInner() {
           onBack={() => setStep('contact')}
         />
       )}
-    </>
+    </>,
+    { showHeader: step !== 'experiences' }
   );
 }
 

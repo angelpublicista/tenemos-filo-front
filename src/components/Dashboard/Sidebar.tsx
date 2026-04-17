@@ -85,7 +85,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     },
     { type: 'section', name: 'Herramientas' },
     {
-      name: 'Motor de reservas',
+      name: 'Catálogo digital',
       href: '/dashboard/booking-link',
       icon: AiOutlineShareAlt,
       current: pathname === '/dashboard/booking-link',

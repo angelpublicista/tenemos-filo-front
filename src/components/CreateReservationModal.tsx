@@ -40,6 +40,9 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   const [saving, setSaving] = useState(false);
   const { showSuccess, showError, showLoading, hideLoading } = useSweetAlert();
 
+  // Paso 0: modo de selección (búsqueda por disponibilidad o selección directa)
+  const [pickMode, setPickMode] = useState<'search' | 'direct'>('search');
+
   // Paso 0: Búsqueda de experiencias
   const [isSearching, setIsSearching] = useState(false);
   const [searchData, setSearchData] = useState({
@@ -238,17 +241,23 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   };
 
   // Seleccionar experiencia y pasar al siguiente paso
-  const handleSelectExperience = (experience: ExpandedExperience) => {
+  const handleSelectExperience = (experience: ExpandedExperience, fromSearch = true) => {
     setSelectedExperience(experience._id);
-    setSelectedDate(searchData.date);
-    setSelectedTime(searchData.time);
-    setParticipants(searchData.guests);
-    
+    if (fromSearch) {
+      setSelectedDate(searchData.date);
+      setSelectedTime(searchData.time);
+      setParticipants(searchData.guests);
+    } else {
+      setSelectedDate('');
+      setSelectedTime('');
+      setParticipants(experience.minCapacity || 1);
+    }
+
     // Encontrar y seleccionar la ubicación automáticamente si está disponible
     if (experience.presentialLocation) {
       setSelectedLocation(experience.presentialLocation);
     }
-    
+
     setStep(1); // Pasar al siguiente paso
   };
 
@@ -368,9 +377,33 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
-          <form onSubmit={step === 0 ? handleSearch : (e) => e.preventDefault()} className="space-y-6">
-            {/* Paso 0: Búsqueda de Experiencias */}
+          <form onSubmit={step === 0 && pickMode === 'search' ? handleSearch : (e) => e.preventDefault()} className="space-y-6">
+            {/* Paso 0: Selector de modo */}
             {step === 0 && (
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit max-w-full overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setPickMode('search')}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                    pickMode === 'search' ? 'bg-white text-[#334C5D] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Buscar por disponibilidad
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPickMode('direct')}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                    pickMode === 'direct' ? 'bg-white text-[#334C5D] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Elegir experiencia
+                </button>
+              </div>
+            )}
+
+            {/* Paso 0 · Modo búsqueda */}
+            {step === 0 && pickMode === 'search' && (
               <>
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -512,6 +545,62 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                   </div>
                 )}
               </>
+            )}
+
+            {/* Paso 0 · Modo selección directa */}
+            {step === 0 && pickMode === 'direct' && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-1">
+                  Elige una experiencia
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Selecciona la experiencia y luego define la fecha, hora y demás detalles de la reserva.
+                </p>
+
+                {experiences.length === 0 ? (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg">
+                    <p className="text-gray-600">No tienes experiencias creadas todavía.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {experiences.map((exp) => (
+                      <button
+                        key={exp._id}
+                        type="button"
+                        onClick={() => handleSelectExperience(exp as ExpandedExperience, false)}
+                        className="w-full text-left border-2 border-gray-200 hover:border-[#F26726] rounded-lg p-4 transition-all"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-[#334C5D] mb-1 truncate">{exp.title}</h4>
+                            {exp.description && (
+                              <p className="text-sm text-gray-600 line-clamp-2 mb-2">{exp.description}</p>
+                            )}
+                            <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <BiTime className="w-3 h-3" />
+                                {exp.duration} min
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <BiMap className="w-3 h-3" />
+                                {exp.experienceType === 'presential' ? 'Presencial' :
+                                 exp.experienceType === 'virtual' ? 'Virtual' : 'Híbrida'}
+                              </span>
+                              <span>Capacidad: {exp.minCapacity || 1}–{exp.capacity}</span>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-sm font-bold text-[#F26726]">
+                              ${exp.basePrice.toLocaleString()} {exp.currency}
+                            </div>
+                            <div className="text-xs text-gray-500">por persona</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {step === 1 && (

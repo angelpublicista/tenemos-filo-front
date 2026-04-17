@@ -5,6 +5,7 @@ export interface CompanyBasicInfo {
   description?: string;
   companyEmail: string;
   companyPhone: string;
+  logo?: string;
 }
 
 export interface CompanyFiscalInfo {
@@ -288,6 +289,7 @@ export interface Experience {
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
+  hideAddress?: boolean;
   requirements?: string[];
   includes?: string[];
   addons?: Array<{
@@ -340,6 +342,7 @@ export interface CreateExperienceData {
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
+  hideAddress?: boolean;
   requirements?: string[];
   includes?: string[];
   addons?: Array<{

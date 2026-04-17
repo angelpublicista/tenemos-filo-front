@@ -59,11 +59,10 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
         {sanityUser?.role === 'host' && (
           <Link
             href="/dashboard/experiences/create"
-            className="flex items-center gap-1 px-3 py-2 bg-[#F26726] text-white text-sm font-medium rounded-lg hover:bg-[#d9571f] transition-colors whitespace-nowrap"
+            className="hidden sm:flex items-center gap-1 px-3 py-2 bg-[#F26726] text-white text-sm font-medium rounded-lg hover:bg-[#d9571f] transition-colors whitespace-nowrap"
           >
             <HiPlus className="w-4 h-4 shrink-0" />
-            <span className="hidden sm:inline">Crear Experiencia</span>
-            <span className="sm:hidden">Crear</span>
+            Crear Experiencia
           </Link>
         )}
 

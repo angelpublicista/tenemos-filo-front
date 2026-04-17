@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Select, Badge, Modal, ModalHeader, ModalBody, Tooltip } from 'flowbite-react';
 import CalendarPicker from '@/components/CalendarPicker';
 import TimePicker from '@/components/TimePicker';
@@ -50,9 +51,18 @@ interface ReservationStats {
 export default function ReservationsPage() {
   const { sanityUser } = useAuth();
   const { showSuccess, showError } = useSweetAlert();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [reservations, setReservations] = useState<Partial<Reservation>[]>([]);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams?.get('new') === 'true') {
+      setShowCreateModal(true);
+      router.replace('/dashboard/reservations');
+    }
+  }, [searchParams, router]);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<ReservationStats>({
     total: 0, pending: 0, confirmed: 0, inProgress: 0,

@@ -18,10 +18,10 @@ export default function BookingLinkPage() {
             <HiShare className="w-8 h-8 text-[#334C5D] dark:text-gray-100" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                Motor de reservas
+                Catálogo digital
               </h1>
               <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
-                Comparte tu página de reservas o incrústala en tu sitio web
+                Comparte tu catálogo digital o incrústalo en tu sitio web
               </p>
             </div>
           </div>

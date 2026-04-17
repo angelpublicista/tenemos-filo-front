@@ -2,13 +2,14 @@
 
 import React, { useState } from 'react';
 import { Card } from 'flowbite-react';
-import { HiClipboardCopy, HiCheck, HiExternalLink, HiCode, HiLink } from 'react-icons/hi';
+import { HiClipboardCopy, HiCheck, HiExternalLink, HiCode, HiLink, HiMail, HiShare } from 'react-icons/hi';
+import { FaWhatsapp, FaFacebookF, FaLinkedinIn, FaTelegram, FaXTwitter } from 'react-icons/fa6';
 
 interface Props {
   companyId: string;
 }
 
-type Tab = 'link' | 'iframe';
+type Tab = 'link' | 'share' | 'iframe';
 
 export default function SharingPanel({ companyId }: Props) {
   const [tab, setTab] = useState<Tab>('link');
@@ -17,7 +18,7 @@ export default function SharingPanel({ companyId }: Props) {
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const bookingUrl = `${origin}/book/${companyId}`;
-  const iframeCode = `<iframe\n  src="${bookingUrl}?embed=1"\n  width="100%"\n  height="700"\n  frameborder="0"\n  style="border-radius:12px;border:1px solid #e5e7eb;"\n  title="Motor de reservas"\n></iframe>`;
+  const iframeCode = `<iframe\n  src="${bookingUrl}?embed=1"\n  width="100%"\n  height="700"\n  frameborder="0"\n  style="border-radius:12px;border:1px solid #e5e7eb;"\n  title="Catálogo digital"\n></iframe>`;
 
   const copy = (text: string, setter: (v: boolean) => void) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -26,13 +27,53 @@ export default function SharingPanel({ companyId }: Props) {
     });
   };
 
+  const shareMessage = '¡Reserva en nuestro catálogo digital!';
+  const shareTargets = [
+    {
+      name: 'WhatsApp',
+      icon: FaWhatsapp,
+      bg: 'bg-[#25D366] hover:bg-[#1ebe57]',
+      href: `https://wa.me/?text=${encodeURIComponent(`${shareMessage} ${bookingUrl}`)}`,
+    },
+    {
+      name: 'Correo',
+      icon: HiMail,
+      bg: 'bg-[#334C5D] hover:bg-[#26394a]',
+      href: `mailto:?subject=${encodeURIComponent(shareMessage)}&body=${encodeURIComponent(`${shareMessage}\n\n${bookingUrl}`)}`,
+    },
+    {
+      name: 'Facebook',
+      icon: FaFacebookF,
+      bg: 'bg-[#1877F2] hover:bg-[#0e60c8]',
+      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(bookingUrl)}`,
+    },
+    {
+      name: 'X',
+      icon: FaXTwitter,
+      bg: 'bg-black hover:bg-gray-800',
+      href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(bookingUrl)}&text=${encodeURIComponent(shareMessage)}`,
+    },
+    {
+      name: 'LinkedIn',
+      icon: FaLinkedinIn,
+      bg: 'bg-[#0A66C2] hover:bg-[#08529c]',
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(bookingUrl)}`,
+    },
+    {
+      name: 'Telegram',
+      icon: FaTelegram,
+      bg: 'bg-[#229ED9] hover:bg-[#1c81b1]',
+      href: `https://t.me/share/url?url=${encodeURIComponent(bookingUrl)}&text=${encodeURIComponent(shareMessage)}`,
+    },
+  ];
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h3 className="text-lg font-semibold text-[#334C5D]">Motor de reservas</h3>
+          <h3 className="text-lg font-semibold text-[#334C5D]">Catálogo digital</h3>
           <p className="text-sm text-gray-500 mt-0.5">
-            Comparte tu página de reservas o incrústala en tu sitio web
+            Comparte tu catálogo digital o incrústalo en tu sitio web
           </p>
         </div>
         <a
@@ -47,10 +88,10 @@ export default function SharingPanel({ companyId }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-5 w-fit">
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-5 w-fit max-w-full overflow-x-auto">
         <button
           onClick={() => setTab('link')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
             tab === 'link' ? 'bg-white text-[#334C5D] shadow-sm' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -58,8 +99,17 @@ export default function SharingPanel({ companyId }: Props) {
           Enlace directo
         </button>
         <button
+          onClick={() => setTab('share')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+            tab === 'share' ? 'bg-white text-[#334C5D] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <HiShare className="w-4 h-4" />
+          Enviar por
+        </button>
+        <button
           onClick={() => setTab('iframe')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
             tab === 'iframe' ? 'bg-white text-[#334C5D] shadow-sm' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -91,10 +141,35 @@ export default function SharingPanel({ companyId }: Props) {
         </div>
       )}
 
+      {tab === 'share' && (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">
+            Comparte tu catálogo digital directamente desde estas plataformas.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {shareTargets.map(({ name, icon: Icon, bg, href }) => (
+              <a
+                key={name}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-white text-sm font-medium transition-colors ${bg}`}
+              >
+                <Icon className="w-4 h-4" />
+                {name}
+              </a>
+            ))}
+          </div>
+          <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-xs text-blue-700">
+            Cada botón abrirá la app o sitio correspondiente con el enlace listo para enviar.
+          </div>
+        </div>
+      )}
+
       {tab === 'iframe' && (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
-            Pega este código en el HTML de tu sitio web para mostrar el motor de reservas incrustado.
+            Pega este código en el HTML de tu sitio web para mostrar el catálogo digital incrustado.
           </p>
           <div className="relative">
             <pre className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-xs text-gray-600 font-mono overflow-x-auto whitespace-pre">

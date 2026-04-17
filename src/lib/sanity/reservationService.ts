@@ -661,7 +661,7 @@ export const createPublicReservation = async (data: CreatePublicReservationData)
       hostEarnings: total,
     },
     specialRequirements: data.specialRequests || '',
-    notes: 'Reserva realizada desde el motor de reservas público.',
+    notes: 'Reserva realizada desde el catálogo digital público.',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

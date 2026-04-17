@@ -15,12 +15,13 @@ import {
 import { CreateExperienceData, Company, Location, AvailabilitySchedule } from '@/types';
 import LocationModal from '@/components/LocationModal';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
-import { 
-  HiArrowLeft, 
-  HiCheckCircle, 
+import {
+  HiArrowLeft,
+  HiCheckCircle,
   HiExclamationCircle,
   HiPlus,
-  HiMinus
+  HiMinus,
+  HiSparkles,
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useRouter } from 'next/navigation';
@@ -44,6 +45,7 @@ const experienceSchema = z.object({
   city: z.string().optional(),
   status: z.enum(['draft', 'pending', 'active', 'paused', 'inactive']),
   isFeatured: z.boolean(),
+  hideAddress: z.boolean().optional(),
 });
 
 type ExperienceFormData = z.infer<typeof experienceSchema>;
@@ -51,7 +53,7 @@ type ExperienceFormData = z.infer<typeof experienceSchema>;
 export default function CreateExperiencePage() {
   const { user, sanityUser } = useAuth();
   const router = useRouter();
-  const { showSuccess, showError } = useSweetAlert();
+  const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [company, setCompany] = useState<Company | null>(null);
@@ -72,6 +74,8 @@ export default function CreateExperiencePage() {
   const [customScheduleName, setCustomScheduleName] = useState('');
   const [customMinimumNotice, setCustomMinimumNotice] = useState(24);
   const [availabilityMode, setAvailabilityMode] = useState<'location' | 'experience'>('location');
+  const [locationMode, setLocationMode] = useState<'sede' | 'custom'>('sede');
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -100,6 +104,7 @@ export default function CreateExperiencePage() {
       city: '',
       status: 'draft',
       isFeatured: false,
+      hideAddress: false,
     }
   });
 
@@ -207,6 +212,74 @@ export default function CreateExperiencePage() {
     }
   }, [capacity, minCapacity, setValue]);
 
+  const handleGenerateDescription = async (mode: 'generate' | 'improve') => {
+    const values = watch();
+    if (!values.title?.trim() && !values.description?.trim()) {
+      showError('Escribe al menos un título antes de usar el asistente');
+      return;
+    }
+
+    if (mode === 'generate') {
+      const missing: string[] = [];
+      if (selectedCategories.length === 0) missing.push('Categorías');
+      if (!values.duration) missing.push('Duración');
+      if (!values.capacity) missing.push('Capacidad');
+      if (!values.basePrice) missing.push('Precio base');
+      if ((values.experienceType === 'presential' || values.experienceType === 'hybrid') && !values.city?.trim()) {
+        missing.push('Ciudad');
+      }
+      if (includes.filter((i) => i.trim()).length === 0) missing.push('Qué incluye');
+      if (requirements.filter((r) => r.trim()).length === 0) missing.push('Requisitos');
+
+      if (missing.length > 0) {
+        const proceed = await showConfirmation(
+          'Para una mejor descripción, completa más campos',
+          `La IA será mucho más precisa y SEO-friendly si llenas:\n\n• ${missing.join('\n• ')}\n\n¿Quieres generar igualmente con la información actual?`,
+          'Generar ahora',
+          'Voy a completar primero',
+        );
+        if (!proceed) return;
+      }
+    }
+
+    setIsGeneratingDescription(true);
+    try {
+      const response = await fetch('/api/ai/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: values.title,
+          categories: selectedCategories,
+          duration: values.duration,
+          capacity: values.capacity,
+          minCapacity: values.minCapacity,
+          basePrice: values.basePrice,
+          currency: values.currency,
+          experienceType: values.experienceType,
+          city: values.city,
+          includes: includes.filter((i) => i.trim()),
+          requirements: requirements.filter((r) => r.trim()),
+          currentDescription: values.description,
+          mode,
+          userId: sanityUser?._id || user?.uid,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        showError(data.error || 'No pudimos generar la descripción');
+        return;
+      }
+
+      setValue('description', data.description, { shouldValidate: true, shouldDirty: true });
+    } catch (error) {
+      console.error('Error generating description:', error);
+      showError('Error de red. Intenta de nuevo.');
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   // Manejar selección de categorías
   const handleCategoryChange = (category: string) => {
     setSelectedCategories(prev => {
@@ -280,14 +353,32 @@ export default function CreateExperiencePage() {
       return;
     }
 
-    // Validar que se haya seleccionado al menos una sede para experiencias presenciales/híbridas
-    if ((data.experienceType === 'presential' || data.experienceType === 'hybrid') && selectedLocations.length === 0) {
-      showError('Por favor selecciona al menos una sede');
-      return;
+    const isPresentialOrHybrid = data.experienceType === 'presential' || data.experienceType === 'hybrid';
+
+    // Validar lugar para experiencias presenciales/híbridas
+    if (isPresentialOrHybrid) {
+      if (locationMode === 'sede' && selectedLocations.length === 0) {
+        showError('Por favor selecciona al menos una sede');
+        return;
+      }
+      if (locationMode === 'custom') {
+        if (!data.location?.trim()) {
+          showError('Indica el nombre del lugar personalizado');
+          return;
+        }
+        if (!data.address?.trim()) {
+          showError('Indica la dirección del lugar personalizado');
+          return;
+        }
+        if (!data.city?.trim()) {
+          showError('Indica la ciudad del lugar personalizado');
+          return;
+        }
+      }
     }
 
     // Validar que se haya seleccionado al menos un calendario o configurado uno personalizado
-    if (selectedLocations.length > 0 && selectedSchedules.length === 0 && !showCustomSchedule) {
+    if (locationMode === 'sede' && selectedLocations.length > 0 && selectedSchedules.length === 0 && !showCustomSchedule) {
       showError('Por favor selecciona al menos un calendario o configura uno personalizado');
       return;
     }
@@ -321,6 +412,8 @@ export default function CreateExperiencePage() {
         }
       }
 
+      const useCustom = locationMode === 'custom' && isPresentialOrHybrid;
+
       const experienceData: CreateExperienceData = {
         ...data,
         categories: selectedCategories as ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[],
@@ -328,11 +421,12 @@ export default function CreateExperiencePage() {
         requirements: requirements.filter(req => req.trim() !== ''),
         includes: includes.filter(inc => inc.trim() !== ''),
         addons: addons.filter(addon => addon.name.trim() !== ''),
-        locations: selectedLocations.length > 0 ? selectedLocations : undefined,
+        locations: !useCustom && selectedLocations.length > 0 ? selectedLocations : undefined,
         availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
+        hideAddress: data.hideAddress ?? false,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         startTime: startTime || undefined,
@@ -454,13 +548,38 @@ export default function CreateExperiencePage() {
             </div>
 
             <div className="lg:col-span-2">
-              <Label htmlFor="description">Descripción *</Label>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                <Label htmlFor="description">Descripción *</Label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateDescription(watch('description')?.trim() ? 'improve' : 'generate')}
+                    disabled={isGeneratingDescription}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gradient-to-r from-[#F26726] to-[#d9571f] text-white hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isGeneratingDescription ? (
+                      <>
+                        <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        Generando…
+                      </>
+                    ) : (
+                      <>
+                        <HiSparkles className="w-3.5 h-3.5" />
+                        {watch('description')?.trim() ? 'Mejorar con IA' : 'Generar con IA'}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
               <Textarea
                 {...register('description')}
                 placeholder="Describe detalladamente tu experiencia..."
-                rows={4}
+                rows={5}
                 className="mt-1"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Optimizada para SEO y conversión. La IA usa el título, categorías, ciudad y demás campos como contexto.
+              </p>
               {errors.description && (
                 <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>
               )}
@@ -706,6 +825,104 @@ export default function CreateExperiencePage() {
             {(experienceType === 'presential' || experienceType === 'hybrid') && (
               <div className="space-y-4">
                 <div>
+                  <Label>¿Dónde se realizará? *</Label>
+                  <p className="text-sm text-gray-500 mb-3">
+                    Elige una sede registrada de tu empresa o define un lugar personalizado para esta experiencia.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationMode('sede');
+                        setAvailabilityMode('location');
+                        setShowCustomSchedule(false);
+                      }}
+                      className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
+                        locationMode === 'sede'
+                          ? 'border-[#F26726] bg-orange-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                        locationMode === 'sede' ? 'border-[#F26726]' : 'border-gray-400'
+                      }`}>
+                        {locationMode === 'sede' && (
+                          <div className="w-2 h-2 rounded-full bg-[#F26726]" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">Sede registrada</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Usa una de las sedes de tu empresa con su calendario configurado.
+                        </p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationMode('custom');
+                        setSelectedLocations([]);
+                        setSelectedSchedules([]);
+                        setAvailabilityMode('experience');
+                        setShowCustomSchedule(true);
+                      }}
+                      className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
+                        locationMode === 'custom'
+                          ? 'border-[#F26726] bg-orange-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                        locationMode === 'custom' ? 'border-[#F26726]' : 'border-gray-400'
+                      }`}>
+                        {locationMode === 'custom' && (
+                          <div className="w-2 h-2 rounded-full bg-[#F26726]" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">Lugar personalizado</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Define un lugar puntual con su propio calendario para esta experiencia.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {locationMode === 'custom' && (
+                  <div className="space-y-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div>
+                      <Label htmlFor="location">Nombre del lugar *</Label>
+                      <TextInput
+                        {...register('location')}
+                        placeholder="Ej: Hacienda Los Naranjos"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="address">Dirección *</Label>
+                      <TextInput
+                        {...register('address')}
+                        placeholder="Calle 123 # 45-67"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="city">Ciudad *</Label>
+                      <TextInput
+                        {...register('city')}
+                        placeholder="Bogotá"
+                        className="mt-1"
+                      />
+                    </div>
+                    <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
+                      Como es un lugar personalizado, esta experiencia tendrá su propio calendario de disponibilidad (configúralo abajo).
+                    </p>
+                  </div>
+                )}
+
+                {locationMode === 'sede' && (
+                <div>
                   <Label>Sedes * (Selecciona una o más)</Label>
                   <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
                     {locations.length > 0 ? (
@@ -751,8 +968,28 @@ export default function CreateExperiencePage() {
                     </p>
                   )}
                 </div>
+                )}
 
-                {selectedLocations.length > 0 && (
+                {/* Visibilidad de la dirección */}
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="hideAddress"
+                      {...register('hideAddress')}
+                      className="mt-1 text-[#F26726] focus:ring-[#F26726]"
+                    />
+                    <div>
+                      <Label htmlFor="hideAddress" className="cursor-pointer font-medium text-gray-900">
+                        Ocultar la dirección exacta en el catálogo público
+                      </Label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Útil para experiencias clandestinas. Solo se mostrará la ciudad; la dirección completa se compartirá con el comensal una vez confirme la reserva.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {locationMode === 'sede' && selectedLocations.length > 0 && (
                   <div className="space-y-4">
                     {/* Selector de modo de disponibilidad */}
                     <div>
@@ -893,7 +1130,7 @@ export default function CreateExperiencePage() {
         </div>
 
         {/* Configuración básica del calendario (modo sede custom o modo experiencia) */}
-        {(showCustomSchedule && selectedLocations.length > 0) && (
+        {(showCustomSchedule && (selectedLocations.length > 0 || locationMode === 'custom')) && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-4">
               {availabilityMode === 'experience' ? 'Disponibilidad de la Experiencia' : 'Nuevo Calendario para la Sede'}

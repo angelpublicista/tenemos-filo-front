@@ -60,3 +60,5 @@ next-env.d.ts
 
 # claude code
 .claude/
+
+SECURITY_INCIDENT_REPORT.md

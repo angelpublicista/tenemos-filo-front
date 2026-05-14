@@ -1,5 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sanityClient } from '@/lib/sanity/sanityClient';
+
+// Feed iCal publico para suscribirse desde Google Calendar/Outlook.
+// TODO: reimplementar contra el API. Necesita un endpoint sin auth tipo
+//   GET /reservations/feed/:token
+// donde `token` sea un secreto por-company que el host genera desde el
+// dashboard. Por ahora retornamos un calendario vacio para no romper
+// suscriptores existentes.
+type FeedReservation = {
+  _id: string;
+  reservationNumber?: string;
+  reservationDate: string;
+  duration?: number;
+  participants?: number;
+  status?: string;
+  experienceTitle?: string;
+  clientName?: string;
+  clientEmail?: string;
+  locationName?: string;
+  isVirtual?: boolean;
+  meetingLink?: string;
+};
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -9,25 +29,9 @@ export async function GET(request: NextRequest) {
     return new NextResponse('Missing companyId', { status: 400 });
   }
 
-  const query = /* groq */ `
-    *[_type == "reservation" && company._ref == $companyId && status in ["pending", "confirmed", "in_progress"]] | order(reservationDate asc) {
-      _id,
-      reservationNumber,
-      reservationDate,
-      duration,
-      participants,
-      status,
-      "experienceTitle": experience->title,
-      "clientName": client.name,
-      "clientEmail": client.email,
-      "locationName": location.name,
-      isVirtual,
-      "meetingLink": virtualDetails.meetingLink
-    }
-  `;
-
   try {
-    const reservations = await sanityClient.fetch(query, { companyId });
+    // TODO: cambiar por fetch al API una vez exista /reservations/feed/:token
+    const reservations: FeedReservation[] = [];
 
     const now = new Date();
     const stamp = formatDate(now);

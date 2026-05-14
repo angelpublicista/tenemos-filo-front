@@ -285,11 +285,26 @@ export interface Experience {
   locations?: Array<{
     _ref: string;
     _type: 'reference';
-  }>; // Array de referencias a sedes (múltiples sedes)
+    // Campos extra que el API puede expandir (la version legacy de Sanity los traia
+    // via GROQ con `locations[]->{...}`). El front los lee directamente.
+    _id?: string;
+    name?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
+    };
+    isMain?: boolean;
+    capacity?: { minGuests?: number; maxGuests?: number };
+  }>;
   availabilities?: Array<{
     _ref: string;
     _type: 'reference';
-  }>; // Array de calendarios de disponibilidad (múltiples calendarios por sede)
+  }>;
+  // Expansion de availabilities con datos completos (heredado del GROQ original).
+  availabilitySchedules?: AvailabilitySchedule[];
   experienceType: 'virtual' | 'presential' | 'hybrid';
   isVirtual?: boolean;
   virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';

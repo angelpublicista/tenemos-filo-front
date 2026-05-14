@@ -89,7 +89,20 @@ function toExperienceLite(e: ApiExperienceForQuote): Experience & { companyName?
     locations: e.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),
     // Campos extra que el caller usa
     companyName: e.company.companyName,
-    availabilitySchedules: e.availabilities,
+    availabilitySchedules: e.availabilities?.map((a) => ({
+      _id: a.id,
+      _type: 'availability' as const,
+      name: a.name,
+      weeklySchedule: a.weeklySchedule as import('@/types').WeeklySchedule,
+      bufferTime: 0,
+      minimumNotice: 0,
+      blockedDates: [],
+      isMain: false,
+      isActive: true,
+      location: a.locationId ? { _ref: a.locationId, _type: 'reference' as const } : undefined,
+      createdAt: '',
+      updatedAt: '',
+    })),
   };
 }
 

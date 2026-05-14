@@ -111,7 +111,7 @@ function toReservation(r: ApiReservation): Reservation {
       : { _id: r.companyId, companyName: '', companyEmail: '', companyPhone: '' },
     client: r.client,
     clientInfo: r.client,
-    clientType: r.clientType.toLowerCase() as Reservation['clientType'],
+    clientType: ((r.clientType ?? 'GUEST') as string).toLowerCase() as Reservation['clientType'],
     reservationDate: r.reservationDate,
     duration: r.duration ?? 0,
     participants: r.participants,
@@ -132,7 +132,17 @@ function toReservation(r: ApiReservation): Reservation {
         }
       : undefined,
     isVirtual: r.isVirtual,
-    virtualDetails: r.virtualDetails ? (JSON.parse(r.virtualDetails) as Reservation['virtualDetails']) : undefined,
+    virtualDetails: r.virtualDetails
+      ? typeof r.virtualDetails === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(r.virtualDetails) as Reservation['virtualDetails'];
+            } catch {
+              return undefined;
+            }
+          })()
+        : (r.virtualDetails as Reservation['virtualDetails'])
+      : undefined,
     specialRequirements: r.specialRequirements ?? undefined,
     cancellation: r.cancellation ?? undefined,
     rescheduling: r.rescheduling ?? undefined,

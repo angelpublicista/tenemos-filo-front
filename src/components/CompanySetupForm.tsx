@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { createCompanyInSanity, getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
 import { associateUserWithCompany, markCompanySetupCompleted } from '@/lib/sanity/userService';
 import { Button, Label, TextInput, Select, Textarea } from 'flowbite-react';

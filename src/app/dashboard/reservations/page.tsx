@@ -25,7 +25,7 @@ import {
   HiPlus,
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import { getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
 import { Experience, Reservation } from '@/types';

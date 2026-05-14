@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HiCalendar, HiArrowRight } from "react-icons/hi";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { useAuth } from "@/lib/firebase/AuthContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { getCompanyById, updateCompanyInSanity, type UpdateCompanyData } from "@/lib/sanity/companyService";
 import type { Company } from "@/types";
 import {

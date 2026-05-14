@@ -1,19 +1,20 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { sanityClient } from '@/lib/sanity/sanityClient';
 import { Label, Button, TextInput } from 'flowbite-react';
 import { HiUpload, HiPhotograph, HiPlus, HiTrash } from 'react-icons/hi';
 import Image from 'next/image';
+import { uploadImage, UploadScope } from '@/lib/api/uploads';
 
 interface ImageUploadProps {
   label: string;
   value?: string;
-  onChange: (assetId: string) => void;
+  onChange: (url: string) => void;
   required?: boolean;
   helpText?: string;
   compact?: boolean;
   circular?: boolean;
+  scope?: UploadScope;
 }
 
 interface GalleryUploadProps {
@@ -22,17 +23,27 @@ interface GalleryUploadProps {
   onChange: (images: Array<{ assetId: string; alt?: string; caption?: string }>) => void;
   maxImages?: number;
   helpText?: string;
+  scope?: UploadScope;
 }
 
-const getImageUrl = (assetId: string): string => {
+// Resuelve la URL de visualizacion. Compat con assets viejos de Sanity:
+// - URL absoluta (S3/CloudFront): se usa tal cual
+// - "image-..." (asset id Sanity legacy): se construye URL del CDN de Sanity
+function getImageUrl(value: string): string {
+  if (!value) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  // Legacy: Sanity asset id
   const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
   const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
-  if (assetId.startsWith('image-')) {
-    const cleanAssetId = assetId.replace('image-', '').replace(/-([a-z]+)$/, '.$1');
+  if (value.startsWith('image-')) {
+    const cleanAssetId = value.replace('image-', '').replace(/-([a-z]+)$/, '.$1');
     return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
   }
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${assetId}`;
-};
+  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${value}`;
+}
+
+const formatSize = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
 
 // ─── Imagen única ────────────────────────────────────────────────────────────
 
@@ -44,14 +55,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   helpText,
   compact = false,
   circular = false,
+  scope = 'misc',
 }) => {
   const shapeClass = circular ? 'rounded-full' : 'rounded-lg';
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const formatSize = (bytes: number) =>
-    bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -69,11 +78,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setIsUploading(true);
     setError(null);
     try {
-      const result = await sanityClient.assets.upload('image', file, { filename: file.name });
-      onChange(result._id);
+      const url = await uploadImage(file, scope);
+      onChange(url);
     } catch (err) {
       console.error('Error uploading image:', err);
-      setError('Error al subir la imagen. Por favor intenta de nuevo.');
+      setError(err instanceof Error ? err.message : 'Error al subir la imagen.');
     } finally {
       setIsUploading(false);
     }
@@ -101,7 +110,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 compact ? 'w-32 h-32 sm:w-36 sm:h-36' : 'w-full h-64'
               }`}
             >
-              <Image src={getImageUrl(value)} alt={label} fill className="object-cover" />
+              <Image src={getImageUrl(value)} alt={label} fill className="object-cover" unoptimized />
             </div>
             <div className={compact ? 'absolute -top-2 -right-2' : 'absolute top-2 right-2'}>
               <Button size="xs" color="failure" onClick={handleRemove} className="opacity-90 hover:opacity-100">
@@ -169,14 +178,12 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
   onChange,
   maxImages = 10,
   helpText,
+  scope = 'gallery',
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const formatSize = (bytes: number) =>
-    bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -185,7 +192,6 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
     const fileArray = Array.from(files);
     const validationErrors: string[] = [];
 
-    // Validar número máximo antes de subir
     if (values.length + fileArray.length > maxImages) {
       const remaining = maxImages - values.length;
       validationErrors.push(
@@ -196,7 +202,6 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
       return;
     }
 
-    // Pre-validar cada archivo antes de intentar subir
     for (const file of fileArray) {
       if (!file.type.startsWith('image/')) {
         validationErrors.push(`"${file.name}" no es una imagen válida`);
@@ -217,15 +222,17 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
     try {
       const uploaded = await Promise.all(
         fileArray.map(async (file) => {
-          const result = await sanityClient.assets.upload('image', file, { filename: file.name });
-          return { assetId: result._id, alt: '', caption: '' };
+          const url = await uploadImage(file, scope);
+          // Conservamos la prop "assetId" en el shape para no romper consumidores;
+          // ahora contiene la URL publica de S3 en vez del id de Sanity.
+          return { assetId: url, alt: '', caption: '' };
         })
       );
       onChange([...values, ...uploaded]);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       console.error('Error uploading images:', err);
-      setErrors(['Error al subir las imágenes. Por favor intenta de nuevo.']);
+      setErrors([err instanceof Error ? err.message : 'Error al subir las imágenes.']);
     } finally {
       setIsUploading(false);
     }
@@ -249,7 +256,6 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
       {helpText && <p className="text-sm text-gray-500">{helpText}</p>}
 
       <div className="space-y-4">
-        {/* Grid de imágenes subidas */}
         {values.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {values.map((image, index) => (
@@ -261,6 +267,7 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
                       alt={image.alt || `Imagen ${index + 1}`}
                       fill
                       className="object-cover"
+                      unoptimized
                     />
                   </div>
                   <div className="absolute top-2 right-2">
@@ -303,7 +310,6 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
           </div>
         )}
 
-        {/* Zona de carga */}
         {values.length < maxImages && (
           <div>
             <input
@@ -334,7 +340,6 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
           </div>
         )}
 
-        {/* Errores de validación */}
         {errors.length > 0 && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 space-y-1">
             {errors.map((e, i) => (

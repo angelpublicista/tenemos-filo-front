@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { updateUserProfile } from '@/lib/sanity/userService';
 import { Button, TextInput, Select } from 'flowbite-react';
 import { 
@@ -354,7 +354,7 @@ export default function ProfileView() {
             ID de usuario: {sanityUser._id}
           </p>
           <p>
-            Firebase ID: {sanityUser.firebaseId.substring(0, 8)}...
+            ID: {(sanityUser.firebaseId ?? sanityUser._id).substring(0, 8)}...
           </p>
         </div>
       </div>

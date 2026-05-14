@@ -11,7 +11,7 @@ import { AiOutlineClose, AiOutlineUser, AiOutlineUserAdd } from 'react-icons/ai'
 import { BiTime, BiMap } from 'react-icons/bi';
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import CalendarPicker from '@/components/CalendarPicker';
 import TimePicker from '@/components/TimePicker';
 

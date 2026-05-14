@@ -5,7 +5,7 @@ import { Button, TextInput, Label } from "flowbite-react";
 import FiloLogo from "@/components/FiloLogo";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
-import { useAuth } from "@/lib/firebase/AuthContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { LoginFormData } from "@/types";
 import { useSearchParams } from "next/navigation";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";

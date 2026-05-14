@@ -1,9 +1,9 @@
 "use client";
 
 import { Dropdown, DropdownItem, DropdownDivider } from "flowbite-react";
-import { useAuth } from "@/lib/firebase/AuthContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import FiloLogo from "@/components/FiloLogo";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HiPlus, HiMenu } from "react-icons/hi";
 import NotificationBell from "@/components/Notifications/NotificationBell";
 import Link from "next/link";
@@ -15,6 +15,11 @@ interface NavbarProps {
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const { user, sanityUser, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  // El bloque de acciones depende de auth (sanityUser?.role) y monta el
+  // Dropdown de flowbite (que usa useId via @floating-ui). Para evitar
+  // hydration mismatch lo renderizamos solo despues del mount cliente.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -55,7 +60,13 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
       <div className="flex-1" />
 
       {/* Actions */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-3" suppressHydrationWarning>
+        {!mounted ? (
+          // Placeholder con el ancho aproximado del area de acciones para
+          // evitar layout shift al montar.
+          <div className="w-8 h-8" aria-hidden />
+        ) : (
+        <>
         {sanityUser?.role === 'host' && (
           <Link
             href="/dashboard/experiences/create"
@@ -123,6 +134,8 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             </div>
           </DropdownItem>
         </Dropdown>
+        </>
+        )}
       </div>
     </header>
   );

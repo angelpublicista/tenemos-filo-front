@@ -6,7 +6,7 @@ import Link from "next/link";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 import { useForm } from "react-hook-form";
-import { useAuth } from "@/lib/firebase/AuthContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { GuestStep1Data } from "@/types";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";

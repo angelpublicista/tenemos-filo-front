@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { HiCalendar } from 'react-icons/hi';
 import ICalIntegrationCard from '@/components/IntegrationCards/ICalIntegrationCard';

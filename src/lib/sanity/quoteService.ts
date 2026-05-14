@@ -1,4 +1,5 @@
-import { sanityClient } from './sanityClient';
+// Reescrito sobre el API. Mismas firmas para no romper callers.
+import { api } from '@/lib/api/client';
 import { Experience } from '@/types';
 
 interface SearchParams {
@@ -17,202 +18,170 @@ export interface QuoteData {
   eventTime: string;
   guests: number;
   location?: string;
-  experiences: string[]; // Array de IDs de experiencias
+  experiences: string[];
   notes?: string;
   companyId: string;
   hostId: string;
 }
 
-// Buscar experiencias disponibles para cotización
-export const searchExperiencesForQuote = async (params: SearchParams): Promise<Experience[]> => {
-  try {
-    const { companyId, guests, location, date } = params;
-
-    // Query GROQ para buscar experiencias
-    let query = `
-      *[_type == "experience" 
-        && company._ref == $companyId
-        && status == "active"
-        && capacity >= $guests
-        && (minCapacity == null || minCapacity <= $guests)
-    `;
-
-    // Si se especifica ubicación, filtrar por ciudad
-    if (location) {
-      query += ` && (presentialCity match $location || location->city match $location)`;
-    }
-
-    query += `] {
-      _id,
-      title,
-      description,
-      category,
-      categories,
-      duration,
-      capacity,
-      minCapacity,
-      basePrice,
-      currency,
-      experienceType,
-      isVirtual,
-      virtualPlatform,
-      presentialCity,
-      presentialAddress,
-      presentialLocation,
-      featuredImage,
-      includes,
-      requirements,
-      addons,
-      "companyName": company->companyName,
-      "locations": locations[]->{
-        _id,
-        name,
-        address
-      },
-      "availabilitySchedules": availabilities[]->{
-        _id,
-        weeklySchedule,
-        name,
-        location
-      },
-      status
-    }`;
-
-    const queryParams: Record<string, string | number> = {
-      companyId,
-      guests,
-    };
-
-    if (location) {
-      queryParams.location = `*${location}*`;
-    }
-
-    let experiences = await sanityClient.fetch(query, queryParams);
-    
-    // Filtrar por disponibilidad del día si se especificó una fecha
-    if (date && experiences) {
-      const selectedDate = new Date(date + 'T12:00:00'); // Agregar hora para evitar problemas de zona horaria
-      const dayOfWeek = getDayOfWeekFromDate(selectedDate);
-      
-      experiences = experiences.filter((exp: Experience & { availabilitySchedules?: Array<{ weeklySchedule: Record<string, { isActive: boolean }> }> }) => {
-        // Si no tiene calendarios configurados, no la incluimos
-        if (!exp.availabilitySchedules || exp.availabilitySchedules.length === 0) {
-          return false;
-        }
-        
-        // Verificar si el día está activo en AL MENOS UNO de los calendarios
-        return exp.availabilitySchedules.some(schedule => {
-          if (!schedule.weeklySchedule) return false;
-          const daySchedule = schedule.weeklySchedule[dayOfWeek];
-          return daySchedule?.isActive === true;
-        });
-      });
-    }
-    
-    return experiences || [];
-  } catch (error) {
-    console.error('Error searching experiences for quote:', error);
-    throw new Error('Failed to search experiences');
-  }
-};
-
-// Helper para convertir fecha a día de la semana
-function getDayOfWeekFromDate(date: Date): string {
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  return days[date.getDay()];
+interface ApiExperienceForQuote {
+  id: string;
+  title: string;
+  description: string | null;
+  categories: string[];
+  duration: number | null;
+  capacity: number | null;
+  minCapacity: number | null;
+  basePrice: string | number | null;
+  currency: string;
+  experienceType: 'VIRTUAL' | 'PRESENTIAL' | 'HYBRID';
+  isVirtual: boolean;
+  virtualPlatform: string | null;
+  presentialCity: string | null;
+  presentialAddress: string | null;
+  presentialLocation: string | null;
+  featuredImage: string | null;
+  includes: unknown;
+  requirements: string | null;
+  addons: unknown;
+  status: string;
+  company: { id: string; companyName: string };
+  locations?: Array<{ id: string; name: string; address: unknown }>;
+  availabilities?: Array<{ id: string; name: string; weeklySchedule: unknown; locationId: string | null }>;
 }
 
-// Crear cotización
-export const createQuote = async (quoteData: QuoteData) => {
-  try {
-    const doc = {
-      _type: 'quote',
-      customerName: quoteData.customerName,
-      customerEmail: quoteData.customerEmail,
-      customerPhone: quoteData.customerPhone || '',
-      eventDate: quoteData.eventDate,
-      eventTime: quoteData.eventTime,
-      guests: quoteData.guests,
-      location: quoteData.location || '',
-      experiences: quoteData.experiences.map(expId => ({
-        _type: 'reference',
-        _ref: expId,
-      })),
-      notes: quoteData.notes || '',
-      company: {
-        _type: 'reference',
-        _ref: quoteData.companyId,
-      },
-      host: {
-        _type: 'reference',
-        _ref: quoteData.hostId,
-      },
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const result = await sanityClient.create(doc);
-    return result;
-  } catch (error) {
-    console.error('Error creating quote:', error);
-    throw new Error('Failed to create quote');
-  }
+const TYPE_FROM_API: Record<'VIRTUAL' | 'PRESENTIAL' | 'HYBRID', Experience['experienceType']> = {
+  VIRTUAL: 'virtual',
+  PRESENTIAL: 'presential',
+  HYBRID: 'hybrid',
 };
 
-// Obtener cotizaciones por empresa
+function toExperienceLite(e: ApiExperienceForQuote): Experience & { companyName?: string; availabilitySchedules?: unknown[] } {
+  return {
+    _id: e.id,
+    _type: 'experience',
+    title: e.title,
+    slug: { _type: 'slug', current: '' },
+    company: { _ref: e.company.id, _type: 'reference' },
+    description: e.description ?? '',
+    categories: (e.categories ?? []) as Experience['categories'],
+    duration: e.duration ?? 0,
+    capacity: e.capacity ?? 0,
+    minCapacity: e.minCapacity ?? undefined,
+    basePrice: typeof e.basePrice === 'string' ? Number(e.basePrice) : (e.basePrice ?? 0),
+    currency: e.currency as Experience['currency'],
+    featuredImage: e.featuredImage ?? undefined,
+    experienceType: TYPE_FROM_API[e.experienceType],
+    isVirtual: e.isVirtual,
+    virtualPlatform: (e.virtualPlatform ?? undefined) as Experience['virtualPlatform'],
+    presentialCity: e.presentialCity ?? undefined,
+    presentialAddress: e.presentialAddress ?? undefined,
+    presentialLocation: e.presentialLocation ?? undefined,
+    includes: (e.includes as Experience['includes']) ?? undefined,
+    requirements: e.requirements ? [e.requirements] : undefined,
+    addons: (e.addons as Experience['addons']) ?? undefined,
+    status: 'active',
+    isFeatured: false,
+    totalBookings: 0,
+    totalRevenue: 0,
+    createdAt: '',
+    updatedAt: '',
+    locations: e.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),
+    // Campos extra que el caller usa
+    companyName: e.company.companyName,
+    availabilitySchedules: e.availabilities,
+  };
+}
+
+export const searchExperiencesForQuote = async (params: SearchParams): Promise<Experience[]> => {
+  const items = await api.get<ApiExperienceForQuote[]>('/quotes/search-experiences', {
+    companyId: params.companyId,
+    date: params.date,
+    time: params.time,
+    guests: params.guests,
+    location: params.location,
+  });
+  return items.map(toExperienceLite);
+};
+
+export const createQuote = async (quoteData: QuoteData): Promise<{ _id: string }> => {
+  const created = await api.post<{ id: string }>('/quotes', {
+    customerName: quoteData.customerName,
+    customerEmail: quoteData.customerEmail,
+    customerPhone: quoteData.customerPhone,
+    eventDate: quoteData.eventDate,
+    eventTime: quoteData.eventTime,
+    guests: quoteData.guests,
+    location: quoteData.location,
+    experiences: quoteData.experiences,
+    notes: quoteData.notes,
+    companyId: quoteData.companyId,
+    hostId: quoteData.hostId,
+  });
+  return { _id: created.id };
+};
+
+interface ApiQuote {
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string | null;
+  eventDate: string | null;
+  eventTime: string | null;
+  guests: number | null;
+  location: string | null;
+  notes: string | null;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+  createdAt: string;
+  updatedAt: string;
+  company: { id: string; companyName: string };
+  host: { id: string; name: string | null; email: string } | null;
+  experiences: Array<{ id: string; title: string; basePrice: string | number | null; currency: string }>;
+}
+
+const QUOTE_STATUS_FROM_API = {
+  PENDING: 'pending',
+  ACCEPTED: 'accepted',
+  REJECTED: 'rejected',
+  EXPIRED: 'expired',
+} as const;
+
+const QUOTE_STATUS_TO_API = {
+  pending: 'PENDING',
+  accepted: 'ACCEPTED',
+  rejected: 'REJECTED',
+  expired: 'EXPIRED',
+} as const;
+
 export const getQuotesByCompany = async (companyId: string) => {
-  try {
-    const query = `
-      *[_type == "quote" && company._ref == $companyId] | order(createdAt desc) {
-        _id,
-        customerName,
-        customerEmail,
-        customerPhone,
-        eventDate,
-        eventTime,
-        guests,
-        location,
-        experiences[]->{
-          _id,
-          title,
-          basePrice,
-          currency
-        },
-        notes,
-        status,
-        createdAt,
-        updatedAt,
-        "companyName": company->companyName,
-        "hostName": host->name
-      }
-    `;
-
-    const quotes = await sanityClient.fetch(query, { companyId });
-    return quotes || [];
-  } catch (error) {
-    console.error('Error fetching quotes:', error);
-    throw new Error('Failed to fetch quotes');
-  }
+  const items = await api.get<ApiQuote[]>('/quotes', { companyId });
+  // Devuelve un shape similar al GROQ original (con experiences expandidas + companyName + hostName)
+  return items.map((q) => ({
+    _id: q.id,
+    customerName: q.customerName,
+    customerEmail: q.customerEmail,
+    customerPhone: q.customerPhone ?? '',
+    eventDate: q.eventDate,
+    eventTime: q.eventTime,
+    guests: q.guests,
+    location: q.location ?? '',
+    notes: q.notes ?? '',
+    status: QUOTE_STATUS_FROM_API[q.status],
+    createdAt: q.createdAt,
+    updatedAt: q.updatedAt,
+    companyName: q.company.companyName,
+    hostName: q.host?.name ?? null,
+    experiences: q.experiences.map((e) => ({
+      _id: e.id,
+      title: e.title,
+      basePrice: typeof e.basePrice === 'string' ? Number(e.basePrice) : (e.basePrice ?? 0),
+      currency: e.currency,
+    })),
+  }));
 };
 
-// Actualizar estado de cotización
 export const updateQuoteStatus = async (quoteId: string, status: string) => {
-  try {
-    const result = await sanityClient
-      .patch(quoteId)
-      .set({ 
-        status,
-        updatedAt: new Date().toISOString()
-      })
-      .commit();
-
-    return result;
-  } catch (error) {
-    console.error('Error updating quote status:', error);
-    throw new Error('Failed to update quote status');
-  }
+  const apiStatus =
+    QUOTE_STATUS_TO_API[status as keyof typeof QUOTE_STATUS_TO_API] ?? status.toUpperCase();
+  return api.patch(`/quotes/${encodeURIComponent(quoteId)}/status`, { status: apiStatus });
 };
-
-
-

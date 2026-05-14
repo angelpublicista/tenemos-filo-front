@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineCalendar, HiOutlineTrendingUp } from 'react-icons/hi';
 import { BiStore } from 'react-icons/bi';

@@ -63,7 +63,8 @@ export interface CreateUserData {
 export interface SanityUser {
   _id: string;
   _type: 'user';
-  firebaseId: string;
+  /** @deprecated reemplazado por _id (Postgres) tras la migracion a NextAuth+API */
+  firebaseId?: string;
   name: string;
   email: string;
   avatar?: {
@@ -94,7 +95,13 @@ export interface SanityUser {
 }
 
 // Tipos para autenticación
-import { User } from 'firebase/auth';
+// `user` ya no es Firebase User: ahora es la identidad basica desde NextAuth.
+// El detalle del usuario vive en `sanityUser` (poblado desde GET /users/me).
+export interface AuthUser {
+  uid: string;
+  email: string | null;
+  emailVerified: boolean;
+}
 
 export interface CompanySetupState {
   hasCompletedSetup: boolean;
@@ -103,7 +110,7 @@ export interface CompanySetupState {
 }
 
 export interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   sanityUser: SanityUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;

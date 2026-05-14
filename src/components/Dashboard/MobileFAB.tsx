@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HiPlus, HiX } from "react-icons/hi";
 import { AiOutlineCalendar, AiOutlineTeam } from "react-icons/ai";
-import { useAuth } from "@/lib/firebase/AuthContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 interface MobileFABProps {
   hidden?: boolean;

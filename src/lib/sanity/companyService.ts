@@ -1,13 +1,11 @@
-import { sanityClient } from './sanityClient';
+// Reescrito para apuntar al API propio (Express + Postgres) en vez de Sanity.
+// El nombre del archivo se conserva para no romper imports en los 10+ callers.
+// El shape de retorno (`Company`) se mantiene "Sanity-style" via mapeo, asi
+// que ningun caller necesita cambiar mientras el tipo `Company` no cambie.
+import { api } from '@/lib/api/client';
 import { Company } from '@/types';
 
-const buildLogoField = (assetId: string | undefined) => {
-  if (!assetId) return undefined;
-  return {
-    _type: 'image',
-    asset: { _type: 'reference', _ref: assetId },
-  };
-};
+// ─── Tipos publicos (se conservan para compat) ─────────────────────────────
 
 export interface CreateCompanyData {
   companyName: string;
@@ -16,7 +14,6 @@ export interface CreateCompanyData {
   companyEmail: string;
   companyPhone: string;
   logo?: string;
-  // Campos fiscales y empresariales
   documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber?: string;
   businessName?: string;
@@ -33,143 +30,160 @@ export interface CreateCompanyData {
   businessYears?: '0-1' | '1-3' | '3-5' | '5-10' | '10+';
 }
 
-export const createCompanyInSanity = async (companyData: CreateCompanyData) => {
-  try {
-    const doc = {
-      _type: 'company',
-      companyName: companyData.companyName,
-      slug: {
-        _type: 'slug',
-        current: companyData.companyName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-      },
-      businessName: companyData.businessName,
-      description: companyData.description,
-      companyType: companyData.companyType,
-      companyEmail: companyData.companyEmail,
-      companyPhone: companyData.companyPhone,
-      logo: buildLogoField(companyData.logo),
-      documentType: companyData.documentType,
-      documentNumber: companyData.documentNumber,
-      website: companyData.website,
-      address: companyData.address,
-      employeeCount: companyData.employeeCount,
-      annualRevenue: companyData.annualRevenue,
-      businessYears: companyData.businessYears,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const result = await sanityClient.create(doc);
-    return result;
-  } catch (error) {
-    console.error('Error creating company in Sanity:', error);
-    throw new Error('Failed to create company in Sanity');
-  }
+// `logo` admite null para borrarlo explicitamente (PATCH con logo:null deja
+// el campo en NULL en Postgres). Usamos Omit para que no se intersecte con
+// el `logo: string | undefined` de CreateCompanyData.
+export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo'>> & {
+  logo?: string | null;
 };
 
-export const getCompanyByUserId = async (firebaseId: string): Promise<Company | null> => {
-  try {
-    // Primero obtener el usuario para acceder a su empresa
-    const userQuery = `*[_type == "user" && firebaseId == $firebaseId][0]`;
-    const user = await sanityClient.fetch(userQuery, { firebaseId });
-    
-    if (!user || !user.company) {
-      return null;
-    }
+// ─── Tipos del API (Postgres) ──────────────────────────────────────────────
 
-    // Obtener la empresa del usuario
-    const companyId = user.company._ref;
-    const companyQuery = `*[_type == "company" && _id == $companyId][0]`;
-    const company = await sanityClient.fetch(companyQuery, { companyId });
-    
-    return company;
-  } catch (error) {
-    console.error('Error fetching company by user ID:', error);
-    throw new Error('Failed to fetch company by user ID');
-  }
+type ApiCompanyType = 'RESTAURANT' | 'CATERING' | 'FOODTRUCK' | 'OTHER';
+type ApiDocumentType = 'NIT' | 'CEDULA' | 'PASAPORTE' | 'OTHER';
+
+interface ApiCompany {
+  id: string;
+  ownerId: string;
+  companyName: string;
+  slug: string;
+  businessName: string | null;
+  description: string | null;
+  companyType: ApiCompanyType | null;
+  companyEmail: string | null;
+  companyPhone: string | null;
+  logo: string | null;
+  documentType: ApiDocumentType | null;
+  documentNumber: string | null;
+  website: string | null;
+  address: Company['address'] | null;
+  employeeCount: string | null;
+  annualRevenue: string | null;
+  businessYears: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  locations?: Array<{ id: string; name: string; isMain: boolean }>;
+}
+
+// ─── Mapeos enum (lower<->upper) ───────────────────────────────────────────
+
+const COMPANY_TYPE_TO_API: Record<NonNullable<CreateCompanyData['companyType']>, ApiCompanyType> = {
+  restaurant: 'RESTAURANT',
+  catering: 'CATERING',
+  foodtruck: 'FOODTRUCK',
+  other: 'OTHER',
+};
+const COMPANY_TYPE_FROM_API: Record<ApiCompanyType, Company['companyType']> = {
+  RESTAURANT: 'restaurant',
+  CATERING: 'catering',
+  FOODTRUCK: 'foodtruck',
+  OTHER: 'other',
+};
+
+const DOC_TYPE_TO_API: Record<NonNullable<CreateCompanyData['documentType']>, ApiDocumentType> = {
+  nit: 'NIT',
+  cedula: 'CEDULA',
+  pasaporte: 'PASAPORTE',
+  other: 'OTHER',
+};
+const DOC_TYPE_FROM_API: Record<ApiDocumentType, NonNullable<Company['documentType']>> = {
+  NIT: 'nit',
+  CEDULA: 'cedula',
+  PASAPORTE: 'pasaporte',
+  OTHER: 'other',
+};
+
+// ─── Mapper API → Company shape (compatible con tipo `Company` Sanity-like) ─
+
+function toCompany(c: ApiCompany): Company {
+  return {
+    _id: c.id,
+    _type: 'company',
+    companyName: c.companyName,
+    slug: { _type: 'slug', current: c.slug },
+    businessName: c.businessName ?? undefined,
+    description: c.description ?? undefined,
+    logo: c.logo
+      ? { asset: { _ref: c.logo, _type: 'reference' } }
+      : undefined,
+    companyType: c.companyType ? COMPANY_TYPE_FROM_API[c.companyType] : 'other',
+    companyEmail: c.companyEmail ?? '',
+    companyPhone: c.companyPhone ?? '',
+    documentType: c.documentType ? DOC_TYPE_FROM_API[c.documentType] : undefined,
+    documentNumber: c.documentNumber ?? undefined,
+    website: c.website ?? undefined,
+    address: c.address ?? undefined,
+    employeeCount: (c.employeeCount as Company['employeeCount']) ?? undefined,
+    annualRevenue: (c.annualRevenue as Company['annualRevenue']) ?? undefined,
+    businessYears: (c.businessYears as Company['businessYears']) ?? undefined,
+    locations: c.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),
+    isActive: c.isActive,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+  };
+}
+
+function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (data.companyName !== undefined) out.companyName = data.companyName;
+  if (data.companyType !== undefined) out.companyType = COMPANY_TYPE_TO_API[data.companyType];
+  if (data.description !== undefined) out.description = data.description;
+  if (data.companyEmail !== undefined) out.companyEmail = data.companyEmail;
+  if (data.companyPhone !== undefined) out.companyPhone = data.companyPhone;
+  if (data.logo !== undefined) out.logo = data.logo === null ? null : data.logo;
+  if (data.documentType !== undefined) out.documentType = DOC_TYPE_TO_API[data.documentType];
+  if (data.documentNumber !== undefined) out.documentNumber = data.documentNumber;
+  if (data.businessName !== undefined) out.businessName = data.businessName;
+  if (data.website !== undefined) out.website = data.website;
+  if (data.address !== undefined) out.address = data.address;
+  if (data.employeeCount !== undefined) out.employeeCount = data.employeeCount;
+  if (data.annualRevenue !== undefined) out.annualRevenue = data.annualRevenue;
+  if (data.businessYears !== undefined) out.businessYears = data.businessYears;
+  return out;
+}
+
+// ─── API publica (mismas firmas que la version Sanity) ─────────────────────
+
+export const createCompanyInSanity = async (data: CreateCompanyData): Promise<Company> => {
+  const created = await api.post<ApiCompany>('/companies', buildPayload(data));
+  return toCompany(created);
+};
+
+export const getCompanyByUserId = async (_userIdLegacy?: string): Promise<Company | null> => {
+  // El parametro era el firebaseId del user; ahora ignoramos y usamos /companies/me
+  // (el API resuelve la company del usuario autenticado).
+  void _userIdLegacy;
+  const company = await api.get<ApiCompany | null>('/companies/me');
+  return company ? toCompany(company) : null;
 };
 
 export const getCompanyById = async (companyId: string): Promise<Company | null> => {
   try {
-    const query = `*[_type == "company" && _id == $companyId][0]`;
-    const company = await sanityClient.fetch(query, { companyId });
-    return company;
-  } catch (error) {
-    console.error('Error fetching company from Sanity:', error);
-    throw new Error('Failed to fetch company from Sanity');
-  }
-};
-
-export interface UpdateCompanyData {
-  companyName?: string;
-  businessName?: string;
-  description?: string;
-  companyType?: 'restaurant' | 'catering' | 'foodtruck' | 'other';
-  companyEmail?: string;
-  companyPhone?: string;
-  logo?: string | null;
-  documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
-  documentNumber?: string;
-  website?: string;
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
-  };
-  employeeCount?: '1-10' | '11-50' | '51-200' | '201-500' | '500+';
-  annualRevenue?: '0-100k' | '100k-500k' | '500k-1M' | '1M-5M' | '5M+';
-  businessYears?: '0-1' | '1-3' | '3-5' | '5-10' | '10+';
-}
-
-export const updateCompanyInSanity = async (companyId: string, data: UpdateCompanyData): Promise<Company> => {
-  try {
-    const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
-    const unset: string[] = [];
-    (Object.keys(data) as (keyof UpdateCompanyData)[]).forEach(key => {
-      const value = data[key];
-      if (value === undefined) return;
-      if (key === 'logo') {
-        if (value === null || value === '') unset.push('logo');
-        else patch.logo = buildLogoField(value as string);
-        return;
-      }
-      patch[key] = value;
-    });
-
-    if (data.companyName) {
-      patch.slug = {
-        _type: 'slug',
-        current: data.companyName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-      };
+    const company = await api.get<ApiCompany>(`/companies/${encodeURIComponent(companyId)}`);
+    return toCompany(company);
+  } catch (err) {
+    if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 404) {
+      return null;
     }
-
-    let tx = sanityClient.patch(companyId).set(patch);
-    if (unset.length) tx = tx.unset(unset);
-    const result = await tx.commit();
-    return result as unknown as Company;
-  } catch (error) {
-    console.error('Error updating company in Sanity:', error);
-    throw new Error('Failed to update company in Sanity');
+    throw err;
   }
 };
 
-export const updateCompanyLocations = async (companyId: string, locationIds: string[]) => {
-  try {
-    const locationRefs = locationIds.map(id => ({
-      _key: crypto.randomUUID(), // Añadir una _key única para cada elemento del array
-      _ref: id,
-      _type: 'reference',
-    }));
+export const updateCompanyInSanity = async (
+  companyId: string,
+  data: UpdateCompanyData,
+): Promise<Company> => {
+  const updated = await api.patch<ApiCompany>(
+    `/companies/${encodeURIComponent(companyId)}`,
+    buildPayload(data),
+  );
+  return toCompany(updated);
+};
 
-    await sanityClient
-      .patch(companyId)
-      .set({ locations: locationRefs, updatedAt: new Date().toISOString() })
-      .commit();
-  } catch (error) {
-    console.error('Error updating company locations:', error);
-    throw new Error('Failed to update company locations');
-  }
-}; 
+export const updateCompanyLocations = async (_companyId: string, _locationIds: string[]) => {
+  // TODO: migrar al API. Pertenece al modulo `locations` (aun en esqueleto).
+  void _companyId;
+  void _locationIds;
+  throw new Error('updateCompanyLocations aun no migrado al nuevo backend.');
+};

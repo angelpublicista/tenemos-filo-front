@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
-import { sanityClient } from '@/lib/sanity/sanityClient';
+import { uploadImage } from '@/lib/api/uploads';
 import { Company } from '@/types';
 import { Button } from 'flowbite-react';
 import {
@@ -19,7 +19,11 @@ import {
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from './Loader';
 
+// Resuelve la URL del logo. Compat con assets viejos de Sanity:
+// - URL absoluta (S3/CloudFront): se usa tal cual
+// - "image-..." legacy: se construye URL del CDN de Sanity
 const getLogoUrl = (assetRef: string): string => {
+  if (assetRef.startsWith('http://') || assetRef.startsWith('https://')) return assetRef;
   const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
   const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
   const cleanAssetId = assetRef.startsWith('image-')
@@ -95,11 +99,11 @@ export default function CompanyInfoView({
     setIsUploadingLogo(true);
     setLogoError(null);
     try {
-      const result = await sanityClient.assets.upload('image', file, { filename: file.name });
-      await updateCompanyInSanity(existingCompany._id, { logo: result._id });
+      const url = await uploadImage(file, 'logos');
+      await updateCompanyInSanity(existingCompany._id, { logo: url });
       setExistingCompany({
         ...existingCompany,
-        logo: { asset: { _ref: result._id, _type: 'reference' } },
+        logo: { asset: { _ref: url, _type: 'reference' } },
         updatedAt: new Date().toISOString(),
       });
       await showSuccess('Logo actualizado', 'El logo se subió correctamente.');

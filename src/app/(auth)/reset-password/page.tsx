@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
 import FiloLogo from "@/components/FiloLogo";
 import Link from "next/link";
-import { useAuth } from "@/lib/firebase/AuthContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
 
 export default function ResetPassword() {

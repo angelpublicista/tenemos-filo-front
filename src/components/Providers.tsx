@@ -1,8 +1,9 @@
 "use client";
 
 import { ReactNode } from 'react';
+import { SessionProvider } from "next-auth/react";
 import { ThemeProvider as FlowbiteThemeProvider, createTheme } from "flowbite-react";
-import { AuthProvider } from "@/lib/firebase/AuthContext";
+import { AuthProvider } from "@/lib/auth/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 const customTheme = createTheme({
@@ -51,13 +52,15 @@ const customTheme = createTheme({
 
 export default function Providers({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider>
-      <FlowbiteThemeProvider theme={customTheme}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </FlowbiteThemeProvider>
-    </ThemeProvider>
+    <SessionProvider>
+      <ThemeProvider>
+        <FlowbiteThemeProvider theme={customTheme}>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </FlowbiteThemeProvider>
+      </ThemeProvider>
+    </SessionProvider>
   );
 }
 

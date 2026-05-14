@@ -1,4 +1,5 @@
 import { sanityClient } from './sanityClient';
+import { api } from '@/lib/api/client';
 import { CreateUserData, SanityUser } from '@/types';
 
 // Función para probar la conectividad con Sanity
@@ -153,60 +154,20 @@ export const updateUserLocations = async (firebaseId: string, locationIds: strin
   }
 };
 
-export const associateUserWithCompany = async (firebaseId: string, companyId: string) => {
-  try {
-    // Primero buscar el usuario por firebaseId
-    const user = await getUserByFirebaseId(firebaseId);
-    if (!user) {
-      throw new Error('Usuario no encontrado en Sanity');
-    }
-
-    // Crear la referencia a la empresa
-    const companyRef = {
-      _ref: companyId,
-      _type: 'reference',
-    };
-
-    // Actualizar el usuario con la referencia a la empresa en el campo company
-    const result = await sanityClient
-      .patch(user._id)
-      .set({ 
-        company: companyRef,
-        updatedAt: new Date().toISOString() 
-      })
-      .commit();
-
-    console.log('Usuario asociado con empresa exitosamente:', result._id);
-    return result;
-  } catch (error) {
-    console.error('Error associating user with company:', error);
-    throw new Error('Error al asociar usuario con empresa');
-  }
+export const associateUserWithCompany = async (_firebaseId: string, companyId: string) => {
+  // El parametro firebaseId es legacy: el API asocia siempre al user autenticado
+  // (el JWT lleva el id). Lo mantenemos en la firma para no romper callers.
+  void _firebaseId;
+  return api.post<{ id: string; email: string; companyId: string }>(
+    `/companies/${encodeURIComponent(companyId)}/associate-me`,
+  );
 };
 
-export const markCompanySetupCompleted = async (firebaseId: string) => {
-  try {
-    // Primero buscar el usuario por firebaseId
-    const user = await getUserByFirebaseId(firebaseId);
-    if (!user) {
-      throw new Error('Usuario no encontrado en Sanity');
-    }
-
-    // Solo actualizar campos que existen en el esquema de Sanity
-    // El campo hasCompletedCompanySetup se maneja en localStorage
-    const result = await sanityClient
-      .patch(user._id)
-      .set({ 
-        updatedAt: new Date().toISOString() 
-      })
-      .commit();
-
-    console.log('Setup de empresa marcado como completado:', result._id);
-    return result;
-  } catch (error) {
-    console.error('Error marking company setup as completed:', error);
-    throw new Error('Error al marcar setup como completado');
-  }
+export const markCompanySetupCompleted = async (_firebaseId: string) => {
+  // No-op: el flag vive en localStorage (AuthContext.markSetupCompleted).
+  // En el API basta con que el user tenga companyId; no hay flag separado.
+  void _firebaseId;
+  return { ok: true };
 };
 
 export const updateUserProfile = async (firebaseId: string, updateData: Partial<SanityUser>) => {

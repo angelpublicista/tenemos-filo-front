@@ -2,7 +2,7 @@
 
 import React from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { HiShare } from 'react-icons/hi';
 import SharingPanel from '@/components/BookingEngine/SharingPanel';
 

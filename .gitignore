@@ -32,6 +32,24 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+*-env.zip
+*.env.zip
+secrets.zip
+
+# archives (avoid accidental commits of bundled env/secrets)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# credentials / keys
+*.key
+*.pfx
+*.p12
+credentials.json
+service-account*.json
 
 # vercel
 .vercel

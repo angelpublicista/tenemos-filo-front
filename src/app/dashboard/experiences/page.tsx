@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany, getExperienceStatsByCompany, updateExperienceStatus, deleteExperienceInSanity } from '@/lib/sanity/experienceService';
 import { getCompanyByUserId } from '@/lib/sanity/companyService';
 import { Experience, Company } from '@/types';
@@ -27,8 +27,8 @@ import {
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useRouter } from 'next/navigation';
-import Loader from '@/components/Loader';
 import ExperienceStats from '@/components/ExperienceStats';
+import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
 import { ManageExperienceCard } from '@/components/ManageExperienceCard';
 
 export default function ExperiencesPage() {
@@ -53,7 +53,7 @@ export default function ExperiencesPage() {
 
       if (!companyData) {
         showError('No se encontró información de empresa. Completa el registro de empresa primero.');
-        router.push('/dashboard/company-setup');
+        router.push('/company-setup');
         return;
       }
 
@@ -152,11 +152,7 @@ export default function ExperiencesPage() {
     router.push(`/dashboard/experiences/${experienceId}/edit`);
   };
 
-  if (isLoading) {
-    return <Loader message="Cargando tus experiencias..." />;
-  }
-
-  if (!company) {
+  if (!company && !isLoading) {
     return (
       <div className="p-6">
         <div className="text-center py-12">
@@ -169,7 +165,7 @@ export default function ExperiencesPage() {
           </p>
           <Button
             color="primary"
-            onClick={() => router.push('/dashboard/company-setup')}
+            onClick={() => router.push('/company-setup')}
             className="px-6 py-3"
           >
             Completar Registro de Empresa
@@ -180,23 +176,23 @@ export default function ExperiencesPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div className="mb-6 lg:mb-0">
-            <h1 className="text-3xl font-bold text-[#334C5D] mb-2">
+      <div className="mb-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#334C5D]">
               Mis Experiencias
             </h1>
-            <p className="text-gray-600">
-              Gestiona todas las experiencias de <span className="font-bold">{company.companyName}</span>
+            <p className="text-sm text-gray-600">
+              Gestiona todas las experiencias de <span className="font-bold">{company?.companyName}</span>
             </p>
           </div>
-          
+
           <Button
             color="primary"
             href="/dashboard/experiences/create"
-            className="px-6 py-3"
+            className="w-full sm:w-auto px-4 py-2"
           >
             <HiPlus className="w-5 h-5 mr-2" />
             Crear Nueva Experiencia
@@ -205,24 +201,26 @@ export default function ExperiencesPage() {
       </div>
 
       {/* Estadísticas */}
-      {stats && (
-        <ExperienceStats stats={stats} className="mb-8" />
-      )}
-
-      <hr className="my-8 border-gray-200" />
+      {isLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+      ) : stats ? (
+        <ExperienceStats stats={stats} className="mb-4" />
+      ) : null}
 
       {/* Filtros */}
       <div className="mb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#334C5D]">
             Experiencias ({filteredExperiences.length})
           </h2>
-          
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-2 sm:gap-4">
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-48"
+              className="flex-1 sm:flex-none sm:w-48"
             >
               <option value="all">Todos los estados</option>
               <option value="active">Activas</option>
@@ -231,14 +229,14 @@ export default function ExperiencesPage() {
               <option value="paused">Pausadas</option>
               <option value="inactive">Inactivas</option>
             </Select>
-            
+
             {/* Toggle de vista */}
-            <div className="flex items-center gap-2 rounded-lg p-1">
+            <div className="flex items-center gap-1 shrink-0">
               <Button
                 color={viewMode === 'grid' ? 'primary' : 'gray'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="px-3 py-2"
+                className="!p-2"
               >
                 <HiViewGrid className="w-4 h-4" />
               </Button>
@@ -246,7 +244,7 @@ export default function ExperiencesPage() {
                 color={viewMode === 'list' ? 'primary' : 'gray'}
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className="px-3 py-2"
+                className="!p-2"
               >
                 <HiViewList className="w-4 h-4" />
               </Button>
@@ -256,7 +254,11 @@ export default function ExperiencesPage() {
       </div>
 
       {/* Lista de Experiencias */}
-      {filteredExperiences.length === 0 ? (
+      {isLoading ? (
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-2'}>
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : filteredExperiences.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-gray-400 mb-4">
             <HiStar className="w-16 h-16 mx-auto" />

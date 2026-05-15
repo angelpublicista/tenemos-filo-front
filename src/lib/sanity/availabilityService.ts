@@ -1,296 +1,187 @@
-import { sanityClient } from './sanityClient';
-import { 
-  AvailabilitySchedule, 
-  CreateAvailabilityScheduleData, 
+// Reescrito sobre el API. Conserva las firmas de las funciones publicas
+// para no tocar callers (CompanySetupForm, dashboard/availability,
+// dashboard/experiences/create|edit, etc.).
+import { api } from '@/lib/api/client';
+import {
+  AvailabilitySchedule,
+  CreateAvailabilityScheduleData,
   UpdateAvailabilityScheduleData,
-  WeeklySchedule
+  WeeklySchedule,
 } from '@/types';
 
-/**
- * Crea un nuevo calendario de disponibilidad para una sede
- */
-export const createAvailabilitySchedule = async (
-  data: CreateAvailabilityScheduleData
-): Promise<AvailabilitySchedule> => {
-  try {
-    const doc = {
-      _type: 'availability',
-      name: data.name,
-      location: {
-        _ref: data.location,
-        _type: 'reference',
-      },
-      isMain: data.isMain ?? false,
-      isActive: data.isActive ?? true,
-      description: data.description,
-      weeklySchedule: data.weeklySchedule,
-      bufferTime: data.bufferTime ?? 0,
-      minimumNotice: data.minimumNotice ?? 24,
-      notes: data.notes,
-      blockedDates: data.blockedDates || [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+interface ApiAvailability {
+  id: string;
+  name: string;
+  description: string | null;
+  locationId: string | null;
+  isMain: boolean;
+  isActive: boolean;
+  weeklySchedule: WeeklySchedule;
+  bufferTime: number;
+  minimumNotice: number;
+  notes: string | null;
+  blockedDates: string[];
+  createdAt: string;
+  updatedAt: string;
+  location?: { id: string; name: string; slug: string | null; companyId: string };
+}
 
-    const result = await sanityClient.create(doc);
-    return result as unknown as AvailabilitySchedule;
-  } catch (error) {
-    console.error('Error creating availability schedule:', error);
-    throw new Error('Failed to create availability schedule');
-  }
+function toSchedule(a: ApiAvailability): AvailabilitySchedule {
+  return {
+    _id: a.id,
+    _type: 'availability',
+    name: a.name,
+    location: a.locationId ? { _ref: a.locationId, _type: 'reference' } : undefined,
+    isMain: a.isMain,
+    isActive: a.isActive,
+    description: a.description ?? undefined,
+    weeklySchedule: a.weeklySchedule,
+    bufferTime: a.bufferTime,
+    minimumNotice: a.minimumNotice,
+    notes: a.notes ?? undefined,
+    blockedDates: (a.blockedDates ?? []).map((d) => ({ date: d })),
+    createdAt: a.createdAt,
+    updatedAt: a.updatedAt,
+  };
+}
+
+export const createAvailabilitySchedule = async (
+  data: CreateAvailabilityScheduleData,
+): Promise<AvailabilitySchedule> => {
+  const created = await api.post<ApiAvailability>('/availabilities', {
+    name: data.name,
+    description: data.description,
+    location: data.location,
+    experience: data.experience,
+    isMain: data.isMain,
+    isActive: data.isActive,
+    weeklySchedule: data.weeklySchedule,
+    bufferTime: data.bufferTime,
+    minimumNotice: data.minimumNotice,
+    notes: data.notes,
+    // El API acepta tanto strings ISO como objetos { date }
+    blockedDates: data.blockedDates,
+  });
+  return toSchedule(created);
 };
 
-/**
- * Obtiene un calendario de disponibilidad por ID
- */
 export const getAvailabilityScheduleById = async (
-  scheduleId: string
+  scheduleId: string,
 ): Promise<AvailabilitySchedule | null> => {
   try {
-    const query = `*[_type == "availability" && _id == $scheduleId][0] {
-      _id,
-      _type,
-      name,
-      location,
-      isMain,
-      isActive,
-      description,
-      weeklySchedule,
-      bufferTime,
-      minimumNotice,
-      notes,
-      blockedDates,
-      createdAt,
-      updatedAt
-    }`;
-    const schedule = await sanityClient.fetch(query, { scheduleId });
-    return schedule;
-  } catch (error) {
-    console.error('Error fetching availability schedule:', error);
-    throw new Error('Failed to fetch availability schedule');
+    const av = await api.get<ApiAvailability>(`/availabilities/${encodeURIComponent(scheduleId)}`);
+    return toSchedule(av);
+  } catch (err) {
+    if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 404) {
+      return null;
+    }
+    throw err;
   }
 };
 
-/**
- * Obtiene todos los calendarios de disponibilidad de una sede
- */
 export const getAvailabilitySchedulesByLocation = async (
-  locationId: string
+  locationId: string,
 ): Promise<AvailabilitySchedule[]> => {
-  try {
-    const query = `*[_type == "availability" && location._ref == $locationId] | order(isMain desc, createdAt desc) {
-      _id,
-      _type,
-      name,
-      location,
-      isMain,
-      isActive,
-      description,
-      weeklySchedule,
-      bufferTime,
-      minimumNotice,
-      notes,
-      blockedDates,
-      createdAt,
-      updatedAt
-    }`;
-    const schedules = await sanityClient.fetch(query, { locationId });
-    return schedules;
-  } catch (error) {
-    console.error('Error fetching availability schedules by location:', error);
-    throw new Error('Failed to fetch availability schedules');
-  }
+  const items = await api.get<ApiAvailability[]>('/availabilities', { locationId });
+  return items.map(toSchedule);
 };
 
-/**
- * Obtiene todos los calendarios de disponibilidad de una empresa
- */
 export const getAvailabilitySchedulesByCompany = async (
-  companyId: string
+  companyId: string,
 ): Promise<AvailabilitySchedule[]> => {
-  try {
-    const query = `*[_type == "availability" && location->company._ref == $companyId] | order(isMain desc, createdAt desc) {
-      _id,
-      _type,
-      name,
-      location->{
-        _id,
-        name,
-        slug
-      },
-      isMain,
-      isActive,
-      description,
-      weeklySchedule,
-      bufferTime,
-      minimumNotice,
-      notes,
-      blockedDates,
-      createdAt,
-      updatedAt
-    }`;
-    const schedules = await sanityClient.fetch(query, { companyId });
-    return schedules;
-  } catch (error) {
-    console.error('Error fetching availability schedules by company:', error);
-    throw new Error('Failed to fetch availability schedules');
-  }
+  const items = await api.get<ApiAvailability[]>('/availabilities', { companyId });
+  return items.map(toSchedule);
 };
 
-/**
- * Actualiza un calendario de disponibilidad
- */
+export const getAvailabilitySchedulesByExperience = async (
+  experienceId: string,
+): Promise<AvailabilitySchedule[]> => {
+  const items = await api.get<ApiAvailability[]>('/availabilities', { experienceId });
+  return items.map(toSchedule);
+};
+
 export const updateAvailabilitySchedule = async (
-  data: UpdateAvailabilityScheduleData
+  data: UpdateAvailabilityScheduleData,
 ): Promise<AvailabilitySchedule> => {
-  try {
-    const { _id, ...updateData } = data;
-    
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (updateData.name !== undefined) updates.name = updateData.name;
-    if (updateData.isActive !== undefined) updates.isActive = updateData.isActive;
-    if (updateData.isMain !== undefined) updates.isMain = updateData.isMain;
-    if (updateData.description !== undefined) updates.description = updateData.description;
-    if (updateData.bufferTime !== undefined) updates.bufferTime = updateData.bufferTime;
-    if (updateData.minimumNotice !== undefined) updates.minimumNotice = updateData.minimumNotice;
-    if (updateData.notes !== undefined) updates.notes = updateData.notes;
-    if (updateData.weeklySchedule !== undefined) updates.weeklySchedule = updateData.weeklySchedule;
-    if (updateData.blockedDates !== undefined) updates.blockedDates = updateData.blockedDates;
-
-    const result = await sanityClient.patch(_id).set(updates).commit();
-    return result as unknown as AvailabilitySchedule;
-  } catch (error) {
-    console.error('Error updating availability schedule:', error);
-    throw new Error('Failed to update availability schedule');
-  }
+  const { _id, ...rest } = data;
+  const updated = await api.patch<ApiAvailability>(
+    `/availabilities/${encodeURIComponent(_id)}`,
+    {
+      name: rest.name,
+      description: rest.description,
+      isMain: rest.isMain,
+      isActive: rest.isActive,
+      weeklySchedule: rest.weeklySchedule,
+      bufferTime: rest.bufferTime,
+      minimumNotice: rest.minimumNotice,
+      notes: rest.notes,
+      blockedDates: rest.blockedDates,
+    },
+  );
+  return toSchedule(updated);
 };
 
-/**
- * Elimina un calendario de disponibilidad
- */
 export const deleteAvailabilitySchedule = async (scheduleId: string): Promise<void> => {
-  try {
-    await sanityClient.delete(scheduleId);
-  } catch (error) {
-    console.error('Error deleting availability schedule:', error);
-    throw new Error('Failed to delete availability schedule');
-  }
+  await api.delete(`/availabilities/${encodeURIComponent(scheduleId)}`);
 };
 
-/**
- * Establece un calendario como principal para una sede
- * (desactiva los demás calendarios principales de la misma sede)
- */
 export const setPrimarySchedule = async (
   scheduleId: string,
-  locationId: string
+  contextId: string,
+  contextType: 'location' | 'experience' = 'location',
 ): Promise<void> => {
-  try {
-    // Primero, desactivar todos los calendarios principales de esta sede
-    const currentPrimaryQuery = `*[_type == "availability" && location._ref == $locationId && isMain == true]`;
-    const currentPrimary = await sanityClient.fetch(currentPrimaryQuery, { locationId });
-
-    if (currentPrimary && currentPrimary.length > 0) {
-      const transaction = sanityClient.transaction();
-      currentPrimary.forEach((schedule: AvailabilitySchedule) => {
-        transaction.patch(schedule._id, { set: { isMain: false } });
-      });
-      await transaction.commit();
-    }
-
-    // Luego, establecer el nuevo calendario como principal
-    await sanityClient
-      .patch(scheduleId)
-      .set({ isMain: true, updatedAt: new Date().toISOString() })
-      .commit();
-  } catch (error) {
-    console.error('Error setting primary schedule:', error);
-    throw new Error('Failed to set primary schedule');
-  }
+  await api.post(`/availabilities/${encodeURIComponent(scheduleId)}/set-primary`, {
+    contextId,
+    contextType,
+  });
 };
 
-/**
- * Obtiene el calendario principal activo de una sede
- */
 export const getPrimaryScheduleByLocation = async (
-  locationId: string
+  locationId: string,
 ): Promise<AvailabilitySchedule | null> => {
-  try {
-    const query = `*[_type == "availability" && location._ref == $locationId && isMain == true && isActive == true][0] {
-      _id,
-      _type,
-      name,
-      location,
-      isMain,
-      isActive,
-      description,
-      weeklySchedule,
-      bufferTime,
-      minimumNotice,
-      notes,
-      blockedDates,
-      createdAt,
-      updatedAt
-    }`;
-    const schedule = await sanityClient.fetch(query, { locationId });
-    return schedule;
-  } catch (error) {
-    console.error('Error fetching primary schedule:', error);
-    throw new Error('Failed to fetch primary schedule');
-  }
+  const items = await api.get<ApiAvailability[]>('/availabilities', {
+    locationId,
+    primaryOnly: true,
+  });
+  return items[0] ? toSchedule(items[0]) : null;
 };
 
-/**
- * Genera un calendario de disponibilidad por defecto con horario laboral estándar
- */
-export const generateDefaultSchedule = (): WeeklySchedule => {
-  return {
-    monday: {
-      isActive: true,
-      timeSlots: [
-        { startTime: '09:00', endTime: '13:00' },
-        { startTime: '14:00', endTime: '18:00' },
-      ],
-    },
-    tuesday: {
-      isActive: true,
-      timeSlots: [
-        { startTime: '09:00', endTime: '13:00' },
-        { startTime: '14:00', endTime: '18:00' },
-      ],
-    },
-    wednesday: {
-      isActive: true,
-      timeSlots: [
-        { startTime: '09:00', endTime: '13:00' },
-        { startTime: '14:00', endTime: '18:00' },
-      ],
-    },
-    thursday: {
-      isActive: true,
-      timeSlots: [
-        { startTime: '09:00', endTime: '13:00' },
-        { startTime: '14:00', endTime: '18:00' },
-      ],
-    },
-    friday: {
-      isActive: true,
-      timeSlots: [
-        { startTime: '09:00', endTime: '13:00' },
-        { startTime: '14:00', endTime: '18:00' },
-      ],
-    },
-    saturday: {
-      isActive: false,
-      timeSlots: [],
-    },
-    sunday: {
-      isActive: false,
-      timeSlots: [],
-    },
-  };
-};
-
+export const generateDefaultSchedule = (): WeeklySchedule => ({
+  monday: {
+    isActive: true,
+    timeSlots: [
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '14:00', endTime: '18:00' },
+    ],
+  },
+  tuesday: {
+    isActive: true,
+    timeSlots: [
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '14:00', endTime: '18:00' },
+    ],
+  },
+  wednesday: {
+    isActive: true,
+    timeSlots: [
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '14:00', endTime: '18:00' },
+    ],
+  },
+  thursday: {
+    isActive: true,
+    timeSlots: [
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '14:00', endTime: '18:00' },
+    ],
+  },
+  friday: {
+    isActive: true,
+    timeSlots: [
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '14:00', endTime: '18:00' },
+    ],
+  },
+  saturday: { isActive: false, timeSlots: [] },
+  sunday: { isActive: false, timeSlots: [] },
+});

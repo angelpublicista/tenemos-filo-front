@@ -5,6 +5,7 @@ export interface CompanyBasicInfo {
   description?: string;
   companyEmail: string;
   companyPhone: string;
+  logo?: string;
 }
 
 export interface CompanyFiscalInfo {
@@ -62,7 +63,8 @@ export interface CreateUserData {
 export interface SanityUser {
   _id: string;
   _type: 'user';
-  firebaseId: string;
+  /** @deprecated reemplazado por _id (Postgres) tras la migracion a NextAuth+API */
+  firebaseId?: string;
   name: string;
   email: string;
   avatar?: {
@@ -80,6 +82,8 @@ export interface SanityUser {
     _type: 'reference';
   };
   companyId?: string;
+  // hasCompletedCompanySetup se maneja en localStorage, no se almacena en Sanity
+  // Este campo es solo para compatibilidad de tipos, pero nunca se consulta desde Sanity
   hasCompletedCompanySetup?: boolean;
   locations?: Array<{
     _ref: string;
@@ -91,7 +95,13 @@ export interface SanityUser {
 }
 
 // Tipos para autenticación
-import { User } from 'firebase/auth';
+// `user` ya no es Firebase User: ahora es la identidad basica desde NextAuth.
+// El detalle del usuario vive en `sanityUser` (poblado desde GET /users/me).
+export interface AuthUser {
+  uid: string;
+  email: string | null;
+  emailVerified: boolean;
+}
 
 export interface CompanySetupState {
   hasCompletedSetup: boolean;
@@ -100,7 +110,7 @@ export interface CompanySetupState {
 }
 
 export interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   sanityUser: SanityUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -275,17 +285,33 @@ export interface Experience {
   locations?: Array<{
     _ref: string;
     _type: 'reference';
-  }>; // Array de referencias a sedes (múltiples sedes)
+    // Campos extra que el API puede expandir (la version legacy de Sanity los traia
+    // via GROQ con `locations[]->{...}`). El front los lee directamente.
+    _id?: string;
+    name?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
+    };
+    isMain?: boolean;
+    capacity?: { minGuests?: number; maxGuests?: number };
+  }>;
   availabilities?: Array<{
     _ref: string;
     _type: 'reference';
-  }>; // Array de calendarios de disponibilidad (múltiples calendarios por sede)
+  }>;
+  // Expansion de availabilities con datos completos (heredado del GROQ original).
+  availabilitySchedules?: AvailabilitySchedule[];
   experienceType: 'virtual' | 'presential' | 'hybrid';
   isVirtual?: boolean;
   virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
+  hideAddress?: boolean;
   requirements?: string[];
   includes?: string[];
   addons?: Array<{
@@ -295,6 +321,10 @@ export interface Experience {
     priceType: 'per_person' | 'total';
     description?: string;
   }>;
+  startDate?: string;   // ISO date string (YYYY-MM-DD), opcional
+  endDate?: string;     // ISO date string (YYYY-MM-DD), opcional
+  startTime?: string;   // HH:mm, opcional
+  endTime?: string;     // HH:mm, opcional
   status: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
   isFeatured: boolean;
   rating?: number;
@@ -334,6 +364,7 @@ export interface CreateExperienceData {
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
+  hideAddress?: boolean;
   requirements?: string[];
   includes?: string[];
   addons?: Array<{
@@ -342,6 +373,10 @@ export interface CreateExperienceData {
     priceType: 'per_person' | 'total';
     description?: string;
   }>;
+  startDate?: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
   status?: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
   isFeatured?: boolean;
 }
@@ -488,7 +523,9 @@ export interface Reservation {
     companyEmail: string;
     companyPhone: string;
   };
-  client: ReservationClient;
+  client?: ReservationClient;
+  clientInfo?: ReservationClient;
+  clientType?: 'guest' | 'registered';
   reservationDate: string;
   duration: number;
   participants: number;
@@ -564,7 +601,7 @@ export interface ReservationSearchParams {
 export interface Integration {
   _id: string;
   userId: string;
-  type: 'google' | 'outlook';
+  type: 'google' | 'outlook' | 'zoho';
   name: string;
   status: 'connected' | 'disconnected' | 'pending' | 'error';
   lastSync?: string;
@@ -599,7 +636,7 @@ export interface IntegrationEvent {
 
 export interface CreateIntegrationData {
   userId: string;
-  type: 'google' | 'outlook';
+  type: 'google' | 'outlook' | 'zoho';
   name: string;
   status?: 'connected' | 'disconnected' | 'pending' | 'error';
   config?: Integration['config'];
@@ -660,11 +697,15 @@ export interface AvailabilitySchedule {
   _id: string;
   _type: 'availability';
   name: string; // Nombre del calendario (ej: "Horario Verano 2025")
-  location: {
+  location?: {
     _ref: string;
     _type: 'reference';
   };
-  isMain: boolean; // Si es el calendario principal de la sede
+  experience?: {
+    _ref: string;
+    _type: 'reference';
+  };
+  isMain: boolean; // Si es el calendario principal de la sede/experiencia
   isActive: boolean; // Si este calendario está activo
   description?: string;
   weeklySchedule: WeeklySchedule;
@@ -678,7 +719,8 @@ export interface AvailabilitySchedule {
 
 export interface CreateAvailabilityScheduleData {
   name: string;
-  location: string; // location ID
+  location?: string; // location ID (opcional si se usa experience)
+  experience?: string; // experience ID (opcional si se usa location)
   isMain?: boolean;
   isActive?: boolean;
   description?: string;
@@ -1045,4 +1087,29 @@ export interface OpportunitySearchParams {
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+}
+
+// ─── Notificaciones ──────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'new_reservation'
+  | 'reservation_confirmed'
+  | 'reservation_cancelled'
+  | 'reservation_rescheduled'
+  | 'payment_received'
+  | 'review_received'
+  | 'system';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: { seconds: number; nanoseconds: number }; // Firestore Timestamp (serialized)
+  data?: {
+    reservationId?: string;
+    experienceId?: string;
+    [key: string]: unknown;
+  };
 } 

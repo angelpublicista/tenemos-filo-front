@@ -1,13 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Select, Badge, Modal, ModalHeader, ModalBody, Tooltip } from 'flowbite-react';
-import DatePicker, { registerLocale } from 'react-datepicker';
-import { es } from 'date-fns/locale';
-import 'react-datepicker/dist/react-datepicker.css';
-import '@/styles/datepicker-custom.css';
-
-registerLocale('es', es);
+import CalendarPicker from '@/components/CalendarPicker';
+import TimePicker from '@/components/TimePicker';
 import { 
   HiEye, 
   HiPencilAlt,
@@ -28,190 +25,12 @@ import {
   HiPlus,
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import { getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
 import { Experience, Reservation } from '@/types';
 import CreateReservationModal from '@/components/CreateReservationModal';
-
-// Datos hardcodeados de ejemplo - Tipados como Reservation parciales
-const mockReservations: Partial<Reservation>[] = [
-  {
-    _id: '1',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-001',
-    status: 'confirmed',
-    paymentStatus: 'paid',
-    reservationDate: '2025-01-15T10:00:00Z',
-    participants: 4,
-    duration: 120,
-    experience: {
-      _id: 'exp-1',
-      title: 'Clase de Cocina Italiana',
-      category: 'cooking',
-      duration: 120,
-      capacity: 10
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'María González',
-      email: 'maria@email.com',
-      phone: '+57 300 123 4567'
-    },
-    pricing: {
-      basePrice: 250000,
-      subtotal: 1000000,
-      total: 1000000
-    },
-    createdAt: '2025-01-01T10:00:00Z',
-    updatedAt: '2025-01-01T10:00:00Z'
-  },
-  {
-    _id: '2',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-002',
-    status: 'pending',
-    paymentStatus: 'pending',
-    reservationDate: '2025-01-20T14:30:00Z',
-    participants: 2,
-    duration: 90,
-    experience: {
-      _id: 'exp-2',
-      title: 'Mixología Creativa',
-      category: 'mixology',
-      duration: 90,
-      capacity: 8
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'Carlos Rodríguez',
-      email: 'carlos@email.com',
-      phone: '+57 301 987 6543'
-    },
-    pricing: {
-      basePrice: 180000,
-      subtotal: 360000,
-      total: 360000
-    },
-    createdAt: '2025-01-02T10:00:00Z',
-    updatedAt: '2025-01-02T10:00:00Z'
-  },
-  {
-    _id: '3',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-003',
-    status: 'completed',
-    paymentStatus: 'paid',
-    reservationDate: '2025-01-10T09:00:00Z',
-    participants: 6,
-    duration: 150,
-    experience: {
-      _id: 'exp-3',
-      title: 'Degustación de Vinos',
-      category: 'tasting',
-      duration: 150,
-      capacity: 12
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'Ana Martínez',
-      email: 'ana@email.com',
-      phone: '+57 305 456 7890'
-    },
-    pricing: {
-      basePrice: 320000,
-      subtotal: 1920000,
-      total: 1920000
-    },
-    createdAt: '2025-01-03T10:00:00Z',
-    updatedAt: '2025-01-03T10:00:00Z'
-  },
-  {
-    _id: '4',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-004',
-    status: 'in_progress',
-    paymentStatus: 'paid',
-    reservationDate: '2025-01-18T16:00:00Z',
-    participants: 3,
-    duration: 180,
-    experience: {
-      _id: 'exp-4',
-      title: 'Taller de Repostería',
-      category: 'workshops',
-      duration: 180,
-      capacity: 10
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'Pedro López',
-      email: 'pedro@email.com',
-      phone: '+57 304 567 8901'
-    },
-    pricing: {
-      basePrice: 280000,
-      subtotal: 840000,
-      total: 840000
-    },
-    createdAt: '2025-01-04T10:00:00Z',
-    updatedAt: '2025-01-04T10:00:00Z'
-  },
-  {
-    _id: '5',
-    _type: 'reservation',
-    reservationNumber: 'RES-2025-005',
-    status: 'cancelled',
-    paymentStatus: 'refunded',
-    reservationDate: '2025-01-12T11:30:00Z',
-    participants: 5,
-    duration: 120,
-    experience: {
-      _id: 'exp-5',
-      title: 'Evento Corporativo',
-      category: 'corporate',
-      duration: 120,
-      capacity: 15
-    },
-    company: {
-      _id: 'company-1',
-      companyName: 'Demo Company',
-      companyEmail: 'demo@company.com',
-      companyPhone: '+57 300 000 0000'
-    },
-    client: {
-      name: 'Laura Jiménez',
-      email: 'laura@email.com',
-      phone: '+57 306 678 9012'
-    },
-    pricing: {
-      basePrice: 350000,
-      subtotal: 1750000,
-      total: 1750000
-    },
-    createdAt: '2025-01-05T10:00:00Z',
-    updatedAt: '2025-01-05T10:00:00Z'
-  }
-];
+import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
 
 interface ReservationStats {
   total: number;
@@ -232,23 +51,24 @@ interface ReservationStats {
 export default function ReservationsPage() {
   const { sanityUser } = useAuth();
   const { showSuccess, showError } = useSweetAlert();
-  const [reservations, setReservations] = useState<Partial<Reservation>[]>(mockReservations);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [reservations, setReservations] = useState<Partial<Reservation>[]>([]);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams?.get('new') === 'true') {
+      setShowCreateModal(true);
+      router.replace('/dashboard/reservations');
+    }
+  }, [searchParams, router]);
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<ReservationStats>({
-    total: mockReservations.length,
-    pending: mockReservations.filter(r => r.status === 'pending').length,
-    confirmed: mockReservations.filter(r => r.status === 'confirmed').length,
-    inProgress: mockReservations.filter(r => r.status === 'in_progress').length,
-    completed: mockReservations.filter(r => r.status === 'completed').length,
-    cancelled: mockReservations.filter(r => r.status === 'cancelled').length,
-    noShow: 0,
-    rescheduled: 0,
-    totalRevenue: mockReservations.reduce((sum, r) => sum + (r.pricing?.total || 0), 0),
-    totalParticipants: mockReservations.reduce((sum, r) => sum + (r.participants || 0), 0),
-    averageParticipants: mockReservations.reduce((sum, r) => sum + (r.participants || 0), 0) / mockReservations.length || 0,
-    pendingPayments: mockReservations.filter(r => r.paymentStatus === 'pending').length,
-    paidReservations: mockReservations.filter(r => r.paymentStatus === 'paid').length,
+    total: 0, pending: 0, confirmed: 0, inProgress: 0,
+    completed: 0, cancelled: 0, noShow: 0, rescheduled: 0,
+    totalRevenue: 0, totalParticipants: 0, averageParticipants: 0,
+    pendingPayments: 0, paidReservations: 0,
   });
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -304,16 +124,21 @@ export default function ReservationsPage() {
   // Cargar experiencias y reservas de la empresa
   useEffect(() => {
     const loadData = async () => {
-      if (!sanityUser?.companyId) return;
-      
+      if (!sanityUser?.companyId) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const experiencesData = await getExperiencesByCompany(sanityUser.companyId);
         setExperiences(experiencesData || []);
-        
+
         // Cargar reservas
         await loadReservations();
       } catch (error) {
         console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -432,15 +257,15 @@ export default function ReservationsPage() {
 
   // Helper para obtener info del cliente
   const getClientName = (reservation: Partial<Reservation>): string => {
-    return reservation.client?.name || 'Cliente sin nombre';
+    return reservation.clientInfo?.name || reservation.client?.name || 'Cliente sin nombre';
   };
 
   const getClientEmail = (reservation: Partial<Reservation>): string => {
-    return reservation.client?.email || 'Sin email';
+    return reservation.clientInfo?.email || reservation.client?.email || '—';
   };
 
   const getClientPhone = (reservation: Partial<Reservation>): string => {
-    return reservation.client?.phone || 'Sin teléfono';
+    return reservation.clientInfo?.phone || reservation.client?.phone || '—';
   };
 
   // Helper para obtener tipo de experiencia (maneja diferencias entre mock y datos reales)
@@ -624,66 +449,66 @@ export default function ReservationsPage() {
     const dayNames = getDayNames();
 
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-6">
         {/* Header del calendario */}
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-[#334C5D] min-w-0">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-semibold text-[#334C5D] min-w-0 truncate">
             {formatDateHeader(currentDate)}
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               color="gray"
               size="sm"
               onClick={() => navigateDate('prev')}
-              className="p-2"
+              className="!p-2"
             >
               <HiChevronLeft className="w-4 h-4" />
             </Button>
+            <Button
+              color="gray"
+              size="sm"
+              onClick={() => navigateDate('next')}
+              className="!p-2"
+            >
+              <HiChevronRight className="w-4 h-4" />
+            </Button>
+
+            <Button
+              color={isViewingToday() ? "success" : "primary"}
+              size="sm"
+              onClick={goToToday}
+              className="!px-3 !py-1.5 font-medium"
+            >
+              {isViewingToday() ? "✓ Hoy" : "Hoy"}
+            </Button>
+
+            {/* Toggle de vista del calendario */}
+            <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 ml-auto lg:ml-2">
               <Button
-                color="gray"
+                color={calendarView === 'month' ? 'primary' : 'gray'}
                 size="sm"
-                onClick={() => navigateDate('next')}
-                className="p-2"
+                onClick={() => setCalendarView('month')}
+                className="!px-2 !py-1 text-xs font-medium"
               >
-                <HiChevronRight className="w-4 h-4" />
+                Mes
               </Button>
-              
               <Button
-                color={isViewingToday() ? "success" : "primary"}
+                color={calendarView === 'week' ? 'primary' : 'gray'}
                 size="sm"
-                onClick={goToToday}
-                className="px-4 py-2 ml-2 font-medium"
+                onClick={() => setCalendarView('week')}
+                className="!px-2 !py-1 text-xs font-medium"
               >
-                {isViewingToday() ? "✓ Hoy" : "Hoy"}
+                Semana
               </Button>
-          </div>
-          
-          {/* Toggle de vista del calendario */}
-          <div className="ml-4 flex items-center gap-1 rounded-lg border border-gray-200 p-1">
-            <Button
-              color={calendarView === 'month' ? 'primary' : 'gray'}
-              size="sm"
-              onClick={() => setCalendarView('month')}
-              className="px-3 py-1 text-xs font-medium"
-            >
-              Mes
-            </Button>
-            <Button
-              color={calendarView === 'week' ? 'primary' : 'gray'}
-              size="sm"
-              onClick={() => setCalendarView('week')}
-              className="px-3 py-1 text-xs font-medium"
-            >
-              Semana
-            </Button>
-            <Button
-              color={calendarView === 'day' ? 'primary' : 'gray'}
-              size="sm"
-              onClick={() => setCalendarView('day')}
-              className="px-3 py-1 text-xs font-medium"
-            >
-              Día
-            </Button>
+              <Button
+                color={calendarView === 'day' ? 'primary' : 'gray'}
+                size="sm"
+                onClick={() => setCalendarView('day')}
+                className="!px-2 !py-1 text-xs font-medium"
+              >
+                Día
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -691,21 +516,22 @@ export default function ReservationsPage() {
         {calendarView === 'month' && (
           <>
             {/* Nombres de días */}
-        <div className="grid grid-cols-7 gap-1 mb-2">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
           {dayNames.map(day => (
-            <div key={day} className="p-3 text-center text-sm font-medium text-gray-600">
-              {day}
+            <div key={day} className="p-1 sm:p-3 text-center text-[10px] sm:text-sm font-medium text-gray-600">
+              <span className="sm:hidden">{day.substring(0, 1)}</span>
+              <span className="hidden sm:inline">{day}</span>
             </div>
           ))}
         </div>
 
         {/* Días del mes */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
           {/* Días vacíos del mes anterior */}
           {Array.from({ length: firstDay }).map((_, index) => (
-            <div key={`empty-${index}`} className="p-3 h-24"></div>
+            <div key={`empty-${index}`} className="p-1 sm:p-3 h-16 sm:h-24"></div>
           ))}
-          
+
           {/* Días del mes actual */}
           {Array.from({ length: daysInMonth }, (_, index) => {
             const day = index + 1;
@@ -714,9 +540,9 @@ export default function ReservationsPage() {
             const isToday = date.toDateString() === new Date().toDateString();
 
             return (
-              <div 
-                key={day} 
-                className={`p-2 h-36 border border-gray-100 hover:bg-gray-50 cursor-pointer ${
+              <div
+                key={day}
+                className={`p-1 sm:p-2 h-20 sm:h-36 border border-gray-100 hover:bg-gray-50 cursor-pointer overflow-hidden ${
                   isToday ? 'bg-[#334C5D]/5 border-[#334C5D]/20' : ''
                 }`}
               >
@@ -976,10 +802,11 @@ export default function ReservationsPage() {
         )}
         
         {/* Modal de reservas del día */}
-        <Modal 
-          show={showReservationsModal} 
-          onClose={() => setShowReservationsModal(false)} 
+        <Modal
+          show={showReservationsModal}
+          onClose={() => setShowReservationsModal(false)}
           size="4xl"
+          dismissible
         >
           <ModalHeader>
             Reservas del {selectedDay?.toLocaleDateString('es-CO', { 
@@ -1123,21 +950,21 @@ export default function ReservationsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div className="mb-6 lg:mb-0">
-            <h1 className="text-3xl font-bold text-[#334C5D] mb-2">
+      <div className="mb-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#334C5D]">
               Mis Reservas
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-600">
               Gestiona todas las reservas de tus experiencias gastronómicas
             </p>
           </div>
           <Button
             onClick={() => setShowCreateModal(true)}
-            className="bg-[#F26726] hover:bg-[#d9571f]"
+            className="w-full sm:w-auto bg-[#F26726] hover:bg-[#d9571f]"
           >
             <HiPlus className="mr-2 h-5 w-5" />
             Nueva Reserva
@@ -1146,70 +973,74 @@ export default function ReservationsPage() {
       </div>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card className="p-4">
+      {isLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+      ) : (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <HiCalendar className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-blue-100 rounded-lg shrink-0">
+              <HiCalendar className="w-5 h-5 text-blue-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Reservas</p>
-              <p className="text-2xl font-bold text-[#334C5D]">{stats.total}</p>
+            <div className="ml-3 min-w-0">
+              <p className="text-xs font-medium text-gray-600 truncate">Total</p>
+              <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{stats.total}</p>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <HiCheckCircle className="w-6 h-6 text-green-600" />
+            <div className="p-2 bg-green-100 rounded-lg shrink-0">
+              <HiCheckCircle className="w-5 h-5 text-green-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Confirmadas</p>
-              <p className="text-2xl font-bold text-[#334C5D]">{stats.confirmed}</p>
+            <div className="ml-3 min-w-0">
+              <p className="text-xs font-medium text-gray-600 truncate">Confirmadas</p>
+              <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{stats.confirmed}</p>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <HiExclamationCircle className="w-6 h-6 text-yellow-600" />
+            <div className="p-2 bg-yellow-100 rounded-lg shrink-0">
+              <HiExclamationCircle className="w-5 h-5 text-yellow-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Pendientes</p>
-              <p className="text-2xl font-bold text-[#334C5D]">{stats.pending}</p>
+            <div className="ml-3 min-w-0">
+              <p className="text-xs font-medium text-gray-600 truncate">Pendientes</p>
+              <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{stats.pending}</p>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <HiCurrencyDollar className="w-6 h-6 text-purple-600" />
+            <div className="p-2 bg-purple-100 rounded-lg shrink-0">
+              <HiCurrencyDollar className="w-5 h-5 text-purple-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Ingresos</p>
-              <p className="text-2xl font-bold text-[#334C5D]">{formatPrice(stats.totalRevenue)}</p>
+            <div className="ml-3 min-w-0">
+              <p className="text-xs font-medium text-gray-600 truncate">Ingresos</p>
+              <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{formatPrice(stats.totalRevenue)}</p>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
-
-      <hr className="my-8 border-gray-200" />
+      )}
 
       {/* Filtros */}
       <div className="mb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#334C5D]">
             Reservas ({filteredReservations.length})
           </h2>
-          
-          <div className="flex items-center gap-4">
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-48"
+              className="w-full sm:w-48"
             >
               <option value="all">Todos los estados</option>
               <option value="pending">Pendientes</option>
@@ -1224,7 +1055,7 @@ export default function ReservationsPage() {
             <Select
               value={paymentStatusFilter}
               onChange={(e) => setPaymentStatusFilter(e.target.value)}
-              className="w-48"
+              className="w-full sm:w-48"
             >
               <option value="all">Todos los pagos</option>
               <option value="pending">Pendiente</option>
@@ -1266,12 +1097,16 @@ export default function ReservationsPage() {
       </div>
 
       {/* Vista del calendario */}
-      {viewMode === 'calendar' && <CalendarView />}
+      {!isLoading && viewMode === 'calendar' && <CalendarView />}
 
       {/* Vista de lista/grid */}
       {viewMode !== 'calendar' && (
         <>
-          {filteredReservations.length === 0 ? (
+          {isLoading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          ) : filteredReservations.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">
                 <HiCalendar className="w-16 h-16 mx-auto" />
@@ -1292,14 +1127,14 @@ export default function ReservationsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredReservations.map((reservation) => (
                     <Card key={reservation._id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                      <div className="p-6">
+                      <div className="p-4">
                         {/* Header */}
-                        <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-[#334C5D] mb-2">
+                            <h3 className="text-base font-semibold text-[#334C5D] mb-1">
                               {reservation.reservationNumber}
                             </h3>
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-1">
                               <Badge color={getStatusColor(reservation.status)}>
                                 {getStatusText(reservation.status)}
                               </Badge>
@@ -1314,7 +1149,7 @@ export default function ReservationsPage() {
                         </div>
 
                         {/* Tipo de experiencia */}
-                        <div className="flex items-center mb-3">
+                        <div className="flex items-center mb-2">
                           {getExperienceType(reservation) === 'virtual' ? (
                             <HiVideoCamera className="w-4 h-4 mr-1 text-blue-500" />
                           ) : (
@@ -1327,8 +1162,8 @@ export default function ReservationsPage() {
                         </div>
 
                         {/* Cliente */}
-                        <div className="mb-4">
-                          <h4 className="text-sm font-medium text-gray-900 mb-2">Cliente</h4>
+                        <div className="mb-3">
+                          <h4 className="text-sm font-medium text-gray-900 mb-1">Cliente</h4>
                           <div className="space-y-1">
                             <div className="flex items-center text-sm text-gray-600">
                               <HiUsers className="w-4 h-4 mr-2" />
@@ -1346,7 +1181,7 @@ export default function ReservationsPage() {
                         </div>
 
                         {/* Detalles */}
-                        <div className="space-y-2 mb-4">
+                        <div className="space-y-1 mb-3">
                           <div className="flex items-center text-sm text-gray-600">
                             <HiCalendar className="w-4 h-4 mr-2" />
                             {reservation.reservationDate && formatDate(reservation.reservationDate)}
@@ -1363,7 +1198,7 @@ export default function ReservationsPage() {
 
                         {/* Servicios Adicionales */}
                         {reservation.pricing?.addons && reservation.pricing.addons.length > 0 && (
-                          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded-lg">
                             <h5 className="text-xs font-semibold text-[#334C5D] mb-2">Servicios Adicionales:</h5>
                             <div className="space-y-1">
                               {reservation.pricing.addons.map((addon, idx: number) => (
@@ -1377,17 +1212,17 @@ export default function ReservationsPage() {
                         )}
 
                         {/* Total */}
-                        <div className="pt-3 border-t border-gray-200">
+                        <div className="pt-2 border-t border-gray-200">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600 font-medium">Total:</span>
-                            <span className="text-lg font-bold text-[#F26726]">
+                            <span className="text-base font-bold text-[#F26726]">
                               {formatPrice(reservation.pricing?.total || 0)}
                             </span>
                           </div>
                         </div>
 
                         {/* Acciones */}
-                        <div className="pt-4 border-t border-gray-200 space-y-2">
+                        <div className="pt-3 mt-2 border-t border-gray-200 space-y-2">
                           <Button
                             color="gray"
                             size="sm"
@@ -1420,7 +1255,7 @@ export default function ReservationsPage() {
                 <div className="space-y-2">
                   {filteredReservations.map((reservation) => (
                     <Card key={reservation._id} className="overflow-hidden hover:shadow-md transition-shadow">
-                      <div className="p-4">
+                      <div className="p-3">
                         <div className="flex items-center justify-between">
                           {/* Información principal */}
                           <div className="flex-1 min-w-0">
@@ -1524,10 +1359,11 @@ export default function ReservationsPage() {
       {/* Modal de Edición de Reserva */}
       {showEditModal && editingReservation && (
         <div style={{ zIndex: 9999, position: 'relative' }}>
-          <Modal 
-            show={showEditModal} 
-            onClose={() => setShowEditModal(false)} 
+          <Modal
+            show={showEditModal}
+            onClose={() => setShowEditModal(false)}
             size="xl"
+            dismissible
           >
           <ModalHeader>
             Editar Reserva - {editingReservation.reservationNumber}
@@ -1546,46 +1382,32 @@ export default function ReservationsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Fecha de la Reserva *
                   </label>
-                  <div className="relative z-[100]">
-                    <DatePicker
-                      selected={editingReservation.editDate ? new Date(editingReservation.editDate + 'T12:00:00') : null}
-                      onChange={(date: Date | null) => {
-                        if (date) {
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const day = String(date.getDate()).padStart(2, '0');
-                          const newDate = `${year}-${month}-${day}`;
-                          const newDateTime = `${newDate}T${editingReservation.editTime || '10:00'}:00`;
-                          setEditingReservation({
-                            ...editingReservation,
-                            editDate: newDate,
-                            reservationDate: newDateTime
-                          });
-                        }
-                      }}
-                      dateFormat="EEEE, dd 'de' MMMM 'de' yyyy"
-                      locale="es"
-                      placeholderText="Selecciona la fecha"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent text-sm"
-                      wrapperClassName="w-full"
-                      showPopperArrow={false}
-                      withPortal
-                      portalId="root"
-                      popperClassName="!z-[9999]"
-                      required
-                    />
-                  </div>
+                  <CalendarPicker
+                    value={editingReservation.editDate ? new Date(editingReservation.editDate + 'T12:00:00') : null}
+                    onChange={(date) => {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const newDate = `${year}-${month}-${day}`;
+                      const newDateTime = `${newDate}T${editingReservation.editTime || '10:00'}:00`;
+                      setEditingReservation({
+                        ...editingReservation,
+                        editDate: newDate,
+                        reservationDate: newDateTime
+                      });
+                    }}
+                    placeholder="Selecciona la fecha"
+                    required
+                  />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Hora *
                   </label>
-                  <input
-                    type="time"
-                    value={editingReservation.editTime || '10:00'}
-                    onChange={(e) => {
-                      const newTime = e.target.value;
+                  <TimePicker
+                    value={editingReservation.editTime || ''}
+                    onChange={(newTime) => {
                       const newDateTime = `${editingReservation.editDate}T${newTime}:00`;
                       setEditingReservation({
                         ...editingReservation,
@@ -1593,7 +1415,7 @@ export default function ReservationsPage() {
                         reservationDate: newDateTime
                       });
                     }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                    placeholder="Selecciona la hora"
                     required
                   />
                 </div>

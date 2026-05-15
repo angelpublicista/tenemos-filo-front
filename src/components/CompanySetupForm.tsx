@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useAuth } from '@/lib/firebase/AuthContext';
-import { createCompanyInSanity, getCompanyByUserId } from '@/lib/sanity/companyService';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { createCompanyInSanity, getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
 import { associateUserWithCompany, markCompanySetupCompleted } from '@/lib/sanity/userService';
-import { sanityClient } from '@/lib/sanity/sanityClient';
 import { Button, Label, TextInput, Select, Textarea } from 'flowbite-react';
 import { HiExclamationCircle, HiCheckCircle } from 'react-icons/hi';
 import { AiOutlineBuild, AiOutlineMail, AiOutlineInfoCircle, AiOutlineIdcard, AiOutlineHome, AiOutlineGlobal, AiOutlineTeam } from 'react-icons/ai';
@@ -17,6 +17,8 @@ import { CompleteCompanyData, Company } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import CompanyInfoView from './CompanyInfoView';
 import Loader from './Loader';
+import { ImageUpload } from './ImageUpload';
+import { COLOMBIA_DEPARTMENTS, getCitiesByDepartment } from '@/data/colombiaRegions';
 
 // Esquemas de validación por pasos
 const basicInfoSchema = z.object({
@@ -35,6 +37,23 @@ const basicInfoSchema = z.object({
     .max(100, 'El email no puede exceder 100 caracteres'),
 });
 
+// Función helper para formatear URLs
+const formatUrl = (url: string): string => {
+  if (!url || url.trim() === '') {
+    return '';
+  }
+  
+  const trimmedUrl = url.trim();
+  
+  // Si ya tiene protocolo, retornar tal cual
+  if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+    return trimmedUrl;
+  }
+  
+  // Si no tiene protocolo, agregar https://
+  return `https://${trimmedUrl}`;
+};
+
 const fiscalInfoSchema = z.object({
   documentType: z.enum(['nit', 'cedula', 'pasaporte', 'other'], {
     message: 'Selecciona un tipo de documento válido'
@@ -46,10 +65,13 @@ const fiscalInfoSchema = z.object({
   businessName: z.string()
     .min(2, 'La razón social debe tener al menos 2 caracteres')
     .max(200, 'La razón social no puede exceder 200 caracteres'),
-  website: z.string()
-    .url('Ingresa una URL válida')
-    .optional()
-    .or(z.literal('')),
+  website: z.preprocess(
+    (val) => {
+      if (!val || val === '') return '';
+      return formatUrl(String(val));
+    },
+    z.string().url('Ingresa una URL válida').optional().or(z.literal(''))
+  ),
   address: z.object({
     street: z.string()
       .min(5, 'La dirección debe tener al menos 5 caracteres')
@@ -58,8 +80,8 @@ const fiscalInfoSchema = z.object({
       .min(2, 'La ciudad debe tener al menos 2 caracteres')
       .max(100, 'La ciudad no puede exceder 100 caracteres'),
     state: z.string()
-      .max(100, 'El departamento no puede exceder 100 caracteres')
-      .optional(),
+      .min(2, 'Selecciona un departamento')
+      .max(100, 'El departamento no puede exceder 100 caracteres'),
     postalCode: z.string()
       .max(20, 'El código postal no puede exceder 20 caracteres')
       .optional(),
@@ -122,10 +144,12 @@ const businessYears = [
 const steps = ['Información Básica', 'Información Fiscal', 'Tamaño de Empresa'];
 
 export default function CompanySetupForm() {
+  const router = useRouter();
   const { user, sanityUser, markSetupCompleted, isSetupCompleted, hasCompany, companySetupState } = useAuth();
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
   const [currentStep, setCurrentStep] = useState(1);
   const [companyPhone, setCompanyPhone] = useState("");
+  const [logoAssetId, setLogoAssetId] = useState<string>("");
   const [existingCompany, setExistingCompany] = useState<Company | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
@@ -146,6 +170,7 @@ export default function CompanySetupForm() {
         if (company) {
           setExistingCompany(company);
           setCompanyPhone(company.companyPhone || '');
+          setLogoAssetId(company.logo?.asset?._ref || '');
         }
       } catch (error) {
         console.error('Error loading existing company data:', error);
@@ -162,7 +187,9 @@ export default function CompanySetupForm() {
     handleSubmit,
     formState: { errors },
     getValues,
-    reset
+    setValue,
+    reset,
+    watch
   } = useForm<CompleteCompanyData>({
     mode: 'onChange',
     defaultValues: {
@@ -187,6 +214,10 @@ export default function CompanySetupForm() {
       businessYears: '0-1'
     }
   });
+
+  const selectedDepartment = watch('address.state') || '';
+  const selectedCity = watch('address.city') || '';
+  const availableCities = selectedDepartment ? getCitiesByDepartment(selectedDepartment) : [];
 
   // Actualizar el formulario cuando se carguen los datos existentes
   useEffect(() => {
@@ -330,12 +361,13 @@ export default function CompanySetupForm() {
       
       if (existingCompany) {
         // Actualizar empresa existente
-        const updateData = {
+        await updateCompanyInSanity(existingCompany._id, {
           companyName: data.companyName,
           companyType: data.companyType,
           description: data.description || undefined,
           companyEmail: data.companyEmail,
           companyPhone: companyPhone,
+          logo: logoAssetId || null,
           documentType: data.documentType,
           documentNumber: data.documentNumber,
           businessName: data.businessName,
@@ -344,15 +376,8 @@ export default function CompanySetupForm() {
           employeeCount: data.employeeCount,
           annualRevenue: data.annualRevenue,
           businessYears: data.businessYears,
-          updatedAt: new Date().toISOString()
-        };
+        });
 
-        // Actualizar la empresa existente
-        await sanityClient
-          .patch(existingCompany._id)
-          .set(updateData)
-          .commit();
-        
         company = { _id: existingCompany._id };
         
         // Asegurarse de que el usuario esté asociado con la empresa
@@ -370,6 +395,7 @@ export default function CompanySetupForm() {
           description: data.description || undefined,
           companyEmail: data.companyEmail,
           companyPhone: companyPhone,
+          logo: logoAssetId || undefined,
           documentType: data.documentType,
           documentNumber: data.documentNumber,
           businessName: data.businessName,
@@ -470,7 +496,17 @@ export default function CompanySetupForm() {
         <h3 className="text-xl font-semibold text-[#334C5D] mb-2">Información Básica</h3>
         <p className="text-gray-600">Proporciona los datos básicos de tu empresa</p>
       </div>
-      
+
+      {/* Logo de la Empresa */}
+      <ImageUpload
+        label="Logo de la empresa"
+        value={logoAssetId || undefined}
+        onChange={(assetId) => setLogoAssetId(assetId)}
+        helpText="Imagen cuadrada · mínimo 400 × 400 px · PNG o JPG hasta 10 MB."
+        compact
+        circular
+      />
+
       {/* Nombre de la Empresa */}
       <div>
         <Label color="gray" className="mb-2 block">
@@ -638,10 +674,18 @@ export default function CompanySetupForm() {
         <TextInput
           id="website"
           type="url"
-          placeholder="https://www.empresa.com"
+          placeholder="https://www.empresa.com o www.empresa.com"
           icon={AiOutlineGlobal}
           color={errors.website ? 'failure' : 'white'}
-          {...register('website')}
+          {...register('website', {
+            onBlur: (e) => {
+              const value = e.target.value;
+              if (value && value.trim() !== '') {
+                const formatted = formatUrl(value);
+                setValue('website', formatted, { shouldValidate: true });
+              }
+            }
+          })}
         />
         {errors.website && (
           <p className="mt-1 text-sm text-red-600">{errors.website.message}</p>
@@ -672,33 +716,55 @@ export default function CompanySetupForm() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label color="gray" className="mb-2 block">
-              Ciudad <span className="text-red-500">*</span>
+              Departamento <span className="text-red-500">*</span>
             </Label>
-            <TextInput
-              id="address.city"
-              type="text"
-              placeholder="Bogotá"
-              color={errors.address?.city ? 'failure' : 'white'}
-              {...register('address.city')}
-            />
-            {errors.address?.city && (
-              <p className="mt-1 text-sm text-red-600">{errors.address.city.message}</p>
+            <Select
+              id="address.state"
+              color={errors.address?.state ? 'failure' : 'white'}
+              {...register('address.state', {
+                onChange: () => setValue('address.city', '', { shouldValidate: false }),
+              })}
+            >
+              <option value="">Selecciona un departamento</option>
+              {COLOMBIA_DEPARTMENTS.map((dept) => (
+                <option key={dept.name} value={dept.name}>
+                  {dept.name}
+                </option>
+              ))}
+              {selectedDepartment &&
+                !COLOMBIA_DEPARTMENTS.some((d) => d.name === selectedDepartment) && (
+                  <option value={selectedDepartment}>{selectedDepartment}</option>
+                )}
+            </Select>
+            {errors.address?.state && (
+              <p className="mt-1 text-sm text-red-600">{errors.address.state.message}</p>
             )}
           </div>
 
           <div>
             <Label color="gray" className="mb-2 block">
-              Departamento
+              Ciudad <span className="text-red-500">*</span>
             </Label>
-            <TextInput
-              id="address.state"
-              type="text"
-              placeholder="Cundinamarca"
-              color={errors.address?.state ? 'failure' : 'white'}
-              {...register('address.state')}
-            />
-            {errors.address?.state && (
-              <p className="mt-1 text-sm text-red-600">{errors.address.state.message}</p>
+            <Select
+              id="address.city"
+              disabled={!selectedDepartment}
+              color={errors.address?.city ? 'failure' : 'white'}
+              {...register('address.city')}
+            >
+              <option value="">
+                {selectedDepartment ? 'Selecciona una ciudad' : 'Selecciona primero un departamento'}
+              </option>
+              {availableCities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+              {selectedCity && !availableCities.includes(selectedCity) && (
+                <option value={selectedCity}>{selectedCity}</option>
+              )}
+            </Select>
+            {errors.address?.city && (
+              <p className="mt-1 text-sm text-red-600">{errors.address.city.message}</p>
             )}
           </div>
         </div>
@@ -886,14 +952,23 @@ export default function CompanySetupForm() {
               <div></div>
             )}
             
-            {/* Botón "Lo haré después" */}
-            <button
-              type="button"
-              onClick={skipCompanySetup}
-              className="text-sm text-gray-500 hover:text-[#F26726] transition-colors underline disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              Lo haré después
-            </button>
+            {existingCompany ? (
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard/company')}
+                className="text-sm text-gray-500 hover:text-[#F26726] transition-colors underline cursor-pointer"
+              >
+                Cancelar
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={skipCompanySetup}
+                className="text-sm text-gray-500 hover:text-[#F26726] transition-colors underline disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Lo haré después
+              </button>
+            )}
           </div>
 
           {currentStep < steps.length ? (

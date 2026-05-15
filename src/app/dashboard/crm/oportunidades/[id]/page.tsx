@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Badge, Card } from 'flowbite-react';
 import { 
@@ -169,22 +169,21 @@ export default function OportunidadDetailPage() {
 
   return (
     <ProtectedRoute>
-      <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
+            <div className="flex items-start gap-3">
               <Button
                 color="gray"
                 onClick={() => router.push('/dashboard/crm/oportunidades')}
-                className="mr-4"
               >
                 <HiArrowLeft className="w-4 h-4 mr-2" />
                 Volver
               </Button>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                     {opportunity.name}
                   </h1>
                   <Badge color={statusColors[opportunity.status] || 'gray'}>
@@ -214,7 +213,7 @@ export default function OportunidadDetailPage() {
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 color="primary"
                 onClick={() => router.push(`/dashboard/crm/oportunidades/${opportunity._id}/editar`)}

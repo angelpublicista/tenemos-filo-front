@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperienceById, updateExperienceInSanity } from '@/lib/sanity/experienceService';
 import { getCompanyByUserId } from '@/lib/sanity/companyService';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
@@ -13,13 +13,15 @@ import {
   generateDefaultSchedule 
 } from '@/lib/sanity/availabilityService';
 import { UpdateExperienceData, Company, Location, AvailabilitySchedule, Experience } from '@/types';
+import LocationModal from '@/components/LocationModal';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
-import { 
-  HiArrowLeft, 
-  HiCheckCircle, 
+import {
+  HiArrowLeft,
+  HiCheckCircle,
   HiExclamationCircle,
   HiPlus,
-  HiMinus
+  HiMinus,
+  HiSparkles,
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useRouter, useParams } from 'next/navigation';
@@ -52,7 +54,7 @@ export default function EditExperiencePage() {
   const router = useRouter();
   const params = useParams();
   const experienceId = params.id as string;
-  const { showSuccess, showError } = useSweetAlert();
+  const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [company, setCompany] = useState<Company | null>(null);
@@ -63,6 +65,7 @@ export default function EditExperiencePage() {
   const [addons, setAddons] = useState<Array<{name: string, price: number, priceType: 'per_person' | 'total', description: string}>>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [availableSchedules, setAvailableSchedules] = useState<AvailabilitySchedule[]>([]);
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
   const [showCustomSchedule, setShowCustomSchedule] = useState(false);
@@ -72,6 +75,7 @@ export default function EditExperiencePage() {
   const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const {
     register,
@@ -116,7 +120,7 @@ export default function EditExperiencePage() {
           setCompanyNotFound(true);
           setIsLoadingData(false);
           showError('No se encontró información de empresa.');
-          router.push('/dashboard/company-setup');
+          router.push('/company-setup');
           return;
         }
         setCompany(companyData);
@@ -322,6 +326,74 @@ export default function EditExperiencePage() {
         return [...prev, category];
       }
     });
+  };
+
+  const handleGenerateDescription = async (mode: 'generate' | 'improve') => {
+    const values = watch();
+    if (!values.title?.trim() && !values.description?.trim()) {
+      showError('Escribe al menos un título antes de usar el asistente');
+      return;
+    }
+
+    if (mode === 'generate') {
+      const missing: string[] = [];
+      if (selectedCategories.length === 0) missing.push('Categorías');
+      if (!values.duration) missing.push('Duración');
+      if (!values.capacity) missing.push('Capacidad');
+      if (!values.basePrice) missing.push('Precio base');
+      if ((values.experienceType === 'presential' || values.experienceType === 'hybrid') && !values.city?.trim()) {
+        missing.push('Ciudad');
+      }
+      if (includes.filter((i) => i.trim()).length === 0) missing.push('Qué incluye');
+      if (requirements.filter((r) => r.trim()).length === 0) missing.push('Requisitos');
+
+      if (missing.length > 0) {
+        const proceed = await showConfirmation(
+          'Para una mejor descripción, completa más campos',
+          `La IA será mucho más precisa y SEO-friendly si llenas:\n\n• ${missing.join('\n• ')}\n\n¿Quieres generar igualmente con la información actual?`,
+          'Generar ahora',
+          'Voy a completar primero',
+        );
+        if (!proceed) return;
+      }
+    }
+
+    setIsGeneratingDescription(true);
+    try {
+      const response = await fetch('/api/ai/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: values.title,
+          categories: selectedCategories,
+          duration: values.duration,
+          capacity: values.capacity,
+          minCapacity: values.minCapacity,
+          basePrice: values.basePrice,
+          currency: values.currency,
+          experienceType: values.experienceType,
+          city: values.city,
+          includes: includes.filter((i) => i.trim()),
+          requirements: requirements.filter((r) => r.trim()),
+          currentDescription: values.description,
+          mode,
+          userId: sanityUser?._id || user?.uid,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        showError(data.error || 'No pudimos generar la descripción');
+        return;
+      }
+
+      setValue('description', data.description, { shouldValidate: true, shouldDirty: true });
+    } catch (error) {
+      console.error('Error generating description:', error);
+      showError('Error de red. Intenta de nuevo.');
+    } finally {
+      setIsGeneratingDescription(false);
+    }
   };
 
   // Manejar agregar/quitar elementos de listas
@@ -533,13 +605,36 @@ export default function EditExperiencePage() {
             </div>
 
             <div className="lg:col-span-2">
-              <Label htmlFor="description">Descripción *</Label>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                <Label htmlFor="description">Descripción *</Label>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateDescription(watch('description')?.trim() ? 'improve' : 'generate')}
+                  disabled={isGeneratingDescription}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gradient-to-r from-[#F26726] to-[#d9571f] text-white hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingDescription ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Generando…
+                    </>
+                  ) : (
+                    <>
+                      <HiSparkles className="w-3.5 h-3.5" />
+                      {watch('description')?.trim() ? 'Mejorar con IA' : 'Generar con IA'}
+                    </>
+                  )}
+                </button>
+              </div>
               <Textarea
                 {...register('description')}
                 placeholder="Describe detalladamente tu experiencia..."
-                rows={4}
+                rows={5}
                 className="mt-1"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Optimizada para SEO y conversión. La IA usa el título, categorías, ciudad y demás campos como contexto.
+              </p>
               {errors.description && (
                 <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>
               )}
@@ -748,10 +843,14 @@ export default function EditExperiencePage() {
                       ))
                     ) : (
                       <p className="text-sm text-gray-500">
-                        No tienes sedes registradas. 
-                        <a href="/dashboard/locations" className="text-[#F26726] hover:underline ml-1">
+                        No tienes sedes registradas.{' '}
+                        <button
+                          type="button"
+                          onClick={() => setShowLocationModal(true)}
+                          className="text-[#F26726] hover:underline font-medium"
+                        >
                           Crear una sede
-                        </a>
+                        </button>
                       </p>
                     )}
                   </div>
@@ -1087,6 +1186,19 @@ export default function EditExperiencePage() {
           </Button>
         </div>
       </form>
+
+      {showLocationModal && company && (
+        <LocationModal
+          location={null}
+          companyId={company._id}
+          existingLocations={locations}
+          onClose={() => setShowLocationModal(false)}
+          onSave={(updatedLocations) => {
+            setLocations(updatedLocations);
+            setShowLocationModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

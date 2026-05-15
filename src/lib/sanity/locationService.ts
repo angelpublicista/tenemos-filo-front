@@ -1,4 +1,7 @@
-import { sanityClient } from './sanityClient';
+// Reescrito sobre el API. Conserva las firmas de las funciones publicas
+// para no tocar los callers (dashboard/locations, dashboard/availability,
+// CompanySetupForm, etc.). El shape de retorno se mantiene "Sanity-like".
+import { api } from '@/lib/api/client';
 import { Location } from '@/types';
 
 export interface CreateLocationData {
@@ -24,136 +27,95 @@ export interface CreateLocationData {
   isActive?: boolean;
 }
 
-export const createLocationInSanity = async (locationData: CreateLocationData) => {
-  try {
-    const doc = {
-      _type: 'location',
-      name: locationData.name,
-      slug: {
-        _type: 'slug',
-        current: locationData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-      },
-      company: {
-        _ref: locationData.companyId,
-        _type: 'reference',
-      },
-      isMain: locationData.isMain,
-      description: locationData.description,
-      address: locationData.address,
-      contactInfo: locationData.contactInfo,
-      capacity: locationData.capacity,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+interface ApiLocation {
+  id: string;
+  companyId: string;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  address: Location['address'] | null;
+  contactInfo: Location['contactInfo'] | null;
+  capacity: Location['capacity'] | null;
+  isMain: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
-    const result = await sanityClient.create(doc);
-    return result;
-  } catch (error) {
-    console.error('Error creating location in Sanity:', error);
-    throw new Error('Failed to create location in Sanity');
-  }
+function toLocation(l: ApiLocation): Location {
+  return {
+    _id: l.id,
+    _type: 'location',
+    name: l.name,
+    slug: { _type: 'slug', current: l.slug ?? '' },
+    company: { _ref: l.companyId, _type: 'reference' },
+    isMain: l.isMain,
+    description: l.description ?? undefined,
+    address: l.address ?? { street: '', city: '' },
+    contactInfo: l.contactInfo ?? undefined,
+    capacity: l.capacity ?? undefined,
+    isActive: l.isActive,
+    createdAt: l.createdAt,
+    updatedAt: l.updatedAt,
+  };
+}
+
+export const createLocationInSanity = async (data: CreateLocationData) => {
+  const created = await api.post<ApiLocation>('/locations', {
+    name: data.name,
+    companyId: data.companyId,
+    isMain: data.isMain,
+    description: data.description,
+    address: data.address,
+    contactInfo: data.contactInfo,
+    capacity: data.capacity,
+    isActive: data.isActive,
+  });
+  return toLocation(created);
 };
 
 export const getLocationById = async (locationId: string): Promise<Location | null> => {
   try {
-    const query = `*[_type == "location" && _id == $locationId][0]`;
-    const location = await sanityClient.fetch(query, { locationId });
-    return location;
-  } catch (error) {
-    console.error('Error fetching location from Sanity:', error);
-    throw new Error('Failed to fetch location from Sanity');
+    const loc = await api.get<ApiLocation>(`/locations/${encodeURIComponent(locationId)}`);
+    return toLocation(loc);
+  } catch (err) {
+    if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 404) {
+      return null;
+    }
+    throw err;
   }
 };
 
 export const getLocationsByCompany = async (companyId: string): Promise<Location[]> => {
-  try {
-    const query = `*[_type == "location" && company._ref == $companyId && deletedAt == null] | order(isMain desc, name asc)`;
-    const locations = await sanityClient.fetch(query, { companyId });
-    return locations;
-  } catch (error) {
-    console.error('Error fetching locations by company:', error);
-    throw new Error('Failed to fetch locations by company');
-  }
+  const items = await api.get<ApiLocation[]>('/locations', { companyId });
+  return items.map(toLocation);
 };
 
-/**
- * Actualiza una sede existente
- */
 export const updateLocationInSanity = async (
   locationId: string,
-  updateData: Partial<CreateLocationData>
+  updateData: Partial<CreateLocationData>,
 ): Promise<Location> => {
-  try {
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (updateData.name !== undefined) updates.name = updateData.name;
-    if (updateData.description !== undefined) updates.description = updateData.description;
-    if (updateData.isMain !== undefined) updates.isMain = updateData.isMain;
-    if (updateData.address !== undefined) updates.address = updateData.address;
-    if (updateData.contactInfo !== undefined) updates.contactInfo = updateData.contactInfo;
-    if (updateData.capacity !== undefined) updates.capacity = updateData.capacity;
-    if (updateData.isActive !== undefined) updates.isActive = updateData.isActive;
-
-    const result = await sanityClient.patch(locationId).set(updates).commit();
-    return result as unknown as Location;
-  } catch (error) {
-    console.error('Error updating location in Sanity:', error);
-    throw new Error('Failed to update location in Sanity');
-  }
+  const updated = await api.patch<ApiLocation>(`/locations/${encodeURIComponent(locationId)}`, {
+    name: updateData.name,
+    isMain: updateData.isMain,
+    description: updateData.description,
+    address: updateData.address,
+    contactInfo: updateData.contactInfo,
+    capacity: updateData.capacity,
+    isActive: updateData.isActive,
+  });
+  return toLocation(updated);
 };
 
-/**
- * Elimina una sede (soft delete)
- */
 export const deleteLocationInSanity = async (locationId: string): Promise<void> => {
-  try {
-    await sanityClient
-      .patch(locationId)
-      .set({ 
-        deletedAt: new Date().toISOString(),
-        isActive: false,
-        updatedAt: new Date().toISOString()
-      })
-      .commit();
-  } catch (error) {
-    console.error('Error deleting location in Sanity:', error);
-    throw new Error('Failed to delete location in Sanity');
-  }
+  await api.delete(`/locations/${encodeURIComponent(locationId)}`);
 };
 
-/**
- * Establece una sede como principal (desactiva las demás principales de la empresa)
- */
 export const setMainLocation = async (
   locationId: string,
-  companyId: string
+  _companyId: string,
 ): Promise<void> => {
-  try {
-    // Primero, desactivar todas las sedes principales de esta empresa
-    const currentMainQuery = `*[_type == "location" && company._ref == $companyId && isMain == true && deletedAt == null]`;
-    const currentMain = await sanityClient.fetch(currentMainQuery, { companyId });
-
-    if (currentMain && currentMain.length > 0) {
-      const transaction = sanityClient.transaction();
-      currentMain.forEach((location: Location) => {
-        transaction.patch(location._id, { set: { isMain: false } });
-      });
-      await transaction.commit();
-    }
-
-    // Luego, establecer la nueva sede como principal
-    await sanityClient
-      .patch(locationId)
-      .set({ 
-        isMain: true, 
-        updatedAt: new Date().toISOString() 
-      })
-      .commit();
-  } catch (error) {
-    console.error('Error setting main location:', error);
-    throw new Error('Failed to set main location');
-  }
-}; 
+  // El API resuelve la company por el JWT del user; el companyId viejo se ignora.
+  void _companyId;
+  await api.post(`/locations/${encodeURIComponent(locationId)}/set-main`);
+};

@@ -1,11 +1,10 @@
 "use client";
 
 import React from 'react';
-import { Card } from 'flowbite-react';
-import { 
-  HiStar, 
-  HiCheckCircle, 
-  HiUsers, 
+import {
+  HiStar,
+  HiCheckCircle,
+  HiUsers,
   HiCurrencyDollar
 } from 'react-icons/hi';
 
@@ -24,121 +23,82 @@ interface ExperienceStatsProps {
   className?: string;
 }
 
+const cardClass = "bg-white rounded-lg shadow-sm border border-gray-200 p-3";
+
 export default function ExperienceStats({ stats, className = "" }: ExperienceStatsProps) {
+  const showRating = stats.averageRating > 0;
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 ${className}`}>
+    <div className={`grid grid-cols-2 ${showRating ? 'md:grid-cols-3 lg:grid-cols-5' : 'md:grid-cols-4 lg:grid-cols-4'} gap-3 ${className}`}>
       {/* Total Experiencias */}
-      <Card className="p-6">
-        <div className="flex items-start">
-          <div className="p-2 bg-[#F26726] rounded-lg">
-            <HiStar className="w-6 h-6 text-white" />
+      <div className={cardClass}>
+        <div className="flex items-center">
+          <div className="p-2 bg-[#F26726] rounded-lg shrink-0">
+            <HiStar className="w-5 h-5 text-white" />
           </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">Total Experiencias</p>
-            <p className="text-2xl font-bold text-[#334C5D]">{stats.total}</p>
+          <div className="ml-3 min-w-0">
+            <p className="text-xs font-medium text-gray-600 truncate">Total</p>
+            <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{stats.total}</p>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Experiencias Activas */}
-      <Card className="p-6">
-        <div className="flex items-start">
-          <div className="p-2 bg-green-500 rounded-lg">
-            <HiCheckCircle className="w-6 h-6 text-white" />
+      <div className={cardClass}>
+        <div className="flex items-center">
+          <div className="p-2 bg-green-500 rounded-lg shrink-0">
+            <HiCheckCircle className="w-5 h-5 text-white" />
           </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">Activas</p>
-            <p className="text-2xl font-bold text-[#334C5D]">{stats.active}</p>
-            <p className="text-xs text-gray-500">
-              {stats.total > 0 ? `${((stats.active / stats.total) * 100).toFixed(1)}% del total` : '0%'}
-            </p>
+          <div className="ml-3 min-w-0">
+            <p className="text-xs font-medium text-gray-600 truncate">Activas</p>
+            <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{stats.active}</p>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Total Reservas */}
-      <Card className="p-6">
-        <div className="flex items-start">
-          <div className="p-2 bg-blue-500 rounded-lg">
-            <HiUsers className="w-6 h-6 text-white" />
+      <div className={cardClass}>
+        <div className="flex items-center">
+          <div className="p-2 bg-blue-500 rounded-lg shrink-0">
+            <HiUsers className="w-5 h-5 text-white" />
           </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">Total Reservas</p>
-            <p className="text-2xl font-bold text-[#334C5D]">{stats.totalBookings}</p>
-            <p className="text-xs text-gray-500">
-              {stats.total > 0 ? `${(stats.totalBookings / stats.total).toFixed(1)} por experiencia` : '0 por experiencia'}
-            </p>
+          <div className="ml-3 min-w-0">
+            <p className="text-xs font-medium text-gray-600 truncate">Reservas</p>
+            <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{stats.totalBookings}</p>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Ingresos Totales */}
-      <Card className="p-6">
-        <div className="flex items-start">
-          <div className="p-2 bg-[#19A3A2] rounded-lg">
-            <HiCurrencyDollar className="w-6 h-6 text-white" />
+      <div className={cardClass}>
+        <div className="flex items-center">
+          <div className="p-2 bg-[#19A3A2] rounded-lg shrink-0">
+            <HiCurrencyDollar className="w-5 h-5 text-white" />
           </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">Ingresos Totales</p>
-            <p className="text-2xl font-bold text-[#334C5D]">
+          <div className="ml-3 min-w-0">
+            <p className="text-xs font-medium text-gray-600 truncate">Ingresos</p>
+            <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">
               ${stats.totalRevenue.toLocaleString('es-CO')}
             </p>
-            <p className="text-xs text-gray-500">
-              {stats.totalBookings > 0 ? `$${(stats.totalRevenue / stats.totalBookings).toLocaleString('es-CO')} por reserva` : '$0 por reserva'}
-            </p>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Calificación Promedio */}
-      {stats.averageRating > 0 && (
-        <Card className="p-6">
-          <div className="flex items-start">
-            <div className="p-2 bg-yellow-500 rounded-lg">
-              <HiStar className="w-6 h-6 text-white" />
+      {showRating && (
+        <div className={cardClass}>
+          <div className="flex items-center">
+            <div className="p-2 bg-yellow-500 rounded-lg shrink-0">
+              <HiStar className="w-5 h-5 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Calificación Promedio</p>
-              <p className="text-2xl font-bold text-[#334C5D]">
+            <div className="ml-3 min-w-0">
+              <p className="text-xs font-medium text-gray-600 truncate">Calificación</p>
+              <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">
                 {stats.averageRating.toFixed(1)}
               </p>
-              <p className="text-xs text-gray-500">
-                {stats.averageRating >= 4.5 ? 'Excelente' : 
-                 stats.averageRating >= 4.0 ? 'Muy bueno' :
-                 stats.averageRating >= 3.5 ? 'Bueno' :
-                 stats.averageRating >= 3.0 ? 'Regular' : 'Necesita mejorar'}
-              </p>
             </div>
           </div>
-        </Card>
-      )}
-
-      {/* Estados Detallados */}
-      <Card className="p-6 md:col-span-2 lg:col-span-3">
-        <h3 className="text-lg font-semibold text-[#334C5D] mb-4">Estados de Experiencias</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-            <div className="text-sm text-gray-600">Activas</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-600">{stats.draft}</div>
-            <div className="text-sm text-gray-600">Borradores</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-            <div className="text-sm text-gray-600">Pendientes</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{stats.paused}</div>
-            <div className="text-sm text-gray-600">Pausadas</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-red-600">{stats.inactive}</div>
-            <div className="text-sm text-gray-600">Inactivas</div>
-          </div>
         </div>
-      </Card>
+      )}
     </div>
   );
 }

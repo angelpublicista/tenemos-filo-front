@@ -1,17 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  AvailabilitySchedule, 
-  DaySchedule, 
-  TimeSlot, 
+import {
+  AvailabilitySchedule,
+  DaySchedule,
+  TimeSlot,
   BlockedDate,
   DayOfWeek,
   Location,
+  Experience,
   WeeklySchedule
 } from '@/types';
 import {
   getAvailabilitySchedulesByLocation,
+  getAvailabilitySchedulesByExperience,
   createAvailabilitySchedule,
   updateAvailabilitySchedule,
   deleteAvailabilitySchedule,
@@ -19,118 +21,20 @@ import {
   generateDefaultSchedule
 } from '@/lib/sanity/availabilityService';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
-import { 
-  AiOutlinePlus, 
-  AiOutlineEdit, 
-  AiOutlineDelete, 
+import {
+  AiOutlinePlus,
+  AiOutlineEdit,
+  AiOutlineDelete,
   AiOutlineStar,
   AiOutlineCheck,
-  AiOutlineClose 
+  AiOutlineClose
 } from 'react-icons/ai';
 import { BiCalendar, BiTime } from 'react-icons/bi';
 import Loader from '@/components/Loader';
 
-interface AvailabilityManagerProps {
-  location: Location;
-  companyId: string;
-}
-
-// Datos de ejemplo para calendarios de disponibilidad
-const generateMockSchedules = (locationId: string, companyId: string): AvailabilitySchedule[] => {
-  const baseSchedule = generateDefaultSchedule();
-  
-  return [
-    {
-      _id: `schedule-${locationId}-1`,
-      _type: 'availability',
-      name: 'Horario Principal',
-      location: { _ref: locationId, _type: 'reference' },
-      isActive: true,
-      isMain: true,
-      description: 'Horario estándar de operación',
-      weeklySchedule: baseSchedule,
-      blockedDates: [
-        {
-          date: '2025-12-25',
-          reason: 'other',
-          description: 'Navidad',
-        },
-        {
-          date: '2025-01-01',
-          reason: 'other',
-          description: 'Año Nuevo',
-        },
-      ],
-      bufferTime: 15,
-      minimumNotice: 24,
-      notes: 'Horario estándar de operación',
-      createdAt: '2025-01-01T00:00:00Z',
-      updatedAt: '2025-01-01T00:00:00Z',
-    },
-    {
-      _id: `schedule-${locationId}-2`,
-      _type: 'availability',
-      name: 'Horario de Verano',
-      location: { _ref: locationId, _type: 'reference' },
-      isActive: false,
-      isMain: false,
-      description: 'Horario extendido para la temporada de verano',
-      weeklySchedule: {
-        monday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        tuesday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        wednesday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        thursday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        friday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '08:00', endTime: '14:00' },
-            { startTime: '15:00', endTime: '20:00' },
-          ],
-        },
-        saturday: {
-          isActive: true,
-          timeSlots: [
-            { startTime: '10:00', endTime: '18:00' },
-          ],
-        },
-        sunday: {
-          isActive: false,
-          timeSlots: [],
-        },
-      },
-      blockedDates: [],
-      bufferTime: 30,
-      minimumNotice: 48,
-      notes: 'Horario extendido para la temporada de verano',
-      createdAt: '2025-02-01T00:00:00Z',
-      updatedAt: '2025-02-15T00:00:00Z',
-    },
-  ];
-};
+type AvailabilityManagerProps =
+  | { mode: 'location'; location: Location; companyId: string }
+  | { mode: 'experience'; experience: Experience; companyId: string };
 
 const dayNames: Record<DayOfWeek, string> = {
   monday: 'Lunes',
@@ -142,31 +46,33 @@ const dayNames: Record<DayOfWeek, string> = {
   sunday: 'Domingo',
 };
 
-// Orden correcto de los días de la semana
 const daysOrder: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, companyId }) => {
+const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
   const [schedules, setSchedules] = useState<AvailabilitySchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<AvailabilitySchedule | null>(null);
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
 
+  const contextId = props.mode === 'location' ? props.location._id : props.experience._id;
+  const contextLabel = props.mode === 'location' ? props.location.name : props.experience.title;
+
   useEffect(() => {
     loadSchedules();
-  }, [location._id]);
+  }, [contextId]);
 
   const loadSchedules = async () => {
     try {
       setLoading(true);
-      const data = await getAvailabilitySchedulesByLocation(location._id);
+      const data = props.mode === 'location'
+        ? await getAvailabilitySchedulesByLocation(props.location._id)
+        : await getAvailabilitySchedulesByExperience(props.experience._id);
       setSchedules(data);
     } catch (error) {
       showError('Error al cargar los calendarios de disponibilidad');
       console.error(error);
-      // Fallback a datos mock si hay error
-      const mockData = generateMockSchedules(location._id, companyId);
-      setSchedules(mockData);
+      setSchedules([]);
     } finally {
       setLoading(false);
     }
@@ -207,7 +113,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
   const handleSetPrimary = async (scheduleId: string) => {
     try {
       showLoading('Estableciendo como principal...');
-      await setPrimarySchedule(scheduleId, location._id);
+      await setPrimarySchedule(scheduleId, contextId, props.mode);
       hideLoading();
       await loadSchedules();
       showSuccess('Calendario establecido como principal');
@@ -228,8 +134,8 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
       hideLoading();
       await loadSchedules();
       showSuccess(
-        schedule.isActive 
-          ? 'Calendario desactivado exitosamente' 
+        schedule.isActive
+          ? 'Calendario desactivado exitosamente'
           : 'Calendario activado exitosamente'
       );
     } catch (error) {
@@ -246,18 +152,18 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
           <h3 className="text-xl font-semibold text-[#334C5D]">
             Calendarios de Disponibilidad
           </h3>
           <p className="text-sm text-gray-600 mt-1">
-            Gestiona los horarios de disponibilidad para {location.name}
+            Gestiona los horarios de disponibilidad para {contextLabel}
           </p>
         </div>
         <button
           onClick={handleCreateSchedule}
-          className="flex items-center px-4 py-2 bg-[#F26726] text-white rounded-lg hover:bg-[#d9571f] transition-colors"
+          className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-[#F26726] text-white rounded-lg hover:bg-[#d9571f] transition-colors"
         >
           <AiOutlinePlus className="mr-2" />
           Nuevo Calendario
@@ -272,7 +178,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
             No hay calendarios de disponibilidad
           </h3>
           <p className="text-gray-600 mb-4">
-            Crea tu primer calendario para definir los horarios disponibles de esta sede
+            Crea tu primer calendario para definir los horarios disponibles
           </p>
           <button
             onClick={handleCreateSchedule}
@@ -301,8 +207,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ location, com
       {showCreateModal && (
         <ScheduleModal
           schedule={editingSchedule}
-          locationId={location._id}
-          companyId={companyId}
+          contextId={contextId}
+          contextType={props.mode}
+          companyId={props.companyId}
           onClose={() => {
             setShowCreateModal(false);
             setEditingSchedule(null);
@@ -334,13 +241,13 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   onToggleActive,
 }) => {
   const activeDays = Object.values(schedule.weeklySchedule).filter(day => day.isActive);
-  
+
   return (
     <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
+      <div className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <h4 className="text-lg font-semibold text-[#334C5D]">
                 {schedule.name}
               </h4>
@@ -351,8 +258,8 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                 </span>
               )}
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                schedule.isActive 
-                  ? 'bg-green-100 text-green-800' 
+                schedule.isActive
+                  ? 'bg-green-100 text-green-800'
                   : 'bg-gray-100 text-gray-800'
               }`}>
                 {schedule.isActive ? 'Activo' : 'Inactivo'}
@@ -406,26 +313,30 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
             <BiTime className="mr-2" />
             Horario Semanal
           </h5>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {daysOrder.map((dayKey) => {
               const day = schedule.weeklySchedule[dayKey];
               return (
               <div
                 key={dayKey}
-                className={`text-center p-2 rounded ${
-                  day.isActive 
-                    ? 'bg-green-50 border border-green-200' 
+                className={`text-center px-1 py-1.5 sm:p-2 rounded ${
+                  day.isActive
+                    ? 'bg-green-50 border border-green-200'
                     : 'bg-gray-50 border border-gray-200'
                 }`}
               >
-                <div className={`text-xs font-medium ${
+                <div className={`text-[10px] sm:text-xs font-medium ${
                   day.isActive ? 'text-green-900' : 'text-gray-400'
                 }`}>
-                  {dayNames[dayKey].substring(0, 3)}
+                  <span className="sm:hidden">{dayNames[dayKey].substring(0, 1)}</span>
+                  <span className="hidden sm:inline">{dayNames[dayKey].substring(0, 3)}</span>
                 </div>
                 {day.isActive && day.timeSlots.length > 0 && (
-                  <div className="text-xs text-gray-600 mt-1">
-                    {day.timeSlots.length} slot{day.timeSlots.length > 1 ? 's' : ''}
+                  <div className="text-[10px] sm:text-xs text-gray-600 mt-0.5 sm:mt-1">
+                    <span className="sm:hidden">{day.timeSlots.length}</span>
+                    <span className="hidden sm:inline">
+                      {day.timeSlots.length} slot{day.timeSlots.length > 1 ? 's' : ''}
+                    </span>
                   </div>
                 )}
               </div>
@@ -434,7 +345,6 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           </div>
         </div>
 
-        {/* Additional Info */}
         {(schedule.description || schedule.notes) && (
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
             {schedule.description && (
@@ -452,7 +362,8 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
 
 interface ScheduleModalProps {
   schedule: AvailabilitySchedule | null;
-  locationId: string;
+  contextId: string;
+  contextType: 'location' | 'experience';
   companyId: string;
   onClose: () => void;
   onSave: () => void;
@@ -460,8 +371,8 @@ interface ScheduleModalProps {
 
 const ScheduleModal: React.FC<ScheduleModalProps> = ({
   schedule,
-  locationId,
-  companyId,
+  contextId,
+  contextType,
   onClose,
   onSave,
 }) => {
@@ -487,9 +398,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
     try {
       setSaving(true);
-      
+
       if (schedule) {
-        // Update existing schedule
         await updateAvailabilitySchedule({
           _id: schedule._id,
           name,
@@ -502,10 +412,9 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
         });
         showSuccess('Calendario actualizado exitosamente');
       } else {
-        // Create new schedule
         await createAvailabilitySchedule({
           name,
-          location: locationId,
+          ...(contextType === 'location' ? { location: contextId } : { experience: contextId }),
           description,
           weeklySchedule,
           blockedDates,
@@ -515,7 +424,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
         });
         showSuccess('Calendario creado exitosamente');
       }
-      
+
       onSave();
     } catch (error) {
       showError('Error al guardar el calendario');
@@ -543,7 +452,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
         startTime: lastSlot ? lastSlot.endTime : '09:00',
         endTime: lastSlot ? '18:00' : '13:00',
       };
-      
+
       return {
         ...prev,
         [day]: {
@@ -574,7 +483,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
       ...prev,
       [day]: {
         ...prev[day],
-        timeSlots: prev[day].timeSlots.map((slot, index) => 
+        timeSlots: prev[day].timeSlots.map((slot, index) =>
           index === slotIndex ? { ...slot, [field]: value } : slot
         ),
       },
@@ -582,17 +491,17 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-[#334C5D]">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#334C5D]">
             {schedule ? 'Editar Calendario' : 'Nuevo Calendario'}
           </h2>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -630,8 +539,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
               {daysOrder.map((dayKey) => {
                 const day = weeklySchedule[dayKey];
                 return (
-                <div key={dayKey} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
+                <div key={dayKey} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div className="flex items-center">
                       <input
                         type="checkbox"
@@ -653,28 +562,28 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                       </button>
                     )}
                   </div>
-                  
+
                   {day.isActive && (
-                    <div className="space-y-2 ml-8">
+                    <div className="space-y-2 ml-0 sm:ml-8">
                       {day.timeSlots.map((slot: TimeSlot, slotIndex: number) => (
-                        <div key={slotIndex} className="flex items-center gap-2">
+                        <div key={slotIndex} className="flex flex-wrap items-center gap-2">
                           <input
                             type="time"
                             value={slot.startTime}
                             onChange={(e) => handleTimeSlotChange(dayKey as DayOfWeek, slotIndex, 'startTime', e.target.value)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg"
+                            className="flex-1 min-w-[120px] px-3 py-2 border border-gray-300 rounded-lg"
                           />
                           <span className="text-gray-500">-</span>
                           <input
                             type="time"
                             value={slot.endTime}
                             onChange={(e) => handleTimeSlotChange(dayKey as DayOfWeek, slotIndex, 'endTime', e.target.value)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg"
+                            className="flex-1 min-w-[120px] px-3 py-2 border border-gray-300 rounded-lg"
                           />
                           {day.timeSlots.length > 1 && (
                             <button
                               onClick={() => handleRemoveTimeSlot(dayKey as DayOfWeek, slotIndex)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg shrink-0"
                             >
                               <AiOutlineDelete />
                             </button>
@@ -690,7 +599,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           </div>
 
           {/* Additional Settings */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Tiempo de buffer (minutos)
@@ -741,17 +650,17 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+        <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
           <button
             onClick={onClose}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="w-full sm:w-auto px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             disabled={saving}
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            className="px-6 py-2 bg-[#F26726] text-white rounded-lg hover:bg-[#d9571f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-6 py-2 bg-[#F26726] text-white rounded-lg hover:bg-[#d9571f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={saving}
           >
             {saving ? 'Guardando...' : 'Guardar'}
@@ -763,4 +672,3 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
 };
 
 export default AvailabilityManager;
-

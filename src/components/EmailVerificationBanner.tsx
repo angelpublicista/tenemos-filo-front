@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { Alert } from 'flowbite-react';
 import { HiInformationCircle } from 'react-icons/hi';
 import { FirebaseDebugInfo } from './FirebaseDebugInfo';

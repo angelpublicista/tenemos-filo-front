@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Label, TextInput, Select, Badge, Card, Dropdown, DropdownItem } from 'flowbite-react';
 import { 
@@ -21,7 +21,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { getOpportunitiesByHost, deleteOpportunity } from '@/lib/sanity/opportunityService';
 import { Opportunity, OpportunityFilters } from '@/types';
-import Loader from '@/components/Loader';
+import { SkeletonTableRow } from '@/components/Skeleton';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 
 // Tipo extendido para oportunidad con propiedades expandidas
@@ -140,24 +140,23 @@ export default function OportunidadesPage() {
 
   return (
     <ProtectedRoute>
-      <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
+        <div className="mb-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="flex items-center gap-3">
               <Button
                 color="gray"
                 onClick={() => router.push('/dashboard/crm')}
-                className="mr-4"
               >
                 <HiArrowLeft className="w-4 h-4 mr-2" />
                 Volver
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   Oportunidades CRM
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Gestiona tu pipeline de oportunidades de negocio
                 </p>
               </div>
@@ -165,6 +164,7 @@ export default function OportunidadesPage() {
             <Button
               color="primary"
               onClick={() => router.push('/dashboard/crm/oportunidades/crear')}
+              className="w-full sm:w-auto"
             >
               <HiPlus className="w-4 h-4 mr-2" />
               Nueva Oportunidad
@@ -173,8 +173,8 @@ export default function OportunidadesPage() {
         </div>
 
         {/* Filtros y Búsqueda */}
-        <Card className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="md:col-span-2">
               <Label htmlFor="search">Buscar</Label>
               <TextInput
@@ -227,7 +227,15 @@ export default function OportunidadesPage() {
 
         {/* Tabla de Oportunidades */}
         {isLoading ? (
-          <Loader message="Cargando oportunidades..." />
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left text-gray-500">
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => <SkeletonTableRow key={i} cols={8} />)}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         ) : (
           <Card>
             {opportunities.length === 0 ? (

@@ -46,7 +46,7 @@ export default function CalendlyIntegrationCard({
   };
 
   return (
-    <Card className="p-6">
+    <Card>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-purple-100 rounded-lg">

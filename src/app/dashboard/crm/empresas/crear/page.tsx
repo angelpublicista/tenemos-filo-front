@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Label, TextInput, Select, Textarea, Card } from 'flowbite-react';
 import { HiArrowLeft, HiSave } from 'react-icons/hi';
@@ -12,6 +12,23 @@ import { createCRMCompany } from '@/lib/sanity/crmCompanyService';
 import { CreateCRMCompanyData, CRMCompanyIndustry, CRMCompanySource } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
+
+// Función helper para formatear URLs
+const formatUrl = (url: string): string => {
+  if (!url || url.trim() === '') {
+    return '';
+  }
+  
+  const trimmedUrl = url.trim();
+  
+  // Si ya tiene protocolo, retornar tal cual
+  if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+    return trimmedUrl;
+  }
+  
+  // Si no tiene protocolo, agregar https://
+  return `https://${trimmedUrl}`;
+};
 
 // Esquema de validación
 const companySchema = z.object({
@@ -22,7 +39,13 @@ const companySchema = z.object({
   description: z.string().optional(),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
-  website: z.string().url('URL inválida').optional().or(z.literal('')),
+  website: z.preprocess(
+    (val) => {
+      if (!val || val === '') return '';
+      return formatUrl(String(val));
+    },
+    z.string().url('URL inválida').optional().or(z.literal(''))
+  ),
   documentType: z.enum(['nit', 'cedula', 'pasaporte', 'other']).optional(),
   documentNumber: z.string().optional(),
   status: z.enum(['active', 'inactive', 'qualified', 'unqualified', 'closed']),
@@ -126,6 +149,7 @@ export default function CrearEmpresaPage() {
     handleSubmit,
     formState: { errors },
     watch,
+    setValue,
   } = useForm<CompanyFormData>({
     defaultValues: {
       companyName: '',
@@ -369,8 +393,16 @@ export default function CrearEmpresaPage() {
                 <TextInput
                   id="website"
                   type="url"
-                  {...register('website')}
-                  placeholder="https://www.ejemplo.com"
+                  {...register('website', {
+                    onBlur: (e) => {
+                      const value = e.target.value;
+                      if (value && value.trim() !== '') {
+                        const formatted = formatUrl(value);
+                        setValue('website', formatted, { shouldValidate: true });
+                      }
+                    }
+                  })}
+                  placeholder="https://www.ejemplo.com o www.ejemplo.com"
                   className="mt-1"
                   color={errors.website ? 'failure' : undefined}
                 />

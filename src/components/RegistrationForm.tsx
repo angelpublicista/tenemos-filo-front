@@ -6,7 +6,7 @@ import Link from "next/link";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 import { useForm } from "react-hook-form";
-import { useAuth } from "@/lib/firebase/AuthContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { GuestStep1Data } from "@/types";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
@@ -237,12 +237,13 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
               color="white"
               type={showPassword ? "text" : "password"}
               placeholder="Contraseña"
-              {...form.register("password", { 
+              {...form.register("password", {
                 required: true,
                 minLength: {
                   value: 6,
                   message: "La contraseña debe tener al menos 6 caracteres"
-                }
+                },
+                deps: ["confirmPassword"]
               })}
             />
             <button

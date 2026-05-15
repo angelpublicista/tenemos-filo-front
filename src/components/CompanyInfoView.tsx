@@ -1,18 +1,36 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/firebase/AuthContext';
-import { getCompanyByUserId } from '@/lib/sanity/companyService';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
+import { uploadImage } from '@/lib/api/uploads';
 import { Company } from '@/types';
 import { Button } from 'flowbite-react';
-import { 
-  HiPencilAlt, 
-  HiCheckCircle, 
-  HiExclamationCircle
+import {
+  HiPencilAlt,
+  HiCheckCircle,
+  HiExclamationCircle,
+  HiPhotograph,
+  HiUpload,
+  HiTrash,
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from './Loader';
+
+// Resuelve la URL del logo. Compat con assets viejos de Sanity:
+// - URL absoluta (S3/CloudFront): se usa tal cual
+// - "image-..." legacy: se construye URL del CDN de Sanity
+const getLogoUrl = (assetRef: string): string => {
+  if (assetRef.startsWith('http://') || assetRef.startsWith('https://')) return assetRef;
+  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
+  const cleanAssetId = assetRef.startsWith('image-')
+    ? assetRef.replace('image-', '').replace(/-([a-z]+)$/, '.$1')
+    : assetRef;
+  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
+};
 
 interface CompanyInfoViewProps {
   showEditButton?: boolean;
@@ -29,7 +47,10 @@ export default function CompanyInfoView({
   const { user, hasCompany } = useAuth();
   const [existingCompany, setExistingCompany] = useState<Company | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const { showError } = useSweetAlert();
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const { showError, showSuccess, showConfirmation } = useSweetAlert();
 
   useEffect(() => {
     const loadCompanyData = async () => {
@@ -62,27 +83,87 @@ export default function CompanyInfoView({
     }
   };
 
+  const handleLogoFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !existingCompany) return;
+
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Selecciona un archivo de imagen válido');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setLogoError('La imagen no puede superar 10 MB');
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    setLogoError(null);
+    try {
+      const url = await uploadImage(file, 'logos');
+      await updateCompanyInSanity(existingCompany._id, { logo: url });
+      setExistingCompany({
+        ...existingCompany,
+        logo: { asset: { _ref: url, _type: 'reference' } },
+        updatedAt: new Date().toISOString(),
+      });
+      await showSuccess('Logo actualizado', 'El logo se subió correctamente.');
+    } catch (err) {
+      console.error('Error uploading logo:', err);
+      setLogoError('Error al subir el logo. Intenta de nuevo.');
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!existingCompany?.logo) return;
+    const confirmed = await showConfirmation(
+      '¿Eliminar logo?',
+      'Se quitará el logo actual de la empresa.',
+      'Sí, eliminar',
+      'Cancelar',
+    );
+    if (!confirmed) return;
+
+    setIsUploadingLogo(true);
+    setLogoError(null);
+    try {
+      await updateCompanyInSanity(existingCompany._id, { logo: null });
+      setExistingCompany({
+        ...existingCompany,
+        logo: undefined,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Error removing logo:', err);
+      setLogoError('Error al eliminar el logo. Intenta de nuevo.');
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
   if (isLoadingData) {
     return <Loader message="Cargando información de la empresa..." className={className} />;
   }
 
   if (!hasCompany() || !existingCompany) {
     return (
-      <div className={`bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center ${className}`}>
+      <div className={`bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-8 text-center ${className}`}>
         <div className="mb-4">
-          <HiExclamationCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-[#334C5D] mb-2">
+          <HiExclamationCircle className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl sm:text-2xl font-bold text-[#334C5D] mb-2">
             No hay información de empresa
           </h2>
-          <p className="text-gray-600 text-lg mb-6">
-            Aún no has completado la configuración de tu empresa. 
+          <p className="text-gray-600 text-base sm:text-lg mb-6">
+            Aún no has completado la configuración de tu empresa.
             Completa el registro para acceder a todas las funcionalidades.
           </p>
         </div>
         <Button
           color="warning"
           onClick={() => router.push('/company-setup')}
-          className="px-8 py-3"
+          className="w-full sm:w-auto"
         >
           Completar Registro de Empresa
         </Button>
@@ -91,23 +172,77 @@ export default function CompanyInfoView({
   }
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-8 ${className}`}>
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-8 ${className}`}>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className="text-2xl font-semibold text-[#334C5D] mb-2">
-            {existingCompany.companyName}
-          </h3>
-          <div className="flex items-center text-green-600">
-            <HiCheckCircle className="w-5 h-5 mr-2" />
-            <span className="text-sm font-medium">Configuración completada</span>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          {/* Logo */}
+          <div className="relative shrink-0">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center">
+              {existingCompany.logo?.asset?._ref ? (
+                <Image
+                  src={getLogoUrl(existingCompany.logo.asset._ref)}
+                  alt={`Logo de ${existingCompany.companyName}`}
+                  width={96}
+                  height={96}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <HiPhotograph className="w-10 h-10 text-gray-400" />
+              )}
+              {isUploadingLogo && (
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#F26726]" />
+                </div>
+              )}
+            </div>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleLogoFile}
+              className="hidden"
+            />
+            {showEditButton && (
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={isUploadingLogo}
+                aria-label={existingCompany.logo ? 'Cambiar logo' : 'Subir logo'}
+                title="Imagen cuadrada · mínimo 400 × 400 px · PNG o JPG hasta 10 MB"
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#F26726] hover:bg-[#d9571f] text-white flex items-center justify-center shadow-md disabled:opacity-60"
+              >
+                <HiUpload className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <h3 className="text-xl sm:text-2xl font-semibold text-[#334C5D] mb-2 truncate">
+              {existingCompany.companyName}
+            </h3>
+            <div className="flex items-center text-green-600">
+              <HiCheckCircle className="w-5 h-5 mr-2 shrink-0" />
+              <span className="text-sm font-medium">Configuración completada</span>
+            </div>
+            {showEditButton && existingCompany.logo && (
+              <button
+                type="button"
+                onClick={handleRemoveLogo}
+                disabled={isUploadingLogo}
+                className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 transition-colors disabled:opacity-60"
+              >
+                <HiTrash className="w-3.5 h-3.5" />
+                Quitar logo
+              </button>
+            )}
           </div>
         </div>
         {showEditButton && (
           <Button
             color="gray"
             onClick={handleEdit}
-            className="px-6 py-2"
+            className="w-full sm:w-auto"
           >
             <HiPencilAlt className="w-4 h-4 mr-2" />
             Editar Información
@@ -115,11 +250,20 @@ export default function CompanyInfoView({
         )}
       </div>
 
+      {logoError && (
+        <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+          <p className="text-red-600 text-sm flex items-start gap-1.5">
+            <span className="mt-0.5 flex-shrink-0">⚠</span>
+            {logoError}
+          </p>
+        </div>
+      )}
+
       {/* Company Information */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Información Básica */}
         <div className="space-y-6">
-          <h4 className="text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
+          <h4 className="text-lg sm:text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
             Información Básica
           </h4>
           
@@ -190,7 +334,7 @@ export default function CompanyInfoView({
 
         {/* Información Fiscal */}
         <div className="space-y-6">
-          <h4 className="text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
+          <h4 className="text-lg sm:text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
             Información Fiscal
           </h4>
 
@@ -242,11 +386,11 @@ export default function CompanyInfoView({
 
         {/* Información Empresarial */}
         <div className="space-y-6 lg:col-span-2">
-          <h4 className="text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
+          <h4 className="text-lg sm:text-xl font-semibold text-[#334C5D] border-b border-gray-200 pb-3">
             Información Empresarial
           </h4>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
             <div className="bg-gray-50 rounded-lg p-4">
               <label className="text-sm font-medium text-gray-500 block mb-2">
                 Número de Empleados
@@ -295,7 +439,7 @@ export default function CompanyInfoView({
 
       {/* Footer Info */}
       <div className="mt-8 pt-6 border-t border-gray-200">
-        <div className="flex justify-between items-center text-sm text-gray-500">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 text-xs sm:text-sm text-gray-500 break-all">
           <p>
             Última actualización: {new Date(existingCompany.updatedAt).toLocaleDateString('es-ES')}
           </p>

@@ -4,30 +4,31 @@
  * Traduce los códigos de error de Firebase al español
  */
 export const translateFirebaseError = (error: unknown): string => {
-  // Si el error ya tiene un mensaje personalizado en español, usarlo
-  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
-    if (
-      error.message.includes('email') ||
-      error.message.includes('documento') ||
-      error.message.includes('Usuario no encontrado') ||
-      error.message.includes('cuenta está pendiente') ||
-      error.message.includes('Error de permisos') ||
-      error.message.includes('Error de autenticación') ||
-      error.message.includes('Error de configuración')
-    ) {
-      return error.message;
-    }
-  }
-
-  // Obtener el código de error de Firebase
+  // Obtener el código y mensaje del error
   let errorCode = '';
+  let rawMessage = '';
   if (error && typeof error === 'object') {
     if ('code' in error && typeof error.code === 'string') {
       errorCode = error.code;
-    } else if ('message' in error && typeof error.message === 'string') {
-      errorCode = error.message;
+    }
+    if ('message' in error && typeof error.message === 'string') {
+      rawMessage = error.message;
     }
   }
+
+  // Si el mensaje contiene un código de Firebase incrustado (ej: "Firebase: Error (auth/email-already-in-use).")
+  // extraerlo para traducirlo
+  if (!errorCode && rawMessage) {
+    const codeMatch = rawMessage.match(/\(auth\/[a-z-]+\)/i);
+    if (codeMatch) {
+      errorCode = codeMatch[0].replace(/[()]/g, '');
+    }
+  }
+
+  // Detectar si el mensaje es un error crudo de Firebase (en inglés)
+  const isRawFirebaseMessage =
+    rawMessage.startsWith('Firebase:') ||
+    /\(auth\/[a-z-]+\)/i.test(rawMessage);
 
   // Traducciones de errores comunes de Firebase Auth
   const firebaseErrorTranslations: { [key: string]: string } = {
@@ -101,12 +102,9 @@ export const translateFirebaseError = (error: unknown): string => {
     return firebaseErrorTranslations[errorCode];
   }
 
-  // Buscar por coincidencias parciales en el mensaje
-  let errorMessage = '';
-  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
-    errorMessage = error.message.toLowerCase();
-  }
-  
+  // Buscar por coincidencias parciales en el mensaje crudo
+  const errorMessage = rawMessage.toLowerCase();
+
   if (errorMessage.includes('email-already-in-use') || errorMessage.includes('email already in use')) {
     return 'Ya existe una cuenta con este correo electrónico.';
   }
@@ -133,6 +131,12 @@ export const translateFirebaseError = (error: unknown): string => {
   
   if (errorMessage.includes('too-many-requests')) {
     return 'Demasiados intentos fallidos. Intenta de nuevo más tarde.';
+  }
+
+  // Si no es un error crudo de Firebase y hay mensaje, devolverlo tal cual
+  // (ya está traducido o es un mensaje personalizado de la app)
+  if (!isRawFirebaseMessage && rawMessage) {
+    return rawMessage;
   }
 
   // Si no se encuentra una traducción específica, devolver un mensaje genérico

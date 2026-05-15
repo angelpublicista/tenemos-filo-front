@@ -1,226 +1,65 @@
-import { sanityClient } from './sanityClient';
-import { CreateUserData, SanityUser } from '@/types';
+// Servicios de user. Tras la migracion ya no quedan funciones contra Sanity:
+// - getUserByFirebaseId, createUserInSanity, checkUserExists*, updateUserLocations,
+//   testSanityConnection: BORRADAS (sin callers tras migrar AuthContext)
+// - associateUserWithCompany, markCompanySetupCompleted: usan POST /companies/:id/associate-me
+// - updateUserProfile: usa PATCH /users/:id
 
-// Función para probar la conectividad con Sanity
-export const testSanityConnection = async () => {
-  try {
-    console.log('Probando conexión con Sanity...');
-    console.log('Project ID:', process.env.NEXT_PUBLIC_SANITY_PROJECT_ID);
-    console.log('Dataset:', process.env.NEXT_PUBLIC_SANITY_DATASET);
-    console.log('Token configurado:', !!process.env.NEXT_PUBLIC_SANITY_TOKEN);
-    
-    // Intentar hacer una consulta simple para verificar permisos de lectura
-    await sanityClient.fetch('*[_type == "user"] | order(_createdAt desc)[0]');
-    console.log('Conexión exitosa con Sanity');
-    return { success: true, message: 'Conexión exitosa' };
-  } catch (error) {
-    console.error('Error de conexión con Sanity:', error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : 'Error desconocido' 
-    };
-  }
+import { api } from '@/lib/api/client';
+import { SanityUser } from '@/types';
+
+// ─── Mapeos enum (front lower ↔ API upper) ─────────────────────────────────
+
+const ROLE_TO_API: Record<NonNullable<SanityUser['role']>, 'HOST' | 'GUEST' | 'ADMIN'> = {
+  host: 'HOST',
+  guest: 'GUEST',
+  admin: 'ADMIN',
 };
 
-export const checkUserExistsByEmail = async (email: string): Promise<boolean> => {
-  try {
-    const query = `*[_type == "user" && email == $email][0]`;
-    const user = await sanityClient.fetch(query, { email });
-    return !!user;
-  } catch (error) {
-    console.error('Error checking user by email:', error);
-    throw new Error('Failed to check user by email');
-  }
+interface ApiUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'HOST' | 'GUEST' | 'ADMIN';
+  image: string | null;
+  phone: string | null;
+  documentType: string | null;
+  documentNumber: string | null;
+  companyId: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Asociacion user ↔ company ─────────────────────────────────────────────
+
+export const associateUserWithCompany = async (_firebaseId: string, companyId: string) => {
+  void _firebaseId; // legacy: el API resuelve user del JWT
+  return api.post<{ id: string; email: string; companyId: string }>(
+    `/companies/${encodeURIComponent(companyId)}/associate-me`,
+  );
 };
 
-export const checkUserExistsByDocument = async (documentNumber: string): Promise<boolean> => {
-  try {
-    const query = `*[_type == "user" && documentNumber == $documentNumber][0]`;
-    const user = await sanityClient.fetch(query, { documentNumber });
-    return !!user;
-  } catch (error) {
-    console.error('Error checking user by document:', error);
-    throw new Error('Failed to check user by document');
-  }
+export const markCompanySetupCompleted = async (_firebaseId: string) => {
+  // No-op: el flag vive en localStorage (AuthContext.markSetupCompleted).
+  void _firebaseId;
+  return { ok: true };
 };
 
-export const createUserInSanity = async (userData: CreateUserData) => {
-  try {
-    // Verificar duplicados antes de crear
-    const emailExists = await checkUserExistsByEmail(userData.email);
-    if (emailExists) {
-      throw new Error('Ya existe un usuario registrado con este email');
-    }
+// ─── Update perfil ─────────────────────────────────────────────────────────
 
-    const documentExists = await checkUserExistsByDocument(userData.documentNumber);
-    if (documentExists) {
-      throw new Error('Ya existe un usuario registrado con este número de documento');
-    }
+export const updateUserProfile = async (
+  userId: string,
+  updateData: Partial<SanityUser>,
+): Promise<ApiUser> => {
+  // Mapeamos del shape Sanity-style del front al body que espera el API.
+  const body: Record<string, unknown> = {};
+  if (updateData.name !== undefined) body.name = updateData.name;
+  if (updateData.phone !== undefined) body.phone = updateData.phone;
+  if (updateData.role !== undefined) body.role = ROLE_TO_API[updateData.role];
+  if (updateData.typeDocument !== undefined) body.documentType = updateData.typeDocument;
+  if (updateData.documentNumber !== undefined) body.documentNumber = updateData.documentNumber;
+  if (updateData.companyId !== undefined) body.companyId = updateData.companyId;
+  if (updateData.isActive !== undefined) body.isActive = updateData.isActive;
 
-    const doc = {
-      _type: 'user',
-      firebaseId: userData.firebaseId,
-      name: userData.name,
-      email: userData.email,
-      role: userData.role,
-      phone: userData.phone,
-      typeDocument: userData.typeDocument,
-      documentNumber: userData.documentNumber,
-      hasCompletedCompanySetup: userData.role === 'host' ? false : true, // Hosts necesitan configurar empresa
-      isActive: true, // Usuarios activos por defecto
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    console.log('Intentando crear usuario en Sanity con datos:', {
-      ...doc,
-      firebaseId: doc.firebaseId.substring(0, 8) + '...' // Solo mostrar parte del ID por seguridad
-    });
-
-    const result = await sanityClient.create(doc);
-    console.log('Usuario creado exitosamente en Sanity:', result._id);
-    return result;
-  } catch (error) {
-    console.error('Error creating user in Sanity:', error);
-    
-    // Manejar errores específicos de permisos
-    if (error instanceof Error) {
-      if (error.message.includes('Insufficient permissions')) {
-        throw new Error('Error de permisos en Sanity: Verifica que el token de API tenga permisos de escritura');
-      } else if (error.message.includes('token')) {
-        throw new Error('Error de autenticación en Sanity: Verifica que el token de API sea válido');
-      } else if (error.message.includes('project')) {
-        throw new Error('Error de configuración en Sanity: Verifica el Project ID');
-      }
-    }
-    
-    throw error; // Re-lanzar el error para que se maneje en el componente
-  }
+  return api.patch<ApiUser>(`/users/${encodeURIComponent(userId)}`, body);
 };
-
-export const getUserByFirebaseId = async (firebaseId: string): Promise<SanityUser | null> => {
-  try {
-    const query = `*[_type == "user" && firebaseId == $firebaseId][0]{
-      ...,
-      "companyId": company._ref
-    }`;
-    const user = await sanityClient.fetch(query, { firebaseId });
-    return user;
-  } catch (error) {
-    console.error('Error fetching user from Sanity:', error);
-    throw new Error('Failed to fetch user from Sanity');
-  }
-};
-
-export const updateUserLocations = async (firebaseId: string, locationIds: string[]) => {
-  try {
-    // Primero buscar el usuario por firebaseId
-    const user = await getUserByFirebaseId(firebaseId);
-    if (!user) {
-      throw new Error('User not found in Sanity');
-    }
-
-    const locationRefs = locationIds.map(id => ({
-      _key: crypto.randomUUID(), // Añadir una _key única para cada elemento del array
-      _ref: id,
-      _type: 'reference',
-    }));
-
-    // Actualizar usando el _id del documento de Sanity
-    await sanityClient
-      .patch(user._id)
-      .set({ locations: locationRefs, updatedAt: new Date().toISOString() })
-      .commit();
-  } catch (error) {
-    console.error('Error updating user locations:', error);
-    throw new Error('Failed to update user locations');
-  }
-};
-
-export const associateUserWithCompany = async (firebaseId: string, companyId: string) => {
-  try {
-    // Primero buscar el usuario por firebaseId
-    const user = await getUserByFirebaseId(firebaseId);
-    if (!user) {
-      throw new Error('Usuario no encontrado en Sanity');
-    }
-
-    // Crear la referencia a la empresa
-    const companyRef = {
-      _ref: companyId,
-      _type: 'reference',
-    };
-
-    // Actualizar el usuario con la referencia a la empresa en el campo company
-    const result = await sanityClient
-      .patch(user._id)
-      .set({ 
-        company: companyRef,
-        updatedAt: new Date().toISOString() 
-      })
-      .commit();
-
-    console.log('Usuario asociado con empresa exitosamente:', result._id);
-    return result;
-  } catch (error) {
-    console.error('Error associating user with company:', error);
-    throw new Error('Error al asociar usuario con empresa');
-  }
-};
-
-export const markCompanySetupCompleted = async (firebaseId: string) => {
-  try {
-    // Primero buscar el usuario por firebaseId
-    const user = await getUserByFirebaseId(firebaseId);
-    if (!user) {
-      throw new Error('Usuario no encontrado en Sanity');
-    }
-
-    // Solo actualizar campos que existen en el esquema de Sanity
-    // El campo hasCompletedCompanySetup se maneja en localStorage
-    const result = await sanityClient
-      .patch(user._id)
-      .set({ 
-        updatedAt: new Date().toISOString() 
-      })
-      .commit();
-
-    console.log('Setup de empresa marcado como completado:', result._id);
-    return result;
-  } catch (error) {
-    console.error('Error marking company setup as completed:', error);
-    throw new Error('Error al marcar setup como completado');
-  }
-};
-
-export const updateUserProfile = async (firebaseId: string, updateData: Partial<SanityUser>) => {
-  try {
-    const user = await getUserByFirebaseId(firebaseId);
-    if (!user) {
-      throw new Error('Usuario no encontrado en Sanity');
-    }
-
-    // Preparar los datos de actualización
-    const updateFields = {
-      ...updateData,
-      updatedAt: new Date().toISOString()
-    };
-
-    // Remover campos que no deben ser actualizados directamente
-    delete updateFields._id;
-    delete updateFields._type;
-    delete updateFields.firebaseId;
-    delete updateFields.createdAt;
-
-    const result = await sanityClient
-      .patch(user._id)
-      .set(updateFields)
-      .commit();
-
-    console.log('Perfil de usuario actualizado exitosamente:', result._id);
-    return result;
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    throw new Error('Error al actualizar el perfil del usuario');
-  }
-}; 

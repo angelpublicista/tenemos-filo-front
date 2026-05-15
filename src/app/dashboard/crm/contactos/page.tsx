@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/firebase/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Label, TextInput, Select, Badge, Card, Dropdown, DropdownItem } from 'flowbite-react';
 import { 
@@ -19,7 +19,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { getContactsByHost, deleteContact } from '@/lib/sanity/contactService';
 import { Contact, ContactFilters } from '@/types';
-import Loader from '@/components/Loader';
+import { SkeletonTableRow } from '@/components/Skeleton';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { exportContactsToExcel, exportContactsToCSV } from '@/utils/exportUtils';
 
@@ -153,29 +153,28 @@ export default function ContactosPage() {
 
   return (
     <ProtectedRoute>
-      <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
+        <div className="mb-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="flex items-center gap-3">
               <Button
                 color="gray"
                 onClick={() => router.push('/dashboard/crm')}
-                className="mr-4"
               >
                 <HiArrowLeft className="w-4 h-4 mr-2" />
                 Volver
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   Contactos CRM
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Gestiona tu base de datos de contactos
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               {contacts.length > 0 && (
                 <Dropdown
                   label=""
@@ -210,8 +209,8 @@ export default function ContactosPage() {
         </div>
 
         {/* Filtros y Búsqueda */}
-        <Card className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="md:col-span-2">
               <Label htmlFor="search">Buscar</Label>
               <TextInput
@@ -260,7 +259,15 @@ export default function ContactosPage() {
 
         {/* Tabla de Contactos */}
         {isLoading ? (
-          <Loader message="Cargando contactos..." />
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left text-gray-500">
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => <SkeletonTableRow key={i} cols={7} />)}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         ) : (
           <Card>
             {contacts.length === 0 ? (

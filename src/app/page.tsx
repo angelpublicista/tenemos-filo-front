@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/firebase/AuthContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import Loader from "@/components/Loader";
 
 export default function Home() {

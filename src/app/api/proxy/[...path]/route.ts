@@ -6,10 +6,19 @@
 //   - No necesitamos preflight CORS (mismo origen)
 //   - Punto unico para logging, retries, transformaciones a futuro
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { cookies } from "next/headers";
 
 const API_URL =
   process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+// Nombres de cookie de Auth.js v5. El prefijo __Secure- se usa cuando el sitio
+// corre en HTTPS (set-cookie con Secure flag). Detras de Cloudflare/nginx el
+// proceso Next ve el request como HTTP, asi que getToken() del helper de
+// next-auth se confunde con el prefijo. Leemos la cookie directamente.
+const AUTH_COOKIE_NAMES = [
+  "__Secure-authjs.session-token",
+  "authjs.session-token",
+];
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -39,11 +48,15 @@ async function handler(
     }
   });
 
-  const token = await getToken({
-    req,
-    raw: true,
-    secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
-  });
+  const cookieStore = await cookies();
+  let token: string | undefined;
+  for (const name of AUTH_COOKIE_NAMES) {
+    const c = cookieStore.get(name);
+    if (c?.value) {
+      token = c.value;
+      break;
+    }
+  }
   if (token) headers.set("authorization", `Bearer ${token}`);
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";

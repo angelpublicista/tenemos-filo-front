@@ -60,3 +60,4 @@ next-env.d.ts
 
 /.claude/
 SECURITY_INCIDENT_REPORT.md
+*md

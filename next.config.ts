@@ -3,8 +3,6 @@ import withFlowbiteReact from "flowbite-react/plugin/nextjs";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Deshabilitar la generación estática para todas las páginas
-  output: 'standalone',
   turbopack: {
     root: __dirname,
   },

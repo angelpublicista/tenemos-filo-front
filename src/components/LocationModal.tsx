@@ -6,6 +6,7 @@ import {
   createLocationInSanity,
   updateLocationInSanity
 } from '@/lib/sanity/locationService';
+import { getCompanyById } from '@/lib/sanity/companyService';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose } from 'react-icons/ai';
 import { COUNTRIES } from '@/lib/constants/countries';
@@ -44,7 +45,35 @@ const LocationModal: React.FC<LocationModalProps> = ({
   });
 
   const [saving, setSaving] = useState(false);
+  const [loadingCompanyData, setLoadingCompanyData] = useState(false);
   const { showSuccess, showError } = useSweetAlert();
+
+  const handleUseCompanyData = async () => {
+    try {
+      setLoadingCompanyData(true);
+      const company = await getCompanyById(companyId);
+      if (!company) {
+        showError('No se encontraron datos de la empresa');
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        street: company.address?.street ?? prev.street,
+        city: company.address?.city ?? prev.city,
+        state: company.address?.state ?? prev.state,
+        postalCode: company.address?.postalCode ?? prev.postalCode,
+        country: company.address?.country ?? prev.country,
+        email: company.companyEmail ?? prev.email,
+        phone: company.companyPhone ?? prev.phone,
+      }));
+      showSuccess('Datos de la empresa cargados');
+    } catch (error) {
+      showError('Error al cargar los datos de la empresa');
+      console.error(error);
+    } finally {
+      setLoadingCompanyData(false);
+    }
+  };
 
   useEffect(() => {
     if (location) {
@@ -173,6 +202,27 @@ const LocationModal: React.FC<LocationModalProps> = ({
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {!location && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col gap-3">
+                <div>
+                  <p className="text-sm font-medium text-blue-900">
+                    ¿Misma información que tu empresa?
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    Copia dirección, ciudad, email y teléfono de tu empresa.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUseCompanyData}
+                  disabled={loadingCompanyData}
+                  className="w-full px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingCompanyData ? 'Cargando...' : 'Usar datos de mi empresa'}
+                </button>
+              </div>
+            )}
+
             {/* Información Básica */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">

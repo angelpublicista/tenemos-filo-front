@@ -56,7 +56,7 @@ type ApiUser = {
   id: string;
   email: string;
   name: string | null;
-  role: "HOST" | "GUEST" | "ADMIN";
+  role: "HOST" | "GUEST" | "ADMIN" | "RESELLER";
   image: string | null;
   phone: string | null;
   companyId: string | null;

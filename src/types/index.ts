@@ -54,7 +54,7 @@ export interface CreateUserData {
   firebaseId: string;
   name: string;
   email: string;
-  role: 'guest' | 'host' | 'admin';
+  role: 'guest' | 'host' | 'admin' | 'reseller';
   phone: string;
   typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
@@ -73,7 +73,7 @@ export interface SanityUser {
       _type: 'reference';
     };
   };
-  role: 'guest' | 'host' | 'admin';
+  role: 'guest' | 'host' | 'admin' | 'reseller';
   phone: string;
   typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;

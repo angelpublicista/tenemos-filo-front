@@ -4,8 +4,9 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CompanySetupAlert from "@/components/CompanySetupAlert";
 import ThemeToggleButton from "@/components/ThemeToggleButton";
+import ResellerDashboard from "@/components/Dashboard/ResellerDashboard";
 import { useCompanySetup } from "@/hooks/useCompanySetup";
-import { 
+import {
   AiOutlineCalendar,
   AiOutlineTeam,
   AiOutlineDollar,
@@ -27,6 +28,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadDashboardData = async () => {
+      // El reseller renderiza <ResellerDashboard /> mas abajo y consume su propio
+      // service mockeado; /dashboard/stats y /dashboard/recent-activities exigen
+      // HOST/ADMIN en el backend y devolverian 403 "Rol insuficiente".
+      if (sanityUser?.role === 'reseller') {
+        setIsLoading(false);
+        return;
+      }
       if (!sanityUser?.companyId) {
         setIsLoading(false);
         return;
@@ -35,7 +43,7 @@ export default function Dashboard() {
       try {
         setIsLoading(true);
         setError(null);
-        
+
         const [statsData, activitiesData] = await Promise.all([
           getDashboardStats(sanityUser.companyId),
           getRecentActivities(sanityUser.companyId, 5)
@@ -52,7 +60,7 @@ export default function Dashboard() {
     };
 
     loadDashboardData();
-  }, [sanityUser?.companyId]);
+  }, [sanityUser?.companyId, sanityUser?.role]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -126,6 +134,14 @@ export default function Dashboard() {
     }
   ];
 
+  if (sanityUser?.role === 'reseller') {
+    return (
+      <ProtectedRoute>
+        <ResellerDashboard />
+      </ProtectedRoute>
+    );
+  }
+
   return (
     <ProtectedRoute>
       <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -167,8 +183,8 @@ export default function Dashboard() {
         </div>
 
         {/* Company Setup Alert */}
-        <CompanySetupAlert 
-          userRole={sanityUser?.role || 'guest'}
+        <CompanySetupAlert
+          userRole={(sanityUser?.role as 'host' | 'guest' | 'admin' | 'reseller') || 'guest'}
           hasCompletedSetup={isSetupCompleted()}
           hasCompanyId={!!sanityUser?.companyId}
         />
@@ -299,7 +315,7 @@ export default function Dashboard() {
                 <div>
                   <p className="opacity-90">Rol</p>
                   <p className="font-medium">
-                    {sanityUser?.role === 'host' ? 'Anfitrión' : 
+                    {sanityUser?.role === 'host' ? 'Anfitrión' :
                      sanityUser?.role === 'admin' ? 'Administrador' : 'Comensal'}
                   </p>
                 </div>

@@ -10,7 +10,11 @@ import {
   AiOutlineBell,
   AiOutlineUser,
   AiOutlineClockCircle,
-  AiOutlineShareAlt
+  AiOutlineShareAlt,
+  AiOutlineLink,
+  AiOutlineDollar,
+  AiOutlineAppstore,
+  AiOutlineApi
 } from 'react-icons/ai';
 import {
   BiMap,
@@ -45,7 +49,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: boolean;
       };
 
-  const navigationItems: NavItem[] = [
+  const isReseller = sanityUser?.role === 'reseller';
+
+  const baseNav: NavItem[] = [
     {
       name: 'Dashboard',
       href: '/dashboard',
@@ -53,6 +59,63 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       current: pathname === '/dashboard',
       enabled: true
     },
+  ];
+
+  const resellerNav: NavItem[] = [
+    {
+      name: 'Catálogo',
+      href: '/dashboard/catalog',
+      icon: AiOutlineAppstore,
+      current: pathname === '/dashboard/catalog',
+      enabled: true
+    },
+    {
+      name: 'Mis Reventas',
+      href: '/dashboard/resales',
+      icon: AiOutlineDollar,
+      current: pathname === '/dashboard/resales',
+      enabled: true
+    },
+    {
+      name: 'Links de reventa',
+      href: '/dashboard/resale-links',
+      icon: AiOutlineLink,
+      current: pathname === '/dashboard/resale-links',
+      enabled: true
+    },
+    { type: 'section', name: 'Herramientas' },
+    {
+      name: 'Integraciones',
+      href: '/dashboard/integrations',
+      icon: AiOutlineApi,
+      current: pathname?.startsWith('/dashboard/integrations') ?? false,
+      enabled: true
+    },
+    { type: 'divider' },
+    {
+      name: 'Mi Perfil',
+      href: '/dashboard/profile',
+      icon: AiOutlineUser,
+      current: pathname === '/dashboard/profile',
+      enabled: true
+    },
+    {
+      name: 'Notificaciones',
+      href: '/dashboard/notifications',
+      icon: AiOutlineBell,
+      current: pathname === '/dashboard/notifications',
+      enabled: true
+    },
+    {
+      name: 'Configuración',
+      href: '/dashboard/settings',
+      icon: AiOutlineSetting,
+      current: pathname === '/dashboard/settings',
+      enabled: true
+    },
+  ];
+
+  const hostGuestNav: NavItem[] = [
     ...(sanityUser?.role === 'host' ? [
       {
         name: 'Mis Sedes',
@@ -98,6 +161,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         icon: HiOutlineDocumentText,
         current: pathname?.startsWith('/dashboard/crm') ?? false,
         enabled: true
+      },
+      {
+        name: 'Integraciones',
+        href: '/dashboard/integrations',
+        icon: AiOutlineApi,
+        current: pathname?.startsWith('/dashboard/integrations') ?? false,
+        enabled: true
       }
     ] as NavItem[] : []),
     { type: 'divider' },
@@ -132,6 +202,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       enabled: true
     }
   ];
+
+  const navigationItems: NavItem[] = isReseller
+    ? [...baseNav, ...resellerNav]
+    : [...baseNav, ...hostGuestNav];
 
   const handleLinkClick = () => {
     // Close drawer on mobile when navigating
@@ -288,7 +362,8 @@ function SidebarContent({ navigationItems, isCollapsed, sanityUser, onLinkClick,
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {sanityUser?.role === 'host' ? 'Anfitrión' :
-                 sanityUser?.role === 'admin' ? 'Administrador' : 'Comensal'}
+                 sanityUser?.role === 'admin' ? 'Administrador' :
+                 sanityUser?.role === 'reseller' ? 'Revendedor' : 'Comensal'}
               </p>
             </div>
           )}

@@ -21,7 +21,7 @@ type ApiUser = {
   id: string;
   email: string;
   name: string | null;
-  role: "HOST" | "GUEST" | "ADMIN";
+  role: "HOST" | "GUEST" | "ADMIN" | "RESELLER";
   image: string | null;
   phone: string | null;
   documentType: string | null;
@@ -36,22 +36,37 @@ const ROLE_DOWN: Record<ApiUser["role"], SanityUser["role"]> = {
   HOST: "host",
   GUEST: "guest",
   ADMIN: "admin",
+  RESELLER: "reseller",
 };
 
 const ROLE_UP: Record<NonNullable<CreateUserData["role"]>, ApiUser["role"]> = {
   host: "HOST",
   guest: "GUEST",
   admin: "ADMIN",
+  reseller: "RESELLER",
 };
 
+// DEV ONLY: permite forzar el rol del usuario logueado para probar UI de roles
+// que aun no existen en backend (p.ej. 'reseller'). Activar en consola con:
+//   localStorage.setItem('dev_role', 'reseller')
+// Quitar con: localStorage.removeItem('dev_role').
+// TODO: eliminar cuando el backend implemente RESELLER (ver memory: reseller_role_status).
+function getDevRoleOverride(): SanityUser["role"] | null {
+  if (typeof window === "undefined") return null;
+  const r = window.localStorage.getItem("dev_role");
+  if (r === "host" || r === "guest" || r === "admin" || r === "reseller") return r;
+  return null;
+}
+
 function toSanityUser(u: ApiUser): SanityUser {
+  const devRole = getDevRoleOverride();
   return {
     _id: u.id,
     _type: "user",
     firebaseId: u.id, // alias por compat — antes era firebase uid, ahora es id Postgres
     name: u.name ?? "",
     email: u.email,
-    role: ROLE_DOWN[u.role],
+    role: devRole ?? ROLE_DOWN[u.role],
     phone: u.phone ?? "",
     typeDocument: (u.documentType as SanityUser["typeDocument"]) ?? "cedula",
     documentNumber: u.documentNumber ?? "",

@@ -13,8 +13,14 @@ import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
 import RecaptchaComponent from "@/components/Recaptcha";
 
 interface RegistrationFormProps {
-  role: 'guest' | 'host';
+  role: 'guest' | 'host' | 'reseller';
 }
+
+const ROLE_LABELS: Record<RegistrationFormProps['role'], string> = {
+  guest: 'Comensal',
+  host: 'Anfitrión',
+  reseller: 'Revendedor',
+};
 
 export default function RegistrationForm({ role }: RegistrationFormProps) {
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +89,7 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
       // Registrar usuario en Firebase Auth y Sanity
       await authRegister(data.email, data.password, userData);
 
-      console.log(`${role === 'host' ? 'Anfitrión' : 'Comensal'} registrado exitosamente en Firebase y Sanity`);
+      console.log(`${ROLE_LABELS[role]} registrado exitosamente en Firebase y Sanity`);
       
       // Resetear reCAPTCHA después del registro exitoso
       if (recaptchaRef.current) {
@@ -130,7 +136,7 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
   };
 
   const getTitle = () => {
-    return role === 'host' ? 'Registro de Anfitrión' : 'Registro de Comensal';
+    return `Registro de ${ROLE_LABELS[role]}`;
   };
 
   return (

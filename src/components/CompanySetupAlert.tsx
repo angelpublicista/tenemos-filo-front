@@ -5,7 +5,7 @@ import { HiExclamationTriangle, HiArrowRight } from 'react-icons/hi2';
 import Link from 'next/link';
 
 interface CompanySetupAlertProps {
-  userRole: 'host' | 'guest' | 'admin';
+  userRole: 'host' | 'guest' | 'admin' | 'reseller';
   hasCompletedSetup: boolean;
   hasCompanyId: boolean;
 }

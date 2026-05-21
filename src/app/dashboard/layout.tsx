@@ -10,7 +10,7 @@ export default function layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar onToggleSidebar={() => setSidebarOpen(prev => !prev)} />
 
       {/* Mobile overlay */}

@@ -1,7 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
 /**
- * Config edge-safe de NextAuth: lo unico que importa el middleware.
+ * Config edge-safe de NextAuth: lo unico que importa el proxy.
  * No debe contener providers que usen Node-only APIs (bcrypt, fs, etc).
  * Los providers reales viven en src/auth.ts.
  */
@@ -16,7 +16,7 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const { pathname } = request.nextUrl;
 
-      // Rutas privadas (cuando se active el middleware)
+      // Rutas privadas (cuando se active el proxy)
       const isProtected =
         pathname.startsWith("/dashboard") || pathname.startsWith("/company-setup");
 

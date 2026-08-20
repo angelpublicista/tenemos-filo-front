@@ -12,6 +12,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, Re
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { api, ApiHttpError } from "@/lib/api/client";
+import { getActingCompany, setActingCompany } from "@/lib/api/actingCompany";
 import { useCompanySetup } from "@/hooks/useCompanySetup";
 import type { AuthContextType, AuthUser, CreateUserData, SanityUser } from "@/types";
 
@@ -79,6 +80,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     useCompanySetup();
 
   const [sanityUser, setSanityUser] = useState<SanityUser | null>(null);
+  // Empresa sobre la que actua un ADMIN. null = modo plataforma (ve todo).
+  const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(null);
   // Arranca true: hasta que sepamos si hay sesion no podemos decir que
   // "no hay perfil". Esto evita que ProtectedRoute redirija a /login
   // durante el primer render despues de un page reload.
@@ -148,6 +151,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [status, session?.user?.id, markSetupCompleted]);
 
   const loading = status === "loading" || (status === "authenticated" && profileLoading);
+
+  // Rehidrata la empresa activa del storage. Aplica al admin (elige sobre
+  // que empresa opera) y al anfitrion con varias (elige en cual trabaja).
+  useEffect(() => {
+    const rol = sanityUser?.role;
+    if (rol === "admin" || rol === "host") setActiveCompanyIdState(getActingCompany());
+  }, [sanityUser?.role]);
+
+  const setActiveCompany = useCallback((companyId: string | null) => {
+    // Persistimos ANTES de tocar el estado: el cliente HTTP lee del storage,
+    // asi que cualquier request disparado por el re-render ya lleva la nueva.
+    setActingCompany(companyId);
+    setActiveCompanyIdState(companyId);
+  }, []);
+
+  /**
+   * Perfil que ven las pantallas. Si hay empresa activa, sustituimos el
+   * companyId: para el admin es la empresa sobre la que actua (su companyId
+   * real es null), y para un anfitrion con varias, aquella en la que esta
+   * trabajando. Asi todas las pantallas existentes operan sobre la correcta
+   * sin cambiarles una linea.
+   */
+  const effectiveUser: SanityUser | null =
+    sanityUser && activeCompanyId && (sanityUser.role === "admin" || sanityUser.role === "host")
+      ? { ...sanityUser, companyId: activeCompanyId }
+      : sanityUser;
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -266,7 +295,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        sanityUser,
+        sanityUser: effectiveUser,
+        activeCompanyId,
+        setActiveCompany,
         loading,
         login,
         logout,

@@ -122,6 +122,9 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   register: (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>) => Promise<{ user: { uid: string } }>;
+  /** Empresa sobre la que actua un ADMIN. null = modo plataforma. */
+  activeCompanyId: string | null;
+  setActiveCompany: (companyId: string | null) => void;
   /** Paso 1: pide al API que envie el correo con el enlace de recuperacion. */
   resetPassword: (email: string) => Promise<void>;
   /** Paso 2: canjea el token del enlace por una contrasena nueva. */
@@ -138,6 +141,8 @@ export interface AuthContextType {
 // Tipos para componentes
 export interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** Si se pasa, solo estos roles entran; el resto va al dashboard. */
+  roles?: SanityUser['role'][];
 }
 
 // Tipos para Company

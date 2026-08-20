@@ -29,9 +29,20 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { sanityUser } = useAuth();
+  const { sanityUser, activeCompanyId } = useAuth();
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Un admin "actuando como" una empresa usa las mismas pantallas que un
+  // anfitrion, asi que le mostramos las mismas secciones.
+  const operaComoEmpresa =
+    sanityUser?.role === 'host' || (sanityUser?.role === 'admin' && !!activeCompanyId);
+
+  // En modo plataforma el admin no tiene empresa, y estas pantallas resuelven
+  // su contenido con /companies/me: sin empresa terminan empujandolo a
+  // /company-setup, que no le corresponde. Para la vista global tiene la
+  // seccion de Administracion.
+  const esAdminSinEmpresa = sanityUser?.role === 'admin' && !activeCompanyId;
 
   type NavItem =
     | { type: 'section'; name: string }
@@ -53,7 +64,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       current: pathname === '/dashboard',
       enabled: true
     },
-    ...(sanityUser?.role === 'host' ? [
+    ...(operaComoEmpresa ? [
       {
         name: 'Mis Sedes',
         href: '/dashboard/locations',
@@ -69,34 +80,68 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       }
     ] as NavItem[] : []),
-    {
-      name: 'Mis Experiencias',
-      href: '/dashboard/experiences',
-      icon: AiOutlineCalendar,
-      current: pathname === '/dashboard/experiences',
-      enabled: true
-    },
-    {
-      name: 'Reservas',
-      href: '/dashboard/reservations',
-      icon: AiOutlineTeam,
-      current: pathname === '/dashboard/reservations',
-      enabled: true
-    },
-    { type: 'section', name: 'Herramientas' },
-    {
-      name: 'Catálogo digital',
-      href: '/dashboard/booking-link',
-      icon: AiOutlineShareAlt,
-      current: pathname === '/dashboard/booking-link',
-      enabled: true
-    },
-    ...(sanityUser?.role === 'host' ? [
+    ...(!esAdminSinEmpresa ? [
+      {
+        name: 'Mis Experiencias',
+        href: '/dashboard/experiences',
+        icon: AiOutlineCalendar,
+        current: pathname === '/dashboard/experiences',
+        enabled: true
+      },
+      {
+        name: 'Reservas',
+        href: '/dashboard/reservations',
+        icon: AiOutlineTeam,
+        current: pathname === '/dashboard/reservations',
+        enabled: true
+      },
+      { type: 'section', name: 'Herramientas' },
+      {
+        name: 'Catálogo digital',
+        href: '/dashboard/booking-link',
+        icon: AiOutlineShareAlt,
+        current: pathname === '/dashboard/booking-link',
+        enabled: true
+      }
+    ] as NavItem[] : []),
+    ...(operaComoEmpresa ? [
       {
         name: 'CRM',
         href: '/dashboard/crm',
         icon: HiOutlineDocumentText,
         current: pathname?.startsWith('/dashboard/crm') ?? false,
+        enabled: true
+      }
+    ] as NavItem[] : []),
+    // Panel de plataforma: solo para el equipo de Tenemos Filo.
+    ...(sanityUser?.role === 'admin' ? [
+      { type: 'section', name: 'Administración' },
+      {
+        name: 'Empresas',
+        href: '/dashboard/admin/empresas',
+        icon: BiStore,
+        current: pathname === '/dashboard/admin/empresas',
+        enabled: true
+      },
+      {
+        name: 'Usuarios',
+        href: '/dashboard/admin/usuarios',
+        icon: AiOutlineTeam,
+        current: pathname === '/dashboard/admin/usuarios',
+        enabled: true
+      },
+      {
+        name: 'Experiencias',
+        href: '/dashboard/admin/experiencias',
+        icon: AiOutlineCalendar,
+        current: pathname === '/dashboard/admin/experiencias',
+        enabled: true
+      },
+      {
+        name: 'Actividad',
+        href: '/dashboard/admin/actividad',
+        icon: HiOutlineDocumentText,
+        current: pathname === '/dashboard/admin/actividad',
         enabled: true
       }
     ] as NavItem[] : []),
@@ -108,7 +153,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       current: pathname === '/dashboard/profile',
       enabled: true
     },
-    ...(sanityUser?.role === 'host' ? [
+    ...(operaComoEmpresa ? [
       {
         name: 'Mi Empresa',
         href: '/dashboard/company',

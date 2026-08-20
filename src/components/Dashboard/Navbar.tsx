@@ -6,6 +6,7 @@ import FiloLogo from "@/components/FiloLogo";
 import { useEffect, useState } from "react";
 import { HiPlus, HiMenu } from "react-icons/hi";
 import NotificationBell from "@/components/Notifications/NotificationBell";
+import CompanySwitcher from "@/components/Admin/CompanySwitcher";
 import Link from "next/link";
 
 interface NavbarProps {
@@ -67,6 +68,9 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           <div className="w-8 h-8" aria-hidden />
         ) : (
         <>
+        {/* Solo se pinta para ADMIN; el propio componente lo decide. */}
+        <CompanySwitcher />
+
         {sanityUser?.role === 'host' && (
           <Link
             href="/dashboard/experiences/create"

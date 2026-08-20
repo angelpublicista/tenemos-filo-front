@@ -12,13 +12,13 @@ import {
   AiOutlineRise,
   AiOutlineFire
 } from 'react-icons/ai';
-import { BiBuildingHouse } from 'react-icons/bi';
+import { BiBuildingHouse, BiStore } from 'react-icons/bi';
 import { useState, useEffect } from 'react';
 import { getDashboardStats, getRecentActivities, DashboardStats, RecentActivity } from '@/lib/sanity/dashboardService';
 import { SkeletonStatCard, SkeletonActivityItem } from '@/components/Skeleton';
 
 export default function Dashboard() {
-  const { user, sanityUser } = useAuth();
+  const { user, sanityUser, activeCompanyId } = useAuth();
   const { isSetupCompleted } = useCompanySetup();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
@@ -27,7 +27,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadDashboardData = async () => {
-      if (!sanityUser?.companyId) {
+      // El ADMIN no tiene empresa propia: pide las metricas de toda la
+      // plataforma (sin companyId). El resto necesita su empresa.
+      const esAdmin = sanityUser?.role === 'admin';
+      if (!sanityUser?.companyId && !esAdmin) {
         setIsLoading(false);
         return;
       }
@@ -35,10 +38,11 @@ export default function Dashboard() {
       try {
         setIsLoading(true);
         setError(null);
-        
+
+        const companyId = sanityUser?.companyId ?? undefined;
         const [statsData, activitiesData] = await Promise.all([
-          getDashboardStats(sanityUser.companyId),
-          getRecentActivities(sanityUser.companyId, 5)
+          getDashboardStats(companyId),
+          getRecentActivities(companyId, 5)
         ]);
 
         setStats(statsData);
@@ -52,7 +56,7 @@ export default function Dashboard() {
     };
 
     loadDashboardData();
-  }, [sanityUser?.companyId]);
+  }, [sanityUser?.companyId, sanityUser?.role]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -99,32 +103,78 @@ export default function Dashboard() {
       icon: AiOutlineRise,
       color: 'bg-[#E23694]', // Rosa/Magenta
       format: (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
-    }
+    },
+    // Solo en modo plataforma. Actuando como una empresa, un total global de
+    // empresas y usuarios no dice nada del contexto en el que estas.
+    ...(sanityUser?.role === 'admin' && !activeCompanyId
+      ? [
+          {
+            title: 'Empresas',
+            key: 'totalCompanies' as keyof DashboardStats,
+            icon: BiStore,
+            color: 'bg-[#2C6E7F]'
+          },
+          {
+            title: 'Usuarios',
+            key: 'totalUsers' as keyof DashboardStats,
+            icon: AiOutlineTeam,
+            color: 'bg-[#7C5CBF]'
+          }
+        ]
+      : [])
   ];
 
-  const quickActions = [
-    {
-      title: 'Crear Experiencia',
-      description: 'Organiza una nueva experiencia',
-      icon: BiBuildingHouse,
-      href: '/dashboard/experiences/create',
-      color: 'bg-[#F26726] hover:bg-[#F26726]/80' // Naranja principal
-    },
-    {
-      title: 'Ver Reservas',
-      description: 'Gestiona las reservas pendientes',
-      icon: AiOutlineTeam,
-      href: '/reservations',
-      color: 'bg-[#19A3A2] hover:bg-[#19A3A2]/80' // Teal/Cyan
-    },
-    {
-      title: 'Mis Experiencias',
-      description: 'Revisa tus experiencias activas',
-      icon: AiOutlineCalendar,
-      href: '/dashboard/experiences',
-      color: 'bg-[#334C5D] hover:bg-[#334C5D]/80' // Azul oscuro
-    }
-  ];
+  // En modo plataforma el admin no tiene empresa: estas acciones operan sobre
+  // una y acabarian mandandolo a /company-setup. Le ofrecemos las del panel.
+  const esAdminSinEmpresa = sanityUser?.role === 'admin' && !activeCompanyId;
+
+  const quickActions = esAdminSinEmpresa
+    ? [
+        {
+          title: 'Empresas',
+          description: 'Revisa y gestiona las empresas',
+          icon: BiStore,
+          href: '/dashboard/admin/empresas',
+          color: 'bg-[#F26726] hover:bg-[#F26726]/80'
+        },
+        {
+          title: 'Usuarios',
+          description: 'Administra las cuentas de la plataforma',
+          icon: AiOutlineTeam,
+          href: '/dashboard/admin/usuarios',
+          color: 'bg-[#19A3A2] hover:bg-[#19A3A2]/80'
+        },
+        {
+          title: 'Actividad',
+          description: 'Quién cambió qué',
+          icon: AiOutlineCalendar,
+          href: '/dashboard/admin/actividad',
+          color: 'bg-[#334C5D] hover:bg-[#334C5D]/80'
+        }
+      ]
+    : [
+        {
+          title: 'Crear Experiencia',
+          description: 'Organiza una nueva experiencia',
+          icon: BiBuildingHouse,
+          href: '/dashboard/experiences/create',
+          color: 'bg-[#F26726] hover:bg-[#F26726]/80' // Naranja principal
+        },
+        {
+          title: 'Ver Reservas',
+          description: 'Gestiona las reservas pendientes',
+          icon: AiOutlineTeam,
+          href: '/reservations',
+          color: 'bg-[#19A3A2] hover:bg-[#19A3A2]/80' // Teal/Cyan
+        },
+        {
+          title: 'Mis Experiencias',
+          description: 'Revisa tus experiencias activas',
+          icon: AiOutlineCalendar,
+          href: '/dashboard/experiences',
+          color: 'bg-[#334C5D] hover:bg-[#334C5D]/80' // Azul oscuro
+        }
+      ];
 
   return (
     <ProtectedRoute>
@@ -186,7 +236,8 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             {statsConfig.map((statConfig, index) => {
               const Icon = statConfig.icon;
-              const value = stats ? stats[statConfig.key] : 0;
+              // totalCompanies/totalUsers solo llegan en modo plataforma.
+              const value = stats?.[statConfig.key] ?? 0;
               const displayValue = statConfig.format ? statConfig.format(value) : value.toString();
 
               const isGrowthStat = statConfig.key === 'growth';

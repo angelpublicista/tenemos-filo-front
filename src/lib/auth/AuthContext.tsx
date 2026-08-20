@@ -17,11 +17,18 @@ import type { AuthContextType, AuthUser, CreateUserData, SanityUser } from "@/ty
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Rutas de recuperacion de contraseña en el API. Si el backend las expone con
+// otros nombres, este es el unico sitio a tocar.
+//   POST {FORGOT_PASSWORD_PATH}  body { email }             -> 204/200
+//   POST {RESET_PASSWORD_PATH}   body { token, password }   -> 204/200
+const FORGOT_PASSWORD_PATH = "/auth/forgot-password";
+const RESET_PASSWORD_PATH = "/auth/reset-password";
+
 type ApiUser = {
   id: string;
   email: string;
   name: string | null;
-  role: "HOST" | "GUEST" | "ADMIN";
+  role: "HOST" | "GUEST" | "ADMIN" | "RESELLER";
   image: string | null;
   phone: string | null;
   documentType: string | null;
@@ -32,16 +39,19 @@ type ApiUser = {
   updatedAt: string;
 };
 
+// Debe cubrir los 4 valores del enum UserRole del API. Si falta uno, el
+// lookup devuelve undefined y el usuario queda sin rol en todo el front.
 const ROLE_DOWN: Record<ApiUser["role"], SanityUser["role"]> = {
   HOST: "host",
   GUEST: "guest",
   ADMIN: "admin",
+  RESELLER: "reseller",
 };
 
+// Solo roles auto-registrables: el API rechaza ADMIN en /auth/register.
 const ROLE_UP: Record<NonNullable<CreateUserData["role"]>, ApiUser["role"]> = {
   host: "HOST",
   guest: "GUEST",
-  admin: "ADMIN",
 };
 
 function toSanityUser(u: ApiUser): SanityUser {
@@ -215,9 +225,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [router],
   );
 
-  const resetPassword = useCallback(async (_email: string) => {
-    void _email;
-    throw new Error("Recuperacion de contraseña aun no migrada al nuevo backend.");
+  // Paso 1 del reset: el API genera el token, lo persiste y envia el correo.
+  // El enlace del correo apunta a /reset-password?token=... (ver brevoService).
+  const resetPassword = useCallback(async (email: string) => {
+    try {
+      await api.post(FORGOT_PASSWORD_PATH, { email });
+    } catch (err) {
+      // OJO: no tragamos el 404. El API devuelve 404 NOT_FOUND tanto para
+      // "email inexistente" como para "ruta inexistente" (notFoundHandler),
+      // asi que tratarlo como exito mostraria "correo enviado" cuando el
+      // endpoint ni siquiera existe. La proteccion contra enumeracion de
+      // usuarios va en el API: debe responder 204 exista o no el email.
+      if (err instanceof ApiHttpError && err.status === 429) {
+        throw new Error("Demasiados intentos. Espera unos minutos e intenta de nuevo.");
+      }
+      throw new Error("No se pudo enviar el correo de recuperacion. Intenta de nuevo.");
+    }
+  }, []);
+
+  // Paso 2 del reset: canjea el token del enlace por la contrasena nueva.
+  const confirmPasswordReset = useCallback(async (token: string, newPassword: string) => {
+    try {
+      await api.post(RESET_PASSWORD_PATH, { token, password: newPassword });
+    } catch (err) {
+      if (err instanceof ApiHttpError && (err.status === 400 || err.status === 410)) {
+        throw new Error(
+          "El enlace de recuperacion no es valido o ya expiro. Solicita uno nuevo.",
+        );
+      }
+      throw new Error("No se pudo cambiar la contraseña. Intenta de nuevo.");
+    }
   }, []);
 
   const sendVerificationEmail = useCallback(async () => {
@@ -235,6 +272,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         register,
         resetPassword,
+        confirmPasswordReset,
         sendVerificationEmail,
         markSetupCompleted,
         clearSetupState,

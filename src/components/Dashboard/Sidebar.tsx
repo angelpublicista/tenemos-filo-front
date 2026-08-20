@@ -288,7 +288,8 @@ function SidebarContent({ navigationItems, isCollapsed, sanityUser, onLinkClick,
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {sanityUser?.role === 'host' ? 'Anfitrión' :
-                 sanityUser?.role === 'admin' ? 'Administrador' : 'Comensal'}
+                 sanityUser?.role === 'admin' ? 'Administrador' :
+                 sanityUser?.role === 'reseller' ? 'Revendedor' : 'Comensal'}
               </p>
             </div>
           )}

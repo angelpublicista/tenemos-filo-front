@@ -54,7 +54,12 @@ export interface CreateUserData {
   firebaseId: string;
   name: string;
   email: string;
-  role: 'guest' | 'host' | 'admin';
+  /**
+   * Roles auto-registrables. NO incluye 'admin': registerSchema del API solo
+   * acepta HOST/GUEST/RESELLER, y permitir que alguien se registre como
+   * administrador seria una escalada de privilegios.
+   */
+  role: 'guest' | 'host';
   phone: string;
   typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
@@ -73,7 +78,8 @@ export interface SanityUser {
       _type: 'reference';
     };
   };
-  role: 'guest' | 'host' | 'admin';
+  /** Espeja el enum UserRole del API (HOST | GUEST | ADMIN | RESELLER). */
+  role: 'guest' | 'host' | 'admin' | 'reseller';
   phone: string;
   typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
@@ -116,7 +122,10 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   register: (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>) => Promise<{ user: { uid: string } }>;
+  /** Paso 1: pide al API que envie el correo con el enlace de recuperacion. */
   resetPassword: (email: string) => Promise<void>;
+  /** Paso 2: canjea el token del enlace por una contrasena nueva. */
+  confirmPasswordReset: (token: string, newPassword: string) => Promise<void>;
   sendVerificationEmail: () => Promise<{ success: boolean; message: string }>;
   // Funciones de company setup
   markSetupCompleted: (companyId?: string) => void;

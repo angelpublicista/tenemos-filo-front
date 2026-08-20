@@ -93,7 +93,8 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
               <span className="text-sm font-medium text-gray-900">{getUserDisplayName()}</span>
               <span className="text-xs text-gray-500">
                 {sanityUser?.role === 'host' ? 'Anfitrión' :
-                 sanityUser?.role === 'admin' ? 'Administrador' : 'Comensal'}
+                 sanityUser?.role === 'admin' ? 'Administrador' :
+                 sanityUser?.role === 'reseller' ? 'Revendedor' : 'Comensal'}
               </span>
             </div>
           </DropdownItem>

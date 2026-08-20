@@ -239,9 +239,11 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
               placeholder="Contraseña"
               {...form.register("password", {
                 required: true,
+                // Debe coincidir con registerSchema del API (min 8): con 6 el
+                // formulario pasaba y el registro moria con un 400 del backend.
                 minLength: {
-                  value: 6,
-                  message: "La contraseña debe tener al menos 6 caracteres"
+                  value: 8,
+                  message: "La contraseña debe tener al menos 8 caracteres"
                 },
                 deps: ["confirmPassword"]
               })}

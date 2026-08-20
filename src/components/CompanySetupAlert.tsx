@@ -3,9 +3,11 @@
 import React from 'react';
 import { HiExclamationTriangle, HiArrowRight } from 'react-icons/hi2';
 import Link from 'next/link';
+import type { SanityUser } from '@/types';
 
 interface CompanySetupAlertProps {
-  userRole: 'host' | 'guest' | 'admin';
+  // Atado al tipo del usuario para no volver a desincronizarse al agregar roles.
+  userRole: SanityUser['role'];
   hasCompletedSetup: boolean;
   hasCompanyId: boolean;
 }

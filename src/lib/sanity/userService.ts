@@ -9,17 +9,20 @@ import { SanityUser } from '@/types';
 
 // ─── Mapeos enum (front lower ↔ API upper) ─────────────────────────────────
 
-const ROLE_TO_API: Record<NonNullable<SanityUser['role']>, 'HOST' | 'GUEST' | 'ADMIN'> = {
+type ApiRole = 'HOST' | 'GUEST' | 'ADMIN' | 'RESELLER';
+
+const ROLE_TO_API: Record<NonNullable<SanityUser['role']>, ApiRole> = {
   host: 'HOST',
   guest: 'GUEST',
   admin: 'ADMIN',
+  reseller: 'RESELLER',
 };
 
 interface ApiUser {
   id: string;
   email: string;
   name: string | null;
-  role: 'HOST' | 'GUEST' | 'ADMIN';
+  role: ApiRole;
   image: string | null;
   phone: string | null;
   documentType: string | null;

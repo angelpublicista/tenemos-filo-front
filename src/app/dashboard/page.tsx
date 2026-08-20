@@ -299,8 +299,9 @@ export default function Dashboard() {
                 <div>
                   <p className="opacity-90">Rol</p>
                   <p className="font-medium">
-                    {sanityUser?.role === 'host' ? 'Anfitrión' : 
-                     sanityUser?.role === 'admin' ? 'Administrador' : 'Comensal'}
+                    {sanityUser?.role === 'host' ? 'Anfitrión' :
+                     sanityUser?.role === 'admin' ? 'Administrador' :
+                     sanityUser?.role === 'reseller' ? 'Revendedor' : 'Comensal'}
                   </p>
                 </div>
                 <div>

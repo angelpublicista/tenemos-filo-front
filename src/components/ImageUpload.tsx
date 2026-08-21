@@ -113,7 +113,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               <Image src={getImageUrl(value)} alt={label} fill className="object-cover" unoptimized />
             </div>
             <div className={compact ? 'absolute -top-2 -right-2' : 'absolute top-2 right-2'}>
-              <Button size="xs" color="failure" onClick={handleRemove} className="opacity-90 hover:opacity-100">
+              <Button size="xs" color="danger" onClick={handleRemove} className="opacity-90 hover:opacity-100">
                 <HiTrash className={compact ? 'w-3 h-3' : 'w-4 h-4'} />
               </Button>
             </div>
@@ -273,7 +273,7 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
                   <div className="absolute top-2 right-2">
                     <Button
                       size="xs"
-                      color="failure"
+                      color="danger"
                       onClick={() => handleRemove(index)}
                       className="opacity-90 hover:opacity-100"
                     >

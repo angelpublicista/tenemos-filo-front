@@ -478,7 +478,7 @@ export default function CrearOportunidadPage() {
                         <Button
                           type="button"
                           size="xs"
-                          color="failure"
+                          color="danger"
                           onClick={() => removeExperience(index)}
                         >
                           <HiX className="w-4 h-4" />

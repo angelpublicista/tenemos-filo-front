@@ -8,6 +8,7 @@ import { HiPlus, HiMenu } from "react-icons/hi";
 import NotificationBell from "@/components/Notifications/NotificationBell";
 import CompanySwitcher from "@/components/Admin/CompanySwitcher";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -15,6 +16,7 @@ interface NavbarProps {
 
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const { user, sanityUser, logout } = useAuth();
+  const pathname = usePathname();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   // El bloque de acciones depende de auth (sanityUser?.role) y monta el
   // Dropdown de flowbite (que usa useId via @floating-ui). Para evitar
@@ -32,6 +34,26 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
       setIsLoggingOut(false);
     }
   };
+
+  // El atajo del header sigue a la pantalla. Antes ofrecia siempre "Crear
+  // experiencia", incluso estando en Reservas, y en Experiencias competia
+  // con el boton principal de la propia pagina: dos naranjas identicos
+  // pidiendo lo mismo.
+  //
+  // Va en secundario a proposito: el CTA de la pantalla manda, este es un
+  // atajo desde cualquier otra parte.
+  const accionRapida = (() => {
+    if (sanityUser?.role !== 'host') return null;
+    // `new=true` es el parametro que ya escucha la pantalla de reservas
+    // para abrir su modal; reutilizarlo evita inventar una ruta que no
+    // hace nada.
+    if (pathname?.startsWith('/dashboard/reservations')) {
+      return { href: '/dashboard/reservations?new=true', label: 'Nueva reserva' };
+    }
+    // En experiencias sobra: la pantalla ya tiene su boton primario.
+    if (pathname?.startsWith('/dashboard/experiences')) return null;
+    return { href: '/dashboard/experiences/create', label: 'Crear experiencia' };
+  })();
 
   const getUserDisplayName = () => sanityUser?.name || user?.email || 'Usuario';
 
@@ -71,13 +93,13 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
         {/* Solo se pinta para ADMIN; el propio componente lo decide. */}
         <CompanySwitcher />
 
-        {sanityUser?.role === 'host' && (
+        {accionRapida && (
           <Link
-            href="/dashboard/experiences/create"
-            className="hidden sm:flex items-center gap-1 px-3 py-2 bg-[#F26726] text-white text-sm font-medium rounded-lg hover:bg-[#d9571f] transition-colors whitespace-nowrap"
+            href={accionRapida.href}
+            className="hidden sm:flex items-center gap-1 px-4 py-2 border border-gray-300 text-[#334C5D] text-sm font-medium rounded-full hover:bg-gray-50 hover:border-gray-400 transition-colors whitespace-nowrap"
           >
             <HiPlus className="w-4 h-4 shrink-0" />
-            Crear Experiencia
+            {accionRapida.label}
           </Link>
         )}
 

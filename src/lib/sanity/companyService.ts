@@ -35,6 +35,12 @@ export interface CreateCompanyData {
 // el `logo: string | undefined` de CreateCompanyData.
 export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo'>> & {
   logo?: string | null;
+  tagline?: string | null;
+  /** Id del restaurante en OpenTable (el "rid" de sus enlaces). */
+  openTableRid?: string | null;
+  /** Ajustes de operacion: cambian como entran las reservas. */
+  autoConfirmReservations?: boolean;
+  blockWhenFull?: boolean;
 };
 
 // ─── Tipos del API (Postgres) ──────────────────────────────────────────────
@@ -59,6 +65,10 @@ export interface ApiCompany {
   address: Company['address'] | null;
   employeeCount: string | null;
   embedDomains?: string[];
+  tagline: string | null;
+  openTableRid: string | null;
+  autoConfirmReservations: boolean;
+  blockWhenFull: boolean;
   annualRevenue: string | null;
   businessYears: string | null;
   isActive: boolean;
@@ -117,6 +127,11 @@ export function toCompany(c: ApiCompany): Company {
     address: c.address ?? undefined,
     employeeCount: (c.employeeCount as Company['employeeCount']) ?? undefined,
     embedDomains: c.embedDomains ?? [],
+    tagline: c.tagline ?? undefined,
+    openTableRid: c.openTableRid ?? undefined,
+    autoConfirmReservations: c.autoConfirmReservations ?? false,
+    // Por defecto true: es lo que hace el API si el campo no viaja.
+    blockWhenFull: c.blockWhenFull ?? true,
     annualRevenue: (c.annualRevenue as Company['annualRevenue']) ?? undefined,
     businessYears: (c.businessYears as Company['businessYears']) ?? undefined,
     locations: c.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),
@@ -127,6 +142,8 @@ export function toCompany(c: ApiCompany): Company {
 }
 
 function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<string, unknown> {
+  // Los ajustes de marca y operacion solo llegan por UpdateCompanyData.
+  const upd = data as UpdateCompanyData;
   const out: Record<string, unknown> = {};
   if (data.companyName !== undefined) out.companyName = data.companyName;
   if (data.companyType !== undefined) out.companyType = COMPANY_TYPE_TO_API[data.companyType];
@@ -142,6 +159,12 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
   if (data.employeeCount !== undefined) out.employeeCount = data.employeeCount;
   if (data.annualRevenue !== undefined) out.annualRevenue = data.annualRevenue;
   if (data.businessYears !== undefined) out.businessYears = data.businessYears;
+  if (upd.tagline !== undefined) out.tagline = upd.tagline;
+  if (upd.openTableRid !== undefined) out.openTableRid = upd.openTableRid;
+  if (upd.autoConfirmReservations !== undefined) {
+    out.autoConfirmReservations = upd.autoConfirmReservations;
+  }
+  if (upd.blockWhenFull !== undefined) out.blockWhenFull = upd.blockWhenFull;
   return out;
 }
 

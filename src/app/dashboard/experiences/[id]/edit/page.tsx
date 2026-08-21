@@ -1005,7 +1005,7 @@ export default function EditExperiencePage() {
                 />
                   <Button
                     type="button"
-                    color="red"
+                    color="danger"
                     size="sm"
                     onClick={() => removeRequirement(index)}
                     disabled={requirements.length === 1}
@@ -1045,7 +1045,7 @@ export default function EditExperiencePage() {
                 />
                   <Button
                     type="button"
-                    color="red"
+                    color="danger"
                     size="sm"
                     onClick={() => removeInclude(index)}
                     disabled={includes.length === 1}
@@ -1081,7 +1081,7 @@ export default function EditExperiencePage() {
                   <h3 className="font-medium text-gray-900">Servicio {index + 1}</h3>
                   <Button
                     type="button"
-                    color="red"
+                    color="danger"
                     size="sm"
                     onClick={() => removeAddon(index)}
                   >

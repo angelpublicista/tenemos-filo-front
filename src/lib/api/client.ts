@@ -122,6 +122,15 @@ export async function apiList<T>(path: string, query?: Query): Promise<Paginated
   return { items, total: payload?.meta?.total ?? items.length };
 }
 
+/**
+ * Prisma serializa Decimal como string, asi que el dinero llega como "12".
+ * Sin convertir, cualquier suma en el front concatena en vez de sumar.
+ */
+export const aNumero = (v: unknown): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
 export const api = {
   get: <T>(path: string, query?: Query) => apiFetch<T>(path, { method: "GET", query }),
   list: apiList,

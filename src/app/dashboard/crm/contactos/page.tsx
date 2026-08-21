@@ -294,7 +294,7 @@ export default function ContactosPage() {
                       <th scope="col" className="px-6 py-3">Tipo</th>
                       <th scope="col" className="px-6 py-3">Estado</th>
                       <th scope="col" className="px-6 py-3">Último Contacto</th>
-                      <th scope="col" className="px-6 py-3">Acciones</th>
+                      <th scope="col" className="px-6 py-3 sticky right-0 bg-gray-50 border-l border-gray-200 dark:bg-gray-700 dark:border-gray-600">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -372,7 +372,7 @@ export default function ContactosPage() {
                             <span className="text-sm text-gray-400">Nunca</span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 sticky right-0 bg-white border-l border-gray-200 dark:bg-gray-800 dark:border-gray-700">
                           <div className="flex items-center space-x-2">
                             <Button
                               size="xs"
@@ -390,7 +390,7 @@ export default function ContactosPage() {
                             </Button>
                             <Button
                               size="xs"
-                              color="failure"
+                              color="danger"
                               onClick={() => handleDelete(contact._id, `${contact.firstName} ${contact.lastName}`)}
                               disabled={isDeleting === contact._id}
                             >

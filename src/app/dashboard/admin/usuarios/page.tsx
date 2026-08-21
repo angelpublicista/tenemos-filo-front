@@ -37,7 +37,7 @@ const ROLE_COLORS: Record<ApiRole, string> = {
 
 export default function AdminUsuariosPage() {
   const { sanityUser } = useAuth();
-  const { showSuccess, showError, showConfirmation } = useSweetAlert();
+  const { showSuccess, showError, showConfirmation, showDestructiveConfirmation } = useSweetAlert();
 
   const [usuarios, setUsuarios] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
@@ -134,7 +134,7 @@ export default function AdminUsuariosPage() {
   };
 
   const eliminar = async (u: AdminUser) => {
-    const ok = await showConfirmation(
+    const ok = await showDestructiveConfirmation(
       '¿Eliminar usuario?',
       `Se eliminará ${u.email}. Si solo quieres bloquearle el acceso, usa "desactivar".`,
       'Sí, eliminar',
@@ -302,7 +302,7 @@ export default function AdminUsuariosPage() {
                   </Button>
                   <Button
                     size="xs"
-                    color="light"
+                    color="danger"
                     onClick={() => eliminar(u)}
                     disabled={esYo}
                     title="Eliminar"

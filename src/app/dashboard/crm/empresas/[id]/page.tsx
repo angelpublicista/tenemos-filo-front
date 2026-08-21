@@ -202,7 +202,7 @@ export default function EmpresaDetailPage() {
                 Editar
               </Button>
               <Button
-                color="failure"
+                color="danger"
                 onClick={handleDelete}
                 disabled={isDeleting}
               >

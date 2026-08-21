@@ -185,7 +185,7 @@ export default function ContactoDetailPage() {
                 Editar
               </Button>
               <Button
-                color="failure"
+                color="danger"
                 onClick={handleDelete}
                 disabled={isDeleting}
               >

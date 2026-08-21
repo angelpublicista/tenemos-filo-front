@@ -159,7 +159,7 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
                 Editar
               </Button>
               <Button
-                color="red"
+                color="danger"
                 size="sm"
                 onClick={() => onDelete(experience._id, experience.title)}
                 disabled={isUpdating}
@@ -263,7 +263,7 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
               <HiPencilAlt className="w-3 h-3" />
             </Button>
             <Button
-              color="red"
+              color="danger"
               size="xs"
               onClick={() => onDelete(experience._id, experience.title)}
               disabled={isUpdating}

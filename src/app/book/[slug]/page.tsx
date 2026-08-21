@@ -306,6 +306,9 @@ function BookingPageInner() {
           )}
           <div className="min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{company.companyName}</h1>
+            {company.tagline && (
+              <p className="text-[#F26726] font-medium mt-1 text-sm sm:text-base">{company.tagline}</p>
+            )}
             {(company as Company & { description?: string }).description && (
               <p className="text-gray-500 mt-2 text-sm sm:text-base leading-relaxed">
                 {(company as Company & { description?: string }).description}

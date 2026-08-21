@@ -41,7 +41,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminExperienciasPage() {
-  const { showSuccess, showError, showConfirmation } = useSweetAlert();
+  const { showSuccess, showError, showDestructiveConfirmation } = useSweetAlert();
 
   const [experiencias, setExperiencias] = useState<AdminExperience[]>([]);
   const [total, setTotal] = useState(0);
@@ -126,7 +126,7 @@ export default function AdminExperienciasPage() {
   };
 
   const eliminar = async (exp: AdminExperience) => {
-    const ok = await showConfirmation(
+    const ok = await showDestructiveConfirmation(
       '¿Eliminar experiencia?',
       `"${exp.title}" dejará de estar disponible. Los datos se conservan (borrado lógico).`,
       'Sí, eliminar',
@@ -227,7 +227,7 @@ export default function AdminExperienciasPage() {
                 >
                   <HiCurrencyDollar className="w-4 h-4" />
                 </Button>
-                <Button size="xs" color="light" onClick={() => eliminar(exp)} title="Eliminar">
+                <Button size="xs" color="danger" onClick={() => eliminar(exp)} title="Eliminar">
                   <HiTrash className="w-4 h-4" />
                 </Button>
               </div>

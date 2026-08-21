@@ -135,21 +135,21 @@ export default function Dashboard() {
           description: 'Revisa y gestiona las empresas',
           icon: BiStore,
           href: '/dashboard/admin/empresas',
-          color: 'bg-[#F26726] hover:bg-[#F26726]/80'
+          destacada: true
         },
         {
           title: 'Usuarios',
           description: 'Administra las cuentas de la plataforma',
           icon: AiOutlineTeam,
           href: '/dashboard/admin/usuarios',
-          color: 'bg-[#19A3A2] hover:bg-[#19A3A2]/80'
+          destacada: false
         },
         {
           title: 'Actividad',
           description: 'Quién cambió qué',
           icon: AiOutlineCalendar,
           href: '/dashboard/admin/actividad',
-          color: 'bg-[#334C5D] hover:bg-[#334C5D]/80'
+          destacada: false
         }
       ]
     : [
@@ -158,21 +158,21 @@ export default function Dashboard() {
           description: 'Organiza una nueva experiencia',
           icon: BiBuildingHouse,
           href: '/dashboard/experiences/create',
-          color: 'bg-[#F26726] hover:bg-[#F26726]/80' // Naranja principal
+          destacada: true
         },
         {
           title: 'Ver Reservas',
           description: 'Gestiona las reservas pendientes',
           icon: AiOutlineTeam,
-          href: '/reservations',
-          color: 'bg-[#19A3A2] hover:bg-[#19A3A2]/80' // Teal/Cyan
+          href: '/dashboard/reservations',
+          destacada: false
         },
         {
           title: 'Mis Experiencias',
           description: 'Revisa tus experiencias activas',
           icon: AiOutlineCalendar,
           href: '/dashboard/experiences',
-          color: 'bg-[#334C5D] hover:bg-[#334C5D]/80' // Azul oscuro
+          destacada: false
         }
       ];
 
@@ -282,12 +282,18 @@ export default function Dashboard() {
                     <a
                       key={index}
                       href={action.href}
-                      className={`${action.color} text-white p-3 rounded-lg flex items-center space-x-3 transition-colors`}
+                      className={
+                        action.destacada
+                          ? 'bg-[#F26726] hover:bg-[#E05617] text-white p-3 rounded-lg flex items-center space-x-3 transition-colors'
+                          : 'bg-white hover:bg-gray-50 border border-gray-200 text-[#334C5D] p-3 rounded-lg flex items-center space-x-3 transition-colors dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-700'
+                      }
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className={action.destacada ? 'w-5 h-5' : 'w-5 h-5 text-[#F26726]'} />
                       <div>
                         <p className="font-medium text-sm">{action.title}</p>
-                        <p className="text-xs opacity-90">{action.description}</p>
+                        <p className={action.destacada ? 'text-xs opacity-90' : 'text-xs text-gray-500 dark:text-gray-400'}>
+                          {action.description}
+                        </p>
                       </div>
                     </a>
                   );

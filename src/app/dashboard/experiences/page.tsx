@@ -34,7 +34,7 @@ import { ManageExperienceCard } from '@/components/ManageExperienceCard';
 export default function ExperiencesPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const { showSuccess, showError, showConfirmation } = useSweetAlert();
+  const { showSuccess, showError, showDestructiveConfirmation } = useSweetAlert();
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
   const [stats, setStats] = useState<ExperienceStats | null>(null);
@@ -118,7 +118,7 @@ export default function ExperiencesPage() {
 
   // Eliminar experiencia
   const handleDelete = async (experienceId: string, experienceTitle: string) => {
-    const confirmed = await showConfirmation(
+    const confirmed = await showDestructiveConfirmation(
       'Eliminar Experiencia',
       `¿Estás seguro de que quieres eliminar "${experienceTitle}"? Esta acción no se puede deshacer.`
     );
@@ -189,13 +189,9 @@ export default function ExperiencesPage() {
             </p>
           </div>
 
-          <Button
-            color="primary"
-            href="/dashboard/experiences/create"
-            className="w-full sm:w-auto px-4 py-2"
-          >
+          <Button color="primary" href="/dashboard/experiences/create" className="w-full sm:w-auto">
             <HiPlus className="w-5 h-5 mr-2" />
-            Crear Nueva Experiencia
+            Crear experiencia
           </Button>
         </div>
       </div>
@@ -233,7 +229,7 @@ export default function ExperiencesPage() {
             {/* Toggle de vista */}
             <div className="flex items-center gap-1 shrink-0">
               <Button
-                color={viewMode === 'grid' ? 'primary' : 'gray'}
+                color={viewMode === 'grid' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
                 className="!p-2"
@@ -241,7 +237,7 @@ export default function ExperiencesPage() {
                 <HiViewGrid className="w-4 h-4" />
               </Button>
               <Button
-                color={viewMode === 'list' ? 'primary' : 'gray'}
+                color={viewMode === 'list' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('list')}
                 className="!p-2"

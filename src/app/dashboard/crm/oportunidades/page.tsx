@@ -263,7 +263,7 @@ export default function OportunidadesPage() {
                       <th scope="col" className="px-6 py-3">Estado</th>
                       <th scope="col" className="px-6 py-3">Fecha Cierre Esperada</th>
                       <th scope="col" className="px-6 py-3">Asignado a</th>
-                      <th scope="col" className="px-6 py-3">Acciones</th>
+                      <th scope="col" className="px-6 py-3 sticky right-0 bg-gray-50 border-l border-gray-200 dark:bg-gray-700 dark:border-gray-600">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -343,7 +343,7 @@ export default function OportunidadesPage() {
                             {opportunity.assignedToName || 'Sin asignar'}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 sticky right-0 bg-white border-l border-gray-200 dark:bg-gray-800 dark:border-gray-700">
                           <div className="flex items-center space-x-2">
                             <Button
                               size="xs"
@@ -361,7 +361,7 @@ export default function OportunidadesPage() {
                             </Button>
                             <Button
                               size="xs"
-                              color="failure"
+                              color="danger"
                               onClick={() => handleDelete(opportunity._id, opportunity.name)}
                               disabled={isDeleting === opportunity._id}
                             >

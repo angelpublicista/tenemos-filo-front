@@ -180,6 +180,14 @@ export interface Company {
   businessYears?: '0-1' | '1-3' | '3-5' | '5-10' | '10+';
   /** Orígenes autorizados a insertar el catálogo. Vacío = cualquiera. */
   embedDomains?: string[];
+  /** Frase corta de la empresa. */
+  tagline?: string;
+  /** Id del restaurante en OpenTable, para enlazar su ficha. */
+  openTableRid?: string;
+  /** Las reservas nuevas nacen confirmadas en vez de pendientes. */
+  autoConfirmReservations?: boolean;
+  /** Rechaza reservas que pasarían del aforo de la experiencia. */
+  blockWhenFull?: boolean;
   locations?: Array<{
     _ref: string;
     _type: 'reference';

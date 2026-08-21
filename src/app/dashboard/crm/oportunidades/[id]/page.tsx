@@ -222,7 +222,7 @@ export default function OportunidadDetailPage() {
                 Editar
               </Button>
               <Button
-                color="failure"
+                color="danger"
                 onClick={handleDelete}
                 disabled={isDeleting}
               >

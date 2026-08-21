@@ -2,7 +2,7 @@
 //
 // El API ya restringe estas rutas por rol; esto es la capa de datos que
 // consumen las pantallas de /dashboard/admin.
-import { api, apiEnvelope, type Paginated } from './client';
+import { aNumero, api, apiEnvelope, type Paginated } from './client';
 import type { SanityUser } from '@/types';
 
 export type ApiRole = 'HOST' | 'GUEST' | 'ADMIN' | 'RESELLER';
@@ -185,11 +185,6 @@ export type SettingsUpdate = Partial<
  * convertimos aqui, al guardar se reenvia el string y el API lo rechaza:
  * basta con editar un campo y dejar el otro sin tocar.
  */
-const aNumero = (v: unknown): number => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
 const aNumeroONull = (v: unknown): number | null =>
   v === null || v === undefined ? null : aNumero(v);
 

@@ -80,6 +80,31 @@ export const useSweetAlert = () => {
     return result.isConfirmed;
   }, [showAlert]);
 
+  /**
+   * Confirmacion de algo que no se puede deshacer.
+   *
+   * Aqui si va el rojo solido: es el unico punto del flujo donde el usuario
+   * ya eligio borrar y hay que dejarle claro que confirma eso y no otra
+   * cosa. En las listas, el boton de borrar va discreto.
+   */
+  const showDestructiveConfirmation = useCallback(async (
+    title: string,
+    text: string,
+    confirmText: string = 'Sí, eliminar',
+    cancelText: string = 'Cancelar'
+  ): Promise<boolean> => {
+    const result = await showAlert({
+      title,
+      text,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: cancelText,
+      confirmButtonColor: '#DC2626',
+    });
+    return result.isConfirmed;
+  }, [showAlert]);
+
   const showLoading = useCallback(async (title: string = 'Procesando...') => {
     Swal.fire({
       title,
@@ -106,6 +131,7 @@ export const useSweetAlert = () => {
     showError,
     showWarning,
     showConfirmation,
+    showDestructiveConfirmation,
     showLoading,
     hideLoading
   };

@@ -474,7 +474,7 @@ export default function ReservationsPage() {
             </Button>
 
             <Button
-              color={isViewingToday() ? "success" : "primary"}
+              color={isViewingToday() ? 'selected' : 'secondary'}
               size="sm"
               onClick={goToToday}
               className="!px-3 !py-1.5 font-medium"
@@ -485,7 +485,7 @@ export default function ReservationsPage() {
             {/* Toggle de vista del calendario */}
             <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 ml-auto lg:ml-2">
               <Button
-                color={calendarView === 'month' ? 'primary' : 'gray'}
+                color={calendarView === 'month' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setCalendarView('month')}
                 className="!px-2 !py-1 text-xs font-medium"
@@ -493,7 +493,7 @@ export default function ReservationsPage() {
                 Mes
               </Button>
               <Button
-                color={calendarView === 'week' ? 'primary' : 'gray'}
+                color={calendarView === 'week' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setCalendarView('week')}
                 className="!px-2 !py-1 text-xs font-medium"
@@ -501,7 +501,7 @@ export default function ReservationsPage() {
                 Semana
               </Button>
               <Button
-                color={calendarView === 'day' ? 'primary' : 'gray'}
+                color={calendarView === 'day' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setCalendarView('day')}
                 className="!px-2 !py-1 text-xs font-medium"
@@ -1068,7 +1068,7 @@ export default function ReservationsPage() {
             {/* Toggle de vista */}
             <div className="flex items-center gap-2 rounded-lg p-1">
               <Button
-                color={viewMode === 'calendar' ? 'primary' : 'gray'}
+                color={viewMode === 'calendar' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('calendar')}
                 className="px-3 py-2"
@@ -1076,7 +1076,7 @@ export default function ReservationsPage() {
                 <HiCalendar className="w-4 h-4" />
               </Button>
               <Button
-                color={viewMode === 'grid' ? 'primary' : 'gray'}
+                color={viewMode === 'grid' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
                 className="px-3 py-2"
@@ -1084,7 +1084,7 @@ export default function ReservationsPage() {
                 <HiViewGrid className="w-4 h-4" />
               </Button>
               <Button
-                color={viewMode === 'list' ? 'primary' : 'gray'}
+                color={viewMode === 'list' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('list')}
                 className="px-3 py-2"

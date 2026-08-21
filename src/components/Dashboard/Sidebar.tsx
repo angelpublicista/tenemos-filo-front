@@ -20,7 +20,7 @@ import {
   BiChevronRight,
   BiX
 } from 'react-icons/bi';
-import { HiOutlineDocumentText } from 'react-icons/hi';
+import { HiOutlineCash, HiOutlineDocumentText, HiOutlineGlobeAlt } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -96,12 +96,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         current: pathname === '/dashboard/reservations',
         enabled: true
       },
+      {
+        name: 'Mis ingresos',
+        href: '/dashboard/ingresos',
+        icon: HiOutlineCash,
+        current: pathname === '/dashboard/ingresos',
+        enabled: true
+      },
       { type: 'section', name: 'Herramientas' },
       {
         name: 'Catálogo digital',
         href: '/dashboard/booking-link',
         icon: AiOutlineShareAlt,
         current: pathname === '/dashboard/booking-link',
+        enabled: true
+      },
+      {
+        name: 'Otros canales',
+        href: '/dashboard/canales',
+        icon: HiOutlineGlobeAlt,
+        current: pathname === '/dashboard/canales',
         enabled: true
       }
     ] as NavItem[] : []),

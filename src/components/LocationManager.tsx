@@ -26,15 +26,24 @@ interface LocationManagerProps {
   locations: Location[];
   onLocationsChange: (locations: Location[]) => void;
   companyId: string;
+  /**
+   * Titulo de la pantalla. Se recibe en vez de dejarlo fuera para poder
+   * ponerlo en la misma linea que "Nueva sede", como en el resto de
+   * pantallas. Sin sedes no se usa: ahi el boton es el centro del estado
+   * vacio y el titulo ya lo pinta la pagina.
+   */
+  encabezado?: React.ReactNode;
 }
 
-const LocationManager: React.FC<LocationManagerProps> = ({ 
-  locations, 
-  onLocationsChange, 
-  companyId 
+const LocationManager: React.FC<LocationManagerProps> = ({
+  locations,
+  onLocationsChange,
+  companyId,
+  encabezado,
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+  const sinSedes = locations.length === 0;
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
 
   const handleCreateLocation = () => {
@@ -124,14 +133,27 @@ const LocationManager: React.FC<LocationManagerProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-center items-center">
+      {/* Accion principal.
+          El mismo componente se usa en dos sitios: sobre la lista y dentro
+          del estado vacio. Centrado tiene sentido cuando es el unico
+          elemento de la tarjeta vacia, pero sobre la lista quedaba
+          flotando en medio de la pantalla, lejos del titulo y sin
+          alinearse con ninguna columna. Con sedes va a la derecha, como la
+          accion principal del resto de pantallas. */}
+      <div
+        className={
+          sinSedes
+            ? 'flex justify-center'
+            : 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'
+        }
+      >
+        {encabezado}
         <button
           onClick={handleCreateLocation}
-          className="flex items-center px-4 py-2 bg-[#F26726] text-white rounded-lg hover:bg-[#d9571f] transition-colors"
+          className="flex items-center justify-center px-5 py-2.5 bg-[#F26726] text-white text-sm font-medium rounded-full hover:bg-[#E05617] transition-colors shrink-0"
         >
           <AiOutlinePlus className="mr-2" />
-          Nueva Sede
+          Nueva sede
         </button>
       </div>
 
@@ -274,15 +296,17 @@ const LocationCard: React.FC<LocationCardProps> = ({
         {/* Actions */}
         <div className="flex justify-between items-center pt-4 border-t border-gray-100">
           <div className="flex gap-2">
-            {!location.isMain && location.isActive && (
-              <button
-                onClick={onSetMain}
-                className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                title="Establecer como principal"
-              >
-                <AiOutlineStar className="text-lg" />
-              </button>
-            )}
+            {/* Siempre presente, aunque no se pueda pulsar: al ocultarla en
+                la sede principal, el resto de iconos se corria y la misma
+                accion caia en un sitio distinto en cada tarjeta. */}
+            <button
+              onClick={onSetMain}
+              disabled={location.isMain || !location.isActive}
+              className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-default"
+              title={location.isMain ? 'Ya es la sede principal' : 'Establecer como principal'}
+            >
+              <AiOutlineStar className="text-lg" />
+            </button>
             <button
               onClick={onToggleActive}
               className={`p-2 rounded-lg transition-colors ${

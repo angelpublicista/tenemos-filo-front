@@ -102,15 +102,19 @@ export default function LocationsPage() {
   return (
     <ProtectedRoute>
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#334C5D] mb-2">
-            Mis Sedes
-          </h1>
-          <p className="text-gray-600">
-            Gestiona todas las sedes de tu empresa y su información
-          </p>
-        </div>
+        {/* El titulo solo se pinta aqui cuando no acompaña al boton de
+            "Nueva sede": con sedes se lo pasamos a LocationManager para
+            que ambos queden en la misma linea. */}
+        {locations.length === 0 && (
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#334C5D] mb-2">
+              Mis Sedes
+            </h1>
+            <p className="text-gray-600">
+              Gestiona todas las sedes de tu empresa y su información
+            </p>
+          </div>
+        )}
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -146,6 +150,14 @@ export default function LocationsPage() {
             locations={locations}
             onLocationsChange={setLocations}
             companyId={sanityUser.companyId!}
+            encabezado={
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-bold text-[#334C5D] mb-1">Mis Sedes</h1>
+                <p className="text-gray-600">
+                  Gestiona todas las sedes de tu empresa y su información
+                </p>
+              </div>
+            }
           />
         ) : null}
       </div>

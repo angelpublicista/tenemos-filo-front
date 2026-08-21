@@ -50,7 +50,7 @@ export default function CompanyInfoView({
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const { showError, showSuccess, showConfirmation } = useSweetAlert();
+  const { showError, showSuccess, showDestructiveConfirmation } = useSweetAlert();
 
   useEffect(() => {
     const loadCompanyData = async () => {
@@ -118,7 +118,7 @@ export default function CompanyInfoView({
 
   const handleRemoveLogo = async () => {
     if (!existingCompany?.logo) return;
-    const confirmed = await showConfirmation(
+    const confirmed = await showDestructiveConfirmation(
       '¿Eliminar logo?',
       'Se quitará el logo actual de la empresa.',
       'Sí, eliminar',

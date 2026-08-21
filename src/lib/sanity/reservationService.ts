@@ -1,5 +1,6 @@
 // Reescrito sobre el API. Conserva firmas para no tocar callers.
 import { api, apiFetch } from '@/lib/api/client';
+import type { DatosCheckout } from '@/components/BookingEngine/WompiCheckoutButton';
 import {
   Reservation,
   CreateReservationData,
@@ -388,17 +389,14 @@ export interface CreatePublicReservationData {
 
 export const createPublicReservation = async (
   data: CreatePublicReservationData,
-): Promise<{ reservationNumber: string }> => {
-  // Para public no podemos pegar a /experiences/:id (requiere auth).
-  // El front debe pasar el basePrice y duration ya conocidos del catalogo,
-  // o bien podriamos abrir un endpoint /experiences/public/:id.
-  // Por ahora calculamos con basePrice=0 y dejamos que el API lo recalcule
-  // cuando exista la version publica. TODO endurecer.
-  const subtotal = 0;
-  const addonsTotal = data.selectedAddons?.reduce((sum, a) => sum + a.price * a.quantity, 0) ?? 0;
-  const total = subtotal + addonsTotal;
+): Promise<{ reservationNumber: string; payment?: DatosCheckout | null }> => {
+  // El precio lo calcula el API desde la experiencia: en el catalogo
+  // publico no hay sesion y un precio enviado por el cliente seria
+  // manipulable. Aqui solo se manda QUE adicionales eligio.
 
-  return apiFetch<{ reservationNumber: string }>('/reservations/public', {
+  return apiFetch<{ reservationNumber: string; payment?: DatosCheckout | null }>(
+    '/reservations/public',
+    {
     method: 'POST',
     json: {
       experience: data.experience,
@@ -407,18 +405,15 @@ export const createPublicReservation = async (
       reservationDate: data.reservationDate,
       participants: data.participants,
       pricing: {
-        basePrice: 0,
-        subtotal,
+        // Solo la seleccion de adicionales; los importes los pone el API.
         addons: data.selectedAddons ?? [],
-        addonsTotal,
-        discount: 0,
-        tax: 0,
-        commission: 0,
-        total,
-        hostEarnings: total,
+        basePrice: 0,
+        subtotal: 0,
+        total: 0,
       },
       specialRequirements: data.specialRequests || '',
       notes: 'Reserva realizada desde el catalogo digital publico.',
     },
-  });
+    },
+  );
 };

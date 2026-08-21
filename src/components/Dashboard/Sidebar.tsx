@@ -10,7 +10,8 @@ import {
   AiOutlineBell,
   AiOutlineUser,
   AiOutlineClockCircle,
-  AiOutlineShareAlt
+  AiOutlineShareAlt,
+  AiOutlineDollar
 } from 'react-icons/ai';
 import {
   BiMap,
@@ -138,10 +139,24 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       },
       {
+        name: 'Dispersiones',
+        href: '/dashboard/admin/dispersiones',
+        icon: AiOutlineDollar,
+        current: pathname === '/dashboard/admin/dispersiones',
+        enabled: true
+      },
+      {
         name: 'Actividad',
         href: '/dashboard/admin/actividad',
         icon: HiOutlineDocumentText,
         current: pathname === '/dashboard/admin/actividad',
+        enabled: true
+      },
+      {
+        name: 'Ajustes',
+        href: '/dashboard/admin/ajustes',
+        icon: AiOutlineSetting,
+        current: pathname === '/dashboard/admin/ajustes',
         enabled: true
       }
     ] as NavItem[] : []),

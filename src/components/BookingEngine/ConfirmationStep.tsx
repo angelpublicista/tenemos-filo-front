@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { HiArrowLeft, HiCalendar, HiUsers, HiLocationMarker, HiMail, HiPhone, HiVideoCamera } from 'react-icons/hi';
-import type { BookingData } from '@/app/book/[companyId]/page';
+import type { BookingData } from '@/app/book/[slug]/page';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
 
@@ -12,12 +12,14 @@ function formatPrice(price: number, currency: string) {
 
 interface Props {
   booking: BookingData;
+  /** La plataforma cobra en linea. Cambia lo que se promete bajo el total. */
+  cobraEnLinea: boolean;
   submitting: boolean;
   onConfirm: () => void;
   onBack: () => void;
 }
 
-export default function ConfirmationStep({ booking, submitting, onConfirm, onBack }: Props) {
+export default function ConfirmationStep({ booking, cobraEnLinea, submitting, onConfirm, onBack }: Props) {
   const { experience, date, time, participants, locationName, selectedAddons, guestInfo } = booking;
   const subtotal = experience.basePrice * participants;
   const addonsTotal = selectedAddons?.reduce((sum, a) => sum + a.price * a.quantity, 0) ?? 0;
@@ -113,7 +115,11 @@ export default function ConfirmationStep({ booking, submitting, onConfirm, onBac
           <span className="text-sm font-bold text-gray-900">Total estimado</span>
           <span className="text-xl font-bold text-[#334C5D]">{formatPrice(total, experience.currency)}</span>
         </div>
-        <p className="text-xs text-gray-400 mt-2">* Precio referencial. El pago se gestiona directamente con el anfitrión.</p>
+        <p className="text-xs text-gray-400 mt-2">
+          {cobraEnLinea
+            ? '* Al confirmar podrás pagar en línea de forma segura.'
+            : '* Precio referencial. El pago se gestiona directamente con el anfitrión.'}
+        </p>
       </div>
 
       <div className="pt-5 border-t border-gray-100">

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import CalendarPicker from '@/components/CalendarPicker';
 import TimePicker from '@/components/TimePicker';
 import { HiArrowLeft, HiArrowRight, HiUsers } from 'react-icons/hi';
-import type { BookingExperience, BookingLocationAddress, SelectedAddon } from '@/app/book/[companyId]/page';
+import type { BookingExperience, BookingLocationAddress, SelectedAddon } from '@/app/book/[slug]/page';
 import type { AvailabilitySchedule } from '@/types';
 
 function formatPrice(price: number, currency: string) {
@@ -72,7 +72,10 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   const [participants, setParticipants] = useState(experience.minCapacity ?? 1);
   const [locationId, setLocationId] = useState<string | undefined>(undefined);
   const [slots, setSlots] = useState<string[]>([]);
-  const [selectedAddonKeys, setSelectedAddonKeys] = useState<Set<string>>(new Set());
+  // Por posicion, no por `_key`: ese campo venia de Sanity y hoy nadie lo
+  // escribe, asi que todos los addons compartian la misma clave `undefined`
+  // y marcar uno los marcaba todos.
+  const [addonsElegidos, setAddonsElegidos] = useState<Set<number>>(new Set());
 
   const availableAddons = useMemo(
     () => (experience.addons ?? []).filter(a => a.name && typeof a.price === 'number'),
@@ -108,7 +111,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
 
   const buildSelectedAddons = (): SelectedAddon[] => {
     return availableAddons
-      .filter(a => selectedAddonKeys.has(a._key))
+      .filter((_, i) => addonsElegidos.has(i))
       .map(a => ({
         name: a.name,
         price: a.price,
@@ -209,21 +212,21 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
               Adiciones <span className="text-xs font-normal text-gray-400">(opcional)</span>
             </label>
             <div className="space-y-2">
-              {availableAddons.map(addon => {
-                const checked = selectedAddonKeys.has(addon._key);
+              {availableAddons.map((addon, i) => {
+                const checked = addonsElegidos.has(i);
                 const unitLabel = addon.priceType === 'per_person' ? '/persona' : '';
                 const lineTotal = addon.priceType === 'per_person'
                   ? addon.price * participants
                   : addon.price;
                 return (
                   <button
-                    key={addon._key}
+                    key={`${addon.name}-${i}`}
                     type="button"
                     onClick={() => {
-                      setSelectedAddonKeys(prev => {
+                      setAddonsElegidos(prev => {
                         const next = new Set(prev);
-                        if (next.has(addon._key)) next.delete(addon._key);
-                        else next.add(addon._key);
+                        if (next.has(i)) next.delete(i);
+                        else next.add(i);
                         return next;
                       });
                     }}

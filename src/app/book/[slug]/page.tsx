@@ -3,8 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
-import { getCompanyById } from '@/lib/sanity/companyService';
-import { getActiveExperiencesByCompany } from '@/lib/sanity/experienceService';
+import { getPublicCatalog } from '@/lib/api/catalog';
 import { createPublicReservation } from '@/lib/sanity/reservationService';
 import type { Company, AvailabilitySchedule } from '@/types';
 import type { Experience } from '@/types';
@@ -13,6 +12,7 @@ import DateTimeStep from '@/components/BookingEngine/DateTimeStep';
 import ContactStep from '@/components/BookingEngine/ContactStep';
 import ConfirmationStep from '@/components/BookingEngine/ConfirmationStep';
 import FiloLogo from '@/components/FiloLogo';
+import WompiCheckoutButton, { type DatosCheckout } from '@/components/BookingEngine/WompiCheckoutButton';
 import { SkeletonCard } from '@/components/Skeleton';
 
 const getCompanyLogoUrl = (assetRef: string): string => {
@@ -76,7 +76,7 @@ const STEP_ORDER: Step[] = ['experiences', 'datetime', 'contact', 'confirmation'
 function BookingPageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const companyId = params.companyId as string;
+  const slug = params.slug as string;
   const isEmbed = searchParams.get('embed') === '1';
 
   const [company, setCompany] = useState<Company | null>(null);
@@ -87,11 +87,16 @@ function BookingPageInner() {
   const [step, setStep] = useState<Step>('experiences');
   const [booking, setBooking] = useState<Partial<BookingData>>({});
   const [reservationNumber, setReservationNumber] = useState('');
+  // Datos firmados para cobrar; llegan con la reserva si Wompi esta activo.
+  const [pago, setPago] = useState<DatosCheckout | null>(null);
+  // Lo dice el catalogo, no el cliente: si la pasarela esta apagada el
+  // resumen no debe anunciar un cobro en linea.
+  const [cobraEnLinea, setCobraEnLinea] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!companyId) {
-      console.error('[BookingPage] companyId is empty, cannot load data.');
+    if (!slug) {
+      console.error('[BookingPage] slug vacío, no se puede cargar.');
       setError('Enlace de reservas inválido.');
       setLoading(false);
       return;
@@ -101,17 +106,14 @@ function BookingPageInner() {
 
     const load = async () => {
       try {
-        console.log('[BookingPage] Loading data for companyId:', companyId);
-        const [companyData, expData] = await Promise.all([
-          getCompanyById(companyId),
-          getActiveExperiencesByCompany(companyId),
-        ]);
+        // Un solo endpoint publico: esta pagina la abre gente sin cuenta, y
+        // los de /companies y /experiences exigen sesion.
+        const { company: companyData, experiences: expData, paymentsEnabled } =
+          await getPublicCatalog(slug);
         if (controller.signal.aborted) return;
-        console.log('[BookingPage] Company:', companyData?.companyName ?? 'NOT FOUND');
-        console.log('[BookingPage] Active experiences:', expData?.length ?? 0);
-        if (!companyData) { setError('No se encontró la empresa.'); return; }
         setCompany(companyData);
         setExperiences(expData as BookingExperience[]);
+        setCobraEnLinea(paymentsEnabled);
       } catch (err) {
         if (controller.signal.aborted) {
           console.error('[BookingPage] Fetch timed out after 12s');
@@ -127,7 +129,7 @@ function BookingPageInner() {
     };
     load();
     return () => { controller.abort(); clearTimeout(timeout); };
-  }, [companyId]);
+  }, [slug]);
 
   const handleSelectExperience = (exp: BookingExperience) => {
     setBooking({ experience: exp });
@@ -174,6 +176,7 @@ function BookingPageInner() {
       });
 
       setReservationNumber(result.reservationNumber);
+      setPago(result.payment ?? null);
       setStep('success');
     } catch (err) {
       console.error('Error creating reservation:', err);
@@ -250,12 +253,25 @@ function BookingPageInner() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
       </div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Reserva enviada!</h2>
-      <p className="text-gray-500 mb-4">Tu solicitud fue recibida. El anfitrión la confirmará pronto.</p>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        {pago ? '¡Ya casi!' : '¡Reserva enviada!'}
+      </h2>
+      <p className="text-gray-500 mb-4">
+        {pago
+          ? 'Completa el pago para confirmar tu reserva.'
+          : 'Tu solicitud fue recibida. El anfitrión la confirmará pronto.'}
+      </p>
       <div className="inline-block bg-gray-50 border border-gray-200 rounded-xl px-8 py-4 mb-6">
         <p className="text-xs text-gray-400 mb-1">Número de reserva</p>
         <p className="text-2xl font-bold text-[#F26726]">{reservationNumber}</p>
       </div>
+
+      {pago && (
+        <div className="max-w-sm mx-auto mb-6">
+          <WompiCheckoutButton datos={pago} />
+        </div>
+      )}
+
       <p className="text-sm text-gray-400">
         Recibirás una confirmación en <strong>{booking.guestInfo?.email}</strong>
       </p>
@@ -340,6 +356,7 @@ function BookingPageInner() {
       {step === 'confirmation' && booking.experience && booking.date && booking.time && booking.participants && booking.guestInfo && (
         <ConfirmationStep
           booking={booking as BookingData}
+          cobraEnLinea={cobraEnLinea}
           submitting={submitting}
           onConfirm={handleConfirm}
           onBack={() => setStep('contact')}

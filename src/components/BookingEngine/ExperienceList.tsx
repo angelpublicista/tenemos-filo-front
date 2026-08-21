@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { HiClock, HiUsers, HiLocationMarker, HiVideoCamera } from 'react-icons/hi';
-import type { BookingExperience } from '@/app/book/[companyId]/page';
+import type { BookingExperience } from '@/app/book/[slug]/page';
 import ExperienceDetailModal from './ExperienceDetailModal';
 
 const CATEGORY_LABEL: Record<string, string> = {

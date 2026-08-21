@@ -50,8 +50,15 @@ function buildQuery(query?: Query): string {
   return s ? `?${s}` : "";
 }
 
-/** Sobre completo que devuelve el API: { data, meta? }. */
-type Envelope<T> = { data: T; meta?: { total: number; page: number; pageSize: number } };
+/**
+ * Sobre completo que devuelve el API: { data, meta? }. `meta` es abierto
+ * porque no todos los endpoints devuelven paginacion; algunos traen totales
+ * propios, como el retenido por la plataforma en /payouts/balances.
+ */
+type Envelope<T> = {
+  data: T;
+  meta?: { total?: number; page?: number; pageSize?: number } & Record<string, unknown>;
+};
 
 /** Hace el request y devuelve el sobre sin desenvolver. */
 async function request<T>(path: string, opts: Options = {}): Promise<Envelope<T> | null> {
@@ -96,6 +103,11 @@ async function request<T>(path: string, opts: Options = {}): Promise<Envelope<T>
 export async function apiFetch<T = unknown>(path: string, opts: Options = {}): Promise<T> {
   const payload = await request<T>(path, opts);
   return payload?.data as T;
+}
+
+/** Para endpoints cuyo `meta` no es paginacion y hay que leer entero. */
+export async function apiEnvelope<T>(path: string, query?: Query): Promise<Envelope<T> | null> {
+  return request<T>(path, { method: "GET", query });
 }
 
 export type Paginated<T> = { items: T[]; total: number };

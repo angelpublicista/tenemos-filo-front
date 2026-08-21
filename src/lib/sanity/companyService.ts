@@ -42,7 +42,7 @@ export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo'>> & {
 type ApiCompanyType = 'RESTAURANT' | 'CATERING' | 'FOODTRUCK' | 'OTHER';
 type ApiDocumentType = 'NIT' | 'CEDULA' | 'PASAPORTE' | 'OTHER';
 
-interface ApiCompany {
+export interface ApiCompany {
   id: string;
   ownerId: string;
   companyName: string;
@@ -58,6 +58,7 @@ interface ApiCompany {
   website: string | null;
   address: Company['address'] | null;
   employeeCount: string | null;
+  embedDomains?: string[];
   annualRevenue: string | null;
   businessYears: string | null;
   isActive: boolean;
@@ -96,7 +97,7 @@ const DOC_TYPE_FROM_API: Record<ApiDocumentType, NonNullable<Company['documentTy
 
 // ─── Mapper API → Company shape (compatible con tipo `Company` Sanity-like) ─
 
-function toCompany(c: ApiCompany): Company {
+export function toCompany(c: ApiCompany): Company {
   return {
     _id: c.id,
     _type: 'company',
@@ -115,6 +116,7 @@ function toCompany(c: ApiCompany): Company {
     website: c.website ?? undefined,
     address: c.address ?? undefined,
     employeeCount: (c.employeeCount as Company['employeeCount']) ?? undefined,
+    embedDomains: c.embedDomains ?? [],
     annualRevenue: (c.annualRevenue as Company['annualRevenue']) ?? undefined,
     businessYears: (c.businessYears as Company['businessYears']) ?? undefined,
     locations: c.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),
@@ -186,4 +188,19 @@ export const updateCompanyLocations = async (_companyId: string, _locationIds: s
   void _companyId;
   void _locationIds;
   throw new Error('updateCompanyLocations aun no migrado al nuevo backend.');
+};
+
+/**
+ * Dominios autorizados a insertar el catalogo en un iframe.
+ * Devuelve la lista ya normalizada por el API.
+ */
+export const setEmbedDomains = async (
+  companyId: string,
+  embedDomains: string[],
+): Promise<string[]> => {
+  const res = await api.patch<{ id: string; embedDomains: string[] }>(
+    `/companies/${encodeURIComponent(companyId)}/embed-domains`,
+    { embedDomains },
+  );
+  return res.embedDomains ?? [];
 };

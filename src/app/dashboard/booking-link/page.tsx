@@ -1,13 +1,37 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { HiShare } from 'react-icons/hi';
 import SharingPanel from '@/components/BookingEngine/SharingPanel';
+import EmbedDomains from '@/components/BookingEngine/EmbedDomains';
+import { getCompanyByUserId } from '@/lib/sanity/companyService';
 
 export default function BookingLinkPage() {
   const { sanityUser } = useAuth();
+  // El enlace usa el slug de la empresa ("filo-demo"), no su id. Hay que
+  // pedir la empresa porque el perfil del usuario solo trae el companyId.
+  const [slug, setSlug] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [embedDomains, setEmbedDomains] = useState<string[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    if (!sanityUser?.companyId) {
+      setCargando(false);
+      return;
+    }
+    getCompanyByUserId()
+      .then((c) => {
+        // El tipo Company conserva el shape de Sanity: { _type, current }.
+        setSlug(c?.slug?.current ?? null);
+        setCompanyId(c?._id ?? null);
+        setEmbedDomains(c?.embedDomains ?? []);
+      })
+      .catch(() => setSlug(null))
+      .finally(() => setCargando(false));
+  }, [sanityUser?.companyId]);
 
   return (
     <ProtectedRoute>
@@ -27,9 +51,14 @@ export default function BookingLinkPage() {
           </div>
         </div>
 
-        {sanityUser?.companyId ? (
-          <div className="max-w-2xl">
-            <SharingPanel companyId={sanityUser.companyId} />
+        {cargando ? (
+          <div className="max-w-2xl bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-500">
+            Cargando tu enlace...
+          </div>
+        ) : slug ? (
+          <div className="max-w-2xl space-y-4">
+            <SharingPanel slug={slug} />
+            {companyId && <EmbedDomains companyId={companyId} iniciales={embedDomains} />}
           </div>
         ) : (
           <div className="max-w-2xl bg-white rounded-2xl border border-gray-100 p-8 text-center">

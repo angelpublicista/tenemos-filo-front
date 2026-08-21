@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { HiArrowLeft, HiArrowRight } from 'react-icons/hi';
-import type { BookingData } from '@/app/book/[companyId]/page';
+import type { BookingData } from '@/app/book/[slug]/page';
 
 const schema = z.object({
   name: z.string().min(2, 'Ingresa tu nombre completo'),

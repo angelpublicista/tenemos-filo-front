@@ -6,18 +6,19 @@ import { HiClipboardCopy, HiCheck, HiExternalLink, HiCode, HiLink, HiMail, HiSha
 import { FaWhatsapp, FaFacebookF, FaLinkedinIn, FaTelegram, FaXTwitter } from 'react-icons/fa6';
 
 interface Props {
-  companyId: string;
+  /** Slug de la empresa ("filo-demo"): el enlace que se comparte. */
+  slug: string;
 }
 
 type Tab = 'link' | 'share' | 'iframe';
 
-export default function SharingPanel({ companyId }: Props) {
+export default function SharingPanel({ slug }: Props) {
   const [tab, setTab] = useState<Tab>('link');
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const bookingUrl = `${origin}/book/${companyId}`;
+  const bookingUrl = `${origin}/book/${slug}`;
   const iframeCode = `<iframe\n  src="${bookingUrl}?embed=1"\n  width="100%"\n  height="700"\n  frameborder="0"\n  style="border-radius:12px;border:1px solid #e5e7eb;"\n  title="Catálogo digital"\n></iframe>`;
 
   const copy = (text: string, setter: (v: boolean) => void) => {

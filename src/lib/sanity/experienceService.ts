@@ -14,7 +14,7 @@ import {
 type ApiExperienceType = 'VIRTUAL' | 'PRESENTIAL' | 'HYBRID';
 type ApiExperienceStatus = 'DRAFT' | 'PENDING' | 'ACTIVE' | 'PAUSED' | 'INACTIVE';
 
-interface ApiExperience {
+export interface ApiExperience {
   id: string;
   companyId: string;
   title: string;
@@ -98,7 +98,7 @@ const TYPE_FROM_API: Record<ApiExperienceType, Experience['experienceType']> = {
 
 // ─── Mapper API → Experience (Sanity-like) ─────────────────────────────────
 
-function toExperience(e: ApiExperience): Experience {
+export function toExperience(e: ApiExperience): Experience {
   const includesArr =
     e.includes == null
       ? []

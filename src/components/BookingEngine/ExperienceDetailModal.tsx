@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { HiX, HiClock, HiUsers, HiLocationMarker, HiVideoCamera, HiCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
-import type { BookingExperience, BookingLocationAddress } from '@/app/book/[companyId]/page';
+import type { BookingExperience, BookingLocationAddress } from '@/app/book/[slug]/page';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',

@@ -38,6 +38,9 @@ export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo'>> & {
   tagline?: string | null;
   /** Id del restaurante en OpenTable (el "rid" de sus enlaces). */
   openTableRid?: string | null;
+  coverType?: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER';
+  coverImages?: string[];
+  coverVideo?: string | null;
   /** Ajustes de operacion: cambian como entran las reservas. */
   autoConfirmReservations?: boolean;
   blockWhenFull?: boolean;
@@ -67,6 +70,9 @@ export interface ApiCompany {
   embedDomains?: string[];
   tagline: string | null;
   openTableRid: string | null;
+  coverType: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER' | null;
+  coverImages: string[] | null;
+  coverVideo: string | null;
   autoConfirmReservations: boolean;
   blockWhenFull: boolean;
   annualRevenue: string | null;
@@ -129,6 +135,9 @@ export function toCompany(c: ApiCompany): Company {
     embedDomains: c.embedDomains ?? [],
     tagline: c.tagline ?? undefined,
     openTableRid: c.openTableRid ?? undefined,
+    coverType: c.coverType ?? 'NONE',
+    coverImages: c.coverImages ?? [],
+    coverVideo: c.coverVideo ?? undefined,
     autoConfirmReservations: c.autoConfirmReservations ?? false,
     // Por defecto true: es lo que hace el API si el campo no viaja.
     blockWhenFull: c.blockWhenFull ?? true,
@@ -161,6 +170,9 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
   if (data.businessYears !== undefined) out.businessYears = data.businessYears;
   if (upd.tagline !== undefined) out.tagline = upd.tagline;
   if (upd.openTableRid !== undefined) out.openTableRid = upd.openTableRid;
+  if (upd.coverType !== undefined) out.coverType = upd.coverType;
+  if (upd.coverImages !== undefined) out.coverImages = upd.coverImages;
+  if (upd.coverVideo !== undefined) out.coverVideo = upd.coverVideo;
   if (upd.autoConfirmReservations !== undefined) {
     out.autoConfirmReservations = upd.autoConfirmReservations;
   }

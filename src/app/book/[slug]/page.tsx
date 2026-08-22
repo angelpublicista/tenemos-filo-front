@@ -14,15 +14,9 @@ import ConfirmationStep from '@/components/BookingEngine/ConfirmationStep';
 import FiloLogo from '@/components/FiloLogo';
 import WompiCheckoutButton, { type DatosCheckout } from '@/components/BookingEngine/WompiCheckoutButton';
 import { SkeletonCard } from '@/components/Skeleton';
+import { urlDeImagen } from '@/lib/images';
+import PortadaCatalogo from '@/components/BookingEngine/PortadaCatalogo';
 
-const getCompanyLogoUrl = (assetRef: string): string => {
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
-  const cleanAssetId = assetRef.startsWith('image-')
-    ? assetRef.replace('image-', '').replace(/-([a-z]+)$/, '.$1')
-    : assetRef;
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
-};
 
 export interface BookingLocationAddress {
   street?: string;
@@ -114,6 +108,14 @@ function BookingPageInner() {
         setCompany(companyData);
         setExperiences(expData as BookingExperience[]);
         setCobraEnLinea(paymentsEnabled);
+
+        // Si se llego por un slug antiguo (o por el id), la barra pasa a
+        // mostrar el actual. El enlace viejo sigue funcionando, pero quien
+        // copie la URL desde aqui se lleva la buena.
+        const canonico = companyData.slug?.current;
+        if (canonico && canonico !== slug) {
+          window.history.replaceState(null, '', `/book/${canonico}`);
+        }
       } catch (err) {
         if (controller.signal.aborted) {
           console.error('[BookingPage] Fetch timed out after 12s');
@@ -188,16 +190,26 @@ function BookingPageInner() {
 
   const currentStepIndex = STEP_ORDER.indexOf(step);
 
-  const companyLogoRef = company?.logo?.asset?._ref;
+  const companyLogoUrl = urlDeImagen(company?.logo?.asset?._ref);
+  // "NONE" o sin medios significa que no se pinta banner, y entonces el
+  // logo no debe subir a montarse sobre nada.
+  const hayPortada =
+    !!company &&
+    ((company.coverType === 'IMAGE' && (company.coverImages?.length ?? 0) > 0) ||
+      (company.coverType === 'SLIDER' && (company.coverImages?.length ?? 0) > 0) ||
+      (company.coverType === 'VIDEO' && !!company.coverVideo));
 
-  const wrap = (content: React.ReactNode, options: { showHeader?: boolean } = {}) => (
+  const wrap = (
+    content: React.ReactNode,
+    options: { showHeader?: boolean; banner?: React.ReactNode } = {},
+  ) => (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {!isEmbed && options.showHeader && (
         <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 min-w-0">
-            {companyLogoRef ? (
+            {companyLogoUrl ? (
               <Image
-                src={getCompanyLogoUrl(companyLogoRef)}
+                src={companyLogoUrl}
                 alt={company?.companyName ?? 'Logo de la empresa'}
                 width={40}
                 height={40}
@@ -214,7 +226,14 @@ function BookingPageInner() {
           </div>
         </header>
       )}
-      <div className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 sm:py-8">
+      {/* Fuera del contenedor centrado: el banner va de borde a borde. */}
+      {options.banner}
+      <div
+        className={`flex-1 max-w-6xl w-full mx-auto px-4 pb-6 sm:pb-8 ${
+          // Con banner no hay separacion arriba: el logo se monta sobre el.
+          options.banner ? '' : 'pt-6 sm:pt-8'
+        }`}
+      >
         {content}
       </div>
       {!isEmbed && (
@@ -287,24 +306,58 @@ function BookingPageInner() {
     { showHeader: true }
   );
 
+  // El banner solo tiene sentido en el listado: dentro del flujo de reserva
+  // se metería entre el paso y su resumen.
+  const portada =
+    step === 'experiences' && company ? (
+      <PortadaCatalogo
+        tipo={company.coverType}
+        imagenes={company.coverImages}
+        video={company.coverVideo}
+        nombreEmpresa={company.companyName}
+      />
+    ) : null;
+
   return wrap(
     <>
       {/* Header empresa */}
       {step === 'experiences' && company && (
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center gap-5 text-center sm:text-left">
-          {companyLogoRef ? (
-            <Image
-              src={getCompanyLogoUrl(companyLogoRef)}
-              alt={company.companyName}
-              width={128}
-              height={128}
-              className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border border-gray-200 object-cover mx-auto sm:mx-0 shrink-0 shadow-sm"
-              priority
-            />
-          ) : (
-            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gray-100 border border-gray-200 mx-auto sm:mx-0 shrink-0" />
-          )}
-          <div className="min-w-0">
+        <div
+          className={`mb-8 flex flex-col sm:flex-row gap-4 sm:gap-5 text-center sm:text-left ${
+            // items-start y no items-end: al alinear por abajo, flex
+            // recalcula el margen negativo del logo y el solape se queda a
+            // menos de la mitad.
+            hayPortada ? 'sm:items-start' : 'sm:items-center pt-6 sm:pt-8'
+          }`}
+        >
+          {/* Con banner el logo se monta a media altura sobre el: el margen
+              negativo es la mitad de su tamaño, y el aro blanco lo despega
+              de la imagen para que se lea sobre cualquier fondo. */}
+          <div
+            className={`relative z-10 mx-auto sm:mx-0 shrink-0 ${
+              hayPortada ? '-mt-14 sm:-mt-16' : ''
+            }`}
+          >
+            {companyLogoUrl ? (
+              <Image
+                src={companyLogoUrl}
+                alt={company.companyName}
+                width={128}
+                height={128}
+                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover bg-white shadow-sm ${
+                  hayPortada ? 'ring-4 ring-white' : 'border border-gray-200'
+                }`}
+                priority
+              />
+            ) : (
+              <div
+                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gray-100 ${
+                  hayPortada ? 'ring-4 ring-white' : 'border border-gray-200'
+                }`}
+              />
+            )}
+          </div>
+          <div className={`min-w-0 ${hayPortada ? 'sm:pt-3' : ''}`}>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{company.companyName}</h1>
             {company.tagline && (
               <p className="text-[#F26726] font-medium mt-1 text-sm sm:text-base">{company.tagline}</p>
@@ -366,7 +419,7 @@ function BookingPageInner() {
         />
       )}
     </>,
-    { showHeader: step !== 'experiences' }
+    { showHeader: step !== 'experiences', banner: portada }
   );
 }
 

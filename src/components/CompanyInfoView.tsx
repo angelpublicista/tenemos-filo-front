@@ -18,19 +18,8 @@ import {
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from './Loader';
+import { urlDeImagen } from '@/lib/images';
 
-// Resuelve la URL del logo. Compat con assets viejos de Sanity:
-// - URL absoluta (S3/CloudFront): se usa tal cual
-// - "image-..." legacy: se construye URL del CDN de Sanity
-const getLogoUrl = (assetRef: string): string => {
-  if (assetRef.startsWith('http://') || assetRef.startsWith('https://')) return assetRef;
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
-  const cleanAssetId = assetRef.startsWith('image-')
-    ? assetRef.replace('image-', '').replace(/-([a-z]+)$/, '.$1')
-    : assetRef;
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
-};
 
 interface CompanyInfoViewProps {
   showEditButton?: boolean;
@@ -179,9 +168,9 @@ export default function CompanyInfoView({
           {/* Logo */}
           <div className="relative shrink-0">
             <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center">
-              {existingCompany.logo?.asset?._ref ? (
+              {urlDeImagen(existingCompany.logo?.asset?._ref) ? (
                 <Image
-                  src={getLogoUrl(existingCompany.logo.asset._ref)}
+                  src={urlDeImagen(existingCompany.logo?.asset?._ref)!}
                   alt={`Logo de ${existingCompany.companyName}`}
                   width={96}
                   height={96}

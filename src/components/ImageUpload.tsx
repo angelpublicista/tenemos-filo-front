@@ -5,6 +5,7 @@ import { Label, Button, TextInput } from 'flowbite-react';
 import { HiUpload, HiPhotograph, HiPlus, HiTrash } from 'react-icons/hi';
 import Image from 'next/image';
 import { uploadImage, UploadScope } from '@/lib/api/uploads';
+import { urlDeImagen } from '@/lib/images';
 
 interface ImageUploadProps {
   label: string;
@@ -26,21 +27,9 @@ interface GalleryUploadProps {
   scope?: UploadScope;
 }
 
-// Resuelve la URL de visualizacion. Compat con assets viejos de Sanity:
-// - URL absoluta (S3/CloudFront): se usa tal cual
-// - "image-..." (asset id Sanity legacy): se construye URL del CDN de Sanity
-function getImageUrl(value: string): string {
-  if (!value) return '';
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
-  // Legacy: Sanity asset id
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
-  if (value.startsWith('image-')) {
-    const cleanAssetId = value.replace('image-', '').replace(/-([a-z]+)$/, '.$1');
-    return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
-  }
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${value}`;
-}
+// Misma resolucion que el resto de la app; devuelve '' para poder pasarla
+// directo a un src.
+const getImageUrl = (value: string): string => urlDeImagen(value) ?? '';
 
 const formatSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;

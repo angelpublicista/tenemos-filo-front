@@ -12,8 +12,14 @@ type PresignResponse = {
   contentType: string;
 };
 
-export type UploadScope = 'logos' | 'avatars' | 'experiences' | 'gallery' | 'misc';
+export type UploadScope = 'logos' | 'avatars' | 'experiences' | 'gallery' | 'portadas' | 'misc';
 
+/**
+ * Sube cualquier archivo permitido y devuelve su URL publica.
+ *
+ * Se llama uploadImage por historia, pero el API tambien acepta video para
+ * las portadas del catalogo.
+ */
 export async function uploadImage(file: File, scope: UploadScope = 'misc'): Promise<string> {
   const presign = await api.post<PresignResponse>('/uploads/presign', {
     filename: file.name,

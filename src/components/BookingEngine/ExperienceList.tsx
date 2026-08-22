@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { HiClock, HiUsers, HiLocationMarker, HiVideoCamera } from 'react-icons/hi';
 import type { BookingExperience } from '@/app/book/[slug]/page';
 import ExperienceDetailModal from './ExperienceDetailModal';
+import { urlDeImagen } from '@/lib/images';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -11,15 +12,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   workshops: 'Talleres', other: 'Otro',
 };
 
-function sanityImageUrl(assetRef: string): string {
-  const withoutPrefix = assetRef.replace(/^image-/, '');
-  const lastDash = withoutPrefix.lastIndexOf('-');
-  const ext = withoutPrefix.slice(lastDash + 1);
-  const id = withoutPrefix.slice(0, lastDash);
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${id}.${ext}`;
-}
 
 function getImageUrl(exp: BookingExperience): string | null {
   // featuredImage llega como string (asset ref) gracias a la proyección GROQ.
@@ -29,9 +21,9 @@ function getImageUrl(exp: BookingExperience): string | null {
     const ref = typeof fi === 'string'
       ? fi
       : (fi as { asset?: { _ref?: string } })?.asset?._ref;
-    if (ref && ref.startsWith('image-')) return sanityImageUrl(ref);
+    if (ref && ref.startsWith('image-')) return urlDeImagen(ref);
   }
-  if (exp.images?.[0]?.asset?._ref) return sanityImageUrl(exp.images[0].asset._ref);
+  if (exp.images?.[0]?.asset?._ref) return urlDeImagen(exp.images[0].asset._ref);
   return null;
 }
 

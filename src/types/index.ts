@@ -184,6 +184,10 @@ export interface Company {
   tagline?: string;
   /** Id del restaurante en OpenTable, para enlazar su ficha. */
   openTableRid?: string;
+  /** Portada del catálogo público. */
+  coverType?: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER';
+  coverImages?: string[];
+  coverVideo?: string;
   /** Las reservas nuevas nacen confirmadas en vez de pendientes. */
   autoConfirmReservations?: boolean;
   /** Rechaza reservas que pasarían del aforo de la experiencia. */

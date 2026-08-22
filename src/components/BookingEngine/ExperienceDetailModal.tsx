@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { HiX, HiClock, HiUsers, HiLocationMarker, HiVideoCamera, HiCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 import type { BookingExperience, BookingLocationAddress } from '@/app/book/[slug]/page';
+import { urlDeImagen } from '@/lib/images';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -10,15 +11,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   workshops: 'Talleres', other: 'Otro',
 };
 
-function sanityImageUrl(assetRef: string): string {
-  const withoutPrefix = assetRef.replace(/^image-/, '');
-  const lastDash = withoutPrefix.lastIndexOf('-');
-  const ext = withoutPrefix.slice(lastDash + 1);
-  const id = withoutPrefix.slice(0, lastDash);
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${id}.${ext}`;
-}
 
 function formatAddress(address: BookingLocationAddress | string | undefined): string {
   if (!address) return '';
@@ -48,14 +40,18 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
     ? experience.featuredImage
     : (experience.featuredImage as unknown as { asset?: { _ref?: string } })?.asset?._ref;
 
+  // Se acepta cualquier imagen que se pueda resolver. Antes solo entraban
+  // las que empezaban por "image-", el formato viejo de Sanity, asi que las
+  // que se suben hoy (URL de CloudFront) quedaban fuera y la galeria salia
+  // vacia aunque la experiencia tuviera fotos.
   const allImages: Array<{ url: string; alt?: string; caption?: string }> = [];
-  if (featuredRef && featuredRef.startsWith('image-')) {
-    allImages.push({ url: sanityImageUrl(featuredRef), alt: experience.title });
+  const urlDestacada = urlDeImagen(featuredRef);
+  if (urlDestacada) {
+    allImages.push({ url: urlDestacada, alt: experience.title });
   }
   gallery.forEach(g => {
-    if (g.assetId && g.assetId.startsWith('image-')) {
-      allImages.push({ url: sanityImageUrl(g.assetId), alt: g.alt, caption: g.caption });
-    }
+    const url = urlDeImagen(g.assetId);
+    if (url) allImages.push({ url, alt: g.alt, caption: g.caption });
   });
 
   const [current, setCurrent] = useState(0);

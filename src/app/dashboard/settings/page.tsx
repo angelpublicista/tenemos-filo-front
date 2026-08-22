@@ -9,6 +9,9 @@ import { getCompanyById, updateCompanyInSanity, type UpdateCompanyData } from "@
 import { uploadImage } from "@/lib/api/uploads";
 import { cambiarPassword } from "@/lib/api/account";
 import { ApiHttpError } from "@/lib/api/client";
+import { urlDeImagen } from "@/lib/images";
+import EditorPortada from "@/components/BookingEngine/EditorPortada";
+import type { TipoPortada } from "@/components/BookingEngine/PortadaCatalogo";
 import type { Company } from "@/types";
 import {
   Badge,
@@ -77,22 +80,6 @@ function companyToFormState(c: Company): GeneralFormState {
 
 type Feedback = { type: "success" | "error"; message: string } | null;
 
-/**
- * Resuelve la URL del logo. Los assets viejos de Sanity se guardaron como
- * referencia, no como URL; se siguen soportando para no dejar sin logo a
- * quien lo subio antes de la migracion.
- */
-function urlDeLogo(assetRef?: string): string | null {
-  if (!assetRef) return null;
-  if (assetRef.startsWith("http://") || assetRef.startsWith("https://")) return assetRef;
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || "production";
-  const limpio = assetRef.startsWith("image-")
-    ? assetRef.replace("image-", "").replace(/-([a-z]+)$/, ".$1")
-    : assetRef;
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${limpio}`;
-}
-
 export default function SettingsPage() {
   const { sanityUser } = useAuth();
 
@@ -116,6 +103,13 @@ export default function SettingsPage() {
   const [guardandoMarca, setGuardandoMarca] = useState(false);
   const [marcaFeedback, setMarcaFeedback] = useState<Feedback>(null);
   const [subiendoLogo, setSubiendoLogo] = useState(false);
+  const [portada, setPortada] = useState<{
+    tipo: TipoPortada;
+    imagenes: string[];
+    video: string | null;
+  }>({ tipo: 'NONE', imagenes: [], video: null });
+  const [guardandoPortada, setGuardandoPortada] = useState(false);
+  const [portadaFeedback, setPortadaFeedback] = useState<Feedback>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Operacion
@@ -159,6 +153,11 @@ export default function SettingsPage() {
   // Los toggles reflejan lo guardado, no un valor por defecto inventado.
   useEffect(() => {
     if (!company) return;
+    setPortada({
+      tipo: company.coverType ?? 'NONE',
+      imagenes: company.coverImages ?? [],
+      video: company.coverVideo ?? null,
+    });
     setOperacion({
       autoConfirmReservations: company.autoConfirmReservations ?? false,
       blockWhenFull: company.blockWhenFull ?? true,
@@ -178,7 +177,7 @@ export default function SettingsPage() {
     if (fresca) setCompany(fresca);
   }, [company]);
 
-  const logoUrl = urlDeLogo(company?.logo?.asset?._ref);
+  const logoUrl = urlDeImagen(company?.logo?.asset?._ref);
 
   const handleStartEditGeneral = () => {
     if (!company) return;
@@ -298,6 +297,26 @@ export default function SettingsPage() {
       setMarcaFeedback({ type: "error", message: "No se pudo eliminar el logo." });
     } finally {
       setSubiendoLogo(false);
+    }
+  };
+
+  const guardarPortada = async () => {
+    if (!company) return;
+    setGuardandoPortada(true);
+    setPortadaFeedback(null);
+    try {
+      await updateCompanyInSanity(company._id, {
+        coverType: portada.tipo,
+        coverImages: portada.imagenes,
+        coverVideo: portada.video,
+      });
+      await recargarEmpresa();
+      setPortadaFeedback({ type: 'success', message: 'Portada actualizada.' });
+    } catch (err) {
+      console.error(err);
+      setPortadaFeedback({ type: 'error', message: 'No se pudo guardar la portada.' });
+    } finally {
+      setGuardandoPortada(false);
     }
   };
 
@@ -757,7 +776,43 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Integraciones */}
+          {/* Portada del catalogo */}
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-[#334C5D]">Portada del catálogo</h2>
+              <p className="text-sm text-gray-500">
+                Lo primero que ve quien abre tu enlace, encima de tus experiencias.
+              </p>
+            </div>
+            <Button color="primary" onClick={guardarPortada} disabled={!company || guardandoPortada}>
+              {guardandoPortada ? "Guardando..." : "Guardar portada"}
+            </Button>
+          </div>
+
+          {portadaFeedback && (
+            <div
+              className={`mb-4 rounded-lg px-4 py-3 text-sm ${
+                portadaFeedback.type === "success"
+                  ? "border border-green-200 bg-green-50 text-green-700"
+                  : "border border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              {portadaFeedback.message}
+            </div>
+          )}
+
+          <EditorPortada
+            tipo={portada.tipo}
+            imagenes={portada.imagenes}
+            video={portada.video}
+            guardando={guardandoPortada}
+            onChange={setPortada}
+            onError={(message) => setPortadaFeedback({ type: "error", message })}
+          />
+        </section>
+
+        {/* Integraciones */}
           <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>

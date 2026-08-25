@@ -241,7 +241,7 @@ function NewPasswordForm({ token }: { token: string }) {
 
 function ResetPasswordContent() {
   // El correo de recuperacion apunta a /reset-password?token=...
-  // (ver sendPasswordResetEmail en src/lib/email/brevoService.ts)
+  // Lo compone y envia el API (src/lib/email.ts alli).
   const token = useSearchParams().get("token");
   return token ? <NewPasswordForm token={token} /> : <RequestLinkForm />;
 }

@@ -255,7 +255,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 
   // Paso 1 del reset: el API genera el token, lo persiste y envia el correo.
-  // El enlace del correo apunta a /reset-password?token=... (ver brevoService).
+  // El enlace del correo apunta a /reset-password?token=... y lo arma el API.
   const resetPassword = useCallback(async (email: string) => {
     try {
       await api.post(FORGOT_PASSWORD_PATH, { email });

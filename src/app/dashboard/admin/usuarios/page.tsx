@@ -11,7 +11,7 @@ import {
   Select,
   TextInput,
 } from 'flowbite-react';
-import { HiSearch, HiBan, HiRefresh, HiTrash, HiPlus } from 'react-icons/hi';
+import { HiSearch, HiBan, HiRefresh, HiTrash, HiPlus , HiPencilAlt } from 'react-icons/hi';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable, { AdminHeader } from '@/components/Admin/AdminTable';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -22,7 +22,11 @@ import {
   updateUserRole,
   setUserActive,
   deleteUser,
+  actualizarUsuario,
+  listCompanies,
   ROLE_LABELS,
+  type AdminCompany,
+  type DatosUsuario,
   type AdminUser,
   type ApiRole,
   type NewUser,
@@ -45,6 +49,55 @@ export default function AdminUsuariosPage() {
   const [busqueda, setBusqueda] = useState('');
   const [filtroRol, setFiltroRol] = useState<'' | ApiRole>('');
   const [creando, setCreando] = useState(false);
+
+  // Edicion. Antes solo se podia cambiar el rol desde el desplegable de la
+  // tabla; corregir un nombre mal escrito o mover a alguien de empresa
+  // habia que hacerlo a mano contra el API.
+  const [editando, setEditando] = useState<AdminUser | null>(null);
+  const [form, setForm] = useState<DatosUsuario>({});
+  const [empresas, setEmpresas] = useState<AdminCompany[]>([]);
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+
+  const nombreEmpresa = (id: string) => empresas.find((e) => e.id === id)?.companyName;
+
+  const abrirEdicion = async (u: AdminUser) => {
+    setEditando(u);
+    setForm({
+      name: u.name ?? '',
+      phone: u.phone ?? '',
+      role: u.role,
+      companyId: u.companyId,
+    });
+    if (empresas.length === 0) {
+      try {
+        const { items } = await listCompanies({ pageSize: 100 });
+        setEmpresas(items.filter((e) => !e.deletedAt));
+      } catch {
+        // Sin la lista el resto del formulario sigue sirviendo; solo se
+        // pierde poder reasignar la empresa.
+      }
+    }
+  };
+
+  const guardarEdicion = async () => {
+    if (!editando) return;
+    setGuardandoEdicion(true);
+    try {
+      await actualizarUsuario(editando.id, {
+        name: form.name?.trim() || undefined,
+        phone: form.phone?.trim() || null,
+        role: form.role,
+        companyId: form.companyId || null,
+      });
+      showSuccess('Usuario actualizado', form.name?.trim() || editando.email);
+      setEditando(null);
+      await cargar();
+    } catch (err) {
+      showError('No se pudo guardar', err instanceof Error ? err.message : undefined);
+    } finally {
+      setGuardandoEdicion(false);
+    }
+  };
   const [guardando, setGuardando] = useState(false);
   const [nuevo, setNuevo] = useState<NewUser>({
     email: '',
@@ -283,7 +336,9 @@ export default function AdminUsuariosPage() {
                   </Select>
                 )}
               </td>
-              <td className="px-6 py-4 text-xs">{u.companyId ? 'Sí' : '—'}</td>
+              <td className="px-6 py-4 text-xs">
+                {u.companyId ? (nombreEmpresa(u.companyId) ?? 'Sí') : '—'}
+              </td>
               <td className="px-6 py-4">
                 <Badge color={u.isActive ? 'success' : 'gray'} className="w-fit">
                   {u.isActive ? 'Activo' : 'Inactivo'}
@@ -291,6 +346,9 @@ export default function AdminUsuariosPage() {
               </td>
               <td className="px-6 py-4">
                 <div className="flex gap-2">
+                  <Button size="xs" color="light" onClick={() => abrirEdicion(u)} title="Editar">
+                    <HiPencilAlt className="w-4 h-4" />
+                  </Button>
                   <Button
                     size="xs"
                     color={u.isActive ? 'failure' : 'success'}
@@ -315,6 +373,78 @@ export default function AdminUsuariosPage() {
           );
         })}
       </AdminTable>
+
+      <Modal show={!!editando} onClose={() => setEditando(null)} size="md">
+        <ModalHeader>Editar usuario</ModalHeader>
+        <ModalBody>
+          {editando && (
+            <div className="space-y-4">
+              <div className="rounded bg-gray-50 p-3 text-sm">
+                <div className="font-medium text-gray-900">{editando.email}</div>
+                <div className="text-xs text-gray-500">
+                  El correo no se cambia desde aquí: es con lo que inicia sesión.
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <TextInput
+                  value={form.name ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                <TextInput
+                  value={form.phone ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                <Select
+                  value={form.role ?? editando.role}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as ApiRole }))}
+                >
+                  {(Object.keys(ROLE_LABELS) as ApiRole[]).map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+                <Select
+                  value={form.companyId ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, companyId: e.target.value || null }))}
+                >
+                  <option value="">Sin empresa</option>
+                  {empresas.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.companyName}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  La empresa en la que trabaja. Para cambiar quién es su titular, ve a Empresas.
+                </p>
+              </div>
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button color="primary" onClick={guardarEdicion} disabled={guardandoEdicion}>
+            {guardandoEdicion ? 'Guardando...' : 'Guardar'}
+          </Button>
+          <Button color="secondary" onClick={() => setEditando(null)}>
+            Cancelar
+          </Button>
+        </ModalFooter>
+      </Modal>
     </ProtectedRoute>
   );
 }

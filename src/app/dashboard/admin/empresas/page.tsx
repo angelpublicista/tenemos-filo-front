@@ -11,7 +11,7 @@ import {
   Select,
   TextInput,
 } from 'flowbite-react';
-import { HiSearch, HiPencilAlt, HiBan, HiRefresh, HiPlus } from 'react-icons/hi';
+import { HiSearch, HiPencilAlt, HiBan, HiRefresh, HiPlus, HiUser } from 'react-icons/hi';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable, { AdminHeader } from '@/components/Admin/AdminTable';
@@ -24,6 +24,9 @@ import {
   updateCompany,
   deactivateCompany,
   restoreCompany,
+  ROLE_LABELS,
+  transferirTitularidad,
+  ROLES_TITULARES,
   type AdminCompany,
   type AdminUser,
 } from '@/lib/api/admin';
@@ -43,6 +46,46 @@ export default function AdminEmpresasPage() {
   const [nombreNuevo, setNombreNuevo] = useState('');
   const [ownerNuevo, setOwnerNuevo] = useState('');
   const [candidatos, setCandidatos] = useState<AdminUser[]>([]);
+
+  // Cambio de titular. Su lista es distinta de la de creacion: excluye al
+  // titular actual, que no puede transferirse la empresa a si mismo.
+  const [transfiriendo, setTransfiriendo] = useState<AdminCompany | null>(null);
+  const [candidatosTitular, setCandidatosTitular] = useState<AdminUser[]>([]);
+  const [nuevoTitular, setNuevoTitular] = useState('');
+  const [guardandoTitular, setGuardandoTitular] = useState(false);
+
+  const abrirTitularidad = async (e: AdminCompany) => {
+    setTransfiriendo(e);
+    setNuevoTitular('');
+    setCandidatosTitular([]);
+    try {
+      const { items } = await listUsers({ pageSize: 100 });
+      setCandidatosTitular(
+        items.filter((u) => u.isActive && ROLES_TITULARES.includes(u.role) && u.id !== e.owner?.id),
+      );
+    } catch (err) {
+      showError('No se pudieron cargar los candidatos', err instanceof Error ? err.message : undefined);
+    }
+  };
+
+  const confirmarTitularidad = async () => {
+    if (!transfiriendo || !nuevoTitular) return;
+    setGuardandoTitular(true);
+    try {
+      await transferirTitularidad(transfiriendo.id, nuevoTitular);
+      const nombre = candidatosTitular.find((c) => c.id === nuevoTitular);
+      showSuccess(
+        'Titularidad transferida',
+        `${transfiriendo.companyName} ahora es de ${nombre?.name ?? nombre?.email ?? 'otro usuario'}.`,
+      );
+      setTransfiriendo(null);
+      await cargar();
+    } catch (err) {
+      showError('No se pudo transferir', err instanceof Error ? err.message : undefined);
+    } finally {
+      setGuardandoTitular(false);
+    }
+  };
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -248,6 +291,15 @@ export default function AdminEmpresasPage() {
                 </Button>
                 <Button
                   size="xs"
+                  color="light"
+                  onClick={() => abrirTitularidad(e)}
+                  title="Cambiar titular"
+                  disabled={!!e.deletedAt}
+                >
+                  <HiUser className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="xs"
                   color={e.deletedAt ? 'success' : 'failure'}
                   onClick={() => alternarActiva(e)}
                   title={e.deletedAt ? 'Reactivar' : 'Desactivar'}
@@ -280,6 +332,57 @@ export default function AdminEmpresasPage() {
             {guardando ? 'Guardando...' : 'Guardar'}
           </Button>
           <Button color="light" onClick={() => setEditando(null)}>
+            Cancelar
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal show={!!transfiriendo} onClose={() => setTransfiriendo(null)} size="md">
+        <ModalHeader>Cambiar titular</ModalHeader>
+        <ModalBody>
+          {transfiriendo && (
+            <div className="space-y-4">
+              <div className="rounded bg-gray-50 p-3 text-sm">
+                <div className="font-medium text-gray-900">{transfiriendo.companyName}</div>
+                <div className="text-gray-600">
+                  Titular actual: {transfiriendo.owner?.name ?? transfiriendo.owner?.email ?? '—'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nuevo titular *
+                </label>
+                <Select value={nuevoTitular} onChange={(e) => setNuevoTitular(e.target.value)}>
+                  <option value="">Selecciona un usuario</option>
+                  {candidatosTitular.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name ?? c.email} · {ROLE_LABELS[c.role]}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Solo aparecen anfitriones y revendedores activos: son los roles que pueden
+                  operar un negocio en la plataforma.
+                </p>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                El titular anterior conserva su acceso como miembro; deja de ser quien puede
+                editar la empresa.
+              </p>
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            color="primary"
+            onClick={confirmarTitularidad}
+            disabled={guardandoTitular || !nuevoTitular}
+          >
+            {guardandoTitular ? 'Transfiriendo...' : 'Transferir'}
+          </Button>
+          <Button color="secondary" onClick={() => setTransfiriendo(null)}>
             Cancelar
           </Button>
         </ModalFooter>

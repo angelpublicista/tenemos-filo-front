@@ -149,6 +149,8 @@ export interface ProtectedRouteProps {
 export interface Company {
   _id: string;
   _type: 'company';
+  /** Usuario titular. Es el único que puede editarla. */
+  ownerId?: string;
   companyName: string;
   slug: {
     current: string;

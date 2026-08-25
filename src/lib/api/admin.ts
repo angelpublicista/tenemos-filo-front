@@ -58,6 +58,18 @@ type ListParams = { page?: number; pageSize?: number; search?: string };
 export const listCompanies = (params: ListParams = {}): Promise<Paginated<AdminCompany>> =>
   api.list<AdminCompany>('/companies', { ...params });
 
+/**
+ * Cambia el titular de una empresa.
+ *
+ * El destinatario tiene que ser Anfitrión o Revendedor: son los dos roles
+ * que operan un negocio dentro de la plataforma. El API lo valida.
+ */
+export const transferirTitularidad = (companyId: string, ownerId: string) =>
+  api.patch<AdminCompany>(`/companies/${encodeURIComponent(companyId)}/owner`, { ownerId });
+
+/** Roles que pueden figurar como titulares de una empresa. */
+export const ROLES_TITULARES: ApiRole[] = ['HOST', 'RESELLER'];
+
 /** Empresa entre las que puede moverse quien llama (para el selector). */
 export type MiEmpresa = {
   id: string;
@@ -100,6 +112,20 @@ export type NewUser = {
 
 /** Alta manual. /auth/register es la via publica y no admite ADMIN/RESELLER. */
 export const createUser = (data: NewUser) => api.post<AdminUser>('/users', data);
+
+/** Datos del usuario que el admin puede corregir. */
+export type DatosUsuario = {
+  name?: string;
+  phone?: string | null;
+  documentType?: string | null;
+  documentNumber?: string | null;
+  role?: ApiRole;
+  /** Empresa en la que trabaja. null lo desvincula. */
+  companyId?: string | null;
+};
+
+export const actualizarUsuario = (id: string, datos: DatosUsuario) =>
+  api.patch<AdminUser>(`/users/${encodeURIComponent(id)}`, datos);
 
 export const updateUserRole = (id: string, role: ApiRole) =>
   api.patch<AdminUser>(`/users/${encodeURIComponent(id)}`, { role });

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { HiArrowLeft, HiCalendar, HiUsers, HiLocationMarker, HiMail, HiPhone, HiVideoCamera } from 'react-icons/hi';
-import type { BookingData } from '@/app/book/[slug]/page';
+import type { BookingData } from '@/components/BookingEngine/MotorReservas';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
 

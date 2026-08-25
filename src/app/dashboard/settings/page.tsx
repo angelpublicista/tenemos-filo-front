@@ -86,11 +86,27 @@ export default function SettingsPage() {
   // Un admin "actuando como" empresa usa las mismas pantallas que un
   // anfitrion. Sin empresa activa no tiene ajustes de empresa que tocar:
   // los suyos son los de la plataforma.
-  const operaComoEmpresa = !!sanityUser?.companyId;
+  //
+  // El revendedor queda fuera aunque tenga empresa: pertenece a ella como
+  // miembro, no como dueño, y el API le responde 403 a cualquier cambio.
+  // Ademas estos ajustes son de anfitrion — como entran las reservas, la
+  // marca del catalogo, las integraciones de calendario — y decidirlos le
+  // corresponde a quien opera esas experiencias, no a quien las revende.
+  const esReseller = sanityUser?.role === "reseller";
   const esAdminSinEmpresa = sanityUser?.role === "admin" && !sanityUser?.companyId;
   const [company, setCompany] = useState<Company | null>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [companyError, setCompanyError] = useState<string | null>(null);
+
+  // Un revendedor que ademas es titular de su empresa si la administra: su
+  // marca y su portada son lo que ve el cliente en su catalogo. El que solo
+  // es miembro de una empresa anfitriona, no: no es suya.
+  const esTitular = !!company && !!sanityUser?._id && company.ownerId === sanityUser._id;
+  const operaComoEmpresa = !!sanityUser?.companyId && (!esReseller || esTitular);
+  // Hay ajustes que solo tienen sentido con experiencias propias: como
+  // entran sus reservas, el calendario donde se agendan, su ficha en
+  // OpenTable. Un canal de venta no tiene ninguna de las tres.
+  const tieneExperienciasPropias = operaComoEmpresa && !esReseller;
 
   const [isEditingGeneral, setIsEditingGeneral] = useState(false);
   const [generalForm, setGeneralForm] = useState<GeneralFormState | null>(null);
@@ -737,6 +753,9 @@ export default function SettingsPage() {
 
             {/* Vinculo con OpenTable. Vive aqui, junto a la marca, porque es
                 otra forma en la que la empresa aparece hacia fuera. */}
+            {/* OpenTable distribuye experiencias propias: un canal de
+                venta no tiene ninguna que llevar alli. */}
+            {tieneExperienciasPropias && (
             <div className="mt-6 border-t border-gray-100 pt-6">
               <div className="grid gap-4 lg:grid-cols-3">
                 <div className="space-y-2 lg:col-span-1">
@@ -774,9 +793,11 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+            )}
           </section>
 
-          {/* Portada del catalogo */}
+          {/* Portada del catalogo. Tambien para un revendedor titular: es la
+            cabecera de su propio catalogo. */}
         <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -812,7 +833,8 @@ export default function SettingsPage() {
           />
         </section>
 
-        {/* Integraciones */}
+        {/* Integraciones: agendan las experiencias propias. */}
+        {tieneExperienciasPropias && (
           <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
@@ -843,8 +865,10 @@ export default function SettingsPage() {
               <HiArrowRight className="h-5 w-5 shrink-0 text-gray-400" />
             </Link>
           </section>
+        )}
 
-          {/* Operacion */}
+          {/* Operacion: solo aplica a quien tiene experiencias propias. */}
+          {tieneExperienciasPropias && (
           <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -908,6 +932,7 @@ export default function SettingsPage() {
               </div>
             </div>
           </section>
+          )}
 
           </>
         )}
@@ -931,6 +956,79 @@ export default function SettingsPage() {
               </Button>
               <Button color="secondary" href="/dashboard/admin/usuarios">
                 Usuarios
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {/* La empresa a la que pertenece el revendedor. Solo lectura: no es
+            suya, pero necesita saber a nombre de quien vende y a quien se le
+            liquidan sus comisiones. */}
+        {esReseller && (
+          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-[#334C5D]">Tu empresa</h2>
+              <p className="text-sm text-gray-500">
+                Vendes a nombre de esta empresa, y es a ella a la que se le liquidan tus
+                comisiones.
+              </p>
+            </div>
+
+            {loadingCompany ? (
+              <div className="h-10 w-full animate-pulse rounded bg-gray-100" />
+            ) : !company ? (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                Tu cuenta todavía no tiene una empresa asociada. Escríbenos para vincularla.
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Nombre comercial</Label>
+                      <TextInput readOnly value={company.companyName ?? ""} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label>Correo de contacto</Label>
+                      <TextInput readOnly value={company.companyEmail ?? "—"} className="mt-1" />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Teléfono</Label>
+                      <TextInput readOnly value={company.companyPhone ?? "—"} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label>Tu enlace de catálogo</Label>
+                      <TextInput readOnly value={`/r/${company.slug?.current ?? ""}`} className="mt-1" />
+                    </div>
+                  </div>
+                </div>
+
+                <p className="mt-4 text-xs text-gray-500">
+                  Estos datos los administra el titular de la empresa. Si algo está mal, pídele que
+                  lo corrija o escríbenos.
+                </p>
+              </>
+            )}
+          </section>
+        )}
+
+        {/* Lo que un revendedor si configura no vive aqui. */}
+        {esReseller && (
+          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-[#334C5D]">Tu canal de venta</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Los ajustes de una empresa anfitriona — cómo entran las reservas, su marca, sus
+              integraciones — los decide quien opera las experiencias. Lo tuyo está en estas dos
+              pantallas.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button color="primary" href="/dashboard/mi-catalogo">
+                Mi catálogo
+              </Button>
+              <Button color="secondary" href="/dashboard/api-keys">
+                Claves de API
               </Button>
             </div>
           </section>

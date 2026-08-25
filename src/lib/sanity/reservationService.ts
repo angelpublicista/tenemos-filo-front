@@ -379,6 +379,8 @@ export const createReservationManually = async (data: CreateManualReservationDat
 
 export interface CreatePublicReservationData {
   experience: string;
+  /** Slug del revendedor, si la reserva entra por su catálogo. */
+  reseller?: string;
   location?: string;
   reservationDate: string;
   participants: number;
@@ -400,6 +402,9 @@ export const createPublicReservation = async (
     method: 'POST',
     json: {
       experience: data.experience,
+      // Slug del revendedor cuando la reserva entra por su catalogo. El
+      // API lo valida y de el depende que se genere la comision.
+      ...(data.reseller ? { reseller: data.reseller } : {}),
       location: data.location,
       client: data.guestInfo,
       reservationDate: data.reservationDate,

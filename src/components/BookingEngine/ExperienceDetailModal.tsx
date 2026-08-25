@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { HiX, HiClock, HiUsers, HiLocationMarker, HiVideoCamera, HiCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
-import type { BookingExperience, BookingLocationAddress } from '@/app/book/[slug]/page';
+import type { BookingExperience, BookingLocationAddress } from '@/components/BookingEngine/MotorReservas';
 import { urlDeImagen } from '@/lib/images';
 
 const CATEGORY_LABEL: Record<string, string> = {

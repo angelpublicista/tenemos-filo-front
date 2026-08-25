@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import CalendarPicker from '@/components/CalendarPicker';
 import TimePicker from '@/components/TimePicker';
 import { HiArrowLeft, HiArrowRight, HiUsers } from 'react-icons/hi';
-import type { BookingExperience, BookingLocationAddress, SelectedAddon } from '@/app/book/[slug]/page';
+import type { BookingExperience, BookingLocationAddress, SelectedAddon } from '@/components/BookingEngine/MotorReservas';
 import type { AvailabilitySchedule } from '@/types';
 
 function formatPrice(price: number, currency: string) {

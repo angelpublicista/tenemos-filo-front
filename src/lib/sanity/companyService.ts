@@ -117,6 +117,7 @@ export function toCompany(c: ApiCompany): Company {
   return {
     _id: c.id,
     _type: 'company',
+    ownerId: c.ownerId,
     companyName: c.companyName,
     slug: { _type: 'slug', current: c.slug },
     businessName: c.businessName ?? undefined,

@@ -16,11 +16,41 @@ import { BiBuildingHouse, BiStore } from 'react-icons/bi';
 import { useState, useEffect } from 'react';
 import { getDashboardStats, getRecentActivities, DashboardStats, RecentActivity } from '@/lib/sanity/dashboardService';
 import { SkeletonStatCard, SkeletonActivityItem } from '@/components/Skeleton';
+import { getResumenIngresos, type ResumenIngresos } from '@/lib/api/earnings';
+import { listarMisReservas, ETIQUETA_ESTADO, type MiReserva } from '@/lib/api/misReservas';
+import Link from 'next/link';
+
+const pesos = (n: number) =>
+  new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(n);
 
 export default function Dashboard() {
   const { user, sanityUser, activeCompanyId } = useAuth();
   const { isSetupCompleted } = useCompanySetup();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [misReservas, setMisReservas] = useState<MiReserva[]>([]);
+  const esComensal = sanityUser?.role === 'guest';
+  const proximas = misReservas
+    .filter((r) => new Date(r.reservationDate).getTime() >= Date.now() && r.status !== 'CANCELLED')
+    .sort((a, b) => +new Date(a.reservationDate) - +new Date(b.reservationDate));
+
+  const [ingresosReseller, setIngresosReseller] = useState<ResumenIngresos | null>(null);
+  const esReseller = sanityUser?.role === 'reseller';
+  // Solo la fila de revendedor: si su empresa ademas es anfitriona, sus
+  // ingresos como tal no son cosa suya.
+  const totalesReseller = (ingresosReseller?.balances ?? [])
+    .filter((b) => b.role === 'RESELLER')
+    .reduce(
+      (acc, b) => ({
+        accrued: acc.accrued + b.accrued,
+        paid: acc.paid + b.paid,
+        pending: acc.pending + b.pending,
+      }),
+      { accrued: 0, paid: 0, pending: 0 },
+    );
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +60,43 @@ export default function Dashboard() {
       // El ADMIN no tiene empresa propia: pide las metricas de toda la
       // plataforma (sin companyId). El resto necesita su empresa.
       const esAdmin = sanityUser?.role === 'admin';
-      if (!sanityUser?.companyId && !esAdmin) {
+      const esComensal = sanityUser?.role === 'guest';
+      if (!sanityUser?.companyId && !esAdmin && !esComensal) {
         setIsLoading(false);
+        return;
+      }
+
+      // Un comensal no tiene empresa ni estadisticas de negocio: lo suyo
+      // son las reservas que ha hecho.
+      if (sanityUser?.role === 'guest') {
+        try {
+          setIsLoading(true);
+          setError(null);
+          setMisReservas(await listarMisReservas());
+        } catch (err) {
+          console.error('Error cargando las reservas del comensal:', err);
+          setError('No se pudieron cargar tus reservas.');
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      // Un revendedor pertenece a una empresa anfitriona pero no la opera.
+      // /dashboard/stats le responde 403, y aunque respondiera le estaria
+      // enseñando las experiencias y los ingresos de otro. Lo suyo son sus
+      // comisiones, que vienen de /payouts/me.
+      if (sanityUser?.role === 'reseller') {
+        try {
+          setIsLoading(true);
+          setError(null);
+          setIngresosReseller(await getResumenIngresos());
+        } catch (err) {
+          console.error('Error cargando los ingresos del revendedor:', err);
+          setError('No se pudieron cargar tus comisiones.');
+        } finally {
+          setIsLoading(false);
+        }
         return;
       }
 
@@ -223,6 +288,124 @@ export default function Dashboard() {
           hasCompanyId={!!sanityUser?.companyId}
         />
 
+        {/* Panel del comensal: lo que ha reservado. */}
+        {esComensal ? (
+          <>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800">{error}</p>
+              </div>
+            )}
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  Tus próximas reservas
+                </h2>
+                <Link
+                  href="/dashboard/mis-reservas"
+                  className="text-sm text-[#F26726] hover:underline"
+                >
+                  Ver todas
+                </Link>
+              </div>
+
+              {isLoading ? (
+                <p className="text-sm text-gray-500">Cargando...</p>
+              ) : proximas.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="text-gray-600 dark:text-gray-300">
+                    No tienes ninguna reserva próxima.
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Cuando reserves una experiencia la verás aquí.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {proximas.slice(0, 3).map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-100 dark:border-gray-700 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                          {r.experience?.title ?? 'Experiencia'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(r.reservationDate).toLocaleDateString('es-CO', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                          })}{' '}
+                          · {r.company?.companyName}
+                        </p>
+                      </div>
+                      <span className="text-xs text-gray-500">{ETIQUETA_ESTADO[r.status]}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        ) : esReseller ? (
+          // Panel del revendedor: sus comisiones, no las de la empresa
+          // anfitriona a la que pertenece.
+          <>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800">{error}</p>
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-3 mb-4">
+              {[
+                { titulo: 'Comisiones generadas', valor: totalesReseller.accrued },
+                { titulo: 'Ya recibido', valor: totalesReseller.paid },
+                { titulo: 'Por recibir', valor: totalesReseller.pending, destacar: true },
+              ].map((t) => (
+                <div
+                  key={t.titulo}
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4"
+                >
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{t.titulo}</p>
+                  <p
+                    className={`text-2xl font-bold ${
+                      t.destacar ? 'text-[#F26726]' : 'text-gray-900 dark:text-gray-100'
+                    }`}
+                  >
+                    {isLoading ? '—' : pesos(t.valor)}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                Vender desde tu plataforma
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Crea una clave de API y conecta tu sistema. Cada reserva que hagas con ella se te
+                atribuye y genera comisión.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/dashboard/api-keys"
+                  className="px-4 py-2 rounded-full bg-[#F26726] text-white text-sm font-medium hover:bg-[#E05617] transition-colors"
+                >
+                  Claves de API
+                </Link>
+                <Link
+                  href="/dashboard/ingresos"
+                  className="px-4 py-2 rounded-full border border-gray-300 text-[#334C5D] text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Ver mis comisiones
+                </Link>
+              </div>
+            </div>
+          </>
+        ) : (
+        <>
         {/* Stats Grid */}
         {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -338,6 +521,9 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        </>
+        )}
 
         {/* User Info Card */}
         <div className="mt-4 bg-gradient-to-r from-[#f26726] to-[#f26726]/80 rounded-lg p-4 text-white">

@@ -29,3 +29,23 @@ export const getPublicCatalog = async (
     paymentsEnabled: Boolean(data.paymentsEnabled),
   };
 };
+
+/**
+ * Catálogo de un revendedor: las experiencias activas de toda la
+ * plataforma, no las de una empresa concreta.
+ *
+ * La empresa que devuelve es la del revendedor, para que su catálogo salga
+ * con su marca aunque las experiencias sean de otros.
+ */
+export const getResellerCatalog = async (
+  slugOrId: string,
+): Promise<{ company: Company; experiences: Experience[]; paymentsEnabled: boolean }> => {
+  const data = await api.get<RespuestaCatalogo>(
+    `/public/reseller/${encodeURIComponent(slugOrId)}`,
+  );
+  return {
+    company: toCompany(data.company),
+    experiences: (data.experiences ?? []).map(toExperience),
+    paymentsEnabled: Boolean(data.paymentsEnabled),
+  };
+};

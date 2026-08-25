@@ -20,7 +20,7 @@ import {
   BiChevronRight,
   BiX
 } from 'react-icons/bi';
-import { HiOutlineCash, HiOutlineDocumentText, HiOutlineGlobeAlt } from 'react-icons/hi';
+import { HiOutlineCash, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -45,6 +45,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // seccion de Administracion.
   const esAdminSinEmpresa = sanityUser?.role === 'admin' && !activeCompanyId;
 
+  // Un revendedor pertenece a una empresa, pero no la opera: no tiene
+  // experiencias, ni sedes, ni reservas que gestionar. Enseñarle esas
+  // pantallas le muestra datos de un anfitrion que no es el, o le da un
+  // 403. Lo suyo son sus comisiones y sus claves de API.
+  const esReseller = sanityUser?.role === 'reseller';
+
+  // Un comensal solo reserva. El menu de anfitrion no le sirve: la mitad
+  // de esas pantallas le responden 403 y la otra mitad le enseña datos de
+  // empresas que no son suyas.
+  const esComensal = sanityUser?.role === 'guest';
+
   type NavItem =
     | { type: 'section'; name: string }
     | { type: 'divider' }
@@ -65,7 +76,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       current: pathname === '/dashboard',
       enabled: true
     },
-    ...(operaComoEmpresa ? [
+    ...(operaComoEmpresa && !esReseller ? [
       {
         name: 'Mis Sedes',
         href: '/dashboard/locations',
@@ -81,7 +92,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       }
     ] as NavItem[] : []),
-    ...(!esAdminSinEmpresa ? [
+    ...(esComensal ? [
+      {
+        name: 'Mis reservas',
+        href: '/dashboard/mis-reservas',
+        icon: AiOutlineCalendar,
+        current: pathname === '/dashboard/mis-reservas',
+        enabled: true
+      }
+    ] as NavItem[] : []),
+    ...(!esAdminSinEmpresa && !esReseller && !esComensal ? [
       {
         name: 'Mis Experiencias',
         href: '/dashboard/experiences',
@@ -119,12 +139,43 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       }
     ] as NavItem[] : []),
-    ...(operaComoEmpresa ? [
+    ...(operaComoEmpresa && !esReseller ? [
       {
         name: 'CRM',
         href: '/dashboard/crm',
         icon: HiOutlineDocumentText,
         current: pathname?.startsWith('/dashboard/crm') ?? false,
+        enabled: true
+      }
+    ] as NavItem[] : []),
+    ...(esReseller ? [
+      {
+        name: 'Mi catálogo',
+        href: '/dashboard/mi-catalogo',
+        icon: AiOutlineShareAlt,
+        current: pathname === '/dashboard/mi-catalogo',
+        enabled: true
+      },
+      {
+        name: 'Mis ingresos',
+        href: '/dashboard/ingresos',
+        icon: HiOutlineCash,
+        current: pathname === '/dashboard/ingresos',
+        enabled: true
+      }
+    ] as NavItem[] : []),
+    // Canales de venta. Un revendedor no gestiona experiencias ni sedes:
+    // lo suyo es integrarse, y hasta ahora no tenia ninguna pantalla.
+    // Las claves pertenecen a una empresa. El admin en modo plataforma no
+    // tiene ninguna, y el API le responde 403: hay que seleccionar antes
+    // una empresa en el selector de arriba.
+    ...(esReseller || (sanityUser?.role === 'admin' && !!activeCompanyId) ? [
+      { type: 'section', name: 'Integración' },
+      {
+        name: 'Claves de API',
+        href: '/dashboard/api-keys',
+        icon: HiOutlineKey,
+        current: pathname === '/dashboard/api-keys',
         enabled: true
       }
     ] as NavItem[] : []),
@@ -182,7 +233,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       current: pathname === '/dashboard/profile',
       enabled: true
     },
-    ...(operaComoEmpresa ? [
+    ...(operaComoEmpresa && !esReseller ? [
       {
         name: 'Mi Empresa',
         href: '/dashboard/company',

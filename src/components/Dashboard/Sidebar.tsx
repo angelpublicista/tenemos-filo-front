@@ -166,10 +166,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     ] as NavItem[] : []),
     // Canales de venta. Un revendedor no gestiona experiencias ni sedes:
     // lo suyo es integrarse, y hasta ahora no tenia ninguna pantalla.
-    // Las claves pertenecen a una empresa. El admin en modo plataforma no
-    // tiene ninguna, y el API le responde 403: hay que seleccionar antes
-    // una empresa en el selector de arriba.
-    ...(esReseller || (sanityUser?.role === 'admin' && !!activeCompanyId) ? [
+    //
+    // El admin entra siempre, opere o no como empresa: la clave cuelga de
+    // una empresa, pero desde la pantalla elige cual. Antes se le ocultaba
+    // la entrada por no tener empresa propia, y no habia forma de llegar.
+    ...(esReseller || sanityUser?.role === 'admin' ? [
       { type: 'section', name: 'Integración' },
       {
         name: 'Claves de API',

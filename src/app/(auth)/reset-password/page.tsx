@@ -194,12 +194,12 @@ function NewPasswordForm({ token, invitacion }: { token: string; invitacion: boo
       <form onSubmit={handleSubmit} className="w-full space-y-4">
         <div className="flex flex-col w-full space-y-2">
           <Label color="gray" className="w-full">
-            Contraseña nueva
+            {invitacion ? "Contraseña" : "Contraseña nueva"}
           </Label>
           <TextInput
             type="password"
             color="white"
-            placeholder="Contraseña nueva"
+            placeholder={invitacion ? "Contraseña" : "Contraseña nueva"}
             className="w-full"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -230,7 +230,7 @@ function NewPasswordForm({ token, invitacion }: { token: string; invitacion: boo
 
         <div className="flex flex-col w-full space-y-2">
           <Button type="submit" fullSized className="w-full" color="primary" disabled={loading}>
-            {loading ? "Guardando..." : "Cambiar contraseña"}
+            {loading ? "Guardando..." : invitacion ? "Guardar y entrar" : "Cambiar contraseña"}
           </Button>
         </div>
       </form>

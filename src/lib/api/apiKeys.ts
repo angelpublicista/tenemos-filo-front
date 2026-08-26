@@ -14,6 +14,8 @@ export type ApiKey = {
   expiresAt: string | null;
   revokedAt: string | null;
   createdAt: string;
+  /** Solo lo devuelve el API a un admin: ve claves de varias empresas. */
+  company?: { id: string; companyName: string } | null;
 };
 
 /** Solo al crearla llega `token`; despues no hay forma de recuperarlo. */
@@ -69,8 +71,17 @@ export const PERMISOS: Array<{
 
 export const listarApiKeys = () => api.get<ApiKey[]>('/api-keys');
 
-export const crearApiKey = (datos: { name: string; scopes: string[]; expiresAt?: string }) =>
-  api.post<ApiKeyRecienCreada>('/api-keys', datos);
+export const crearApiKey = (datos: {
+  name: string;
+  scopes: string[];
+  expiresAt?: string;
+  /**
+   * A que empresa se atribuyen las ventas hechas con esta clave. Solo lo
+   * respeta el API si quien llama es ADMIN; a los demas se les ignora y se
+   * usa la suya.
+   */
+  companyId?: string;
+}) => api.post<ApiKeyRecienCreada>('/api-keys', datos);
 
 /** Revoca la clave. No se borra: queda en el listado como revocada. */
 export const revocarApiKey = (id: string) =>

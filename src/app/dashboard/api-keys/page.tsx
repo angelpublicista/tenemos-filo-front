@@ -9,6 +9,7 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
+  Select,
   TextInput,
 } from 'flowbite-react';
 import { HiClipboardCopy, HiExclamationCircle, HiExternalLink, HiKey } from 'react-icons/hi';
@@ -16,7 +17,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable from '@/components/Admin/AdminTable';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
-import { ApiHttpError } from '@/lib/api/client';
+import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
+import { listCompanies, type AdminCompany } from '@/lib/api/admin';
 import {
   crearApiKey,
   listarApiKeys,
@@ -59,6 +61,12 @@ export default function ApiKeysPage() {
   const [reciencreada, setRecienCreada] = useState<ApiKeyRecienCreada | null>(null);
   const [copiado, setCopiado] = useState(false);
 
+  // Un admin no tiene empresa propia, pero la clave tiene que colgar de una:
+  // es lo que identifica a quien se le atribuyen las ventas. Por eso elige.
+  const esAdmin = sanityUser?.role === 'admin';
+  const [empresas, setEmpresas] = useState<AdminCompany[]>([]);
+  const [empresaElegida, setEmpresaElegida] = useState('');
+
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
@@ -68,17 +76,18 @@ export default function ApiKeysPage() {
       // El API responde 403 cuando la cuenta no tiene empresa asociada. No
       // es un fallo: es que falta un paso previo, y conviene decirlo asi.
       if (err instanceof ApiHttpError && err.status === 403) {
-        setSinEmpresa(true);
+        // Para un admin no es un bloqueo: elige la empresa al crear.
+        setSinEmpresa(!esAdmin);
       } else if (err instanceof ApiHttpError && err.status === 401) {
         // Sesion caducada: ProtectedRoute ya esta mandando al login. Un
         // aviso de error encima solo estorbaria.
       } else {
-        showError('No se pudieron cargar las claves', err instanceof Error ? err.message : undefined);
+        showError('No se pudieron cargar las claves', mensajeDeError(err));
       }
     } finally {
       setCargando(false);
     }
-  }, [showError]);
+  }, [showError, esAdmin]);
 
   useEffect(() => {
     // Sin sesion no se pide nada: la peticion fallaria con 401 justo antes
@@ -86,16 +95,28 @@ export default function ApiKeysPage() {
     // le dice nada.
     if (!sanityUser) return;
     void cargar();
-  }, [cargar, sanityUser]);
+    if (esAdmin && empresas.length === 0) {
+      void listCompanies({ pageSize: 100 })
+        .then(({ items }) => setEmpresas(items.filter((e) => !e.deletedAt)))
+        // Sin la lista no se puede elegir, pero el resto de la pantalla
+        // sigue sirviendo para consultar y revocar.
+        .catch(() => undefined);
+    }
+  }, [cargar, sanityUser, esAdmin, empresas.length]);
 
   const alternarScope = (scope: string) =>
     setScopes((prev) => (prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]));
 
   const crear = async () => {
     if (!nombre.trim() || scopes.length === 0) return;
+    if (esAdmin && !empresaElegida) return;
     setGuardando(true);
     try {
-      const creada = await crearApiKey({ name: nombre.trim(), scopes });
+      const creada = await crearApiKey({
+        name: nombre.trim(),
+        scopes,
+        ...(esAdmin && empresaElegida ? { companyId: empresaElegida } : {}),
+      });
       setCreando(false);
       setNombre('');
       setScopes(['experiences:read']);
@@ -103,7 +124,7 @@ export default function ApiKeysPage() {
       setRecienCreada(creada);
       await cargar();
     } catch (err) {
-      showError('No se pudo crear la clave', err instanceof Error ? err.message : undefined);
+      showError('No se pudo crear la clave', mensajeDeError(err));
     } finally {
       setGuardando(false);
     }
@@ -131,7 +152,7 @@ export default function ApiKeysPage() {
       showSuccess('Clave revocada', `"${k.name}" ya no da acceso al API.`);
       await cargar();
     } catch (err) {
-      showError('No se pudo revocar', err instanceof Error ? err.message : undefined);
+      showError('No se pudo revocar', mensajeDeError(err));
     }
   };
 
@@ -195,10 +216,14 @@ export default function ApiKeysPage() {
           </Card>
 
           <AdminTable
-            columnas={['Clave', 'Permisos', 'Último uso', 'Estado', '']}
+            columnas={
+              esAdmin
+                ? ['Clave', 'Empresa', 'Permisos', 'Último uso', 'Estado', '']
+                : ['Clave', 'Permisos', 'Último uso', 'Estado', '']
+            }
             cargando={cargando}
             vacio={claves.length === 0}
-            mensajeVacio="Todavía no has creado ninguna clave."
+            mensajeVacio={esAdmin ? "Todavía no hay ninguna clave emitida." : "Todavía no has creado ninguna clave."}
           >
             {claves.map((k) => {
               const estado = estadoDe(k);
@@ -208,6 +233,11 @@ export default function ApiKeysPage() {
                     <div className="font-medium text-gray-900">{k.name}</div>
                     <code className="text-xs text-gray-500">{k.prefix}…</code>
                   </td>
+                  {esAdmin && (
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {k.company?.companyName ?? '—'}
+                    </td>
+                  )}
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       {k.scopes.map((s) => (
@@ -247,6 +277,28 @@ export default function ApiKeysPage() {
         <ModalHeader>Crear una clave</ModalHeader>
         <ModalBody>
           <div className="space-y-5">
+            {esAdmin && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  Empresa *
+                </label>
+                <Select
+                  value={empresaElegida}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEmpresaElegida(e.target.value)}
+                >
+                  <option value="">Elige una empresa…</option>
+                  {empresas.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.companyName}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Las reservas hechas con esta clave se atribuyen a esta empresa y su
+                  comisión se le liquida.
+                </p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
               <TextInput
@@ -316,7 +368,7 @@ export default function ApiKeysPage() {
           <Button
             color="primary"
             onClick={crear}
-            disabled={guardando || !nombre.trim() || scopes.length === 0}
+            disabled={guardando || !nombre.trim() || scopes.length === 0 || (esAdmin && !empresaElegida)}
           >
             {guardando ? 'Creando...' : 'Crear clave'}
           </Button>

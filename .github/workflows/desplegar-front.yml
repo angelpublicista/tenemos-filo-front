@@ -70,20 +70,39 @@ jobs:
           echo "tamaño del paquete: $(du -h front.tar.gz | cut -f1)"
 
       - name: Preparar el acceso SSH
+        env:
+          HOST_CRUDO: ${{ secrets.SSH_HOST }}
+          LLAVE: ${{ secrets.SSH_LLAVE_DESPLIEGUE }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_LLAVE_DESPLIEGUE }}" > ~/.ssh/despliegue
+          printf '%s\n' "$LLAVE" > ~/.ssh/despliegue
           chmod 600 ~/.ssh/despliegue
-          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # El secreto se pega a mano, asi que se normaliza en vez de confiar
+          # en que venga limpio: un salto de linea, un "https://" o el propio
+          # "ubuntu@" delante hacen que scp falle con "hostname contains
+          # invalid characters", que no dice donde esta el problema.
+          HOST=$(printf '%s' "$HOST_CRUDO" \
+            | tr -d '[:space:]' \
+            | sed -E 's#^[a-zA-Z]+://##; s#/+$##; s#^.*@##')
+
+          if [ -z "$HOST" ]; then
+            echo "El secreto SSH_HOST esta vacio o no es un host valido." >&2
+            exit 1
+          fi
+          echo "Desplegando en: $HOST"
+          echo "HOST=$HOST" >> "$GITHUB_ENV"
+
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Subir el paquete
         run: |
-          scp -i ~/.ssh/despliegue front.tar.gz \
-            "$USUARIO_REMOTO@${{ secrets.SSH_HOST }}:/tmp/front-${{ github.sha }}.tar.gz"
+          scp -i ~/.ssh/despliegue -o StrictHostKeyChecking=accept-new front.tar.gz \
+            "$USUARIO_REMOTO@$HOST:/tmp/front-${{ github.sha }}.tar.gz"
 
       - name: Publicar en la instancia
         run: |
-          ssh -i ~/.ssh/despliegue "$USUARIO_REMOTO@${{ secrets.SSH_HOST }}" \
+          ssh -i ~/.ssh/despliegue -o StrictHostKeyChecking=accept-new "$USUARIO_REMOTO@$HOST" \
             "RUTA='$RUTA_REMOTA' SHA='${{ github.sha }}' bash -s" <<'REMOTO'
           set -euo pipefail
 

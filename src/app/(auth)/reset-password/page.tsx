@@ -119,7 +119,7 @@ function RequestLinkForm() {
 /**
  * Modo 2 (con ?token): fijar la contraseña nueva.
  */
-function NewPasswordForm({ token }: { token: string }) {
+function NewPasswordForm({ token, invitacion }: { token: string; invitacion: boolean }) {
   const { confirmPasswordReset } = useAuth();
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -163,9 +163,11 @@ function NewPasswordForm({ token }: { token: string }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900">¡Contraseña actualizada!</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {invitacion ? "¡Cuenta lista!" : "¡Contraseña actualizada!"}
+          </h2>
           <p className="text-sm text-gray-600">
-            Ya puedes iniciar sesión con tu contraseña nueva. Te llevamos al inicio de sesión...
+            Ya puedes iniciar sesión con tu contraseña. Te llevamos al inicio de sesión...
           </p>
         </div>
 
@@ -180,9 +182,13 @@ function NewPasswordForm({ token }: { token: string }) {
 
   return (
     <div className="flex flex-col items-center justify-center max-w-md w-full space-y-4">
-      <h2 className="text-xl font-semibold text-gray-900">Nueva contraseña</h2>
+      <h2 className="text-xl font-semibold text-gray-900">
+        {invitacion ? "Elige tu contraseña" : "Nueva contraseña"}
+      </h2>
       <p className="text-sm text-gray-600 text-center">
-        Elige una contraseña nueva para tu cuenta.
+        {invitacion
+          ? "Tu cuenta ya está creada. Elige una contraseña para entrar."
+          : "Elige una contraseña nueva para tu cuenta."}
       </p>
 
       <form onSubmit={handleSubmit} className="w-full space-y-4">
@@ -242,8 +248,13 @@ function NewPasswordForm({ token }: { token: string }) {
 function ResetPasswordContent() {
   // El correo de recuperacion apunta a /reset-password?token=...
   // Lo compone y envia el API (src/lib/email.ts alli).
-  const token = useSearchParams().get("token");
-  return token ? <NewPasswordForm token={token} /> : <RequestLinkForm />;
+  const params = useSearchParams();
+  const token = params.get("token");
+  // Solo cambia lo que dice la pantalla: el token es el mismo en ambos casos,
+  // asi que si el parametro se pierde por el camino se vera el texto de
+  // recuperacion y la contraseña se podra fijar igualmente.
+  const invitacion = params.get("invitacion") === "1";
+  return token ? <NewPasswordForm token={token} invitacion={invitacion} /> : <RequestLinkForm />;
 }
 
 export default function ResetPassword() {

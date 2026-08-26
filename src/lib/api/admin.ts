@@ -2,7 +2,7 @@
 //
 // El API ya restringe estas rutas por rol; esto es la capa de datos que
 // consumen las pantallas de /dashboard/admin.
-import { aNumero, api, apiEnvelope, type Paginated } from './client';
+import { aNumero, api, apiEnvelope, apiPostEnvelope, type Paginated } from './client';
 import type { SanityUser } from '@/types';
 
 export type ApiRole = 'HOST' | 'GUEST' | 'ADMIN' | 'RESELLER';
@@ -103,15 +103,25 @@ export const listUsers = (params: ListParams & { role?: ApiRole } = {}): Promise
 
 export type NewUser = {
   email: string;
-  password: string;
   name?: string;
   role: ApiRole;
   phone?: string;
   companyId?: string;
+  /**
+   * Normalmente no se manda: sin contraseña, el API crea la cuenta vacia y
+   * envia una invitacion para que su titular elija la suya. Solo se usa en
+   * casos puntuales donde no hay nadie a quien invitar.
+   */
+  password?: string;
 };
 
 /** Alta manual. /auth/register es la via publica y no admite ADMIN/RESELLER. */
-export const createUser = (data: NewUser) => api.post<AdminUser>('/users', data);
+export const createUser = (data: NewUser) =>
+  apiPostEnvelope<AdminUser, { invitacionEnviada?: boolean }>('/users', data);
+
+/** Reenviar la invitacion: emite un enlace nuevo e invalida el anterior. */
+export const reenviarInvitacion = (id: string) =>
+  api.post<{ invitacionEnviada: boolean }>(`/users/${encodeURIComponent(id)}/invite`);
 
 /** Datos del usuario que el admin puede corregir. */
 export type DatosUsuario = {

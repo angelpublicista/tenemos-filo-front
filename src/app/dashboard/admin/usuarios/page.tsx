@@ -11,7 +11,7 @@ import {
   Select,
   TextInput,
 } from 'flowbite-react';
-import { HiSearch, HiBan, HiRefresh, HiTrash, HiPlus , HiPencilAlt } from 'react-icons/hi';
+import { HiSearch, HiBan, HiRefresh, HiTrash, HiPlus, HiPencilAlt, HiMail } from 'react-icons/hi';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable, { AdminHeader } from '@/components/Admin/AdminTable';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -19,6 +19,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
   listUsers,
   createUser,
+  reenviarInvitacion,
   updateUserRole,
   setUserActive,
   deleteUser,
@@ -129,18 +130,37 @@ export default function AdminUsuariosPage() {
   }, [cargar]);
 
   const crear = async () => {
-    if (!nuevo.email.trim() || nuevo.password.length < 8) return;
+    if (!nuevo.email.trim()) return;
     setGuardando(true);
     try {
-      await createUser({ ...nuevo, name: nuevo.name?.trim() || undefined });
-      showSuccess('Usuario creado', `${nuevo.email} ya puede iniciar sesión.`);
+      const { meta } = await createUser({ ...nuevo, name: nuevo.name?.trim() || undefined });
+      // Se dice lo que realmente ocurrio. Si el correo no salio, anunciar
+      // "le enviamos una invitación" dejaria al admin esperando a alguien
+      // que nunca va a entrar.
+      if (meta?.invitacionEnviada) {
+        showSuccess('Usuario creado', `Le enviamos a ${nuevo.email} un enlace para elegir su contraseña.`);
+      } else {
+        showError(
+          'Usuario creado, pero sin invitación',
+          'No se pudo enviar el correo. Reenvíalo desde la lista cuando esté resuelto.',
+        );
+      }
       setCreando(false);
-      setNuevo({ email: '', password: '', name: '', role: 'GUEST' });
+      setNuevo({ email: '', name: '', role: 'GUEST' });
       await cargar();
     } catch (err) {
       showError('No se pudo crear el usuario', err instanceof Error ? err.message : undefined);
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const reinvitar = async (u: AdminUser) => {
+    try {
+      await reenviarInvitacion(u.id);
+      showSuccess('Invitación reenviada', `Enlace nuevo enviado a ${u.email}.`);
+    } catch (err) {
+      showError('No se pudo reenviar', err instanceof Error ? err.message : undefined);
     }
   };
 
@@ -241,6 +261,10 @@ export default function AdminUsuariosPage() {
         <ModalHeader>Nuevo usuario</ModalHeader>
         <ModalBody>
           <div className="space-y-3">
+            <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              No tienes que elegir su contraseña. Al crear la cuenta le llega un correo con
+              un enlace para que ponga la suya; caduca en 7 días.
+            </p>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Correo *</label>
               <TextInput
@@ -259,18 +283,6 @@ export default function AdminUsuariosPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
-              <TextInput
-                type="password"
-                value={nuevo.password}
-                onChange={(e) => setNuevo({ ...nuevo, password: e.target.value })}
-                placeholder="Mínimo 8 caracteres"
-              />
-              {nuevo.password.length > 0 && nuevo.password.length < 8 && (
-                <p className="text-xs text-red-600 mt-1">La contraseña debe tener al menos 8 caracteres</p>
-              )}
-            </div>
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
               <Select
                 value={nuevo.role}
@@ -286,12 +298,8 @@ export default function AdminUsuariosPage() {
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button
-            color="primary"
-            onClick={crear}
-            disabled={guardando || !nuevo.email.trim() || nuevo.password.length < 8}
-          >
-            {guardando ? 'Creando...' : 'Crear usuario'}
+          <Button color="primary" onClick={crear} disabled={guardando || !nuevo.email.trim()}>
+            {guardando ? 'Creando...' : 'Crear e invitar'}
           </Button>
           <Button color="light" onClick={() => setCreando(false)}>
             Cancelar
@@ -348,6 +356,15 @@ export default function AdminUsuariosPage() {
                 <div className="flex gap-2">
                   <Button size="xs" color="light" onClick={() => abrirEdicion(u)} title="Editar">
                     <HiPencilAlt className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="xs"
+                    color="light"
+                    onClick={() => reinvitar(u)}
+                    disabled={!u.isActive}
+                    title="Reenviar invitación para elegir contraseña"
+                  >
+                    <HiMail className="w-4 h-4" />
                   </Button>
                   <Button
                     size="xs"

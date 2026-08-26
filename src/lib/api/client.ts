@@ -110,6 +110,22 @@ export async function apiEnvelope<T>(path: string, query?: Query): Promise<Envel
   return request<T>(path, { method: "GET", query });
 }
 
+/**
+ * POST que conserva el `meta`, que apiFetch descarta.
+ *
+ * Lo usa el alta de usuarios: la respuesta trae si la invitacion llego a
+ * enviarse, y eso no cabe dentro del usuario creado.
+ */
+export async function apiPostEnvelope<T, M = Record<string, unknown>>(
+  path: string,
+  json?: unknown,
+): Promise<{ data: T; meta: M | undefined }> {
+  const payload = (await request<T>(path, { method: "POST", json })) as
+    | (Envelope<T> & { meta?: M })
+    | null;
+  return { data: payload?.data as T, meta: payload?.meta };
+}
+
 export type Paginated<T> = { items: T[]; total: number };
 
 /**

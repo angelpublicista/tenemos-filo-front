@@ -66,3 +66,6 @@ next-env.d.ts
 /.claude/
 SECURITY_INCIDENT_REPORT.md
 *md
+
+# Artefactos del empaquetado para el despliegue
+/paquete

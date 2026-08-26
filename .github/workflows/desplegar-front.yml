@@ -1,0 +1,132 @@
+# Compila el front en GitHub y entrega el resultado a la instancia.
+#
+# La instancia tiene 908 MB de RAM: compilar Next.js alli la ahoga. Aqui se
+# compila con holgura y solo aterriza el paquete autocontenido, que son unos
+# 77 MB frente a los ~918 MB de node_modules.
+name: Desplegar front
+
+on:
+  push:
+    branches: [main]
+  # Permite lanzarlo a mano desde la pestaña Actions.
+  workflow_dispatch:
+
+# Si se empujan dos commits seguidos, el segundo cancela al primero: no tiene
+# sentido desplegar una version que ya quedo obsoleta mientras se construia.
+concurrency:
+  group: desplegar-front
+  cancel-in-progress: true
+
+env:
+  RUTA_REMOTA: /srv/tenemosfilo-front
+  USUARIO_REMOTO: ubuntu
+
+  # ─── Variables incrustadas al compilar ───────────────────────────────────
+  # Todo lo que lleva NEXT_PUBLIC_ acaba dentro del JavaScript que descarga
+  # el navegador: es publico por construccion. Guardarlo en "secrets" daria
+  # una falsa sensacion de proteccion, asi que va a la vista.
+  #
+  NEXT_PUBLIC_API_URL: https://api.tenemosfilo.com
+  NEXT_PUBLIC_APP_URL: https://app.tenemosfilo.com
+  NEXT_PUBLIC_RECAPTCHA_SITE_KEY: 6LcDM9wrAAAAADhPLZSTqY2h11oSdbSG71A3U8iA
+  NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyDxFb8CjaarF4brBpcbgos9ahBK3okg9y8
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: tenemos-filo-app.firebaseapp.com
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: tenemos-filo-app
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: tenemos-filo-app.firebasestorage.app
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '456146876565'
+  NEXT_PUBLIC_FIREBASE_APP_ID: '1:456146876565:web:d4c57447f8a1d4901ac39c'
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar
+        run: npm run build
+
+      - name: Empaquetar la salida autocontenida
+        run: |
+          # El paquete standalone no incluye ni los assets estaticos ni
+          # public/: Next espera que se copien al lado. Sin esto el sitio
+          # levanta pero sale sin estilos ni imagenes.
+          mkdir -p paquete
+          cp -r .next/standalone/. paquete/
+          mkdir -p paquete/.next
+          cp -r .next/static paquete/.next/static
+          [ -d public ] && cp -r public paquete/public
+          cp ecosystem.config.js paquete/
+          tar -czf front.tar.gz -C paquete .
+          echo "tamaño del paquete: $(du -h front.tar.gz | cut -f1)"
+
+      - name: Preparar el acceso SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_LLAVE_DESPLIEGUE }}" > ~/.ssh/despliegue
+          chmod 600 ~/.ssh/despliegue
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Subir el paquete
+        run: |
+          scp -i ~/.ssh/despliegue front.tar.gz \
+            "$USUARIO_REMOTO@${{ secrets.SSH_HOST }}:/tmp/front-${{ github.sha }}.tar.gz"
+
+      - name: Publicar en la instancia
+        run: |
+          ssh -i ~/.ssh/despliegue "$USUARIO_REMOTO@${{ secrets.SSH_HOST }}" \
+            "RUTA='$RUTA_REMOTA' SHA='${{ github.sha }}' bash -s" <<'REMOTO'
+          set -euo pipefail
+
+          NUEVA="$RUTA/releases/$SHA"
+          rm -rf "$NUEVA" && mkdir -p "$NUEVA"
+          tar -xzf "/tmp/front-$SHA.tar.gz" -C "$NUEVA"
+          rm -f "/tmp/front-$SHA.tar.gz"
+
+          # El cambio de enlace es lo unico que ve el proceso: hasta aqui, la
+          # version anterior sigue atendiendo con normalidad.
+          ln -sfn "$NUEVA" "$RUTA/current"
+
+          cd "$RUTA"
+          # startOrReload relee el ecosystem: hace falta para que PM2 resuelva
+          # de nuevo el enlace `current` y no siga sirviendo el anterior.
+          pm2 startOrReload "$NUEVA/ecosystem.config.js" --update-env
+          pm2 save --force
+
+          # Comprobar que responde de verdad antes de dar el despliegue por
+          # bueno. Si no levanta, se vuelve a la version anterior.
+          ok=0
+          for i in $(seq 1 15); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3000/; then ok=1; break; fi
+            sleep 2
+          done
+
+          if [ "$ok" != "1" ]; then
+            echo "La version nueva no responde. Volviendo a la anterior."
+            ANTERIOR=$(ls -1dt "$RUTA"/releases/*/ 2>/dev/null | sed -n 2p)
+            if [ -n "$ANTERIOR" ]; then
+              ln -sfn "${ANTERIOR%/}" "$RUTA/current"
+              pm2 startOrReload "${ANTERIOR%/}/ecosystem.config.js" --update-env
+            fi
+            exit 1
+          fi
+
+          # Conservar solo las tres ultimas: el disco es de 6,7 GB.
+          ls -1dt "$RUTA"/releases/*/ | tail -n +4 | xargs -r rm -rf
+          echo "Publicado $SHA"
+          REMOTO
+
+      - name: Comprobar desde fuera
+        run: |
+          codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://app.tenemosfilo.com/)
+          echo "https://app.tenemosfilo.com/ -> $codigo"
+          [ "$codigo" = "200" ] || exit 1

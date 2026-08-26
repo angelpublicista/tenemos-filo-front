@@ -9,7 +9,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Select,
   TextInput,
 } from 'flowbite-react';
 import { HiClipboardCopy, HiExclamationCircle, HiExternalLink, HiKey } from 'react-icons/hi';
@@ -18,7 +17,6 @@ import AdminTable from '@/components/Admin/AdminTable';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
-import { listCompanies, type AdminCompany } from '@/lib/api/admin';
 import {
   crearApiKey,
   listarApiKeys,
@@ -61,11 +59,10 @@ export default function ApiKeysPage() {
   const [reciencreada, setRecienCreada] = useState<ApiKeyRecienCreada | null>(null);
   const [copiado, setCopiado] = useState(false);
 
-  // Un admin no tiene empresa propia, pero la clave tiene que colgar de una:
-  // es lo que identifica a quien se le atribuyen las ventas. Por eso elige.
+  // Las claves de un admin salen a nombre de Tenemos Filo: la plataforma
+  // tambien vende por su canal, y esas ventas se le atribuyen. No hay nada
+  // que elegir, asi que no se le pregunta.
   const esAdmin = sanityUser?.role === 'admin';
-  const [empresas, setEmpresas] = useState<AdminCompany[]>([]);
-  const [empresaElegida, setEmpresaElegida] = useState('');
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -95,28 +92,16 @@ export default function ApiKeysPage() {
     // le dice nada.
     if (!sanityUser) return;
     void cargar();
-    if (esAdmin && empresas.length === 0) {
-      void listCompanies({ pageSize: 100 })
-        .then(({ items }) => setEmpresas(items.filter((e) => !e.deletedAt)))
-        // Sin la lista no se puede elegir, pero el resto de la pantalla
-        // sigue sirviendo para consultar y revocar.
-        .catch(() => undefined);
-    }
-  }, [cargar, sanityUser, esAdmin, empresas.length]);
+  }, [cargar, sanityUser]);
 
   const alternarScope = (scope: string) =>
     setScopes((prev) => (prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]));
 
   const crear = async () => {
     if (!nombre.trim() || scopes.length === 0) return;
-    if (esAdmin && !empresaElegida) return;
     setGuardando(true);
     try {
-      const creada = await crearApiKey({
-        name: nombre.trim(),
-        scopes,
-        ...(esAdmin && empresaElegida ? { companyId: empresaElegida } : {}),
-      });
+      const creada = await crearApiKey({ name: nombre.trim(), scopes });
       setCreando(false);
       setNombre('');
       setScopes(['experiences:read']);
@@ -278,26 +263,10 @@ export default function ApiKeysPage() {
         <ModalBody>
           <div className="space-y-5">
             {esAdmin && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Empresa *
-                </label>
-                <Select
-                  value={empresaElegida}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEmpresaElegida(e.target.value)}
-                >
-                  <option value="">Elige una empresa…</option>
-                  {empresas.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.companyName}
-                    </option>
-                  ))}
-                </Select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Las reservas hechas con esta clave se atribuyen a esta empresa y su
-                  comisión se le liquida.
-                </p>
-              </div>
+              <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                La clave se emite a nombre de <strong>Tenemos Filo</strong>. Las reservas
+                que entren por ella se atribuyen a la plataforma como canal de venta.
+              </p>
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
@@ -368,7 +337,7 @@ export default function ApiKeysPage() {
           <Button
             color="primary"
             onClick={crear}
-            disabled={guardando || !nombre.trim() || scopes.length === 0 || (esAdmin && !empresaElegida)}
+            disabled={guardando || !nombre.trim() || scopes.length === 0}
           >
             {guardando ? 'Creando...' : 'Crear clave'}
           </Button>

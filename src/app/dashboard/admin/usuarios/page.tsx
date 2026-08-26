@@ -16,6 +16,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable, { AdminHeader } from '@/components/Admin/AdminTable';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import { mensajeDeError } from '@/lib/api/client';
 import {
   listUsers,
   createUser,
@@ -94,7 +95,7 @@ export default function AdminUsuariosPage() {
       setEditando(null);
       await cargar();
     } catch (err) {
-      showError('No se pudo guardar', err instanceof Error ? err.message : undefined);
+      showError('No se pudo guardar', mensajeDeError(err));
     } finally {
       setGuardandoEdicion(false);
     }
@@ -102,7 +103,6 @@ export default function AdminUsuariosPage() {
   const [guardando, setGuardando] = useState(false);
   const [nuevo, setNuevo] = useState<NewUser>({
     email: '',
-    password: '',
     name: '',
     role: 'GUEST',
   });
@@ -118,7 +118,7 @@ export default function AdminUsuariosPage() {
       setUsuarios(items);
       setTotal(total);
     } catch (err) {
-      showError('No se pudieron cargar los usuarios', err instanceof Error ? err.message : undefined);
+      showError('No se pudieron cargar los usuarios', mensajeDeError(err));
     } finally {
       setCargando(false);
     }
@@ -149,7 +149,7 @@ export default function AdminUsuariosPage() {
       setNuevo({ email: '', name: '', role: 'GUEST' });
       await cargar();
     } catch (err) {
-      showError('No se pudo crear el usuario', err instanceof Error ? err.message : undefined);
+      showError('No se pudo crear el usuario', mensajeDeError(err));
     } finally {
       setGuardando(false);
     }
@@ -160,7 +160,7 @@ export default function AdminUsuariosPage() {
       await reenviarInvitacion(u.id);
       showSuccess('Invitación reenviada', `Enlace nuevo enviado a ${u.email}.`);
     } catch (err) {
-      showError('No se pudo reenviar', err instanceof Error ? err.message : undefined);
+      showError('No se pudo reenviar', mensajeDeError(err));
     }
   };
 
@@ -184,7 +184,7 @@ export default function AdminUsuariosPage() {
       showSuccess('Rol actualizado');
       await cargar();
     } catch (err) {
-      showError('No se pudo cambiar el rol', err instanceof Error ? err.message : undefined);
+      showError('No se pudo cambiar el rol', mensajeDeError(err));
     }
   };
 
@@ -202,7 +202,7 @@ export default function AdminUsuariosPage() {
       showSuccess(desactivar ? 'Usuario desactivado' : 'Usuario reactivado');
       await cargar();
     } catch (err) {
-      showError('No se pudo completar la acción', err instanceof Error ? err.message : undefined);
+      showError('No se pudo completar la acción', mensajeDeError(err));
     }
   };
 
@@ -219,7 +219,7 @@ export default function AdminUsuariosPage() {
       showSuccess('Usuario eliminado');
       await cargar();
     } catch (err) {
-      showError('No se pudo eliminar', err instanceof Error ? err.message : undefined);
+      showError('No se pudo eliminar', mensajeDeError(err));
     }
   };
 

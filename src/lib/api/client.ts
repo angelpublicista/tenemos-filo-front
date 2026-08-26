@@ -126,6 +126,30 @@ export async function apiPostEnvelope<T, M = Record<string, unknown>>(
   return { data: payload?.data as T, meta: payload?.meta };
 }
 
+/**
+ * Mensaje legible de un error del API, con el detalle por campo si lo hay.
+ *
+ * El API responde "Datos invalidos" y adjunta en `details` que campo falla,
+ * pero ese detalle se perdia: las pantallas mostraban solo el mensaje
+ * generico y quien lo leia no tenia forma de saber que corregir.
+ */
+export function mensajeDeError(err: unknown): string {
+  if (!(err instanceof ApiHttpError)) {
+    return err instanceof Error ? err.message : "Ocurrió un error. Inténtalo de nuevo.";
+  }
+
+  const d = err.details as
+    | { fieldErrors?: Record<string, string[]>; formErrors?: string[] }
+    | undefined;
+
+  const porCampo = Object.entries(d?.fieldErrors ?? {})
+    .map(([campo, msgs]) => `${campo}: ${msgs?.[0] ?? "valor no válido"}`)
+    .filter(Boolean);
+
+  const detalles = [...porCampo, ...(d?.formErrors ?? [])];
+  return detalles.length ? `${err.message} — ${detalles.join("; ")}` : err.message;
+}
+
 export type Paginated<T> = { items: T[]; total: number };
 
 /**

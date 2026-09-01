@@ -94,6 +94,10 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   // Lo dice el catalogo, no el cliente: si la pasarela esta apagada el
   // resumen no debe anunciar un cobro en linea.
   const [cobraEnLinea, setCobraEnLinea] = useState(false);
+  // Si el anfitrion exige el pago, la reserva no vale hasta cobrarse y
+  // tampoco retiene el cupo: el texto tiene que decirlo, o el comensal se
+  // va creyendo que ya tiene su mesa.
+  const [pagoObligatorio, setPagoObligatorio] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -110,13 +114,14 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       try {
         // Un solo endpoint publico: esta pagina la abre gente sin cuenta, y
         // los de /companies y /experiences exigen sesion.
-        const { company: companyData, experiences: expData, paymentsEnabled } = modoReseller
+        const { company: companyData, experiences: expData, paymentsEnabled, paymentRequired } = modoReseller
           ? await getResellerCatalog(slug)
           : await getPublicCatalog(slug);
         if (controller.signal.aborted) return;
         setCompany(companyData);
         setExperiences(expData as BookingExperience[]);
         setCobraEnLinea(paymentsEnabled);
+        setPagoObligatorio(Boolean(paymentRequired));
 
         // Si se llego por un slug antiguo (o por el id), la barra pasa a
         // mostrar el actual. El enlace viejo sigue funcionando, pero quien
@@ -288,7 +293,9 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       </h2>
       <p className="text-gray-500 mb-4">
         {pago
-          ? 'Completa el pago para confirmar tu reserva.'
+          ? pagoObligatorio
+            ? 'Tu lugar se aparta al completar el pago. Hasta entonces alguien más puede tomarlo.'
+            : 'Completa el pago para confirmar tu reserva.'
           : 'Tu solicitud fue recibida. El anfitrión la confirmará pronto.'}
       </p>
       <div className="inline-block bg-gray-50 border border-gray-200 rounded-xl px-8 py-4 mb-6">

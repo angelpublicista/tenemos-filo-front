@@ -190,6 +190,13 @@ export type PlatformSettings = {
 
   wompiEnabled: boolean;
   wompiEnvironment: WompiEnvironment;
+
+  /**
+   * Si por defecto hay que pagar para que una reserva valga. Cada empresa
+   * puede apartarse de este valor; esto es solo lo que se aplica cuando no
+   * dice nada.
+   */
+  requirePaymentDefault: boolean;
   /** Pública por diseño: el navegador la necesita para abrir el checkout. */
   wompiPublicKey: string | null;
   // Los secretos nunca llegan al front; solo si están puestos.
@@ -208,6 +215,7 @@ export type SettingsUpdate = Partial<
     | 'resellerCommissionValue'
     | 'wompiEnabled'
     | 'wompiEnvironment'
+    | 'requirePaymentDefault'
   >
 > & {
   wompiPublicKey?: string;

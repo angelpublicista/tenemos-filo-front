@@ -194,6 +194,8 @@ export interface Company {
   autoConfirmReservations?: boolean;
   /** Rechaza reservas que pasarían del aforo de la experiencia. */
   blockWhenFull?: boolean;
+  /** null = hereda el valor por defecto de la plataforma. */
+  requirePayment?: boolean | null;
   locations?: Array<{
     _ref: string;
     _type: 'reference';

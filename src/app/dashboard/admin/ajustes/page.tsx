@@ -30,6 +30,29 @@ const pesos = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 
+/**
+ * Tema del interruptor.
+ *
+ * Flowbite los pinta azules por defecto y aqui todo es naranja de marca.
+ * Vive fuera del componente para que los dos interruptores de esta pantalla
+ * no se separen visualmente con el tiempo.
+ */
+const TEMA_SWITCH = {
+  root: {
+    base: 'group flex items-center',
+    active: { on: 'cursor-pointer', off: 'cursor-pointer' },
+    label: 'ms-3 text-sm font-medium text-[#334C5D]',
+  },
+  toggle: {
+    base: 'relative h-6 w-11 rounded-full after:absolute after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all group-focus:ring-2',
+    checked: {
+      on: 'bg-[#F26726] after:translate-x-full after:border-transparent rtl:after:-translate-x-full group-focus:ring-[#F26726]/40',
+      off: 'bg-gray-200 after:border-gray-300 dark:bg-gray-700',
+    },
+  },
+};
+
+
 export default function AdminAjustesPage() {
   const { showSuccess, showError } = useSweetAlert();
 
@@ -76,6 +99,7 @@ export default function AdminAjustesPage() {
       // blanco significa "no los toques", no "borralos".
       const actualizados = await updateSettings({
         wompiEnabled: ajustes.wompiEnabled,
+        requirePaymentDefault: ajustes.requirePaymentDefault,
         wompiEnvironment: ajustes.wompiEnvironment,
         wompiPublicKey: ajustes.wompiPublicKey ?? '',
         ...(secretos.privateKey ? { wompiPrivateKey: secretos.privateKey } : {}),
@@ -261,6 +285,24 @@ export default function AdminAjustesPage() {
 
             <div className="flex items-end">
               <div className="w-full rounded-lg border border-gray-100 p-3">
+                <p className="text-sm font-semibold text-[#334C5D] mb-2">Exigir pago al reservar</p>
+                <ToggleSwitch
+                  checked={ajustes.requirePaymentDefault}
+                  disabled={!ajustes.wompiEnabled}
+                  label={ajustes.requirePaymentDefault ? 'Obligatorio' : 'Opcional'}
+                  onChange={(valor) => setAjustes({ ...ajustes, requirePaymentDefault: valor })}
+                  theme={TEMA_SWITCH}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  {ajustes.wompiEnabled
+                    ? 'Valor por defecto. Cada anfitrión puede cambiarlo en su configuración. Una reserva sin pagar no ocupa cupo.'
+                    : 'Necesita la pasarela activa: sin forma de cobrar, exigir el pago dejaría el catálogo sin reservas posibles.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-end">
+              <div className="w-full rounded-lg border border-gray-100 p-3">
                 <p className="text-sm font-semibold text-[#334C5D] mb-2">Cobrar con Wompi</p>
                 {/* Mismo tema que los switches de Configuración: por defecto
                     flowbite los pinta azules y aquí todo es naranja de marca. */}
@@ -268,20 +310,7 @@ export default function AdminAjustesPage() {
                   checked={ajustes.wompiEnabled}
                   label={ajustes.wompiEnabled ? 'Activado' : 'Desactivado'}
                   onChange={(valor) => setAjustes({ ...ajustes, wompiEnabled: valor })}
-                  theme={{
-                    root: {
-                      base: 'group flex items-center',
-                      active: { on: 'cursor-pointer', off: 'cursor-pointer' },
-                      label: 'ms-3 text-sm font-medium text-[#334C5D]',
-                    },
-                    toggle: {
-                      base: 'relative h-6 w-11 rounded-full after:absolute after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all group-focus:ring-2',
-                      checked: {
-                        on: 'bg-[#F26726] after:translate-x-full after:border-transparent rtl:after:-translate-x-full group-focus:ring-[#F26726]/40',
-                        off: 'bg-gray-200 after:border-gray-300 dark:bg-gray-700',
-                      },
-                    },
-                  }}
+                  theme={TEMA_SWITCH}
                 />
               </div>
             </div>

@@ -132,6 +132,7 @@ export default function SettingsPage() {
   const [operacion, setOperacion] = useState({
     autoConfirmReservations: false,
     blockWhenFull: true,
+    requirePayment: null as boolean | null,
   });
   const [guardandoOperacion, setGuardandoOperacion] = useState(false);
   const [operacionFeedback, setOperacionFeedback] = useState<Feedback>(null);
@@ -177,6 +178,7 @@ export default function SettingsPage() {
     setOperacion({
       autoConfirmReservations: company.autoConfirmReservations ?? false,
       blockWhenFull: company.blockWhenFull ?? true,
+      requirePayment: company.requirePayment ?? null,
     });
   }, [company]);
 
@@ -346,6 +348,7 @@ export default function SettingsPage() {
       await updateCompanyInSanity(company._id, {
         autoConfirmReservations: operacion.autoConfirmReservations,
         blockWhenFull: operacion.blockWhenFull,
+        requirePayment: operacion.requirePayment,
       });
       await recargarEmpresa();
       setOperacionFeedback({ type: "success", message: "Ajustes guardados." });
@@ -929,6 +932,31 @@ export default function SettingsPage() {
                   label={operacion.blockWhenFull ? "Sí" : "No"}
                   onChange={() => setOperacion((o) => ({ ...o, blockWhenFull: !o.blockWhenFull }))}
                 />
+              </div>
+
+              <div className="rounded-lg border border-gray-100 p-4">
+                <p className="text-sm font-semibold text-[#334C5D]">Pago al reservar</p>
+                <p className="text-sm text-gray-500 mb-3">
+                  Si lo exiges, una reserva sin pagar no ocupa cupo: nadie te bloquea plazas
+                  dejando el pago a medias. Las que cargues tú a mano cuentan siempre.
+                </p>
+                <Select
+                  value={
+                    operacion.requirePayment === null ? "heredar" : operacion.requirePayment ? "si" : "no"
+                  }
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    setOperacion((o) => ({
+                      ...o,
+                      requirePayment:
+                        e.target.value === "heredar" ? null : e.target.value === "si",
+                    }))
+                  }
+                  className="max-w-xs"
+                >
+                  <option value="heredar">Lo que decida la plataforma</option>
+                  <option value="si">Obligatorio: hay que pagar para reservar</option>
+                  <option value="no">Opcional: se puede reservar y pagar después</option>
+                </Select>
               </div>
             </div>
           </section>

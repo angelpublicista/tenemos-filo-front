@@ -44,6 +44,8 @@ export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo'>> & {
   /** Ajustes de operacion: cambian como entran las reservas. */
   autoConfirmReservations?: boolean;
   blockWhenFull?: boolean;
+  /** null = usar el valor por defecto de la plataforma. */
+  requirePayment?: boolean | null;
 };
 
 // ─── Tipos del API (Postgres) ──────────────────────────────────────────────
@@ -75,6 +77,7 @@ export interface ApiCompany {
   coverVideo: string | null;
   autoConfirmReservations: boolean;
   blockWhenFull: boolean;
+  requirePayment?: boolean | null;
   annualRevenue: string | null;
   businessYears: string | null;
   isActive: boolean;
@@ -142,6 +145,9 @@ export function toCompany(c: ApiCompany): Company {
     autoConfirmReservations: c.autoConfirmReservations ?? false,
     // Por defecto true: es lo que hace el API si el campo no viaja.
     blockWhenFull: c.blockWhenFull ?? true,
+    // Se conserva el null: significa "hereda de la plataforma", que no es
+    // lo mismo que un "no" explicito.
+    requirePayment: c.requirePayment ?? null,
     annualRevenue: (c.annualRevenue as Company['annualRevenue']) ?? undefined,
     businessYears: (c.businessYears as Company['businessYears']) ?? undefined,
     locations: c.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),
@@ -178,6 +184,9 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
     out.autoConfirmReservations = upd.autoConfirmReservations;
   }
   if (upd.blockWhenFull !== undefined) out.blockWhenFull = upd.blockWhenFull;
+  // null es un valor con significado aqui —"usa el de la plataforma"—
+  // asi que se compara contra undefined, no por veracidad.
+  if (upd.requirePayment !== undefined) out.requirePayment = upd.requirePayment;
   return out;
 }
 

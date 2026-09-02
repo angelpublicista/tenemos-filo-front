@@ -54,15 +54,26 @@ export default function AdminEmpresasPage() {
   const [nuevoTitular, setNuevoTitular] = useState('');
   const [guardandoTitular, setGuardandoTitular] = useState(false);
 
+  /**
+   * Usuarios que pueden ser titulares de una empresa: anfitriones y
+   * revendedores. Se pide una pagina por rol en vez de un listado general
+   * porque viene ordenado por fecha de alta y los comensales, que son la
+   * mayoria, se comen el cupo y dejan fuera justo a quien buscamos.
+   */
+  const cargarTitulares = useCallback(async () => {
+    const listas = await Promise.all(
+      ROLES_TITULARES.map((role) => listUsers({ role, pageSize: 100 })),
+    );
+    return listas.flatMap((l) => l.items).filter((u) => u.isActive);
+  }, []);
+
   const abrirTitularidad = async (e: AdminCompany) => {
     setTransfiriendo(e);
     setNuevoTitular('');
     setCandidatosTitular([]);
     try {
-      const { items } = await listUsers({ pageSize: 100 });
-      setCandidatosTitular(
-        items.filter((u) => u.isActive && ROLES_TITULARES.includes(u.role) && u.id !== e.owner?.id),
-      );
+      const items = await cargarTitulares();
+      setCandidatosTitular(items.filter((u) => u.id !== e.owner?.id));
     } catch (err) {
       showError('No se pudieron cargar los candidatos', err instanceof Error ? err.message : undefined);
     }
@@ -106,14 +117,17 @@ export default function AdminEmpresasPage() {
     return () => clearTimeout(t);
   }, [cargar]);
 
-  // Los dueños posibles son anfitriones: cargamos la lista al abrir el alta.
+  // Los titulares posibles son anfitriones y revendedores, igual que en el
+  // cambio de titular. Pedir solo HOST dejaba a los revendedores sin forma
+  // de tener empresa, y sin empresa su catalogo y sus claves de API no
+  // existen: el panel les decia que no estaban asociados a ninguna y el
+  // alta no los ofrecia como dueños.
   const abrirCreacion = async () => {
     setCreando(true);
     setNombreNuevo('');
     setOwnerNuevo('');
     try {
-      const { items } = await listUsers({ role: 'HOST', pageSize: 100 });
-      setCandidatos(items);
+      setCandidatos(await cargarTitulares());
     } catch {
       setCandidatos([]);
     }
@@ -125,7 +139,7 @@ export default function AdminEmpresasPage() {
     try {
       const duenio = candidatos.find((u) => u.id === ownerNuevo);
       await createCompany({ companyName: nombreNuevo.trim(), ownerId: ownerNuevo });
-      showSuccess('Empresa creada', `Quedó a nombre de ${duenio?.email ?? 'el anfitrión elegido'}.`);
+      showSuccess('Empresa creada', `Quedó a nombre de ${duenio?.email ?? 'el titular elegido'}.`);
       setCreando(false);
       await cargar();
     } catch (err) {
@@ -213,11 +227,11 @@ export default function AdminEmpresasPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Anfitrión dueño *
+                Titular de la empresa *
               </label>
               {candidatos.length === 0 ? (
                 <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-                  No hay usuarios con rol Anfitrión. Crea uno primero en{' '}
+                  No hay usuarios con rol Anfitrión ni Revendedor. Crea uno primero en{' '}
                   <Link href="/dashboard/admin/usuarios" className="underline font-medium">
                     Usuarios
                   </Link>
@@ -225,18 +239,18 @@ export default function AdminEmpresasPage() {
                 </div>
               ) : (
                 <Select value={ownerNuevo} onChange={(e) => setOwnerNuevo(e.target.value)}>
-                  <option value="">Elige un anfitrión...</option>
+                  <option value="">Elige un titular...</option>
                   {candidatos.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.name ?? u.email} — {u.email}
+                      {u.name ?? u.email} — {u.email} · {ROLE_LABELS[u.role]}
                     </option>
                   ))}
                 </Select>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                Las empresas pertenecen a anfitriones. Como administrador gestionas las de
-                ellos, pero no tienes empresa ni experiencias propias: para eso, crea un
-                usuario con rol Anfitrión.
+                Las empresas pertenecen a anfitriones y revendedores: los dos operan un
+                negocio dentro de la plataforma. Como administrador gestionas las de ellos,
+                pero no tienes empresa ni experiencias propias.
               </p>
             </div>
           </div>

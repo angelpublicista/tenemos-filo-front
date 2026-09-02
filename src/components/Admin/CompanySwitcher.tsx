@@ -39,7 +39,13 @@ export default function CompanySwitcher() {
             .map((e) => ({
               id: e.id,
               nombre: e.companyName,
-              detalle: `${e._count.experiences} experiencias · ${e._count.users} usuarios`,
+              // El rol del titular va primero porque cambia el panel entero:
+              // en una empresa de revendedor no hay experiencias que operar,
+              // hay un canal de venta.
+              detalle:
+                e.owner?.role === 'RESELLER'
+                  ? `Revendedor · ${e._count.users} usuarios`
+                  : `${e._count.experiences} experiencias · ${e._count.users} usuarios`,
             })),
         )
       : listMyCompanies().then((items) =>

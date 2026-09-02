@@ -23,7 +23,7 @@ export type AdminCompany = {
   companyType: string | null;
   deletedAt: string | null;
   createdAt: string;
-  owner: { id: string; name: string | null; email: string } | null;
+  owner: { id: string; name: string | null; email: string; role: ApiRole } | null;
   _count: { users: number; experiences: number };
 };
 

@@ -81,7 +81,7 @@ function companyToFormState(c: Company): GeneralFormState {
 type Feedback = { type: "success" | "error"; message: string } | null;
 
 export default function SettingsPage() {
-  const { sanityUser } = useAuth();
+  const { sanityUser, esPanelRevendedor } = useAuth();
 
   // Un admin "actuando como" empresa usa las mismas pantallas que un
   // anfitrion. Sin empresa activa no tiene ajustes de empresa que tocar:
@@ -92,8 +92,13 @@ export default function SettingsPage() {
   // Ademas estos ajustes son de anfitrion — como entran las reservas, la
   // marca del catalogo, las integraciones de calendario — y decidirlos le
   // corresponde a quien opera esas experiencias, no a quien las revende.
-  const esReseller = sanityUser?.role === "reseller";
+  // Vale tambien para el admin que actua como una empresa de revendedor:
+  // lo que decide estos ajustes es el negocio que se opera, no quien lo
+  // abre. Si no, "actuando como" le enseñaba ajustes de anfitrion sobre
+  // una empresa que no tiene experiencias que configurar.
+  const esReseller = esPanelRevendedor;
   const esAdminSinEmpresa = sanityUser?.role === "admin" && !sanityUser?.companyId;
+  const esAdminActuando = sanityUser?.role === "admin" && !!sanityUser?.companyId;
   const [company, setCompany] = useState<Company | null>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [companyError, setCompanyError] = useState<string | null>(null);
@@ -101,7 +106,12 @@ export default function SettingsPage() {
   // Un revendedor que ademas es titular de su empresa si la administra: su
   // marca y su portada son lo que ve el cliente en su catalogo. El que solo
   // es miembro de una empresa anfitriona, no: no es suya.
-  const esTitular = !!company && !!sanityUser?._id && company.ownerId === sanityUser._id;
+  // El admin que actua como una empresa la administra igual que su dueño:
+  // el API le deja editarla (isAdmin salta la comprobacion de propiedad).
+  // Tratarlo como un miembro cualquiera le daria un panel mas pobre que el
+  // que ve el titular, que es justo lo que "actuando como" debe reproducir.
+  const esTitular =
+    !!company && ((!!sanityUser?._id && company.ownerId === sanityUser._id) || esAdminActuando);
   const operaComoEmpresa = !!sanityUser?.companyId && (!esReseller || esTitular);
   // Hay ajustes que solo tienen sentido con experiencias propias: como
   // entran sus reservas, el calendario donde se agendan, su ficha en

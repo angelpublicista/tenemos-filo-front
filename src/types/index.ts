@@ -125,6 +125,15 @@ export interface AuthContextType {
   /** Empresa sobre la que actua un ADMIN. null = modo plataforma. */
   activeCompanyId: string | null;
   setActiveCompany: (companyId: string | null) => void;
+  /**
+   * El panel debe pintarse como el de un revendedor.
+   *
+   * No es lo mismo que `sanityUser.role === 'reseller'`: un admin actuando
+   * como una empresa de revendedor tambien lo necesita. Su rol sigue siendo
+   * admin —conserva sus pantallas de plataforma— pero lo que opera es un
+   * canal de venta, no un negocio con experiencias propias.
+   */
+  esPanelRevendedor: boolean;
   /** Paso 1: pide al API que envie el correo con el enlace de recuperacion. */
   resetPassword: (email: string) => Promise<void>;
   /** Paso 2: canjea el token del enlace por una contrasena nueva. */
@@ -151,6 +160,12 @@ export interface Company {
   _type: 'company';
   /** Usuario titular. Es el único que puede editarla. */
   ownerId?: string;
+  /**
+   * Rol del titular. Dice qué clase de negocio es la empresa: la de un
+   * anfitrión, que vende sus propias experiencias, o la de un revendedor,
+   * que vende las de otros. El panel se pinta distinto según cuál sea.
+   */
+  ownerRole?: SanityUser['role'];
   companyName: string;
   slug: {
     current: string;

@@ -28,7 +28,7 @@ const pesos = (n: number) =>
   }).format(n);
 
 export default function Dashboard() {
-  const { user, sanityUser, activeCompanyId } = useAuth();
+  const { user, sanityUser, activeCompanyId, esPanelRevendedor } = useAuth();
   const { isSetupCompleted } = useCompanySetup();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [misReservas, setMisReservas] = useState<MiReserva[]>([]);
@@ -38,7 +38,7 @@ export default function Dashboard() {
     .sort((a, b) => +new Date(a.reservationDate) - +new Date(b.reservationDate));
 
   const [ingresosReseller, setIngresosReseller] = useState<ResumenIngresos | null>(null);
-  const esReseller = sanityUser?.role === 'reseller';
+  const esReseller = esPanelRevendedor;
   // Solo la fila de revendedor: si su empresa ademas es anfitriona, sus
   // ingresos como tal no son cosa suya.
   const totalesReseller = (ingresosReseller?.balances ?? [])
@@ -85,8 +85,9 @@ export default function Dashboard() {
       // Un revendedor pertenece a una empresa anfitriona pero no la opera.
       // /dashboard/stats le responde 403, y aunque respondiera le estaria
       // enseñando las experiencias y los ingresos de otro. Lo suyo son sus
-      // comisiones, que vienen de /payouts/me.
-      if (sanityUser?.role === 'reseller') {
+      // comisiones, que vienen de /payouts/me. Un admin actuando como una
+      // empresa de revendedor mira ese mismo panel.
+      if (esReseller) {
         try {
           setIsLoading(true);
           setError(null);
@@ -121,7 +122,7 @@ export default function Dashboard() {
     };
 
     loadDashboardData();
-  }, [sanityUser?.companyId, sanityUser?.role]);
+  }, [sanityUser?.companyId, sanityUser?.role, esReseller]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {

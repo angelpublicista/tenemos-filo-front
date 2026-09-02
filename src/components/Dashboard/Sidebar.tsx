@@ -30,7 +30,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { sanityUser, activeCompanyId } = useAuth();
+  const { sanityUser, activeCompanyId, esPanelRevendedor } = useAuth();
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -49,7 +49,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // experiencias, ni sedes, ni reservas que gestionar. Enseñarle esas
   // pantallas le muestra datos de un anfitrion que no es el, o le da un
   // 403. Lo suyo son sus comisiones y sus claves de API.
-  const esReseller = sanityUser?.role === 'reseller';
+  //
+  // Vale igual para el admin que actua como una empresa de revendedor:
+  // esa empresa no tiene sedes ni experiencias por mucho que quien mire
+  // sea administrador. El menu lo decide el negocio, no quien lo abre.
+  const esReseller = esPanelRevendedor;
 
   // Un comensal solo reserva. El menu de anfitrion no le sirve: la mitad
   // de esas pantallas le responden 403 y la otra mitad le enseña datos de

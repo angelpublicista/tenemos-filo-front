@@ -12,7 +12,12 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, Re
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { api, ApiHttpError } from "@/lib/api/client";
-import { getActingCompany, setActingCompany } from "@/lib/api/actingCompany";
+import {
+  getActingCompany,
+  getActingOwnerRole,
+  setActingCompany,
+  setActingOwnerRole,
+} from "@/lib/api/actingCompany";
 import { useCompanySetup } from "@/hooks/useCompanySetup";
 import type { AuthContextType, AuthUser, CreateUserData, SanityUser } from "@/types";
 
@@ -82,6 +87,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [sanityUser, setSanityUser] = useState<SanityUser | null>(null);
   // Empresa sobre la que actua un ADMIN. null = modo plataforma (ve todo).
   const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(null);
+  // Rol del titular de esa empresa: dice si lo que se opera es un negocio
+  // de anfitrion o un canal de revendedor. Se resuelve mas abajo.
+  const [rolTitularActivo, setRolTitularActivo] = useState<SanityUser["role"] | null>(null);
   // Arranca true: hasta que sepamos si hay sesion no podemos decir que
   // "no hay perfil". Esto evita que ProtectedRoute redirija a /login
   // durante el primer render despues de un page reload.
@@ -156,13 +164,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // que empresa opera) y al anfitrion con varias (elige en cual trabaja).
   useEffect(() => {
     const rol = sanityUser?.role;
-    if (rol === "admin" || rol === "host") setActiveCompanyIdState(getActingCompany());
+    if (rol !== "admin" && rol !== "host") return;
+    const empresa = getActingCompany();
+    setActiveCompanyIdState(empresa);
+    // La pista cacheada evita que el menu parpadee mientras /companies/me
+    // confirma que clase de empresa es. Se refresca abajo. Sin empresa
+    // activa no aplica: una pista vieja pintaria el panel equivocado.
+    if (rol === "admin" && empresa) {
+      setRolTitularActivo(getActingOwnerRole() as SanityUser["role"] | null);
+    }
   }, [sanityUser?.role]);
 
   const setActiveCompany = useCallback((companyId: string | null) => {
     // Persistimos ANTES de tocar el estado: el cliente HTTP lee del storage,
     // asi que cualquier request disparado por el re-render ya lleva la nueva.
     setActingCompany(companyId);
+    // La pista del rol pertenece a la empresa que se deja atras. Volver al
+    // modo plataforma la borra; cambiar de empresa la deja caducar hasta
+    // que /companies/me traiga la de la nueva.
+    if (!companyId) setActingOwnerRole(null);
     setActiveCompanyIdState(companyId);
   }, []);
 
@@ -177,6 +197,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     sanityUser && activeCompanyId && (sanityUser.role === "admin" || sanityUser.role === "host")
       ? { ...sanityUser, companyId: activeCompanyId }
       : sanityUser;
+
+  /**
+   * Rol del titular de la empresa activa.
+   *
+   * Solo hace falta para el admin: es el unico que opera empresas que no
+   * son suyas, y hasta ahora "actuando como" solo cambiaba el alcance de
+   * los datos, no la forma del panel. Entrando en una empresa de
+   * revendedor se le enseñaba el menu de anfitrion —sedes, experiencias,
+   * CRM— que ahi no existe, y no el canal de venta que es lo que esa
+   * empresa tiene. Un host no lo necesita: todas las suyas son de host.
+   *
+   * Se resuelve con /companies/me, que ya responde segun la cabecera
+   * X-Acting-Company que manda el cliente HTTP.
+   */
+  useEffect(() => {
+    if (!activeCompanyId || sanityUser?.role !== "admin") return;
+    let cancelado = false;
+    api
+      .get<{ owner?: { role: ApiUser["role"] } | null } | null>("/companies/me")
+      .then((empresa) => {
+        const rol = empresa?.owner ? ROLE_DOWN[empresa.owner.role] : null;
+        setActingOwnerRole(rol);
+        if (!cancelado) setRolTitularActivo(rol);
+      })
+      .catch(() => {
+        // Sin dato nos quedamos con la pista cacheada. Es preferible a
+        // cambiarle el panel al admin por un fallo de red, y el API sigue
+        // decidiendo por su cuenta que le deja hacer.
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [activeCompanyId, sanityUser?.role]);
+
+  const esPanelRevendedor =
+    sanityUser?.role === "reseller" ||
+    (sanityUser?.role === "admin" && !!activeCompanyId && rolTitularActivo === "reseller");
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -298,6 +355,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         sanityUser: effectiveUser,
         activeCompanyId,
         setActiveCompany,
+        esPanelRevendedor,
         loading,
         login,
         logout,

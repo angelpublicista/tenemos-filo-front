@@ -55,3 +55,21 @@ export const getPublicCatalog = async (slugOrId: string): Promise<CatalogoPublic
  */
 export const getResellerCatalog = async (slugOrId: string): Promise<CatalogoPublico> =>
   traducir(await api.get<RespuestaCruda>(`/public/reseller/${encodeURIComponent(slugOrId)}`));
+
+/** Lo que devuelve el API sobre una reserva a quien vuelve de la pasarela. */
+export type EstadoReserva = {
+  reservationNumber: string;
+  status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'RESCHEDULED';
+  paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED' | 'PARTIAL' | 'FAILED';
+};
+
+/**
+ * Estado de una reserva por su número, sin sesión.
+ *
+ * Lo usa la página de retorno del pago: quien vuelve de Wompi no tiene
+ * cuenta, solo su número de reserva. El API devuelve únicamente el estado.
+ */
+export const getEstadoReserva = async (reservationNumber: string): Promise<EstadoReserva> =>
+  api.get<EstadoReserva>(
+    `/public/reservations/${encodeURIComponent(reservationNumber)}/status`,
+  );

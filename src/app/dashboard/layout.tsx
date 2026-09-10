@@ -6,7 +6,7 @@ import MobileFAB from '@/components/Dashboard/MobileFAB'
 import { EmailVerificationBanner } from '@/components/EmailVerificationBanner'
 import React, { useState } from 'react'
 
-export default function layout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (

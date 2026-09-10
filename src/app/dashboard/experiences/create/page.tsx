@@ -393,7 +393,7 @@ export default function CreateExperiencePage() {
       setIsLoading(true);
 
       // Calendarios a vincular (modo sede: se crean antes de la experiencia)
-      let finalScheduleIds: string[] = [...selectedSchedules];
+      const finalScheduleIds: string[] = [...selectedSchedules];
 
       // Modo sede: crear calendarios personalizados vinculados a la sede
       if (availabilityMode === 'location' && showCustomSchedule && selectedLocations.length > 0 && finalScheduleIds.length === 0) {

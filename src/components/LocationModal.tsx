@@ -9,9 +9,34 @@ import {
 import { getCompanyById } from '@/lib/sanity/companyService';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose } from 'react-icons/ai';
-import { COUNTRIES } from '@/lib/constants/countries';
+import { COUNTRIES, COUNTRIES_MAP } from '@/lib/constants/countries';
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
+
+/**
+ * El mapeo del API convierte los nulos en cadena vacia (`companyEmail ?? ''`),
+ * asi que un `?? prev.x` nunca salta y acaba borrando lo que ya habia escrito
+ * quien crea la sede. Aqui el vacio vuelve a ser "no hay dato".
+ */
+const conValor = (v?: string | null): string | undefined => {
+  const s = v?.trim();
+  return s ? s : undefined;
+};
+
+const sinTildes = (s: string) =>
+  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/**
+ * La empresa guarda el pais como texto libre ("Colombia"); el select de la
+ * sede trabaja con el codigo ISO ("CO"). Sin traducirlo el select se queda
+ * en blanco aunque la empresa si tuviera pais.
+ */
+const aCodigoDePais = (valor?: string | null): string | undefined => {
+  const v = conValor(valor);
+  if (!v) return undefined;
+  if (COUNTRIES_MAP[v.toUpperCase()]) return v.toUpperCase();
+  return COUNTRIES.find(c => sinTildes(c.name) === sinTildes(v))?.code;
+};
 
 interface LocationModalProps {
   location: Location | null;
@@ -56,15 +81,37 @@ const LocationModal: React.FC<LocationModalProps> = ({
         showError('No se encontraron datos de la empresa');
         return;
       }
+
+      const copiado = {
+        street: conValor(company.address?.street),
+        city: conValor(company.address?.city),
+        state: conValor(company.address?.state),
+        postalCode: conValor(company.address?.postalCode),
+        country: aCodigoDePais(company.address?.country),
+        email: conValor(company.companyEmail),
+        phone: conValor(company.companyPhone),
+      };
+
+      // Si la empresa no tiene nada guardado no hay nada que copiar. Antes
+      // se anunciaba igual "datos cargados" y el formulario se quedaba vacio,
+      // que es justo lo que parecia un fallo del boton.
+      if (!Object.values(copiado).some(Boolean)) {
+        showError(
+          'Tu empresa no tiene esos datos',
+          'Completa la dirección y el contacto en la información de la empresa y vuelve a intentarlo.',
+        );
+        return;
+      }
+
       setFormData(prev => ({
         ...prev,
-        street: company.address?.street ?? prev.street,
-        city: company.address?.city ?? prev.city,
-        state: company.address?.state ?? prev.state,
-        postalCode: company.address?.postalCode ?? prev.postalCode,
-        country: company.address?.country ?? prev.country,
-        email: company.companyEmail ?? prev.email,
-        phone: company.companyPhone ?? prev.phone,
+        street: copiado.street ?? prev.street,
+        city: copiado.city ?? prev.city,
+        state: copiado.state ?? prev.state,
+        postalCode: copiado.postalCode ?? prev.postalCode,
+        country: copiado.country ?? prev.country,
+        email: copiado.email ?? prev.email,
+        phone: copiado.phone ?? prev.phone,
       }));
       showSuccess('Datos de la empresa cargados');
     } catch (error) {

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany, getExperienceStatsByCompany, updateExperienceStatus, deleteExperienceInSanity } from '@/lib/sanity/experienceService';
-import { getCompanyByUserId } from '@/lib/sanity/companyService';
+import { getCompanyById, getCompanyByUserId } from '@/lib/sanity/companyService';
 import { Experience, Company } from '@/types';
 
 interface ExperienceStats {
@@ -32,7 +32,7 @@ import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
 import { ManageExperienceCard } from '@/components/ManageExperienceCard';
 
 export default function ExperiencesPage() {
-  const { user } = useAuth();
+  const { user, sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showDestructiveConfirmation } = useSweetAlert();
   const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -49,7 +49,15 @@ export default function ExperiencesPage() {
 
     try {
       setIsLoading(true);
-      const companyData = await getCompanyByUserId(user.uid);
+      // La empresa activa la manda AuthContext, que es lo que respeta el
+      // selector de empresa y lo que usa el resto del panel (disponibilidad,
+      // sedes, CRM...). `/companies/me` no sirve como unica fuente aqui: a un
+      // ADMIN en modo plataforma le responde null a proposito, y esta
+      // pantalla se quedaba vacia mientras disponibilidad —que si lee
+      // sanityUser— listaba las experiencias de esa misma empresa.
+      const companyData = sanityUser?.companyId
+        ? await getCompanyById(sanityUser.companyId)
+        : await getCompanyByUserId(user.uid);
 
       if (!companyData) {
         showError('No se encontró información de empresa. Completa el registro de empresa primero.');
@@ -78,7 +86,7 @@ export default function ExperiencesPage() {
   useEffect(() => {
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, sanityUser?.companyId]);
 
   // Filtrar experiencias por estado
   const filteredExperiences = experiences.filter(experience => {

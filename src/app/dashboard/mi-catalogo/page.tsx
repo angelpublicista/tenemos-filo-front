@@ -7,7 +7,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import SharingPanel from '@/components/BookingEngine/SharingPanel';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { getCompanyByUserId } from '@/lib/sanity/companyService';
+import { getCompanyById } from '@/lib/sanity/companyService';
 
 export default function MiCatalogoPage() {
   const { sanityUser } = useAuth();
@@ -20,7 +20,9 @@ export default function MiCatalogoPage() {
       setCargando(false);
       return;
     }
-    getCompanyByUserId()
+    // Por id y no /companies/me: es la empresa que marca el selector, y
+    // ese endpoint responde null a un ADMIN en modo plataforma.
+    getCompanyById(sanityUser.companyId)
       .then((c) => setSlug(c?.slug?.current ?? null))
       .catch(() => setSlug(null))
       .finally(() => setCargando(false));

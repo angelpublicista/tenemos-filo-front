@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
+import { getCompanyById, getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
 import { uploadImage } from '@/lib/api/uploads';
 import { Company } from '@/types';
 import { Button } from 'flowbite-react';
@@ -33,7 +33,7 @@ export default function CompanyInfoView({
   className = ""
 }: CompanyInfoViewProps) {
   const router = useRouter();
-  const { user, hasCompany } = useAuth();
+  const { user, sanityUser, hasCompany } = useAuth();
   const [existingCompany, setExistingCompany] = useState<Company | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -50,7 +50,13 @@ export default function CompanyInfoView({
 
       try {
         setIsLoadingData(true);
-        const companyData = await getCompanyByUserId(user.uid);
+        // La empresa activa la manda AuthContext: es la que respeta el selector
+        // de empresa y la que usa el resto del panel. /companies/me no vale
+        // como unica fuente —a un ADMIN en modo plataforma le responde null a
+        // proposito— y queda solo como respaldo.
+        const companyData = sanityUser?.companyId
+          ? await getCompanyById(sanityUser.companyId)
+          : await getCompanyByUserId(user.uid);
         setExistingCompany(companyData);
       } catch (error) {
         console.error('Error loading company data:', error);
@@ -61,7 +67,7 @@ export default function CompanyInfoView({
     };
 
     loadCompanyData();
-  }, [user, hasCompany, showError]);
+  }, [user, sanityUser?.companyId, hasCompany, showError]);
 
   const handleEdit = () => {
     if (onEdit) {

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperienceById, updateExperienceInSanity } from '@/lib/sanity/experienceService';
-import { getCompanyByUserId } from '@/lib/sanity/companyService';
+import { getCompanyById, getCompanyByUserId } from '@/lib/sanity/companyService';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { 
   getAvailabilitySchedulesByLocation, 
@@ -115,7 +115,13 @@ export default function EditExperiencePage() {
 
       try {
         // Cargar empresa
-        const companyData = await getCompanyByUserId(user.uid);
+        // La empresa activa la manda AuthContext: es la que respeta el selector
+        // de empresa y la que usa el resto del panel. /companies/me no vale
+        // como unica fuente —a un ADMIN en modo plataforma le responde null a
+        // proposito— y queda solo como respaldo.
+        const companyData = sanityUser?.companyId
+          ? await getCompanyById(sanityUser.companyId)
+          : await getCompanyByUserId(user.uid);
         if (!companyData) {
           setCompanyNotFound(true);
           setIsLoadingData(false);
@@ -256,7 +262,7 @@ export default function EditExperiencePage() {
     };
 
     loadData();
-  }, [user, experienceId, router, showError, reset]);
+  }, [user, sanityUser?.companyId, experienceId, router, showError, reset]);
 
   // Cargar calendarios de todas las sedes seleccionadas
   useEffect(() => {

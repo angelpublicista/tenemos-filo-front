@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { HiShare } from 'react-icons/hi';
 import SharingPanel from '@/components/BookingEngine/SharingPanel';
 import EmbedDomains from '@/components/BookingEngine/EmbedDomains';
-import { getCompanyByUserId } from '@/lib/sanity/companyService';
+import { getCompanyById } from '@/lib/sanity/companyService';
 
 export default function BookingLinkPage() {
   const { sanityUser } = useAuth();
@@ -22,7 +22,9 @@ export default function BookingLinkPage() {
       setCargando(false);
       return;
     }
-    getCompanyByUserId()
+    // Por id y no /companies/me: es la empresa que marca el selector, y
+    // ese endpoint responde null a un ADMIN en modo plataforma.
+    getCompanyById(sanityUser.companyId)
       .then((c) => {
         // El tipo Company conserva el shape de Sanity: { _type, current }.
         setSlug(c?.slug?.current ?? null);

@@ -944,7 +944,7 @@ export default function CompanySetupForm() {
                 type="button"
                 color="gray"
                 onClick={prevStep}
-                className="px-8 py-3 text-white"
+                className="px-8 py-3"
               >
                 ← Anterior
               </Button>

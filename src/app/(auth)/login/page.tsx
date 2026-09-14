@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
 import FiloLogo from "@/components/FiloLogo";
 import Link from "next/link";

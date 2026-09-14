@@ -37,7 +37,7 @@ const contactTypeLabels: Record<string, string> = {
 };
 
 export default function ContactosPage() {
-  const { user, sanityUser } = useAuth();
+  const { sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [contacts, setContacts] = useState<Contact[]>([]);

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Badge, Card } from 'flowbite-react';
 import { 
@@ -12,8 +11,7 @@ import {
   HiPhone,
   HiLocationMarker,
   HiUser,
-  HiCalendar,
-  HiTag
+  HiCalendar
 } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
 import { getContactById, deleteContact } from '@/lib/sanity/contactService';
@@ -45,7 +43,6 @@ const sourceLabels: Record<string, string> = {
 };
 
 export default function ContactoDetailPage() {
-  const { sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
   const contactId = params.id as string;

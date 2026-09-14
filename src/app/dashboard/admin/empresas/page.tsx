@@ -15,7 +15,6 @@ import { HiSearch, HiPencilAlt, HiBan, HiRefresh, HiPlus, HiUser } from 'react-i
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable, { AdminHeader } from '@/components/Admin/AdminTable';
-import { useAuth } from '@/lib/auth/AuthContext';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
   listCompanies,
@@ -32,7 +31,6 @@ import {
 } from '@/lib/api/admin';
 
 export default function AdminEmpresasPage() {
-  const { sanityUser } = useAuth();
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
 
   const [empresas, setEmpresas] = useState<AdminCompany[]>([]);

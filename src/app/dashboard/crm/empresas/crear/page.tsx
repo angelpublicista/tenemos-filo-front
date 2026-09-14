@@ -148,7 +148,6 @@ export default function CrearEmpresaPage() {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
     setValue,
   } = useForm<CompanyFormData>({
     defaultValues: {

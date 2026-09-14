@@ -10,7 +10,7 @@ import { HiArrowLeft, HiSave } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
 import { getContactById, updateContact } from '@/lib/sanity/contactService';
 import { getCRMCompaniesByHost } from '@/lib/sanity/crmCompanyService';
-import { Contact, UpdateContactData, ContactType, ContactStatus, ContactSource } from '@/types';
+import { Contact, UpdateContactData, ContactSource } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
 

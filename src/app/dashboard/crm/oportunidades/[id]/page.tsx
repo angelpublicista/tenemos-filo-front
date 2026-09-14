@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Badge, Card } from 'flowbite-react';
 import { 
@@ -75,7 +74,6 @@ const wonReasonLabels: Record<string, string> = {
 };
 
 export default function OportunidadDetailPage() {
-  const { sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
   const opportunityId = params.id as string;

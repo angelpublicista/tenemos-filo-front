@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Button, Label, TextInput, Select } from 'flowbite-react';
+import { Button, Label, TextInput } from 'flowbite-react';
 import { HiArrowLeft, HiSearch, HiCheckCircle } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
 import { searchExperiencesForQuote } from '@/lib/sanity/quoteService';

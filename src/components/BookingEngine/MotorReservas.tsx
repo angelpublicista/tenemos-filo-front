@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
 import { getPublicCatalog, getResellerCatalog } from '@/lib/api/catalog';
@@ -145,7 +145,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
     };
     load();
     return () => { controller.abort(); clearTimeout(timeout); };
-  }, [slug]);
+  }, [slug, modoReseller]);
 
   const handleSelectExperience = (exp: BookingExperience) => {
     setBooking({ experience: exp });

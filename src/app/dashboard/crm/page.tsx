@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineCalendar, HiOutlineTrendingUp } from 'react-icons/hi';
+import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineTrendingUp } from 'react-icons/hi';
 import { BiStore } from 'react-icons/bi';
 import Link from 'next/link';
 

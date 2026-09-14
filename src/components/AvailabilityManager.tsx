@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   AvailabilitySchedule,
-  DaySchedule,
   TimeSlot,
   BlockedDate,
   DayOfWeek,
@@ -381,9 +380,9 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(
     schedule?.weeklySchedule || generateDefaultSchedule()
   );
-  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>(
-    schedule?.blockedDates || []
-  );
+  // Sin setter: hoy las fechas bloqueadas solo se leen del calendario que
+  // llega por props; no hay forma de editarlas desde aqui.
+  const [blockedDates] = useState<BlockedDate[]>(schedule?.blockedDates || []);
   const [notes, setNotes] = useState(schedule?.notes || '');
   const [bufferTime, setBufferTime] = useState(schedule?.bufferTime || 0);
   const [minimumNotice, setMinimumNotice] = useState(schedule?.minimumNotice || 24);

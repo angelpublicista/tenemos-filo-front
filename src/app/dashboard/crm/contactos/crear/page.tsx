@@ -9,7 +9,7 @@ import { Button, Label, TextInput, Select, Textarea, Card } from 'flowbite-react
 import { HiArrowLeft, HiSave } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
 import { createContact } from '@/lib/sanity/contactService';
-import { CreateContactData, ContactType, ContactStatus, ContactSource } from '@/types';
+import { CreateContactData, ContactSource } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
 import { getCRMCompaniesByHost } from '@/lib/sanity/crmCompanyService';

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Button, Label, TextInput, Select, Badge, Card, Dropdown, DropdownItem } from 'flowbite-react';
+import { Button, Label, TextInput, Select, Badge, Card } from 'flowbite-react';
 import { 
   HiArrowLeft, 
   HiPlus, 
@@ -11,10 +11,7 @@ import {
   HiPencilAlt, 
   HiEye,
   HiTrash,
-  HiCurrencyDollar,
-  HiCalendar,
   HiUser,
-  HiDownload,
   HiCheckCircle,
   HiXCircle,
 } from 'react-icons/hi';
@@ -50,7 +47,7 @@ const stageLabels: Record<string, string> = {
 };
 
 export default function OportunidadesPage() {
-  const { user, sanityUser } = useAuth();
+  const { sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [opportunities, setOpportunities] = useState<OpportunityWithExpanded[]>([]);

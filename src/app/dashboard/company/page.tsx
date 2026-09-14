@@ -1,11 +1,9 @@
 "use client";
 
-import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CompanyInfoView from "@/components/CompanyInfoView";
 
 export default function CompanyPage() {
-  const { user, sanityUser } = useAuth();
 
   return (
     <ProtectedRoute>

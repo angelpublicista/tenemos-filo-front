@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Badge, Card } from 'flowbite-react';
 import { 
@@ -12,8 +11,7 @@ import {
   HiPhone,
   HiGlobe,
   HiLocationMarker,
-  HiCalendar,
-  HiTag
+  HiCalendar
 } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
 import { getCRMCompanyById, deleteCRMCompany } from '@/lib/sanity/crmCompanyService';
@@ -76,7 +74,6 @@ const industryLabels: Record<string, string> = {
 };
 
 export default function EmpresaDetailPage() {
-  const { sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
   const companyId = params.id as string;

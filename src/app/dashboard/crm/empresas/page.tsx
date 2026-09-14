@@ -13,8 +13,6 @@ import {
   HiTrash,
   HiMail,
   HiPhone,
-  HiGlobe,
-  HiLocationMarker,
   HiDownload
 } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
@@ -39,7 +37,7 @@ const companyTypeLabels: Record<string, string> = {
 };
 
 export default function EmpresasPage() {
-  const { user, sanityUser } = useAuth();
+  const { sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [companies, setCompanies] = useState<CRMCompany[]>([]);

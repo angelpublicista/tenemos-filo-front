@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Label, TextInput, Select, Textarea, Card } from 'flowbite-react';
 import { HiArrowLeft, HiSave } from 'react-icons/hi';
@@ -137,7 +136,6 @@ const countries = [
 ];
 
 export default function EditarEmpresaPage() {
-  const { sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
   const companyId = params.id as string;

@@ -7,13 +7,15 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { createExperienceInSanity, updateExperienceInSanity } from '@/lib/sanity/experienceService';
 import { getCompanyById, getCompanyByUserId } from '@/lib/sanity/companyService';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
+import { getMenusByCompany } from '@/lib/sanity/menuService';
 import { 
   getAvailabilitySchedulesByLocation, 
   createAvailabilitySchedule,
   generateDefaultSchedule 
 } from '@/lib/sanity/availabilityService';
-import { CreateExperienceData, Company, Location, AvailabilitySchedule } from '@/types';
+import { CreateExperienceData, Company, Location, AvailabilitySchedule, Menu } from '@/types';
 import LocationModal from '@/components/LocationModal';
+import MenuSelector from '@/components/MenuSelector';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
 import {
   HiArrowLeft,
@@ -67,6 +69,8 @@ export default function CreateExperiencePage() {
   const [endTime, setEndTime] = useState('');
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [selectedMenus, setSelectedMenus] = useState<string[]>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [availableSchedules, setAvailableSchedules] = useState<AvailabilitySchedule[]>([]);
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
@@ -154,6 +158,9 @@ export default function CreateExperiencePage() {
         if (companyData._id) {
           const locationsData = await getLocationsByCompany(companyData._id);
           setLocations(locationsData || []);
+
+          const menusData = await getMenusByCompany(companyData._id);
+          setMenus(menusData || []);
         }
       } catch (error) {
         console.error('Error loading company data:', error);
@@ -428,6 +435,7 @@ export default function CreateExperiencePage() {
         includes: includes.filter(inc => inc.trim() !== ''),
         addons: addons.filter(addon => addon.name.trim() !== ''),
         locations: !useCustom && selectedLocations.length > 0 ? selectedLocations : undefined,
+      menus: selectedMenus.length > 0 ? selectedMenus : undefined,
         availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
         presentialLocation: data.location,
         presentialAddress: data.address,
@@ -1250,6 +1258,14 @@ export default function CreateExperiencePage() {
                 </div>
             ))}
           </div>
+        </div>
+
+        {/* Menús */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
+            Menús
+          </h2>
+          <MenuSelector menus={menus} selected={selectedMenus} onChange={setSelectedMenus} />
         </div>
 
         {/* Addons */}

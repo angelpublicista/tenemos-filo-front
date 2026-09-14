@@ -255,6 +255,60 @@ export interface Location {
   updatedAt: string;
 }
 
+/**
+ * Un plato. El precio es opcional a proposito: en un menu de degustacion
+ * incluido en la experiencia no pinta nada, y en una carta si. Cuando falta,
+ * simplemente no se pinta.
+ */
+export interface MenuItem {
+  /** Clave local para las listas de React, como en los `addons`. */
+  _key?: string;
+  name: string;
+  description?: string;
+  price?: number;
+  /** URL publica de la foto, la que devuelve la subida. */
+  image?: string;
+}
+
+export interface MenuSection {
+  _key?: string;
+  name: string;
+  description?: string;
+  items: MenuItem[];
+}
+
+export interface Menu {
+  _id: string;
+  _type: 'menu';
+  name: string;
+  slug: {
+    current: string;
+    _type: 'slug';
+  };
+  company: {
+    _ref: string;
+    _type: 'reference';
+  };
+  description?: string;
+  sections: MenuSection[];
+  /** En que experiencias se usa: cambiar la carta las afecta a todas. */
+  experiences?: Array<{ _id: string; title: string }>;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMenuData {
+  name: string;
+  description?: string;
+  sections?: MenuSection[];
+  isActive?: boolean;
+}
+
+export interface UpdateMenuData extends Partial<CreateMenuData> {
+  _id: string;
+}
+
 // Tipos para formularios de registro por pasos
 export interface HostStep1Data {
   fname: string;
@@ -346,6 +400,15 @@ export interface Experience {
     isMain?: boolean;
     capacity?: { minGuests?: number; maxGuests?: number };
   }>;
+  /** Las cartas que ofrece. Mismo doble shape que `locations`. */
+  menus?: Array<{
+    _ref: string;
+    _type: 'reference';
+    _id?: string;
+    name?: string;
+    description?: string;
+    sections?: MenuSection[];
+  }>;
   availabilities?: Array<{
     _ref: string;
     _type: 'reference';
@@ -404,6 +467,7 @@ export interface CreateExperienceData {
     caption?: string;
   }>; // Array de imágenes de la galería
   locations?: string[]; // Array de location IDs (múltiples sedes)
+  menus?: string[]; // Array de menu IDs (la experiencia puede ofrecer varias cartas)
   availabilities?: string[]; // Array de IDs de calendarios de disponibilidad (múltiples calendarios)
   experienceType: 'virtual' | 'presential' | 'hybrid';
   isVirtual?: boolean;

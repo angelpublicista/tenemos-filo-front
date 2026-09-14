@@ -504,6 +504,7 @@ export default function CompanySetupForm() {
         onChange={(assetId) => setLogoAssetId(assetId)}
         helpText="Imagen cuadrada · mínimo 400 × 400 px · PNG o JPG hasta 10 MB."
         compact
+        placeholder="Subir logo"
         circular
       />
 

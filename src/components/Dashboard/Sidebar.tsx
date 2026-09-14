@@ -15,6 +15,7 @@ import {
 } from 'react-icons/ai';
 import {
   BiMap,
+  BiRestaurant,
   BiStore,
   BiChevronLeft,
   BiChevronRight,
@@ -86,6 +87,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         href: '/dashboard/locations',
         icon: BiMap,
         current: pathname === '/dashboard/locations',
+        enabled: true
+      },
+      {
+        name: 'Menús',
+        href: '/dashboard/menus',
+        icon: BiRestaurant,
+        // startsWith y no ===: el modulo tiene subrutas (crear, editar) y el
+        // item debe quedarse marcado dentro de ellas.
+        current: pathname?.startsWith('/dashboard/menus') ?? false,
         enabled: true
       },
       {

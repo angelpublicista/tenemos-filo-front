@@ -16,6 +16,8 @@ interface ImageUploadProps {
   compact?: boolean;
   circular?: boolean;
   scope?: UploadScope;
+  /** Texto del recuadro en modo compacto. Lo que se sube no siempre es un logo. */
+  placeholder?: string;
 }
 
 interface GalleryUploadProps {
@@ -45,6 +47,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   compact = false,
   circular = false,
   scope = 'misc',
+  placeholder = 'Subir imagen',
 }) => {
   const shapeClass = circular ? 'rounded-full' : 'rounded-lg';
   const [isUploading, setIsUploading] = useState(false);
@@ -127,7 +130,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             ) : compact ? (
               <div className="space-y-1.5">
                 <HiPhotograph className="w-7 h-7 text-gray-400 mx-auto" />
-                <p className="text-xs text-gray-600 leading-tight">Subir logo</p>
+                <p className="text-xs text-gray-600 leading-tight">{placeholder}</p>
                 <p className="text-[10px] text-gray-400 leading-tight">PNG, JPG · 10 MB</p>
               </div>
             ) : (

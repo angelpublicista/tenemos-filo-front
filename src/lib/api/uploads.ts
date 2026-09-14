@@ -12,7 +12,8 @@ type PresignResponse = {
   contentType: string;
 };
 
-export type UploadScope = 'logos' | 'avatars' | 'experiences' | 'gallery' | 'portadas' | 'misc';
+export type UploadScope = 'logos' | 'avatars' | 'experiences' | 'gallery' | 'portadas'
+  | 'menus' | 'misc';
 
 /**
  * Sube cualquier archivo permitido y devuelve su URL publica.

@@ -2,6 +2,7 @@
 // para no romper los callers (dashboard/experiences, crm, reservas, etc.).
 // El shape de Experience se mantiene "Sanity-like" via mapeo.
 import { api } from '@/lib/api/client';
+import { conClaves, type ApiMenu } from './menuService';
 import {
   Experience,
   CreateExperienceData,
@@ -57,6 +58,7 @@ export interface ApiExperience {
     address?: Experience['locations'] extends Array<infer L> ? L extends { address?: infer A } ? A : unknown : unknown;
     capacity?: unknown;
   }>;
+  menus?: ApiMenu[];
   availabilities?: Array<{
     id: string;
     name: string;
@@ -131,6 +133,14 @@ export function toExperience(e: ApiExperience): Experience {
       isMain: l.isMain,
       capacity: l.capacity as { minGuests?: number; maxGuests?: number } | undefined,
     })),
+    menus: e.menus?.map((m) => ({
+      _ref: m.id,
+      _type: 'reference' as const,
+      _id: m.id,
+      name: m.name,
+      description: m.description ?? undefined,
+      sections: conClaves(m.sections ?? []),
+    })),
     availabilities: e.availabilities?.map((a) => ({ _ref: a.id, _type: 'reference' as const })),
     availabilitySchedules: e.availabilities?.map((a) => ({
       _id: a.id,
@@ -186,6 +196,7 @@ function buildCreatePayload(data: CreateExperienceData): Record<string, unknown>
     featuredImage: data.featuredImage,
     gallery: data.gallery,
     locations: data.locations ?? [],
+    menus: data.menus ?? [],
     availabilities: data.availabilities ?? [],
     experienceType: TYPE_TO_API[data.experienceType],
     isVirtual: data.isVirtual,
@@ -219,6 +230,7 @@ function buildUpdatePayload(data: UpdateExperienceData): Record<string, unknown>
   if (data.featuredImage !== undefined) out.featuredImage = data.featuredImage;
   if (data.gallery !== undefined) out.gallery = data.gallery;
   if (data.locations !== undefined) out.locations = data.locations;
+  if (data.menus !== undefined) out.menus = data.menus;
   if (data.availabilities !== undefined) out.availabilities = data.availabilities;
   if (data.experienceType !== undefined) out.experienceType = TYPE_TO_API[data.experienceType];
   if (data.isVirtual !== undefined) out.isVirtual = data.isVirtual;

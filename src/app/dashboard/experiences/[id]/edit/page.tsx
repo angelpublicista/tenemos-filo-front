@@ -7,13 +7,15 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperienceById, updateExperienceInSanity } from '@/lib/sanity/experienceService';
 import { getCompanyById, getCompanyByUserId } from '@/lib/sanity/companyService';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
+import { getMenusByCompany } from '@/lib/sanity/menuService';
 import { 
   getAvailabilitySchedulesByLocation, 
   createAvailabilitySchedule,
   generateDefaultSchedule 
 } from '@/lib/sanity/availabilityService';
-import { UpdateExperienceData, Company, Location, AvailabilitySchedule, Experience } from '@/types';
+import { UpdateExperienceData, Company, Location, AvailabilitySchedule, Experience, Menu } from '@/types';
 import LocationModal from '@/components/LocationModal';
+import MenuSelector from '@/components/MenuSelector';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
 import {
   HiArrowLeft,
@@ -65,6 +67,8 @@ export default function EditExperiencePage() {
   const [addons, setAddons] = useState<Array<{name: string, price: number, priceType: 'per_person' | 'total', description: string}>>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [selectedMenus, setSelectedMenus] = useState<string[]>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [availableSchedules, setAvailableSchedules] = useState<AvailabilitySchedule[]>([]);
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
@@ -204,6 +208,19 @@ export default function EditExperiencePage() {
         if (companyData._id) {
           const locationsData = await getLocationsByCompany(companyData._id);
           setLocations(locationsData || []);
+
+          const menusData = await getMenusByCompany(companyData._id);
+          setMenus(menusData || []);
+
+          if (Array.isArray(experienceData.menus)) {
+            setSelectedMenus(
+              experienceData.menus.map((m) => {
+                if (typeof m === 'object' && '_id' in m && m._id) return m._id;
+                if (typeof m === 'object' && '_ref' in m) return m._ref;
+                return m as unknown as string;
+              }),
+            );
+          }
           
           // Seleccionar sedes actuales si existen (compatibilidad con campo antiguo 'location')
           if (experienceData.locations && Array.isArray(experienceData.locations)) {
@@ -522,6 +539,7 @@ export default function EditExperiencePage() {
         includes: includes.filter(inc => inc && inc.trim() !== ''),
         addons: addons.filter(addon => addon && addon.name && addon.name.trim() !== ''),
         locations: selectedLocations.length > 0 ? selectedLocations : undefined,
+        menus: selectedMenus,
         availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
         featuredImage: featuredImageAssetId || undefined,
         gallery: galleryImages.length > 0 ? galleryImages : undefined,
@@ -1061,6 +1079,14 @@ export default function EditExperiencePage() {
                 </div>
             ))}
           </div>
+        </div>
+
+        {/* Menús */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
+            Menús
+          </h2>
+          <MenuSelector menus={menus} selected={selectedMenus} onChange={setSelectedMenus} />
         </div>
 
         {/* Addons */}

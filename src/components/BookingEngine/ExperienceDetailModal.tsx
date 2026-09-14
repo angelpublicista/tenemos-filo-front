@@ -216,6 +216,53 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
             </div>
           )}
 
+          {/* Menús. Va pegado a "Qué incluye" porque responde a lo mismo:
+              que se lleva quien reserva. */}
+          {experience.menus && experience.menus.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                {experience.menus.length === 1 ? 'Menú' : 'Menús'}
+              </h3>
+              <div className="space-y-4">
+                {experience.menus.map((menu) => (
+                  <div key={menu._ref} className="bg-gray-50 rounded-xl px-4 py-3">
+                    <p className="text-sm font-medium text-gray-900">{menu.name}</p>
+                    {menu.description && (
+                      <p className="text-xs text-gray-500 mt-0.5">{menu.description}</p>
+                    )}
+                    {menu.sections?.map((seccion, i) => (
+                      <div key={seccion._key ?? i} className="mt-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          {seccion.name}
+                        </p>
+                        <ul className="mt-1 space-y-1">
+                          {seccion.items?.map((plato, j) => (
+                            <li
+                              key={plato._key ?? j}
+                              className="flex items-start justify-between gap-3"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm text-gray-700">{plato.name}</p>
+                                {plato.description && (
+                                  <p className="text-xs text-gray-500">{plato.description}</p>
+                                )}
+                              </div>
+                              {plato.price != null && (
+                                <span className="text-sm text-[#334C5D] shrink-0">
+                                  {formatPrice(plato.price, experience.currency)}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Requisitos */}
           {experience.requirements && experience.requirements.length > 0 && (
             <div className="mb-6">

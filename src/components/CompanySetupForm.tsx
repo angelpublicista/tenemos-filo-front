@@ -145,7 +145,7 @@ const steps = ['Información Básica', 'Información Fiscal', 'Tamaño de Empres
 
 export default function CompanySetupForm() {
   const router = useRouter();
-  const { user, sanityUser, markSetupCompleted, isSetupCompleted, hasCompany, companySetupState } = useAuth();
+  const { user, sanityUser, markSetupCompleted, isSetupCompleted, hasCompany } = useAuth();
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
   const [currentStep, setCurrentStep] = useState(1);
   const [companyPhone, setCompanyPhone] = useState("");
@@ -262,32 +262,25 @@ export default function CompanySetupForm() {
   const hasCompletedSetup = isSetupCompleted();
   const hasCompanyAssociated = hasCompany();
   
-  // Solo mostrar mensaje de "completado" si:
-  // 1. El setup está completado
-  // 2. Tiene empresa asociada en localStorage
-  console.log('Debug localStorage:', {
-    hasCompletedSetup,
-    hasCompanyAssociated,
-    existingCompany: !!existingCompany,
-    companySetupState: companySetupState
-  });
-  
-  // Si el usuario ya completó el setup Y tiene empresa asociada, mostrar mensaje de completado
-  // PERO solo si NO hay datos existentes para editar
   if (hasCompletedSetup && hasCompanyAssociated && !existingCompany) {
     return (
       <div className="max-w-4xl mx-auto p-6">
+        {/* Sin veredicto sobre si esta completa: aqui `existingCompany` es
+            null por definicion, asi que no hay datos que mirar. Quien los
+            tiene es el CompanyInfoView de abajo, y es el que dice si falta
+            algo. Antes se cantaba "Configuración Completada" desde una marca
+            en localStorage, que solo significaba que alguien paso por el
+            formulario alguna vez. */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center mb-6">
           <div className="mb-4">
             <HiCheckCircle className="w-16 h-16 text-blue-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-[#334C5D] mb-2">
-              Configuración Completada
+              Tu empresa ya está registrada
             </h2>
             <p className="text-gray-600 text-lg">
-              Ya has completado la configuración de empresa. 
-              {sanityUser?.role === 'host' 
-                ? ' Puedes crear experiencias desde tu dashboard.'
-                : ' Puedes cotizar experiencias desde tu dashboard.'
+              {sanityUser?.role === 'host'
+                ? 'Puedes crear experiencias desde tu dashboard.'
+                : 'Puedes cotizar experiencias desde tu dashboard.'
               }
             </p>
           </div>

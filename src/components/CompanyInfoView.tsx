@@ -7,6 +7,8 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { getCompanyById, getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
 import { uploadImage } from '@/lib/api/uploads';
 import { Company } from '@/types';
+import CompanyProgress from './CompanyProgress';
+import { calcularCompletitud } from '@/lib/company/completitud';
 import { Button } from 'flowbite-react';
 import {
   HiPencilAlt,
@@ -166,6 +168,8 @@ export default function CompanyInfoView({
     );
   }
 
+  const completitud = calcularCompletitud(existingCompany);
+
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-8 ${className}`}>
       {/* Header */}
@@ -216,10 +220,22 @@ export default function CompanyInfoView({
             <h3 className="text-xl sm:text-2xl font-semibold text-[#334C5D] mb-2 truncate">
               {existingCompany.companyName}
             </h3>
-            <div className="flex items-center text-green-600">
-              <HiCheckCircle className="w-5 h-5 mr-2 shrink-0" />
-              <span className="text-sm font-medium">Configuración completada</span>
-            </div>
+            {/* El rotulo salia siempre, dijeran lo que dijeran los datos: una
+                empresa a la que le faltaba media ficha se anunciaba como
+                completada. Ahora sale de contarlos. */}
+            {completitud.completa ? (
+              <div className="flex items-center text-green-600">
+                <HiCheckCircle className="w-5 h-5 mr-2 shrink-0" />
+                <span className="text-sm font-medium">Información completa</span>
+              </div>
+            ) : (
+              <div className="flex items-center text-gray-500">
+                <HiExclamationCircle className="w-5 h-5 mr-2 shrink-0" />
+                <span className="text-sm font-medium">
+                  {completitud.porcentaje}% completado
+                </span>
+              </div>
+            )}
             {showEditButton && existingCompany.logo && (
               <button
                 type="button"
@@ -253,6 +269,14 @@ export default function CompanyInfoView({
           </p>
         </div>
       )}
+
+      {/* Que falta por rellenar. Va antes de los datos porque es lo que hay
+          que hacer; los datos ya rellenados no piden nada. */}
+      <CompanyProgress
+        company={existingCompany}
+        onCompletar={handleEdit}
+        className="mb-6"
+      />
 
       {/* Company Information */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">

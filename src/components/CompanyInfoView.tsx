@@ -45,19 +45,25 @@ export default function CompanyInfoView({
 
   useEffect(() => {
     const loadCompanyData = async () => {
-      if (!user || !hasCompany()) {
+      // La empresa a mostrar es la activa: para un admin "actuando como" es la
+      // que eligio en el selector; para un anfitrion, la suya.
+      //
+      // `hasCompany()` no vale como guarda: lee una marca de localStorage que
+      // solo se escribe cuando /users/me trae un companyId propio, y un admin
+      // no tiene empresa propia. Con ella delante, la pantalla se rendia antes
+      // de intentar cargar nada y enseñaba "No hay información de empresa"
+      // mientras el panel entero operaba sobre una.
+      const empresaActiva = sanityUser?.companyId;
+
+      if (!user || (!empresaActiva && !hasCompany())) {
         setIsLoadingData(false);
         return;
       }
 
       try {
         setIsLoadingData(true);
-        // La empresa activa la manda AuthContext: es la que respeta el selector
-        // de empresa y la que usa el resto del panel. /companies/me no vale
-        // como unica fuente —a un ADMIN en modo plataforma le responde null a
-        // proposito— y queda solo como respaldo.
-        const companyData = sanityUser?.companyId
-          ? await getCompanyById(sanityUser.companyId)
+        const companyData = empresaActiva
+          ? await getCompanyById(empresaActiva)
           : await getCompanyByUserId(user.uid);
         setExistingCompany(companyData);
       } catch (error) {
@@ -144,7 +150,8 @@ export default function CompanyInfoView({
     return <Loader message="Cargando información de la empresa..." className={className} />;
   }
 
-  if (!hasCompany() || !existingCompany) {
+  // Lo que decide es si hay datos que enseñar, no la marca de localStorage.
+  if (!existingCompany) {
     return (
       <div className={`bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-8 text-center ${className}`}>
         <div className="mb-4">

@@ -121,7 +121,12 @@ export interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  register: (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>) => Promise<{ user: { uid: string } }>;
+  /**
+   * `recaptchaToken` lo valida el API contra Google. El front ya comprobaba
+   * que existiera antes de enviar, pero eso pasa en el navegador y se lo salta
+   * cualquiera llamando al API directamente.
+   */
+  register: (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>, recaptchaToken?: string | null) => Promise<{ user: { uid: string } }>;
   /** Empresa sobre la que actua un ADMIN. null = modo plataforma. */
   activeCompanyId: string | null;
   setActiveCompany: (companyId: string | null) => void;

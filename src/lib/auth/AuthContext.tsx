@@ -277,7 +277,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [router, clearSetupState]);
 
   const register = useCallback(
-    async (email: string, password: string, userData: Omit<CreateUserData, "firebaseId">) => {
+    async (
+      email: string,
+      password: string,
+      userData: Omit<CreateUserData, "firebaseId">,
+      recaptchaToken?: string | null,
+    ) => {
       try {
         await api.post<ApiUser>("/auth/register", {
           email,
@@ -287,6 +292,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           role: ROLE_UP[userData.role],
           documentType: userData.typeDocument,
           documentNumber: userData.documentNumber,
+          // Quien decide si vale es el API, no el navegador.
+          recaptchaToken: recaptchaToken ?? undefined,
         });
       } catch (err) {
         if (err instanceof ApiHttpError && err.status === 409) {

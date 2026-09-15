@@ -81,7 +81,7 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
       };
 
       // Registrar usuario en Firebase Auth y Sanity
-      await authRegister(data.email, data.password, userData);
+      await authRegister(data.email, data.password, userData, recaptchaToken);
 
       console.log(`${role === 'host' ? 'Anfitrión' : 'Comensal'} registrado exitosamente en Firebase y Sanity`);
       

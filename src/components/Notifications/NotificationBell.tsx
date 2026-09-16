@@ -2,9 +2,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { HiBell, HiTrash, HiX } from 'react-icons/hi';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { AppNotification, NotificationType } from '@/types';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { destinoDeNotificacion } from '@/lib/notifications/destino';
 
 const TYPE_STYLES: Record<NotificationType, { bg: string; dot: string }> = {
   new_reservation:        { bg: 'bg-blue-50',   dot: 'bg-blue-500' },
@@ -29,6 +32,24 @@ export default function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const { sanityUser } = useAuth();
+
+  const esComensal = sanityUser?.role === 'guest';
+
+  /**
+   * Igual que en la bandeja completa, y ademas cierra el desplegable: dejarlo
+   * abierto encima de la pantalla a la que se acaba de llegar tapa justo lo
+   * que se venia a ver.
+   */
+  const abrir = (n: AppNotification) => {
+    if (!n.read) markAsRead(n.id);
+    const destino = destinoDeNotificacion(n, esComensal);
+    if (destino) {
+      setOpen(false);
+      router.push(destino);
+    }
+  };
 
   // Cerrar al hacer click fuera
   useEffect(() => {
@@ -96,27 +117,23 @@ export default function NotificationBell() {
               preview.map((n) => {
                 const style = TYPE_STYLES[n.type] ?? TYPE_STYLES.system;
                 return (
-                  // Igual que en la pagina de notificaciones: pulsar la
-                  // notificacion la marca como leida, sin depender de un boton
+                  // Igual que en la pagina de notificaciones: pulsar marca
+                  // como leida y lleva a la reserva, sin depender de un boton
                   // que solo aparecia al pasar el raton por encima.
                   <div
                     key={n.id}
-                    onClick={n.read ? undefined : () => markAsRead(n.id)}
-                    onKeyDown={
-                      n.read
-                        ? undefined
-                        : (e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              markAsRead(n.id);
-                            }
-                          }
-                    }
-                    role={n.read ? undefined : 'button'}
-                    tabIndex={n.read ? undefined : 0}
-                    title={n.read ? undefined : 'Marcar como leída'}
-                    className={`flex gap-3 px-4 py-3 transition-colors ${
-                      n.read ? 'bg-white' : `${style.bg} cursor-pointer hover:brightness-95`
+                    onClick={() => abrir(n)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        abrir(n);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    title={destinoDeNotificacion(n, esComensal) ? 'Ver detalle' : 'Marcar como leída'}
+                    className={`flex gap-3 px-4 py-3 transition-colors cursor-pointer hover:brightness-95 ${
+                      n.read ? 'bg-white' : style.bg
                     }`}
                   >
                     {/* Dot */}

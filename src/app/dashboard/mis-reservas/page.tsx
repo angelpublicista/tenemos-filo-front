@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Badge, Card } from 'flowbite-react';
 import { HiCalendar, HiClock, HiLocationMarker, HiUsers } from 'react-icons/hi';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -75,8 +76,36 @@ export default function MisReservasPage() {
   const proximas = reservas.filter(esFutura);
   const pasadas = reservas.filter((r) => !esFutura(r));
 
+  /**
+   * La reserva a la que enlaza una notificacion (`?reserva=<id>`).
+   *
+   * Aqui no hay pantalla de detalle ni modal, asi que "llevar a la reserva" es
+   * traerla a la vista y señalarla: si no, caer en una lista de doce tarjetas
+   * deja el trabajo de buscarla a quien pulso.
+   *
+   * El parametro no se limpia a proposito: es lo que mantiene el resaltado, y
+   * asi la direccion sigue sirviendo si se recarga o se comparte.
+   */
+  const reservaEnlazada = useSearchParams()?.get('reserva') ?? null;
+  const yaCentrada = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!reservaEnlazada || cargando) return;
+    if (yaCentrada.current === reservaEnlazada) return;
+    const nodo = document.getElementById(`reserva-${reservaEnlazada}`);
+    if (!nodo) return;
+    yaCentrada.current = reservaEnlazada;
+    nodo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [reservaEnlazada, cargando, reservas]);
+
   const tarjeta = (r: MiReserva) => (
-    <Card key={r.id}>
+    <Card
+      key={r.id}
+      id={`reserva-${r.id}`}
+      className={
+        r.id === reservaEnlazada ? 'ring-2 ring-[#F26726] ring-offset-2' : undefined
+      }
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Select, Badge, Modal, ModalHeader, ModalBody, Tooltip } from 'flowbite-react';
 import CalendarPicker from '@/components/CalendarPicker';
@@ -385,6 +385,42 @@ export default function ReservationsPage() {
     setShowReservationsModal(false);
     setShowEditModal(true);
   };
+
+  /**
+   * Abrir la reserva a la que enlaza una notificacion (`?reserva=<id>`).
+   *
+   * Aqui no hay pantalla de detalle: una reserva se ve en un modal que se abre
+   * desde el calendario. Asi que se abre ese mismo modal, y se lleva el
+   * calendario al mes de la reserva para que al cerrarlo no quede mirando a
+   * una fecha que no tiene nada que ver.
+   *
+   * Hay que esperar a que carguen: con la lista vacia no se encuentra nada y
+   * pareceria que la reserva no existe.
+   */
+  const reservaEnlazada = searchParams?.get('reserva') ?? null;
+  const yaAbierta = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!reservaEnlazada || isLoading) return;
+    if (yaAbierta.current === reservaEnlazada) return;
+    yaAbierta.current = reservaEnlazada;
+
+    // `_id` es herencia del nombrado de Sanity; guarda el id del API, que es
+    // el mismo que viaja en la notificacion (ver reservationService: `_id: r.id`).
+    const reserva = reservations.find((r) => r._id === reservaEnlazada);
+    if (reserva) {
+      if (reserva.reservationDate) setCurrentDate(new Date(reserva.reservationDate));
+      handleEditReservation(reserva);
+    } else {
+      // Pudo borrarse, o ser de otra empresa si se cambio de sesion. Callarse
+      // dejaria la pantalla igual que si no se hubiera pulsado nada.
+      showError('No encontramos esa reserva. Es posible que se haya eliminado.');
+    }
+
+    // Se quita el parametro: recargar no deberia reabrir el modal.
+    router.replace('/dashboard/reservations');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservaEnlazada, isLoading, reservations]);
 
   // Formatear fecha
   const formatDate = (dateString: string) => {

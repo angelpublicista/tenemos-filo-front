@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { HiBell, HiCheckCircle, HiTrash, HiFilter } from 'react-icons/hi';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { AppNotification, NotificationType } from '@/types';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { SkeletonCard } from '@/components/Skeleton';
+import { destinoDeNotificacion } from '@/lib/notifications/destino';
 
 /**
  * Las mismas notificaciones se leen al reves segun quien las mire.
@@ -86,7 +88,22 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<FilterState>('all');
   const { sanityUser } = useAuth();
 
+  const router = useRouter();
+
   const esComensal = sanityUser?.role === 'guest';
+
+  /**
+   * Pulsar una notificacion la marca como leida y lleva a lo que anuncia.
+   *
+   * Se marca aunque no haya a donde ir: leerla ya es haberla atendido. Y se
+   * navega aunque ya estuviera leida, porque volver a la reserva de la que
+   * habla sigue siendo util despues.
+   */
+  const abrir = (n: AppNotification) => {
+    if (!n.read) markAsRead(n.id);
+    const destino = destinoDeNotificacion(n, esComensal);
+    if (destino) router.push(destino);
+  };
   const etiqueta = (t: NotificationType) =>
     (esComensal ? ETIQUETA_COMENSAL : ETIQUETA_ANFITRION)[t];
   const tiposVisibles = esComensal
@@ -172,30 +189,26 @@ export default function NotificationsPage() {
         ) : (
           <div className="space-y-2">
             {filtered.map((n) => (
-              // Pulsar la notificacion la marca como leida. Antes eso solo lo
-              // hacia un boton escondido tras el hover, asi que en la practica
-              // la unica salida visible era "marcar todo como leido" —y en
-              // movil, donde no hay hover, la unica a secas.
+              // Pulsar la notificacion la marca como leida y lleva a la
+              // reserva. Antes lo primero lo hacia un boton escondido tras el
+              // hover —que en tactil no aparece nunca, dejando "marcar todo
+              // como leido" como unica salida— y lo segundo no lo hacia nadie.
               <div
                 key={n.id}
-                onClick={n.read ? undefined : () => markAsRead(n.id)}
-                onKeyDown={
-                  n.read
-                    ? undefined
-                    : (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          markAsRead(n.id);
-                        }
-                      }
-                }
-                role={n.read ? undefined : 'button'}
-                tabIndex={n.read ? undefined : 0}
-                title={n.read ? undefined : 'Marcar como leída'}
-                className={`flex items-start gap-4 p-4 rounded-xl border transition-colors ${
+                onClick={() => abrir(n)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    abrir(n);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                title={destinoDeNotificacion(n, esComensal) ? 'Ver detalle' : 'Marcar como leída'}
+                className={`flex items-start gap-4 p-4 rounded-xl border transition-colors cursor-pointer hover:bg-gray-50 ${
                   n.read
                     ? 'bg-white border-gray-100'
-                    : 'bg-white border-l-4 shadow-sm cursor-pointer hover:bg-gray-50'
+                    : 'bg-white border-l-4 shadow-sm'
                 } ${!n.read ? `border-l-${DOT_COLOR[n.type].replace('bg-', '')}` : ''}`}
                 style={!n.read ? { borderLeftColor: getBorderColor(n.type) } : {}}
               >

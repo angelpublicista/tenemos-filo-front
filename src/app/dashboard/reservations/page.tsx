@@ -27,7 +27,7 @@ import {
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
-import { getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
+import { getReservationById, getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
 import { Experience, Reservation } from '@/types';
 import CreateReservationModal from '@/components/CreateReservationModal';
 import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
@@ -394,8 +394,8 @@ export default function ReservationsPage() {
    * calendario al mes de la reserva para que al cerrarlo no quede mirando a
    * una fecha que no tiene nada que ver.
    *
-   * Hay que esperar a que carguen: con la lista vacia no se encuentra nada y
-   * pareceria que la reserva no existe.
+   * Se espera a que cargue la lista: casi siempre la reserva ya esta ahi y se
+   * ahorra una peticion.
    */
   const reservaEnlazada = searchParams?.get('reserva') ?? null;
   const yaAbierta = useRef<string | null>(null);
@@ -405,17 +405,38 @@ export default function ReservationsPage() {
     if (yaAbierta.current === reservaEnlazada) return;
     yaAbierta.current = reservaEnlazada;
 
-    // `_id` es herencia del nombrado de Sanity; guarda el id del API, que es
-    // el mismo que viaja en la notificacion (ver reservationService: `_id: r.id`).
-    const reserva = reservations.find((r) => r._id === reservaEnlazada);
-    if (reserva) {
+    const abrirEnlazada = async () => {
+      // Lo habitual es que ya este en pantalla. Pero la lista carga 100 como
+      // mucho y solo las de esta empresa, y hay avisos legitimos que apuntan
+      // fuera de ahi: la reserva de una venta por canal pertenece al
+      // anfitrion, no al revendedor al que se le avisa de su venta. Dar por
+      // hecho que no existe solo porque no esta en la lista era decirle a la
+      // gente que su reserva se habia borrado cuando estaba perfectamente.
+      // `_id` es herencia del nombrado de Sanity; guarda el id del API, el
+      // mismo que viaja en la notificacion (reservationService: `_id: r.id`).
+      let reserva: Partial<Reservation> | null =
+        reservations.find((r) => r._id === reservaEnlazada) ?? null;
+
+      if (!reserva) {
+        try {
+          reserva = await getReservationById(reservaEnlazada);
+        } catch {
+          reserva = null;
+        }
+      }
+
+      if (!reserva) {
+        // Ahora si: no esta en la lista y el API tampoco la da. Callarse
+        // dejaria la pantalla igual que si no se hubiera pulsado nada.
+        showError('No encontramos esa reserva. Es posible que se haya eliminado.');
+        return;
+      }
+
       if (reserva.reservationDate) setCurrentDate(new Date(reserva.reservationDate));
       handleEditReservation(reserva);
-    } else {
-      // Pudo borrarse, o ser de otra empresa si se cambio de sesion. Callarse
-      // dejaria la pantalla igual que si no se hubiera pulsado nada.
-      showError('No encontramos esa reserva. Es posible que se haya eliminado.');
-    }
+    };
+
+    void abrirEnlazada();
 
     // Se quita el parametro: recargar no deberia reabrir el modal.
     router.replace('/dashboard/reservations');

@@ -21,6 +21,7 @@ import type { CampoDetectado } from '@/lib/company/documentos';
 import Loader from './Loader';
 import { ImageUpload } from './ImageUpload';
 import { COLOMBIA_DEPARTMENTS, getCitiesByDepartment } from '@/data/colombiaRegions';
+import { digitoVerificacion } from '@/lib/company/nit';
 
 // Esquemas de validación por pasos
 const basicInfoSchema = z.object({
@@ -223,6 +224,14 @@ export default function CompanySetupForm() {
     }
   });
 
+  // El DV se deriva del NIT en vez de guardarse en estado: es una funcion pura
+  // del numero, asi que tener una copia editable solo abriria la puerta a que
+  // se desincronicen.
+  const documentTypeActual = watch('documentType');
+  const documentNumberActual = watch('documentNumber') || '';
+  const dvCalculado =
+    documentTypeActual === 'nit' ? digitoVerificacion(documentNumberActual) : null;
+
   const selectedDepartment = watch('address.state') || '';
   const selectedCity = watch('address.city') || '';
   // Memorizado porque el efecto de la ciudad pendiente depende de el: sin esto
@@ -393,6 +402,7 @@ export default function CompanySetupForm() {
           logo: logoAssetId || null,
           documentType: data.documentType,
           documentNumber: data.documentNumber,
+          documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
           address: data.address,
@@ -425,6 +435,7 @@ export default function CompanySetupForm() {
           logo: logoAssetId || undefined,
           documentType: data.documentType,
           documentNumber: data.documentNumber,
+          documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
           address: data.address,
@@ -714,19 +725,48 @@ export default function CompanySetupForm() {
         )}
       </div>
 
-      {/* Número de Documento */}
+      {/* Número de Documento. Con el DV al lado cuando es NIT: asi se lee
+          igual que viene impreso en el RUT y en las facturas. */}
       <div>
         <Label color="gray" className="mb-2 block">
           Número de documento <span className="text-red-500">*</span>
         </Label>
-        <TextInput
-          id="documentNumber"
-          type="text"
-          placeholder="12345678"
-          icon={AiOutlineIdcard}
-          color={errors.documentNumber ? 'failure' : 'white'}
-          {...register('documentNumber')}
-        />
+        <div className="flex items-end gap-2">
+          <div className="flex-1 min-w-0">
+            <TextInput
+              id="documentNumber"
+              type="text"
+              placeholder="12345678"
+              icon={AiOutlineIdcard}
+              color={errors.documentNumber ? 'failure' : 'white'}
+              {...register('documentNumber')}
+            />
+          </div>
+          {documentTypeActual === 'nit' && (
+            <>
+              <span className="pb-2.5 text-gray-400 select-none">-</span>
+              <div className="w-16 shrink-0">
+                <TextInput
+                  id="documentDv"
+                  type="text"
+                  value={dvCalculado ?? ''}
+                  readOnly
+                  disabled
+                  placeholder="DV"
+                  color="white"
+                  aria-label="Dígito de verificación"
+                />
+              </div>
+            </>
+          )}
+        </div>
+        {documentTypeActual === 'nit' && (
+          <p className="mt-1 text-sm text-gray-500">
+            {dvCalculado
+              ? 'El dígito de verificación se calcula solo a partir del NIT.'
+              : 'Escribe el NIT y calcularemos su dígito de verificación.'}
+          </p>
+        )}
         {errors.documentNumber && (
           <p className="mt-1 text-sm text-red-600">{errors.documentNumber.message}</p>
         )}

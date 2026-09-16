@@ -382,7 +382,13 @@ export default function CompanyInfoView({
               <label className="text-sm font-medium text-gray-500 block mb-1">
                 Número de Documento
               </label>
-              <p className="text-gray-900">{existingCompany.documentNumber}</p>
+              <p className="text-gray-900">
+                {existingCompany.documentNumber}
+                {/* Con el DV pegado, que es como se usa en una factura. */}
+                {existingCompany.documentType === 'nit' && existingCompany.documentDv && (
+                  <span className="text-gray-500">-{existingCompany.documentDv}</span>
+                )}
+              </p>
             </div>
 
             {existingCompany.businessName && (

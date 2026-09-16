@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import DocumentUpload from './DocumentUpload';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import { dvCoincide } from '@/lib/company/nit';
 import {
   camposDesdeDocumento,
   telefonoDesdeDocumento,
@@ -82,6 +83,17 @@ export default function CompanyDocuments({
         return;
       }
 
+      // El DV del documento contra el que sale del NIT leido. Si no cuadran,
+      // lo mas probable es que el NIT se leyera mal: es un numero de nueve
+      // cifras frente a una sola, asi que hay mas sitio donde fallar. No se
+      // bloquea nada —el documento manda—, pero se avisa antes de aplicarlo.
+      const nitLeido = campos.find((c) => c.campo === 'documentNumber')?.valor;
+      const cuadra = nitLeido ? dvCoincide(nitLeido, datos.digitoVerificacion) : null;
+      const aviso =
+        cuadra === false
+          ? ['', '⚠ El dígito de verificación del documento no coincide con el NIT que leímos. Revisa el número antes de continuar.']
+          : [];
+
       // Se enseña antes de tocar nada: son varios campos de golpe y alguno
       // puede pisar lo que la persona ya escribio.
       const confirmado = await showConfirmation(
@@ -91,6 +103,7 @@ export default function CompanyDocuments({
         'Prefiero escribirlos yo',
         [
           ...campos.map((c) => `• ${c.etiqueta}: ${paraMostrar(c.campo, c.valor)}`),
+          ...aviso,
           '',
           'Se usarán para rellenar el formulario. Podrás corregir lo que quieras.',
         ],

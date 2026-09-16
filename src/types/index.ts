@@ -189,6 +189,8 @@ export interface Company {
   companyPhone: string;
   documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber?: string;
+  /** Digito de verificacion del NIT. Se deduce del numero. */
+  documentDv?: string;
   website?: string;
   address?: {
     street?: string;

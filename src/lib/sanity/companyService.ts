@@ -16,6 +16,8 @@ export interface CreateCompanyData {
   logo?: string;
   documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber?: string;
+  /** Digito de verificacion del NIT; se calcula, no se escribe. */
+  documentDv?: string;
   businessName?: string;
   website?: string;
   address?: {
@@ -72,6 +74,7 @@ export interface ApiCompany {
   logo: string | null;
   documentType: ApiDocumentType | null;
   documentNumber: string | null;
+  documentDv: string | null;
   website: string | null;
   address: Company['address'] | null;
   employeeCount: string | null;
@@ -148,6 +151,7 @@ export function toCompany(c: ApiCompany): Company {
     companyPhone: c.companyPhone ?? '',
     documentType: c.documentType ? DOC_TYPE_FROM_API[c.documentType] : undefined,
     documentNumber: c.documentNumber ?? undefined,
+    documentDv: c.documentDv ?? undefined,
     website: c.website ?? undefined,
     address: c.address ?? undefined,
     employeeCount: (c.employeeCount as Company['employeeCount']) ?? undefined,
@@ -188,6 +192,7 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
   if (data.logo !== undefined) out.logo = data.logo === null ? null : data.logo;
   if (data.documentType !== undefined) out.documentType = DOC_TYPE_TO_API[data.documentType];
   if (data.documentNumber !== undefined) out.documentNumber = data.documentNumber;
+  if (data.documentDv !== undefined) out.documentDv = data.documentDv;
   if (data.businessName !== undefined) out.businessName = data.businessName;
   if (data.website !== undefined) out.website = data.website;
   if (data.address !== undefined) out.address = data.address;

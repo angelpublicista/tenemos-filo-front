@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { HiBell, HiCheckCircle, HiTrash, HiX } from 'react-icons/hi';
+import { HiBell, HiTrash, HiX } from 'react-icons/hi';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { AppNotification, NotificationType } from '@/types';
 
@@ -96,9 +96,28 @@ export default function NotificationBell() {
               preview.map((n) => {
                 const style = TYPE_STYLES[n.type] ?? TYPE_STYLES.system;
                 return (
+                  // Igual que en la pagina de notificaciones: pulsar la
+                  // notificacion la marca como leida, sin depender de un boton
+                  // que solo aparecia al pasar el raton por encima.
                   <div
                     key={n.id}
-                    className={`flex gap-3 px-4 py-3 group transition-colors ${n.read ? 'bg-white' : style.bg}`}
+                    onClick={n.read ? undefined : () => markAsRead(n.id)}
+                    onKeyDown={
+                      n.read
+                        ? undefined
+                        : (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              markAsRead(n.id);
+                            }
+                          }
+                    }
+                    role={n.read ? undefined : 'button'}
+                    tabIndex={n.read ? undefined : 0}
+                    title={n.read ? undefined : 'Marcar como leída'}
+                    className={`flex gap-3 px-4 py-3 transition-colors ${
+                      n.read ? 'bg-white' : `${style.bg} cursor-pointer hover:brightness-95`
+                    }`}
                   >
                     {/* Dot */}
                     <div className="mt-1.5 flex-shrink-0">
@@ -115,18 +134,13 @@ export default function NotificationBell() {
                     </div>
 
                     {/* Acciones */}
-                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      {!n.read && (
-                        <button
-                          onClick={() => markAsRead(n.id)}
-                          className="p-1 text-green-500 hover:text-green-700"
-                          title="Marcar como leída"
-                        >
-                          <HiCheckCircle className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                    <div className="flex flex-col gap-1 flex-shrink-0">
                       <button
-                        onClick={() => deleteNotification(n.id)}
+                        onClick={(e) => {
+                          // Que borrar no dispare ademas el clic de la fila.
+                          e.stopPropagation();
+                          deleteNotification(n.id);
+                        }}
                         className="p-1 text-red-400 hover:text-red-600"
                         title="Eliminar"
                       >

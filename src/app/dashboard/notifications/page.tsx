@@ -172,12 +172,30 @@ export default function NotificationsPage() {
         ) : (
           <div className="space-y-2">
             {filtered.map((n) => (
+              // Pulsar la notificacion la marca como leida. Antes eso solo lo
+              // hacia un boton escondido tras el hover, asi que en la practica
+              // la unica salida visible era "marcar todo como leido" —y en
+              // movil, donde no hay hover, la unica a secas.
               <div
                 key={n.id}
-                className={`flex items-start gap-4 p-4 rounded-xl border group transition-colors ${
+                onClick={n.read ? undefined : () => markAsRead(n.id)}
+                onKeyDown={
+                  n.read
+                    ? undefined
+                    : (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          markAsRead(n.id);
+                        }
+                      }
+                }
+                role={n.read ? undefined : 'button'}
+                tabIndex={n.read ? undefined : 0}
+                title={n.read ? undefined : 'Marcar como leída'}
+                className={`flex items-start gap-4 p-4 rounded-xl border transition-colors ${
                   n.read
                     ? 'bg-white border-gray-100'
-                    : 'bg-white border-l-4 shadow-sm'
+                    : 'bg-white border-l-4 shadow-sm cursor-pointer hover:bg-gray-50'
                 } ${!n.read ? `border-l-${DOT_COLOR[n.type].replace('bg-', '')}` : ''}`}
                 style={!n.read ? { borderLeftColor: getBorderColor(n.type) } : {}}
               >
@@ -201,18 +219,14 @@ export default function NotificationsPage() {
                 </div>
 
                 {/* Acciones */}
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  {!n.read && (
-                    <button
-                      onClick={() => markAsRead(n.id)}
-                      className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                      title="Marcar como leída"
-                    >
-                      <HiCheckCircle className="w-4 h-4" />
-                    </button>
-                  )}
+                <div className="flex gap-1 flex-shrink-0">
                   <button
-                    onClick={() => deleteNotification(n.id)}
+                    onClick={(e) => {
+                      // Sin esto, borrar tambien dispararia el clic de la fila:
+                      // una sola intencion pidiendo dos escrituras.
+                      e.stopPropagation();
+                      deleteNotification(n.id);
+                    }}
                     className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Eliminar"
                   >

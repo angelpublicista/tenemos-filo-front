@@ -326,7 +326,7 @@ export default function ProfileView() {
             Cancelar
           </Button>
           <Button
-            color="success"
+            color="primary"
             onClick={handleSave}
             disabled={isLoading}
             className="w-full sm:w-auto"

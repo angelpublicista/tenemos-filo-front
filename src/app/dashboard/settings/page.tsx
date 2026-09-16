@@ -442,30 +442,16 @@ export default function SettingsPage() {
                 </p>
               </div>
               {!loadingCompany && company && !isEditingGeneral && (
-                <Button
-                  color="warning"
-                  onClick={handleStartEditGeneral}
-                  className="border-none bg-[#F26726] hover:bg-[#F26726]/90"
-                >
+                <Button color="primary" onClick={handleStartEditGeneral}>
                   Editar información
                 </Button>
               )}
               {isEditingGeneral && (
                 <div className="flex gap-2">
-                  <Button
-                    color="light"
-                    onClick={handleCancelEditGeneral}
-                    disabled={savingGeneral}
-                    className="border border-gray-200"
-                  >
+                  <Button color="secondary" onClick={handleCancelEditGeneral} disabled={savingGeneral}>
                     Cancelar
                   </Button>
-                  <Button
-                    color="warning"
-                    onClick={handleSaveGeneral}
-                    disabled={savingGeneral}
-                    className="border-none bg-[#F26726] hover:bg-[#F26726]/90"
-                  >
+                  <Button color="primary" onClick={handleSaveGeneral} disabled={savingGeneral}>
                     {savingGeneral ? "Guardando..." : "Guardar cambios"}
                   </Button>
                 </div>

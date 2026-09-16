@@ -166,7 +166,7 @@ export default function CompanyInfoView({
           </p>
         </div>
         <Button
-          color="warning"
+          color="primary"
           onClick={() => router.push('/company-setup')}
           className="w-full sm:w-auto"
         >

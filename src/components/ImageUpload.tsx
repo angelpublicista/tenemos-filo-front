@@ -288,7 +288,7 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
                       value={image.caption || ''}
                       onChange={(e) => handleUpdateMetadata(index, 'caption', e.target.value)}
                     />
-                    <Button size="xs" color="gray" onClick={() => setEditingIndex(null)} className="w-full">
+                    <Button size="xs" color="primary" onClick={() => setEditingIndex(null)} className="w-full">
                       Guardar
                     </Button>
                   </div>

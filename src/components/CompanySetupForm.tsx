@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -20,7 +20,7 @@ import CompanyDocuments from './CompanyDocuments';
 import type { CampoDetectado } from '@/lib/company/documentos';
 import Loader from './Loader';
 import { ImageUpload } from './ImageUpload';
-import { COLOMBIA_DEPARTMENTS, getCitiesByDepartment } from '@/data/colombiaRegions';
+import DepartamentoCiudad from './DepartamentoCiudad';
 import { digitoVerificacion } from '@/lib/company/nit';
 
 // Esquemas de validación por pasos
@@ -233,30 +233,6 @@ export default function CompanySetupForm() {
     documentTypeActual === 'nit' ? digitoVerificacion(documentNumberActual) : null;
 
   const selectedDepartment = watch('address.state') || '';
-  const selectedCity = watch('address.city') || '';
-  // Memorizado porque el efecto de la ciudad pendiente depende de el: sin esto
-  // se recrea en cada render y el efecto corre siempre, para nada.
-  const availableCities = useMemo(
-    () => (selectedDepartment ? getCitiesByDepartment(selectedDepartment) : []),
-    [selectedDepartment],
-  );
-
-  /**
-   * Ciudad detectada en un documento que todavia no se puede aplicar.
-   *
-   * El desplegable de ciudad se construye a partir del departamento, asi que
-   * asignarla en el mismo turno en que se asigna el departamento no funciona:
-   * cuando llega, sus opciones aun no existen y el select la descarta en
-   * silencio. Se guarda aqui y se aplica en cuanto la lista la contenga.
-   */
-  const [ciudadPendiente, setCiudadPendiente] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!ciudadPendiente) return;
-    if (!availableCities.includes(ciudadPendiente)) return;
-    setValue('address.city', ciudadPendiente, { shouldValidate: true, shouldDirty: true });
-    setCiudadPendiente(null);
-  }, [ciudadPendiente, availableCities, setValue]);
 
   // Actualizar el formulario cuando se carguen los datos existentes
   useEffect(() => {
@@ -662,11 +638,6 @@ export default function CompanySetupForm() {
 
     for (const c of campos) {
       if (c.campo === 'address.state') continue;
-      // La ciudad espera a que el desplegable tenga sus opciones.
-      if (c.campo === 'address.city') {
-        setCiudadPendiente(c.valor);
-        continue;
-      }
       setValue(c.campo as keyof CompleteCompanyData, c.valor as never, {
         shouldValidate: true,
         shouldDirty: true,
@@ -837,61 +808,22 @@ export default function CompanySetupForm() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label color="gray" className="mb-2 block">
-              Departamento <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              id="address.state"
-              color={errors.address?.state ? 'failure' : 'white'}
-              {...register('address.state', {
-                onChange: () => setValue('address.city', '', { shouldValidate: false }),
-              })}
-            >
-              <option value="">Selecciona un departamento</option>
-              {COLOMBIA_DEPARTMENTS.map((dept) => (
-                <option key={dept.name} value={dept.name}>
-                  {dept.name}
-                </option>
-              ))}
-              {selectedDepartment &&
-                !COLOMBIA_DEPARTMENTS.some((d) => d.name === selectedDepartment) && (
-                  <option value={selectedDepartment}>{selectedDepartment}</option>
-                )}
-            </Select>
-            {errors.address?.state && (
-              <p className="mt-1 text-sm text-red-600">{errors.address.state.message}</p>
-            )}
-          </div>
-
-          <div>
-            <Label color="gray" className="mb-2 block">
-              Ciudad <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              id="address.city"
-              disabled={!selectedDepartment}
-              color={errors.address?.city ? 'failure' : 'white'}
-              {...register('address.city')}
-            >
-              <option value="">
-                {selectedDepartment ? 'Selecciona una ciudad' : 'Selecciona primero un departamento'}
-              </option>
-              {availableCities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-              {selectedCity && !availableCities.includes(selectedCity) && (
-                <option value={selectedCity}>{selectedCity}</option>
-              )}
-            </Select>
-            {errors.address?.city && (
-              <p className="mt-1 text-sm text-red-600">{errors.address.city.message}</p>
-            )}
-          </div>
-        </div>
+        <DepartamentoCiudad
+          departamento={selectedDepartment}
+          ciudad={watch('address.city') || ''}
+          onDepartamentoChange={(v) =>
+            setValue('address.state', v, { shouldValidate: true, shouldDirty: true })
+          }
+          onCiudadChange={(v) =>
+            setValue('address.city', v, { shouldValidate: true, shouldDirty: true })
+          }
+          pais={watch('address.country')}
+          idDepartamento="address.state"
+          idCiudad="address.city"
+          requerido
+          errorDepartamento={errors.address?.state?.message}
+          errorCiudad={errors.address?.city?.message}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

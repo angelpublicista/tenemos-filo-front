@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import DepartamentoCiudad from '@/components/DepartamentoCiudad';
 import { Button, Label, TextInput, Select, Textarea, Card } from 'flowbite-react';
 import { HiArrowLeft, HiSave } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
@@ -84,6 +85,11 @@ export default function CrearContactoPage() {
   const router = useRouter();
   const { showSuccess, showError } = useSweetAlert();
   const [isLoading, setIsLoading] = useState(false);
+  // Departamento y ciudad, controlados: el selector compartido los necesita
+  // asi. El envio los sigue leyendo del DOM por sus ids.
+  const [depto, setDepto] = useState('');
+  const [ciudad, setCiudad] = useState('');
+  const [pais] = useState('CO');
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -369,24 +375,25 @@ export default function CrearContactoPage() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="address-city">Ciudad</Label>
-                <TextInput
-                  id="address-city"
-                  placeholder="Ciudad"
-                  className="mt-1"
-                />
-              </div>
+              {/* Los ids se conservan: el envio lee su valor del DOM. */}
 
-              <div>
-                <Label htmlFor="address-state">Departamento/Estado</Label>
-                <TextInput
-                  id="address-state"
-                  placeholder="Departamento o estado"
-                  className="mt-1"
-                />
-              </div>
+              <div className="sm:col-span-2">
 
+                <DepartamentoCiudad
+
+                  departamento={depto}
+
+                  ciudad={ciudad}
+
+                  onDepartamentoChange={setDepto}
+
+                  onCiudadChange={setCiudad}
+
+                  pais={pais}
+
+                />
+
+              </div>
               <div>
                 <Label htmlFor="address-postalCode">Código Postal</Label>
                 <TextInput

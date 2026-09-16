@@ -11,6 +11,7 @@ import { cambiarPassword } from "@/lib/api/account";
 import { ApiHttpError } from "@/lib/api/client";
 import { urlDeImagen } from "@/lib/images";
 import EditorPortada from "@/components/BookingEngine/EditorPortada";
+import DepartamentoCiudad from "@/components/DepartamentoCiudad";
 import type { TipoPortada } from "@/components/BookingEngine/PortadaCatalogo";
 import type { Company } from "@/types";
 import {
@@ -615,20 +616,19 @@ export default function SettingsPage() {
                         onChange={(e) => setGeneralForm({ ...generalForm, address: { ...generalForm.address, street: e.target.value } })}
                         disabled={savingGeneral}
                       />
-                      <div className="grid grid-cols-2 gap-3">
-                        <TextInput
-                          placeholder="Ciudad"
-                          value={generalForm.address.city}
-                          onChange={(e) => setGeneralForm({ ...generalForm, address: { ...generalForm.address, city: e.target.value } })}
-                          disabled={savingGeneral}
-                        />
-                        <TextInput
-                          placeholder="Departamento / Estado"
-                          value={generalForm.address.state}
-                          onChange={(e) => setGeneralForm({ ...generalForm, address: { ...generalForm.address, state: e.target.value } })}
-                          disabled={savingGeneral}
-                        />
-                      </div>
+                      <DepartamentoCiudad
+                        departamento={generalForm.address.state}
+                        ciudad={generalForm.address.city}
+                        onDepartamentoChange={(v) =>
+                          setGeneralForm({ ...generalForm, address: { ...generalForm.address, state: v } })
+                        }
+                        onCiudadChange={(v) =>
+                          setGeneralForm({ ...generalForm, address: { ...generalForm.address, city: v } })
+                        }
+                        pais={generalForm.address.country}
+                        idDepartamento="ajustes-state"
+                        idCiudad="ajustes-city"
+                      />
                       <div className="grid grid-cols-2 gap-3">
                         <TextInput
                           placeholder="Código postal"

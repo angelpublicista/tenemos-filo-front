@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import DepartamentoCiudad from '@/components/DepartamentoCiudad';
 import { Button, Label, TextInput, Select, Textarea, Card } from 'flowbite-react';
 import { HiArrowLeft, HiSave } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
@@ -141,6 +142,11 @@ export default function EditarEmpresaPage() {
   const companyId = params.id as string;
   const { showSuccess, showError } = useSweetAlert();
   const [isLoading, setIsLoading] = useState(false);
+  // Departamento y ciudad, controlados: el selector compartido los necesita
+  // asi. El envio los sigue leyendo del DOM por sus ids.
+  const [depto, setDepto] = useState('');
+  const [ciudad, setCiudad] = useState('');
+  const [pais] = useState('CO');
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [company, setCompany] = useState<CRMCompany | null>(null);
   const [tags, setTags] = useState<string[]>([]);
@@ -173,6 +179,10 @@ export default function EditarEmpresaPage() {
       setTags(data.tags || []);
       
       // Resetear formulario con los datos
+      // Sin esto los selectores arrancarian vacios y, como el envio lee del
+      // DOM, guardar borraria la ciudad y el departamento que ya tenia.
+      setDepto(data.address?.state || '');
+      setCiudad(data.address?.city || '');
       reset({
         companyName: data.companyName,
         businessName: data.businessName || '',
@@ -496,26 +506,25 @@ export default function EditarEmpresaPage() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="address-city">Ciudad</Label>
-                <TextInput
-                  id="address-city"
-                  defaultValue={company.address?.city || ''}
-                  placeholder="Ciudad"
-                  className="mt-1"
-                />
-              </div>
+              {/* Los ids se conservan: el envio lee su valor del DOM. */}
 
-              <div>
-                <Label htmlFor="address-state">Departamento/Estado</Label>
-                <TextInput
-                  id="address-state"
-                  defaultValue={company.address?.state || ''}
-                  placeholder="Departamento o estado"
-                  className="mt-1"
-                />
-              </div>
+              <div className="sm:col-span-2">
 
+                <DepartamentoCiudad
+
+                  departamento={depto}
+
+                  ciudad={ciudad}
+
+                  onDepartamentoChange={setDepto}
+
+                  onCiudadChange={setCiudad}
+
+                  pais={pais}
+
+                />
+
+              </div>
               <div>
                 <Label htmlFor="address-postalCode">Código Postal</Label>
                 <TextInput

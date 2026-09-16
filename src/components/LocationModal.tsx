@@ -10,6 +10,7 @@ import { getCompanyById } from '@/lib/sanity/companyService';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose } from 'react-icons/ai';
 import { COUNTRIES, COUNTRIES_MAP } from '@/lib/constants/countries';
+import DepartamentoCiudad from './DepartamentoCiudad';
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 
@@ -348,32 +349,16 @@ const LocationModal: React.FC<LocationModalProps> = ({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                      Ciudad *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => handleInputChange('city', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                      placeholder="Ej: Bogotá"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                      Estado/Provincia
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.state}
-                      onChange={(e) => handleInputChange('state', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                      placeholder="Ej: Cundinamarca"
-                    />
-                  </div>
-                </div>
+                <DepartamentoCiudad
+                  departamento={formData.state}
+                  ciudad={formData.city}
+                  onDepartamentoChange={(v) => handleInputChange('state', v)}
+                  onCiudadChange={(v) => handleInputChange('city', v)}
+                  pais={formData.country}
+                  idDepartamento="sede-state"
+                  idCiudad="sede-city"
+                  requerido
+                />
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>

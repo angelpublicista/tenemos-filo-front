@@ -61,6 +61,8 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
     { etiqueta: 'País', relleno: tiene(dir?.country), obligatorio: true, paso: 2 },
     { etiqueta: 'Sitio web', relleno: tiene(empresa?.website), obligatorio: false, paso: 2 },
     { etiqueta: 'Código postal', relleno: tiene(dir?.postalCode), obligatorio: false, paso: 2 },
+    { etiqueta: 'RUT', relleno: tiene(empresa?.rutKey), obligatorio: false, paso: 2 },
+    { etiqueta: 'Cámara de Comercio', relleno: tiene(empresa?.camaraKey), obligatorio: false, paso: 2 },
 
     // ─── Paso 3: tamaño del negocio ───
     { etiqueta: 'Número de empleados', relleno: tiene(empresa?.employeeCount), obligatorio: true, paso: 3 },

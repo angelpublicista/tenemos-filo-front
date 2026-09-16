@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -16,6 +16,8 @@ import StepIndicator from './StepIndicator';
 import { CompleteCompanyData, Company } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import CompanyInfoView from './CompanyInfoView';
+import CompanyDocuments from './CompanyDocuments';
+import type { CampoDetectado } from '@/lib/company/documentos';
 import Loader from './Loader';
 import { ImageUpload } from './ImageUpload';
 import { COLOMBIA_DEPARTMENTS, getCitiesByDepartment } from '@/data/colombiaRegions';
@@ -150,6 +152,10 @@ export default function CompanySetupForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const [companyPhone, setCompanyPhone] = useState("");
   const [logoAssetId, setLogoAssetId] = useState<string>("");
+  // Claves de S3, no URLs: los documentos son privados. Van en useState y no
+  // en react-hook-form, como el logo y el telefono.
+  const [rutKey, setRutKey] = useState<string>("");
+  const [camaraKey, setCamaraKey] = useState<string>("");
   const [existingCompany, setExistingCompany] = useState<Company | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
@@ -171,6 +177,8 @@ export default function CompanySetupForm() {
           setExistingCompany(company);
           setCompanyPhone(company.companyPhone || '');
           setLogoAssetId(company.logo?.asset?._ref || '');
+          setRutKey(company.rutKey || '');
+          setCamaraKey(company.camaraKey || '');
         }
       } catch (error) {
         console.error('Error loading existing company data:', error);
@@ -217,7 +225,29 @@ export default function CompanySetupForm() {
 
   const selectedDepartment = watch('address.state') || '';
   const selectedCity = watch('address.city') || '';
-  const availableCities = selectedDepartment ? getCitiesByDepartment(selectedDepartment) : [];
+  // Memorizado porque el efecto de la ciudad pendiente depende de el: sin esto
+  // se recrea en cada render y el efecto corre siempre, para nada.
+  const availableCities = useMemo(
+    () => (selectedDepartment ? getCitiesByDepartment(selectedDepartment) : []),
+    [selectedDepartment],
+  );
+
+  /**
+   * Ciudad detectada en un documento que todavia no se puede aplicar.
+   *
+   * El desplegable de ciudad se construye a partir del departamento, asi que
+   * asignarla en el mismo turno en que se asigna el departamento no funciona:
+   * cuando llega, sus opciones aun no existen y el select la descarta en
+   * silencio. Se guarda aqui y se aplica en cuanto la lista la contenga.
+   */
+  const [ciudadPendiente, setCiudadPendiente] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ciudadPendiente) return;
+    if (!availableCities.includes(ciudadPendiente)) return;
+    setValue('address.city', ciudadPendiente, { shouldValidate: true, shouldDirty: true });
+    setCiudadPendiente(null);
+  }, [ciudadPendiente, availableCities, setValue]);
 
   // Actualizar el formulario cuando se carguen los datos existentes
   useEffect(() => {
@@ -369,6 +399,10 @@ export default function CompanySetupForm() {
           employeeCount: data.employeeCount,
           annualRevenue: data.annualRevenue,
           businessYears: data.businessYears,
+          // null y no undefined: al quitar un documento hay que desvincularlo,
+          // y undefined dejaria el anterior puesto.
+          rutKey: rutKey || null,
+          camaraKey: camaraKey || null,
         });
 
         company = { _id: existingCompany._id };
@@ -396,7 +430,9 @@ export default function CompanySetupForm() {
           address: data.address,
           employeeCount: data.employeeCount,
           annualRevenue: data.annualRevenue,
-          businessYears: data.businessYears
+          businessYears: data.businessYears,
+          rutKey: rutKey || undefined,
+          camaraKey: camaraKey || undefined
         };
 
         company = await createCompanyInSanity(companyData);
@@ -595,12 +631,66 @@ export default function CompanySetupForm() {
     </div>
   );
 
+  /**
+   * Vuelca al formulario lo que la IA leyo del documento.
+   *
+   * El orden importa: el departamento va antes que la ciudad porque el select
+   * de ciudad se alimenta de `getCitiesByDepartment(departamento)`, y si la
+   * ciudad llega primero no hay lista donde encajarla. El resto va en el orden
+   * que venga.
+   */
+  const aplicarDatosDelDocumento = (
+    campos: CampoDetectado[],
+    telefono: string,
+    nombre: string,
+  ) => {
+    const depto = campos.find((c) => c.campo === 'address.state');
+    if (depto) {
+      setValue('address.state', depto.valor, { shouldValidate: true, shouldDirty: true });
+    }
+
+    for (const c of campos) {
+      if (c.campo === 'address.state') continue;
+      // La ciudad espera a que el desplegable tenga sus opciones.
+      if (c.campo === 'address.city') {
+        setCiudadPendiente(c.valor);
+        continue;
+      }
+      setValue(c.campo as keyof CompleteCompanyData, c.valor as never, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+
+    // El pais no viene en el RUT, pero si el departamento es colombiano, el
+    // pais tambien lo es.
+    if (depto) setValue('address.country', 'Colombia', { shouldValidate: true });
+
+    // Estos dos viven fuera de react-hook-form.
+    if (telefono) setCompanyPhone(telefono);
+    // El nombre solo si esta vacio: es lo unico que la persona pudo haber
+    // elegido a conciencia distinto de lo que dice el papel.
+    if (nombre && !getValues('companyName')?.trim()) {
+      setValue('companyName', nombre, { shouldValidate: true, shouldDirty: true });
+    }
+  };
+
   const renderStep2 = () => (
     <div className="space-y-6">
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-[#334C5D] mb-2">Información Fiscal</h3>
         <p className="text-gray-600">Completa los datos fiscales y de ubicación de tu empresa</p>
       </div>
+
+      {/* Va lo primero del paso: los campos que rellena estan justo debajo, en
+          esta misma pantalla, asi que se ve el efecto al instante. */}
+      <CompanyDocuments
+        rutKey={rutKey}
+        camaraKey={camaraKey}
+        onRutChange={setRutKey}
+        onCamaraChange={setCamaraKey}
+        onAplicar={aplicarDatosDelDocumento}
+      />
       
       {/* Tipo de Documento */}
       <div>

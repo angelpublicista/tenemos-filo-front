@@ -216,6 +216,14 @@ export interface Company {
   blockWhenFull?: boolean;
   /** null = hereda el valor por defecto de la plataforma. */
   requirePayment?: boolean | null;
+  /**
+   * Documentos legales. Son CLAVES de S3, no URLs: viven en el prefijo privado
+   * y para abrirlos hay que pedir un enlace firmado que caduca.
+   */
+  rutKey?: string;
+  rutSubidoEl?: string;
+  camaraKey?: string;
+  camaraSubidaEl?: string;
   locations?: Array<{
     _ref: string;
     _type: 'reference';

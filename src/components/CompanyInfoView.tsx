@@ -8,6 +8,7 @@ import { getCompanyById, getCompanyByUserId, updateCompanyInSanity } from '@/lib
 import { uploadImage } from '@/lib/api/uploads';
 import { Company } from '@/types';
 import CompanyProgress from './CompanyProgress';
+import DocumentoGuardado from './DocumentoGuardado';
 import { calcularCompletitud } from '@/lib/company/completitud';
 import { Button } from 'flowbite-react';
 import {
@@ -390,6 +391,27 @@ export default function CompanyInfoView({
                   Razón Social
                 </label>
                 <p className="text-gray-900">{existingCompany.businessName}</p>
+              </div>
+            )}
+
+            {/* Documentos legales. Se enseñan aqui, con lo fiscal, porque es
+                lo que son; el enlace se firma al pulsar. */}
+            {(existingCompany.rutKey || existingCompany.camaraKey) && (
+              <div className="space-y-3">
+                {existingCompany.rutKey && (
+                  <DocumentoGuardado
+                    etiqueta="RUT"
+                    documentoKey={existingCompany.rutKey}
+                    subidoEl={existingCompany.rutSubidoEl}
+                  />
+                )}
+                {existingCompany.camaraKey && (
+                  <DocumentoGuardado
+                    etiqueta="Cámara de Comercio"
+                    documentoKey={existingCompany.camaraKey}
+                    subidoEl={existingCompany.camaraSubidaEl}
+                  />
+                )}
               </div>
             )}
 

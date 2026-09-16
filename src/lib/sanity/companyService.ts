@@ -28,12 +28,15 @@ export interface CreateCompanyData {
   employeeCount?: '1-10' | '11-50' | '51-200' | '201-500' | '500+';
   annualRevenue?: '0-100k' | '100k-500k' | '500k-1M' | '1M-5M' | '5M+';
   businessYears?: '0-1' | '1-3' | '3-5' | '5-10' | '10+';
+  /** Claves de S3 del RUT y la Camara de Comercio, no URLs. */
+  rutKey?: string;
+  camaraKey?: string;
 }
 
 // `logo` admite null para borrarlo explicitamente (PATCH con logo:null deja
 // el campo en NULL en Postgres). Usamos Omit para que no se intersecte con
 // el `logo: string | undefined` de CreateCompanyData.
-export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo'>> & {
+export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo' | 'rutKey' | 'camaraKey'>> & {
   logo?: string | null;
   tagline?: string | null;
   /** Id del restaurante en OpenTable (el "rid" de sus enlaces). */
@@ -46,6 +49,9 @@ export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo'>> & {
   blockWhenFull?: boolean;
   /** null = usar el valor por defecto de la plataforma. */
   requirePayment?: boolean | null;
+  /** null borra el vinculo con el documento. */
+  rutKey?: string | null;
+  camaraKey?: string | null;
 };
 
 // ─── Tipos del API (Postgres) ──────────────────────────────────────────────
@@ -80,6 +86,10 @@ export interface ApiCompany {
   requirePayment?: boolean | null;
   annualRevenue: string | null;
   businessYears: string | null;
+  rutKey: string | null;
+  rutSubidoEl: string | null;
+  camaraKey: string | null;
+  camaraSubidaEl: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -155,6 +165,10 @@ export function toCompany(c: ApiCompany): Company {
     requirePayment: c.requirePayment ?? null,
     annualRevenue: (c.annualRevenue as Company['annualRevenue']) ?? undefined,
     businessYears: (c.businessYears as Company['businessYears']) ?? undefined,
+    rutKey: c.rutKey ?? undefined,
+    rutSubidoEl: c.rutSubidoEl ?? undefined,
+    camaraKey: c.camaraKey ?? undefined,
+    camaraSubidaEl: c.camaraSubidaEl ?? undefined,
     locations: c.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),
     isActive: c.isActive,
     createdAt: c.createdAt,
@@ -180,6 +194,9 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
   if (data.employeeCount !== undefined) out.employeeCount = data.employeeCount;
   if (data.annualRevenue !== undefined) out.annualRevenue = data.annualRevenue;
   if (data.businessYears !== undefined) out.businessYears = data.businessYears;
+  // null es significativo: desvincula el documento de la empresa.
+  if (upd.rutKey !== undefined) out.rutKey = upd.rutKey;
+  if (upd.camaraKey !== undefined) out.camaraKey = upd.camaraKey;
   if (upd.tagline !== undefined) out.tagline = upd.tagline;
   if (upd.openTableRid !== undefined) out.openTableRid = upd.openTableRid;
   if (upd.coverType !== undefined) out.coverType = upd.coverType;

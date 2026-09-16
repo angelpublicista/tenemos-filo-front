@@ -6,6 +6,12 @@ import Swal from 'sweetalert2';
 interface AlertOptions {
   title?: string;
   text?: string;
+  /**
+   * Cuerpo con saltos de linea respetados. `text` los colapsa en un parrafo,
+   * que para una lista de campos detectados es ilegible. Se escapa antes de
+   * pintarlo: lo que entra aqui puede venir de un documento de terceros.
+   */
+  lineas?: string[];
   icon?: 'success' | 'error' | 'warning' | 'info' | 'question';
   confirmButtonText?: string;
   cancelButtonText?: string;
@@ -16,9 +22,17 @@ interface AlertOptions {
 
 export const useSweetAlert = () => {
   const showAlert = useCallback(async (options: AlertOptions) => {
+    // Lo que llega en `lineas` puede venir de un documento leido por IA, asi
+    // que se escapa: nadie va a inyectar HTML desde un RUT, pero el coste de
+    // evitarlo es una funcion de cuatro lineas.
+    const escapar = (t: string) =>
+      t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
     const result = await Swal.fire({
       title: options.title || 'Información',
-      text: options.text || '',
+      ...(options.lineas?.length
+        ? { html: options.lineas.map(escapar).join('<br>') }
+        : { text: options.text || '' }),
       icon: options.icon || 'info',
       confirmButtonText: options.confirmButtonText || 'OK',
       confirmButtonColor: options.confirmButtonColor || '#F26726',
@@ -67,11 +81,13 @@ export const useSweetAlert = () => {
     title: string, 
     text: string, 
     confirmText: string = 'Sí, continuar',
-    cancelText: string = 'Cancelar'
+    cancelText: string = 'Cancelar',
+    lineas?: string[]
   ): Promise<boolean> => {
     const result = await showAlert({
       title,
       text,
+      lineas,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: confirmText,

@@ -72,12 +72,12 @@ export interface SanityUser {
   firebaseId?: string;
   name: string;
   email: string;
-  avatar?: {
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  /**
+   * Foto de perfil. Es la URL publica que devuelve la subida, no un objeto de
+   * Sanity: el campo `image` del API siempre fue una cadena, y el shape con
+   * `asset._ref` que habia aqui no lo rellenaba nadie.
+   */
+  image?: string;
   /** Espeja el enum UserRole del API (HOST | GUEST | ADMIN | RESELLER). */
   role: 'guest' | 'host' | 'admin' | 'reseller';
   phone: string;
@@ -145,6 +145,8 @@ export interface AuthContextType {
   confirmPasswordReset: (token: string, newPassword: string) => Promise<void>;
   sendVerificationEmail: () => Promise<{ success: boolean; message: string }>;
   // Funciones de company setup
+  /** Relee el perfil del API tras cambiarlo (la foto, por ejemplo). */
+  refrescarPerfil: () => Promise<void>;
   markSetupCompleted: (companyId?: string) => void;
   clearSetupState: () => void;
   isSetupCompleted: () => boolean;

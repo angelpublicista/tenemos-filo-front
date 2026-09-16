@@ -58,6 +58,8 @@ export const updateUserProfile = async (
   const body: Record<string, unknown> = {};
   if (updateData.name !== undefined) body.name = updateData.name;
   if (updateData.phone !== undefined) body.phone = updateData.phone;
+  // '' borra la foto; el API acepta null para dejar el campo vacio.
+  if (updateData.image !== undefined) body.image = updateData.image || null;
   if (updateData.role !== undefined) body.role = ROLE_TO_API[updateData.role];
   if (updateData.typeDocument !== undefined) body.documentType = updateData.typeDocument;
   if (updateData.documentNumber !== undefined) body.documentNumber = updateData.documentNumber;

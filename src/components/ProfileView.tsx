@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import TelefonoInput from './TelefonoInput';
 import { useAuth } from '@/lib/auth/AuthContext';
+import Avatar from './Avatar';
+import { uploadImage } from '@/lib/api/uploads';
 import { updateUserProfile } from '@/lib/sanity/userService';
 import { Button, TextInput, Select } from 'flowbite-react';
 import { 
@@ -10,6 +12,7 @@ import {
   HiCheckCircle, 
   HiRefresh,
   HiUser,
+  HiCamera,
   HiMail,
   HiPhone,
   HiIdentification,
@@ -19,11 +22,11 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from './Loader';
 
 export default function ProfileView() {
-  const { user, sanityUser } = useAuth();
+  const { user, sanityUser , refrescarPerfil} = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const { showError, showSuccess } = useSweetAlert();
+  const { showError, showSuccess, showDestructiveConfirmation } = useSweetAlert();
 
   // Estados para el formulario de edición
   const [formData, setFormData] = useState({
@@ -52,6 +55,65 @@ export default function ProfileView() {
       ...prev,
       [field]: value
     }));
+  };
+
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const fotoInputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * La foto se guarda al momento, no al pulsar "Guardar cambios".
+   *
+   * Es lo que espera quien la sube: se ve el cambio y ya esta. Y el fichero ya
+   * viajo a S3, asi que dejarlo subido pero sin enlazar seria peor.
+   */
+  const cambiarFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      showError('Selecciona una imagen', 'Vale JPG, PNG o WEBP.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showError('La imagen es muy pesada', 'El límite son 5 MB.');
+      return;
+    }
+
+    try {
+      setSubiendoFoto(true);
+      const url = await uploadImage(file, 'avatars');
+      await updateUserProfile(user.uid, { image: url });
+      await refrescarPerfil();
+      showSuccess('Foto actualizada');
+    } catch (error) {
+      console.error('Error subiendo la foto:', error);
+      showError('No se pudo subir la foto', 'Inténtalo de nuevo.');
+    } finally {
+      setSubiendoFoto(false);
+      // Sin esto, volver a elegir el mismo fichero no dispara el evento.
+      if (fotoInputRef.current) fotoInputRef.current.value = '';
+    }
+  };
+
+  const quitarFoto = async () => {
+    if (!user) return;
+    const confirmado = await showDestructiveConfirmation(
+      '¿Quitar tu foto?',
+      'Volverán a aparecer tus iniciales.',
+      'Sí, quitarla',
+    );
+    if (!confirmado) return;
+    try {
+      setSubiendoFoto(true);
+      await updateUserProfile(user.uid, { image: '' });
+      await refrescarPerfil();
+      showSuccess('Foto eliminada');
+    } catch (error) {
+      console.error('Error quitando la foto:', error);
+      showError('No se pudo quitar la foto');
+    } finally {
+      setSubiendoFoto(false);
+    }
   };
 
   const handleSave = async () => {
@@ -137,13 +199,51 @@ export default function ProfileView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
         <div className="flex items-center min-w-0">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#F26726] rounded-full flex items-center justify-center mr-3 sm:mr-4 shrink-0">
-            <HiUser className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          <div className="relative mr-3 sm:mr-4 shrink-0">
+            <Avatar
+              imagen={sanityUser.image}
+              nombre={sanityUser.name}
+              email={sanityUser.email}
+              tamaño="lg"
+            />
+            <input
+              ref={fotoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={cambiarFoto}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fotoInputRef.current?.click()}
+              disabled={subiendoFoto}
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#F26726] text-white flex items-center justify-center shadow-sm hover:bg-[#d9571f] transition-colors cursor-pointer disabled:opacity-60"
+              aria-label={sanityUser.image ? 'Cambiar foto de perfil' : 'Subir foto de perfil'}
+              title={sanityUser.image ? 'Cambiar foto' : 'Subir foto'}
+            >
+              {subiendoFoto ? (
+                <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <HiCamera className="w-4 h-4" />
+              )}
+            </button>
           </div>
           <div className="min-w-0">
             <h3 className="text-xl sm:text-2xl font-semibold text-[#334C5D] mb-1 truncate">
               {sanityUser.name}
             </h3>
+            {/* Solo si hay algo que quitar: sin foto, el enlace no tendria
+                sentido y ensuciaria la cabecera. */}
+            {sanityUser.image && (
+              <button
+                type="button"
+                onClick={quitarFoto}
+                disabled={subiendoFoto}
+                className="text-xs text-gray-500 hover:text-red-600 transition-colors underline cursor-pointer disabled:opacity-60"
+              >
+                Quitar foto
+              </button>
+            )}
             <div className="flex items-center text-green-600">
               <HiShieldCheck className="w-4 h-4 mr-2 shrink-0" />
               <span className="text-sm font-medium">

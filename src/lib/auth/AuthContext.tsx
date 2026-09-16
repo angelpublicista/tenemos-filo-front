@@ -67,6 +67,7 @@ function toSanityUser(u: ApiUser): SanityUser {
     firebaseId: u.id, // alias por compat — antes era firebase uid, ahora es id Postgres
     name: u.name ?? "",
     email: u.email,
+    image: u.image ?? undefined,
     role: ROLE_DOWN[u.role],
     phone: u.phone ?? "",
     typeDocument: (u.documentType as SanityUser["typeDocument"]) ?? "cedula",
@@ -174,6 +175,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRolTitularActivo(getActingOwnerRole() as SanityUser["role"] | null);
     }
   }, [sanityUser?.role]);
+
+  /**
+   * Vuelve a leer el perfil del API.
+   *
+   * Hace falta cuando algo del usuario cambia fuera del flujo normal —la foto
+   * de perfil, por ejemplo—: sin esto el avatar de la barra seguiria mostrando
+   * lo anterior hasta recargar la pagina.
+   */
+  const refrescarPerfil = useCallback(async () => {
+    try {
+      const u = await api.get<ApiUser>("/users/me");
+      setSanityUser(toSanityUser(u));
+    } catch (err) {
+      // Que falle el refresco no debe romper lo que acaba de hacer la persona:
+      // el cambio ya se guardo, solo no se ve hasta la proxima carga.
+      console.error("No se pudo refrescar el perfil:", err);
+    }
+  }, []);
 
   const setActiveCompany = useCallback((companyId: string | null) => {
     // Persistimos ANTES de tocar el estado: el cliente HTTP lee del storage,
@@ -371,6 +390,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         confirmPasswordReset,
         sendVerificationEmail,
         markSetupCompleted,
+        refrescarPerfil,
         clearSetupState,
         isSetupCompleted,
         hasCompany,

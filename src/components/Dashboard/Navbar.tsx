@@ -1,6 +1,7 @@
 "use client";
 
 import { Dropdown, DropdownItem, DropdownDivider } from "flowbite-react";
+import Avatar from '@/components/Avatar';
 import { useAuth } from "@/lib/auth/AuthContext";
 import FiloLogo from "@/components/FiloLogo";
 import { useEffect, useState } from "react";
@@ -57,12 +58,6 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
   const getUserDisplayName = () => sanityUser?.name || user?.email || 'Usuario';
 
-  const getUserInitial = () => {
-    if (sanityUser?.name) return sanityUser.name.charAt(0).toUpperCase();
-    if (user?.email) return user.email.charAt(0).toUpperCase();
-    return 'U';
-  };
-
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center px-3 sm:px-4 gap-3 z-20 relative">
       {/* Hamburger — mobile only */}
@@ -107,8 +102,13 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
         <Dropdown
           label={
-            <div className="w-8 h-8 bg-[#F26726] rounded-full flex items-center justify-center cursor-pointer">
-              <span className="text-white text-sm font-semibold">{getUserInitial()}</span>
+            <div className="cursor-pointer">
+              <Avatar
+                imagen={sanityUser?.image}
+                nombre={sanityUser?.name}
+                email={user?.email}
+                tamaño="sm"
+              />
             </div>
           }
           arrowIcon={false}

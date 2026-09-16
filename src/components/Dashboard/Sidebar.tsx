@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Avatar from '@/components/Avatar';
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   AiOutlineHome,
@@ -342,7 +343,7 @@ interface SidebarContentProps {
     | { type?: 'link'; name: string; href: string; icon: React.ComponentType<{ className?: string }>; current: boolean; enabled: boolean }
   >;
   isCollapsed: boolean;
-  sanityUser: { name?: string; role?: string } | null | undefined;
+  sanityUser: { name?: string; role?: string; image?: string; email?: string } | null | undefined;
   onLinkClick: () => void;
   collapseButton: React.ReactNode;
 }
@@ -416,11 +417,12 @@ function SidebarContent({ navigationItems, isCollapsed, sanityUser, onLinkClick,
       {/* User Info */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
         <div className="flex items-center min-w-0">
-          <div className="w-8 h-8 bg-[#f26726] rounded-full flex items-center justify-center shrink-0">
-            <span className="text-white text-sm font-semibold">
-              {sanityUser?.name?.charAt(0) || 'U'}
-            </span>
-          </div>
+          <Avatar
+            imagen={sanityUser?.image}
+            nombre={sanityUser?.name}
+            email={sanityUser?.email}
+            tamaño="sm"
+          />
           {!isCollapsed && (
             <div className="ml-3 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">

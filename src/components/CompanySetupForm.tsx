@@ -10,8 +10,8 @@ import { associateUserWithCompany, markCompanySetupCompleted } from '@/lib/sanit
 import { Button, Label, TextInput, Select, Textarea } from 'flowbite-react';
 import { HiExclamationCircle, HiCheckCircle } from 'react-icons/hi';
 import { AiOutlineBuild, AiOutlineMail, AiOutlineInfoCircle, AiOutlineIdcard, AiOutlineHome, AiOutlineGlobal, AiOutlineTeam } from 'react-icons/ai';
-import { PhoneInput } from "react-international-phone";
-import "react-international-phone/style.css";
+import TelefonoInput from "./TelefonoInput";
+import { telefonoVacio } from "@/lib/telefono";
 import StepIndicator from './StepIndicator';
 import { CompleteCompanyData, Company } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
@@ -601,19 +601,14 @@ export default function CompanySetupForm() {
 
       {/* Teléfono de la Empresa */}
       <div>
-        <Label color="gray" className="mb-2 block">
-          Teléfono de la empresa <span className="text-red-500">*</span>
-        </Label>
-        <PhoneInput
-          defaultCountry="co"
-          placeholder="Teléfono de la empresa"
+        <TelefonoInput
+          label="Teléfono de la empresa"
+          requerido
           value={companyPhone}
-          className="block w-full [&>input]:bg-white [&>input]:w-full [&>input]:text-gray-500 [&>input]:border-gray-300 [&>input]:p-2.5 [&>input]:h-3 [&>input]:text-sm [&>input]:rounded-sm [&>button]:bg-white [&>button]:text-gray-500"
           onChange={handleCompanyPhoneChange}
+          placeholder="Teléfono de la empresa"
+          error={telefonoVacio(companyPhone) ? 'El teléfono de la empresa es requerido' : undefined}
         />
-        {!companyPhone && (
-          <p className="mt-1 text-sm text-red-600">El teléfono de la empresa es requerido</p>
-        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import TelefonoInput from '@/components/TelefonoInput';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,7 +23,7 @@ interface Props {
 }
 
 export default function ContactStep({ onNext, onBack }: Props) {
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
 
@@ -65,13 +66,11 @@ export default function ContactStep({ onNext, onBack }: Props) {
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2.5">Teléfono *</label>
-          <input
-            {...register('phone')}
-            type="tel"
-            placeholder="+57 300 000 0000"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#F26726] focus:ring-2 focus:ring-[#F26726]/20"
+          <TelefonoInput
+            value={watch('phone') || ''}
+            onChange={(v) => setValue('phone', v, { shouldValidate: true, shouldDirty: true })}
+            error={errors.phone?.message}
           />
-          {errors.phone && <p className="text-xs text-red-500 mt-1.5">{errors.phone.message}</p>}
         </div>
 
         <div>

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DepartamentoCiudad from '@/components/DepartamentoCiudad';
+import TelefonoInput from '@/components/TelefonoInput';
 import { Button, Label, TextInput, Select, Textarea, Card } from 'flowbite-react';
 import { HiArrowLeft, HiSave } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
@@ -99,6 +100,8 @@ export default function CrearContactoPage() {
     register,
     handleSubmit,
     formState: { errors },
+    watch,
+    setValue,
   } = useForm<ContactFormData>({
     defaultValues: {
       firstName: '',
@@ -323,22 +326,21 @@ export default function CrearContactoPage() {
               </div>
 
               <div>
-                <Label htmlFor="phone">Teléfono</Label>
-                <TextInput
+                {/* El id se conserva por si algo lo lee del DOM. */}
+                <TelefonoInput
+                  label="Teléfono"
                   id="phone"
-                  {...register('phone')}
-                  placeholder="+57 1 234 5678"
-                  className="mt-1"
+                  value={watch('phone') || ''}
+                  onChange={(v) => setValue('phone', v, { shouldDirty: true })}
                 />
               </div>
 
               <div>
-                <Label htmlFor="mobile">Celular</Label>
-                <TextInput
+                <TelefonoInput
+                  label="Celular"
                   id="mobile"
-                  {...register('mobile')}
-                  placeholder="+57 300 123 4567"
-                  className="mt-1"
+                  value={watch('mobile') || ''}
+                  onChange={(v) => setValue('mobile', v, { shouldDirty: true })}
                 />
               </div>
 

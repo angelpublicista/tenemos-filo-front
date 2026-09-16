@@ -3,8 +3,7 @@
 import React, { useState, useRef } from "react";
 import { Button, TextInput, Label, Select } from "flowbite-react";
 import Link from "next/link";
-import { PhoneInput } from "react-international-phone";
-import "react-international-phone/style.css";
+import TelefonoInput from "./TelefonoInput";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { GuestStep1Data } from "@/types";
@@ -169,13 +168,10 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
         </div>
 
         <div className="flex flex-col w-full space-y-1">
-          <Label color="gray" className="w-full">
-            Teléfono <span className="text-red-500">*</span>
-          </Label>
-          <PhoneInput
-            defaultCountry="co"
-            placeholder="Teléfono"
-            className="block w-full [&>input]:bg-white [&>input]:w-full [&>input]:text-gray-500 [&>input]:border-gray-300 [&>input]:p-2.5 [&>input]:h-3 [&>input]:text-sm [&>input]:rounded-sm [&>button]:bg-white [&>button]:text-gray-500"
+          <TelefonoInput
+            label="Teléfono"
+            requerido
+            value={phone}
             onChange={handlePhoneChange}
           />
         </div>

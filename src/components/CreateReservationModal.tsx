@@ -9,8 +9,7 @@ import { searchExperiencesForQuote } from '@/lib/sanity/quoteService';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose, AiOutlineUser, AiOutlineUserAdd } from 'react-icons/ai';
 import { BiTime, BiMap } from 'react-icons/bi';
-import { PhoneInput } from 'react-international-phone';
-import 'react-international-phone/style.css';
+import TelefonoInput from './TelefonoInput';
 import { useAuth } from '@/lib/auth/AuthContext';
 import CalendarPicker from '@/components/CalendarPicker';
 import TimePicker from '@/components/TimePicker';
@@ -921,13 +920,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
                           Teléfono *
                         </label>
-                        <PhoneInput
-                          defaultCountry="co"
-                          value={guestPhone}
-                          onChange={(phone) => setGuestPhone(phone)}
-                          placeholder="Teléfono"
-                          className="w-full [&>input]:w-full [&>input]:px-4 [&>input]:py-2 [&>input]:border [&>input]:border-gray-300 [&>input]:rounded-lg [&>input]:focus:ring-2 [&>input]:focus:ring-[#F26726] [&>input]:focus:border-transparent [&>button]:border [&>button]:border-gray-300 [&>button]:rounded-l-lg [&>button]:bg-white [&>button]:hover:bg-gray-50"
-                        />
+                        <TelefonoInput value={guestPhone} onChange={setGuestPhone} placeholder="Teléfono" />
                       </div>
 
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

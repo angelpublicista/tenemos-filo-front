@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DepartamentoCiudad from '@/components/DepartamentoCiudad';
+import TelefonoInput from '@/components/TelefonoInput';
 import { Button, Label, TextInput, Select, Textarea, Card } from 'flowbite-react';
 import { HiArrowLeft, HiSave } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
@@ -155,6 +156,7 @@ export default function CrearEmpresaPage() {
     handleSubmit,
     formState: { errors },
     setValue,
+    watch,
   } = useForm<CompanyFormData>({
     defaultValues: {
       companyName: '',
@@ -384,12 +386,12 @@ export default function CrearEmpresaPage() {
               </div>
 
               <div>
-                <Label htmlFor="phone">Teléfono</Label>
-                <TextInput
+                {/* El id se conserva por si algo lo lee del DOM. */}
+                <TelefonoInput
+                  label="Teléfono"
                   id="phone"
-                  {...register('phone')}
-                  placeholder="+57 300 000 0000"
-                  className="mt-1"
+                  value={watch('phone') || ''}
+                  onChange={(v) => setValue('phone', v, { shouldDirty: true })}
                 />
               </div>
 

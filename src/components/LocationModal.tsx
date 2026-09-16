@@ -11,8 +11,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose } from 'react-icons/ai';
 import { COUNTRIES, COUNTRIES_MAP } from '@/lib/constants/countries';
 import DepartamentoCiudad from './DepartamentoCiudad';
-import { PhoneInput } from 'react-international-phone';
-import 'react-international-phone/style.css';
+import TelefonoInput from './TelefonoInput';
 
 /**
  * El mapeo del API convierte los nulos en cadena vacia (`companyEmail ?? ''`),
@@ -400,18 +399,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
                 Información de Contacto
               </h3>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                    Teléfono
-                  </label>
-                  <PhoneInput
-                    defaultCountry="co"
-                    value={formData.phone}
-                    onChange={(phone) => handleInputChange('phone', phone)}
-                    placeholder="Teléfono"
-                    className="w-full [&>input]:w-full [&>input]:px-4 [&>input]:py-2 [&>input]:border [&>input]:border-gray-300 [&>input]:rounded-lg [&>input]:focus:ring-2 [&>input]:focus:ring-[#F26726] [&>input]:focus:border-transparent [&>button]:border [&>button]:border-gray-300 [&>button]:rounded-l-lg [&>button]:bg-white [&>button]:hover:bg-gray-50"
-                  />
-                </div>
+                <TelefonoInput label="Teléfono" value={formData.phone} onChange={(v) => handleInputChange('phone', v)} />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
                     Email

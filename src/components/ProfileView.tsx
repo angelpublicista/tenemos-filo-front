@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import TelefonoInput from './TelefonoInput';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { updateUserProfile } from '@/lib/sanity/userService';
 import { Button, TextInput, Select } from 'flowbite-react';
@@ -212,11 +213,9 @@ export default function ProfileView() {
                 Teléfono
               </label>
               {isEditing ? (
-                <TextInput
+                <TelefonoInput
                   value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  placeholder="Ingresa tu número de teléfono"
-                  className="w-full"
+                  onChange={(v) => handleInputChange('phone', v)}
                 />
               ) : (
                 <p className="text-gray-900">{sanityUser.phone}</p>

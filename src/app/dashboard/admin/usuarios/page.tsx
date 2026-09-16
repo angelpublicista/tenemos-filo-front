@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
+import TelefonoInput from '@/components/TelefonoInput';
 import {
   Badge,
   Button,
@@ -412,10 +413,10 @@ export default function AdminUsuariosPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                <TextInput
+                <TelefonoInput
+                  label="Teléfono"
                   value={form.phone ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
                 />
               </div>
 

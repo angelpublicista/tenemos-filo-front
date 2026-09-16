@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import TelefonoInput from '@/components/TelefonoInput';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Label, TextInput, Textarea } from 'flowbite-react';
@@ -236,14 +237,11 @@ export default function GenerarCotizacionPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="phone">Teléfono</Label>
-                    <TextInput
+                    <TelefonoInput
+                      label="Teléfono"
                       id="phone"
-                      type="tel"
                       value={customerData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="+57 300 123 4567"
-                      className="mt-1"
+                      onChange={(v) => handleInputChange('phone', v)}
                     />
                   </div>
 

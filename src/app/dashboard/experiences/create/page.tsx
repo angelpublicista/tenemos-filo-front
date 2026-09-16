@@ -16,6 +16,7 @@ import {
 import { CreateExperienceData, Company, Location, AvailabilitySchedule, Menu } from '@/types';
 import LocationModal from '@/components/LocationModal';
 import MenuSelector from '@/components/MenuSelector';
+import DepartamentoCiudad from '@/components/DepartamentoCiudad';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
 import {
   HiArrowLeft,
@@ -45,6 +46,7 @@ const experienceSchema = z.object({
   location: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
+  state: z.string().optional(),
   status: z.enum(['draft', 'pending', 'active', 'paused', 'inactive']),
   isFeatured: z.boolean(),
   hideAddress: z.boolean().optional(),
@@ -383,6 +385,13 @@ export default function CreateExperiencePage() {
           showError('Indica la dirección del lugar personalizado');
           return;
         }
+        // El departamento va antes: sin el, el desplegable de ciudad ni
+        // siquiera se deja abrir, asi que pedir la ciudad primero mandaria a
+        // buscar un campo que esta bloqueado.
+        if (!data.state?.trim()) {
+          showError('Indica el departamento del lugar personalizado');
+          return;
+        }
         if (!data.city?.trim()) {
           showError('Indica la ciudad del lugar personalizado');
           return;
@@ -440,6 +449,7 @@ export default function CreateExperiencePage() {
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
+        presentialState: data.state,
         hideAddress: data.hideAddress ?? false,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
@@ -921,14 +931,19 @@ export default function CreateExperiencePage() {
                         className="mt-1"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="city">Ciudad *</Label>
-                      <TextInput
-                        {...register('city')}
-                        placeholder="Bogotá"
-                        className="mt-1"
-                      />
-                    </div>
+                    <DepartamentoCiudad
+                      departamento={watch('state') || ''}
+                      ciudad={watch('city') || ''}
+                      onDepartamentoChange={(v) =>
+                        setValue('state', v, { shouldValidate: true, shouldDirty: true })
+                      }
+                      onCiudadChange={(v) =>
+                        setValue('city', v, { shouldValidate: true, shouldDirty: true })
+                      }
+                      idDepartamento="experiencia-state"
+                      idCiudad="experiencia-city"
+                      requerido
+                    />
                     <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
                       Como es un lugar personalizado, esta experiencia tendrá su propio calendario de disponibilidad (configúralo abajo).
                     </p>

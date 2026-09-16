@@ -35,6 +35,7 @@ export interface ApiExperience {
   presentialLocation: string | null;
   presentialAddress: string | null;
   presentialCity: string | null;
+  presentialState: string | null;
   hideAddress: boolean;
   requirements: string | null;
   includes: string[] | string | null;
@@ -162,6 +163,7 @@ export function toExperience(e: ApiExperience): Experience {
     presentialLocation: e.presentialLocation ?? undefined,
     presentialAddress: e.presentialAddress ?? undefined,
     presentialCity: e.presentialCity ?? undefined,
+    presentialState: e.presentialState ?? undefined,
     hideAddress: e.hideAddress,
     requirements: e.requirements ? [e.requirements] : undefined,
     includes: includesArr,
@@ -204,6 +206,7 @@ function buildCreatePayload(data: CreateExperienceData): Record<string, unknown>
     presentialLocation: data.presentialLocation,
     presentialAddress: data.presentialAddress,
     presentialCity: data.presentialCity,
+    presentialState: data.presentialState,
     hideAddress: data.hideAddress,
     requirements: Array.isArray(data.requirements) ? data.requirements.join('\n') : data.requirements,
     includes: data.includes,
@@ -238,6 +241,7 @@ function buildUpdatePayload(data: UpdateExperienceData): Record<string, unknown>
   if (data.presentialLocation !== undefined) out.presentialLocation = data.presentialLocation;
   if (data.presentialAddress !== undefined) out.presentialAddress = data.presentialAddress;
   if (data.presentialCity !== undefined) out.presentialCity = data.presentialCity;
+  if (data.presentialState !== undefined) out.presentialState = data.presentialState;
   if (data.hideAddress !== undefined) out.hideAddress = data.hideAddress;
   if (data.requirements !== undefined)
     out.requirements = Array.isArray(data.requirements)

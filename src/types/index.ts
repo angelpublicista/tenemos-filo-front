@@ -436,6 +436,7 @@ export interface Experience {
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
+  presentialState?: string;
   hideAddress?: boolean;
   requirements?: string[];
   includes?: string[];
@@ -490,6 +491,7 @@ export interface CreateExperienceData {
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
+  presentialState?: string;
   hideAddress?: boolean;
   requirements?: string[];
   includes?: string[];

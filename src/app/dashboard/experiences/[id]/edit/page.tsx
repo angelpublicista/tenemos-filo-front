@@ -45,6 +45,7 @@ const experienceSchema = z.object({
   location: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
+  state: z.string().optional(),
   status: z.enum(['draft', 'pending', 'active', 'paused', 'inactive']),
   isFeatured: z.boolean(),
 });
@@ -160,6 +161,7 @@ export default function EditExperiencePage() {
           location: experienceData.presentialLocation || '',
           address: experienceData.presentialAddress || '',
           city: experienceData.presentialCity || '',
+          state: experienceData.presentialState || '',
           status: experienceData.status,
           isFeatured: experienceData.isFeatured,
         });
@@ -533,6 +535,9 @@ export default function EditExperiencePage() {
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
+        // Esta pantalla no edita el lugar puntual, pero tiene que devolverlo
+        // igual que lo recibio: si no, editar cualquier otra cosa lo borraria.
+        presentialState: data.state,
         status: data.status,
         isFeatured: data.isFeatured,
         requirements: requirements.filter(req => req && req.trim() !== ''),

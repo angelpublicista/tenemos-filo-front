@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       customerEmail,
       hostName,
       companyName,
+      logoUrl,
       experiences,
       eventDate,
       eventTime,
@@ -71,6 +72,23 @@ export async function POST(request: NextRequest) {
       location,
       notes,
     } = data;
+
+    /**
+     * El logo que encabeza el correo.
+     *
+     * Solo se acepta una direccion http(s): esto acaba dentro de un atributo
+     * src, y dejar pasar cualquier cadena abriria la puerta a `javascript:` o
+     * a un data URI en el correo de un cliente.
+     *
+     * Sin logo del anfitrion se usa el de Tenemos Filo, que es quien respalda
+     * la cotizacion entonces. Tiene que ser una direccion absoluta: el correo
+     * se lee fuera de la aplicacion y una ruta relativa no resolveria.
+     */
+    const base =
+      process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
+    const logoValido =
+      typeof logoUrl === 'string' && /^https?:\/\//i.test(logoUrl) ? logoUrl : null;
+    const logo = logoValido ?? `${base.replace(/\/$/, '')}/filo-logo.png`;
 
     if (!customerEmail || !Array.isArray(experiences) || experiences.length === 0) {
       return NextResponse.json(
@@ -148,6 +166,11 @@ export async function POST(request: NextRequest) {
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
           <!-- Header -->
           <div style="background: linear-gradient(135deg, #F26726 0%, #E23694 100%); padding: 40px 20px; text-align: center;">
+            <!-- El logo va sobre una tarjeta blanca, no suelto sobre el
+                 degradado: se diseñan para fondo claro y muchos son oscuros. -->
+            <div style="display: inline-block; background-color: #ffffff; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px;">
+              <img src="${esc(logo)}" alt="${esc(companyName)}" style="display: block; max-height: 48px; max-width: 180px; height: auto; width: auto; border: 0;">
+            </div>
             <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Cotización de Experiencias</h1>
             <p style="color: #ffffff; margin: 10px 0 0 0; opacity: 0.9;">
               ${esc(companyName)}

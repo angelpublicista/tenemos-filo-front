@@ -1,6 +1,45 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Experience } from '@/types';
+import filoLogo from '../../../public/filo-logo.png';
+
+/**
+ * Trae una imagen y la convierte en algo que jsPDF sepa dibujar.
+ *
+ * jsPDF no descarga nada por su cuenta: necesita los pixeles ya en mano, y el
+ * unico camino en el navegador es pintar en un canvas y sacar el data URL. De
+ * ahi el rodeo.
+ *
+ * Devuelve null ante cualquier tropiezo —la imagen no carga, el bucket no
+ * autoriza el origen, el canvas queda contaminado— porque una cotizacion sin
+ * logo se sigue pudiendo mandar, y quedarse sin cotizacion por un logo seria
+ * un mal negocio.
+ */
+async function cargarImagen(
+  url: string,
+): Promise<{ datos: string; ancho: number; alto: number } | null> {
+  try {
+    const img = await new Promise<HTMLImageElement | null>((resolve) => {
+      const el = new window.Image();
+      // Sin esto el canvas queda contaminado y toDataURL lanza.
+      el.crossOrigin = 'anonymous';
+      el.onload = () => resolve(el);
+      el.onerror = () => resolve(null);
+      el.src = url;
+    });
+    if (!img || !img.naturalWidth || !img.naturalHeight) return null;
+
+    const lienzo = document.createElement('canvas');
+    lienzo.width = img.naturalWidth;
+    lienzo.height = img.naturalHeight;
+    const ctx = lienzo.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    return { datos: lienzo.toDataURL('image/png'), ancho: lienzo.width, alto: lienzo.height };
+  } catch {
+    return null;
+  }
+}
 
 interface QuotePdfData {
   customerName: string;
@@ -14,9 +53,14 @@ interface QuotePdfData {
   guests: number;
   location?: string;
   notes?: string;
+  /**
+   * Logo de quien cotiza. Sin el —o si no se puede descargar— se cae al de
+   * Tenemos Filo, que es quien respalda la cotizacion en ese caso.
+   */
+  logoUrl?: string | null;
 }
 
-export const generateQuotePDF = (data: QuotePdfData): void => {
+export const generateQuotePDF = async (data: QuotePdfData): Promise<void> => {
   const {
     customerName,
     customerEmail,
@@ -29,6 +73,7 @@ export const generateQuotePDF = (data: QuotePdfData): void => {
     guests,
     location,
     notes,
+    logoUrl,
   } = data;
 
   // Crear documento PDF
@@ -45,7 +90,39 @@ export const generateQuotePDF = (data: QuotePdfData): void => {
   // Fondo degradado simulado con rectángulos
   doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.rect(0, 0, pageWidth, 40, 'F');
-  
+
+  // El logo del anfitrion; si no tiene o no se puede traer, el de Filo.
+  const logo = (logoUrl ? await cargarImagen(logoUrl) : null) ?? (await cargarImagen(filoLogo.src));
+
+  if (logo) {
+    // Va sobre una tarjeta blanca y no suelto sobre el naranja: los logos se
+    // diseñan para fondo claro, y muchos son oscuros o tienen texto negro que
+    // sobre la banda no se leeria.
+    const MARGEN = 3;
+    const ALTO_TARJETA = 24;
+    const ANCHO_MAXIMO = 44;
+
+    let alto = ALTO_TARJETA - MARGEN * 2;
+    let ancho = alto * (logo.ancho / logo.alto);
+    if (ancho > ANCHO_MAXIMO) {
+      ancho = ANCHO_MAXIMO;
+      alto = ancho * (logo.alto / logo.ancho);
+    }
+
+    const anchoTarjeta = ancho + MARGEN * 2;
+    const yTarjeta = (40 - ALTO_TARJETA) / 2;
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(15, yTarjeta, anchoTarjeta, ALTO_TARJETA, 2, 2, 'F');
+    doc.addImage(
+      logo.datos,
+      'PNG',
+      15 + MARGEN,
+      yTarjeta + (ALTO_TARJETA - alto) / 2,
+      ancho,
+      alto,
+    );
+  }
+
   // Título
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(24);

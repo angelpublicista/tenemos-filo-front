@@ -6,6 +6,8 @@ interface QuoteEmailData {
   customerEmail: string;
   hostName: string;
   companyName: string;
+  /** Logo de quien cotiza; sin el, el correo sale con el de Tenemos Filo. */
+  logoUrl?: string | null;
   experiences: Experience[];
   eventDate: string;
   eventTime: string;

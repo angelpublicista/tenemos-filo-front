@@ -10,8 +10,10 @@ import { useRouter } from 'next/navigation';
 import { createQuote } from '@/lib/sanity/quoteService';
 import { sendQuoteEmail } from '@/lib/email/quoteEmailService';
 import { generateQuotePDF } from '@/lib/pdf/quotePdfService';
-import { Experience } from '@/types';
+import { Company, Experience } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import { getCompanyById } from '@/lib/sanity/companyService';
+import { urlDeImagen } from '@/lib/images';
 
 interface QuoteSessionData {
   searchParams: {
@@ -36,6 +38,39 @@ export default function GenerarCotizacionPage() {
     phone: '',
     notes: '',
   });
+
+  /**
+   * La empresa que cotiza.
+   *
+   * Hace falta entera, no solo su id: la cotizacion se presenta con el nombre
+   * y el logo del anfitrion, que es quien le responde al cliente. Un admin sin
+   * empresa cotiza en nombre de la plataforma, y entonces queda a nombre de
+   * Tenemos Filo.
+   */
+  const [empresa, setEmpresa] = useState<Company | null>(null);
+
+  useEffect(() => {
+    if (!sanityUser?.companyId) {
+      setEmpresa(null);
+      return;
+    }
+    let vigente = true;
+    getCompanyById(sanityUser.companyId)
+      .then((c) => {
+        if (vigente) setEmpresa(c);
+      })
+      // Sin empresa la cotizacion sale con la marca de Filo, que es preferible
+      // a no dejar cotizar.
+      .catch(() => {
+        if (vigente) setEmpresa(null);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [sanityUser?.companyId]);
+
+  const nombreEmisor = empresa?.companyName || 'Tenemos Filo';
+  const logoEmisor = urlDeImagen(empresa?.logo?.asset?._ref);
 
   // Formatear precio en moneda
   const formatCurrency = (value: number, curr: string = 'COP') => {
@@ -77,7 +112,7 @@ export default function GenerarCotizacionPage() {
   };
 
   // Descargar cotización como PDF
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!quoteData || !sanityUser) {
       showError('No hay datos de cotización disponibles');
       return;
@@ -90,12 +125,15 @@ export default function GenerarCotizacionPage() {
     }
 
     try {
-      generateQuotePDF({
+      await generateQuotePDF({
         customerName: customerData.name,
         customerEmail: customerData.email,
         customerPhone: customerData.phone,
         hostName: sanityUser.name || 'Anfitrión',
-        companyName: sanityUser.companyId || 'Tenemos Filo',
+        // Antes iba `sanityUser.companyId`: el identificador interno de la
+        // empresa, que salia impreso tal cual en la cabecera del PDF.
+        companyName: nombreEmisor,
+        logoUrl: logoEmisor,
         experiences: quoteData.selectedExperiences,
         eventDate: quoteData.searchParams.date,
         eventTime: quoteData.searchParams.time,
@@ -148,7 +186,8 @@ export default function GenerarCotizacionPage() {
         customerName: customerData.name,
         customerEmail: customerData.email,
         hostName: sanityUser.name || 'Anfitrión',
-        companyName: sanityUser.companyId,
+        companyName: nombreEmisor,
+        logoUrl: logoEmisor,
         experiences: quoteData.selectedExperiences,
         eventDate: quoteData.searchParams.date,
         eventTime: quoteData.searchParams.time,

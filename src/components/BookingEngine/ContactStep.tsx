@@ -48,7 +48,7 @@ export default function ContactStep({ onNext, onBack }: Props) {
           <input
             {...register('name')}
             placeholder="Ej: María García"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#F26726] focus:ring-2 focus:ring-[#F26726]/20"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-marca focus:ring-2 focus:ring-marca-borde"
           />
           {errors.name && <p className="text-xs text-red-500 mt-1.5">{errors.name.message}</p>}
         </div>
@@ -59,7 +59,7 @@ export default function ContactStep({ onNext, onBack }: Props) {
             {...register('email')}
             type="email"
             placeholder="tu@email.com"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#F26726] focus:ring-2 focus:ring-[#F26726]/20"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-marca focus:ring-2 focus:ring-marca-borde"
           />
           {errors.email && <p className="text-xs text-red-500 mt-1.5">{errors.email.message}</p>}
         </div>
@@ -79,14 +79,14 @@ export default function ContactStep({ onNext, onBack }: Props) {
             {...register('notes')}
             rows={3}
             placeholder="Ej: alergias alimentarias, accesibilidad, celebraciones especiales..."
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#F26726] focus:ring-2 focus:ring-[#F26726]/20 resize-none"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-marca focus:ring-2 focus:ring-marca-borde resize-none"
           />
         </div>
 
         <div className="pt-4 mt-3 border-t border-gray-100">
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-2 py-4 bg-[#F26726] hover:bg-[#d9571f] text-white font-semibold text-base rounded-xl transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-2 py-4 bg-marca hover:bg-marca-fuerte text-marca-contraste font-semibold text-base rounded-xl transition-colors shadow-sm"
           >
             Continuar <HiArrowRight className="w-5 h-5" />
           </button>

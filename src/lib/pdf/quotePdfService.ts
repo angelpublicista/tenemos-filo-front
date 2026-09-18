@@ -2,6 +2,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Experience } from '@/types';
 import filoLogo from '../../../public/filo-logo.png';
+import { colorValido, textoSobre } from '@/lib/marca';
+
+/** #RRGGBB a los tres canales que pide jsPDF. */
+function aRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
 
 /**
  * Trae una imagen y la convierte en algo que jsPDF sepa dibujar.
@@ -58,6 +65,9 @@ interface QuotePdfData {
    * Tenemos Filo, que es quien respalda la cotizacion en ese caso.
    */
   logoUrl?: string | null;
+  /** Colores de marca del anfitrion; sin ellos, los de Tenemos Filo. */
+  colorPrimario?: string | null;
+  colorSecundario?: string | null;
 }
 
 export const generateQuotePDF = async (data: QuotePdfData): Promise<void> => {
@@ -74,6 +84,8 @@ export const generateQuotePDF = async (data: QuotePdfData): Promise<void> => {
     location,
     notes,
     logoUrl,
+    colorPrimario,
+    colorSecundario,
   } = data;
 
   // Crear documento PDF
@@ -81,8 +93,16 @@ export const generateQuotePDF = async (data: QuotePdfData): Promise<void> => {
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPosition = 20;
 
-  // Colores de marca
-  const primaryColor = [242, 103, 38] as [number, number, number]; // #F26726
+  // Colores de marca: los del anfitrion si los eligio, si no los de Filo.
+  const hexPrimario = colorValido(colorPrimario) ?? '#F26726';
+  const hexSecundario = colorValido(colorSecundario) ?? '#E23694';
+  const primaryColor = aRgb(hexPrimario);
+  const accentColor = aRgb(hexSecundario);
+  // El texto sobre la banda y sobre las cintas de cada opcion: blanco o negro
+  // segun cual se lea, porque el color lo eligio alguien sin pensar en esto.
+  const sobrePrimario = aRgb(textoSobre(hexPrimario));
+  // Gris azulado de siempre para los titulos del cuerpo. No se toca: es texto
+  // corrido, y dejarlo a eleccion acaba en cotizaciones ilegibles.
   const darkColor = [51, 76, 93] as [number, number, number]; // #334C5D
   const lightGray = [107, 114, 128] as [number, number, number]; // #6b7280
 
@@ -124,7 +144,7 @@ export const generateQuotePDF = async (data: QuotePdfData): Promise<void> => {
   }
 
   // Título
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(sobrePrimario[0], sobrePrimario[1], sobrePrimario[2]);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.text('COTIZACIÓN', pageWidth / 2, 20, { align: 'center' });
@@ -218,7 +238,7 @@ export const generateQuotePDF = async (data: QuotePdfData): Promise<void> => {
     doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.roundedRect(15, yPosition - 5, pageWidth - 30, 10, 2, 2, 'F');
     
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(sobrePrimario[0], sobrePrimario[1], sobrePrimario[2]);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(`OPCIÓN ${index + 1}`, 20, yPosition);
@@ -272,7 +292,7 @@ export const generateQuotePDF = async (data: QuotePdfData): Promise<void> => {
     if (exp.includes && exp.includes.length > 0) {
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(16, 185, 129); // Verde
+      doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
       doc.text('✓ Esta opción incluye:', 15, yPosition);
       yPosition += 6;
 

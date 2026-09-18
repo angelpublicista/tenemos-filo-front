@@ -16,6 +16,33 @@
   --color-cortes-pink: #E23694;
   --color-cortes-teal: #19A3A2;
   --color-cortes-dark: #334C5D;
+
+  /* Marca del anfitrion.
+   *
+   * Aqui estan los colores de la plataforma, que es lo que ve cualquier
+   * pantalla que no diga otra cosa. El catalogo publico los sobrescribe con
+   * los de la empresa sobre su propio contenedor (ver ColoresDeMarca), asi
+   * que el panel sigue siendo naranja aunque el catalogo no lo sea.
+   *
+   * `marca-fuerte` es el tono de paso del raton y `marca-contraste` el color
+   * del texto encima: los dos se calculan a partir del principal, para que no
+   * puedan quedar desparejados de el.
+   */
+  --color-marca: #F26726;
+  --color-marca-fuerte: #d9571f;
+  --color-marca-contraste: #ffffff;
+  --color-acento: #E23694;
+
+  /* Los tonos translucidos tienen variable propia en vez de escribirse como
+   * `bg-marca/10`. Motivo: Tailwind resuelve esas fracciones al compilar y
+   * deja el color ya mezclado en el CSS (#F267261A), asi que se quedarian en
+   * naranja por mucho que la empresa cambie `--color-marca`. Con variable
+   * propia el valor se resuelve al pintar y si sigue a la marca. */
+  --color-marca-tenue: #F267261A;  /* 10% */
+  --color-marca-borde: #F2672633;  /* 20% */
+  --color-marca-medio: #F2672666;  /* 40% */
+  --color-acento-tenue: #E236941A;
+  --color-acento-medio: #E2369466;
 }
 
 /* Tema por defecto: claro */

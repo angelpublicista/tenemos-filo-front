@@ -6,6 +6,13 @@ import { HiCalendar, HiArrowRight } from "react-icons/hi";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getCompanyById, updateCompanyInSanity, type UpdateCompanyData } from "@/lib/sanity/companyService";
+import SelectorColorMarca from "@/components/SelectorColorMarca";
+import { estiloDeMarca } from "@/lib/marca";
+
+// Los de la plataforma. Son el valor por defecto, y lo que se ve mientras la
+// empresa no elija los suyos.
+const COLOR_FILO_PRINCIPAL = "#F26726";
+const COLOR_FILO_ACENTO = "#E23694";
 import { uploadImage } from "@/lib/api/uploads";
 import { cambiarPassword } from "@/lib/api/account";
 import { ApiHttpError } from "@/lib/api/client";
@@ -126,7 +133,15 @@ export default function SettingsPage() {
 
   // Marca
   const [editandoMarca, setEditandoMarca] = useState(false);
-  const [marcaForm, setMarcaForm] = useState({ tagline: "", description: "", openTableRid: "" });
+  const [marcaForm, setMarcaForm] = useState<{
+    tagline: string;
+    description: string;
+    openTableRid: string;
+    // null = sin elegir, que no es lo mismo que haber elegido el color de
+    // Filo: quien no elige se mueve si la plataforma cambia el suyo.
+    brandPrimary: string | null;
+    brandSecondary: string | null;
+  }>({ tagline: "", description: "", openTableRid: "", brandPrimary: null, brandSecondary: null });
   const [guardandoMarca, setGuardandoMarca] = useState(false);
   const [marcaFeedback, setMarcaFeedback] = useState<Feedback>(null);
   const [subiendoLogo, setSubiendoLogo] = useState(false);
@@ -256,12 +271,24 @@ export default function SettingsPage() {
 
   // ─── Marca ───────────────────────────────────────────────────────────────
 
+  /**
+   * Los colores que hay que enseñar ahora mismo.
+   *
+   * Editando manda lo que se lleva tocado —para que la vista previa reaccione
+   * al instante—; fuera de edicion, lo guardado.
+   */
+  const coloresVisibles = editandoMarca
+    ? { principal: marcaForm.brandPrimary, secundario: marcaForm.brandSecondary }
+    : { principal: company?.brandPrimary ?? null, secundario: company?.brandSecondary ?? null };
+
   const empezarEdicionMarca = () => {
     if (!company) return;
     setMarcaForm({
       tagline: company.tagline ?? "",
       description: company.description ?? "",
       openTableRid: company.openTableRid ?? "",
+      brandPrimary: company.brandPrimary ?? null,
+      brandSecondary: company.brandSecondary ?? null,
     });
     setEditandoMarca(true);
     setMarcaFeedback(null);
@@ -282,6 +309,8 @@ export default function SettingsPage() {
         tagline: marcaForm.tagline.trim() || null,
         description: marcaForm.description.trim() || undefined,
         openTableRid: marcaForm.openTableRid.trim() || null,
+        brandPrimary: marcaForm.brandPrimary,
+        brandSecondary: marcaForm.brandSecondary,
       });
       await recargarEmpresa();
       setEditandoMarca(false);
@@ -747,6 +776,54 @@ export default function SettingsPage() {
                   placeholder="Cuenta qué hace especial a tu cocina."
                   onChange={(e) => setMarcaForm((f) => ({ ...f, description: e.target.value }))}
                 />
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-gray-100 pt-6">
+              <h3 className="mb-1 text-sm font-semibold text-gray-900">Colores</h3>
+              <p className="mb-4 text-xs text-gray-500">
+                Se aplican a tu catálogo público y a los correos que reciben tus
+                clientes. Mientras no elijas ninguno se usan los de Tenemos Filo.
+              </p>
+
+              <div className="grid gap-4 lg:grid-cols-3">
+                <SelectorColorMarca
+                  id="color-principal"
+                  etiqueta="Color principal"
+                  ayuda="Botones, enlaces y resaltados. El texto encima se pone en blanco o en negro según cuál se lea mejor."
+                  valor={coloresVisibles.principal}
+                  porDefecto={COLOR_FILO_PRINCIPAL}
+                  soloLectura={!editandoMarca}
+                  onChange={(v) => setMarcaForm((f) => ({ ...f, brandPrimary: v }))}
+                />
+                <SelectorColorMarca
+                  id="color-secundario"
+                  etiqueta="Color secundario"
+                  ayuda="Solo para adornos: degradados y etiquetas. No se usa en textos, para que el catálogo siga leyéndose."
+                  valor={coloresVisibles.secundario}
+                  porDefecto={COLOR_FILO_ACENTO}
+                  soloLectura={!editandoMarca}
+                  onChange={(v) => setMarcaForm((f) => ({ ...f, brandSecondary: v }))}
+                />
+
+                {/* Ver el color en una casilla no dice como va a quedar. Esto
+                    es el boton tal cual sale en el catalogo, con el mismo
+                    calculo de contraste. */}
+                <div className="space-y-2">
+                  <Label>Así se verá</Label>
+                  <div
+                    className="rounded-xl border border-gray-200 bg-gray-50 p-4"
+                    style={estiloDeMarca(coloresVisibles.principal, coloresVisibles.secundario)}
+                  >
+                    <div className="mb-3 h-2 w-full rounded-full bg-linear-to-r from-marca-medio via-acento-medio to-marca-tenue" />
+                    <span className="mb-3 inline-block rounded-full bg-marca-tenue px-2.5 py-1 text-xs text-marca">
+                      tapas
+                    </span>
+                    <div className="w-full rounded-xl bg-marca px-4 py-2.5 text-center text-sm font-semibold text-marca-contraste">
+                      Reservar
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

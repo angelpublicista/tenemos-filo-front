@@ -71,6 +71,10 @@ export default function GenerarCotizacionPage() {
 
   const nombreEmisor = empresa?.companyName || 'Tenemos Filo';
   const logoEmisor = urlDeImagen(empresa?.logo?.asset?._ref);
+  // Sin empresa —o sin colores elegidos— ambos van nulos y la cotizacion sale
+  // con los de Tenemos Filo.
+  const colorPrimario = empresa?.brandPrimary ?? null;
+  const colorSecundario = empresa?.brandSecondary ?? null;
 
   // Formatear precio en moneda
   const formatCurrency = (value: number, curr: string = 'COP') => {
@@ -134,6 +138,8 @@ export default function GenerarCotizacionPage() {
         // empresa, que salia impreso tal cual en la cabecera del PDF.
         companyName: nombreEmisor,
         logoUrl: logoEmisor,
+        colorPrimario,
+        colorSecundario,
         experiences: quoteData.selectedExperiences,
         eventDate: quoteData.searchParams.date,
         eventTime: quoteData.searchParams.time,
@@ -188,6 +194,8 @@ export default function GenerarCotizacionPage() {
         hostName: sanityUser.name || 'Anfitrión',
         companyName: nombreEmisor,
         logoUrl: logoEmisor,
+        colorPrimario,
+        colorSecundario,
         experiences: quoteData.selectedExperiences,
         eventDate: quoteData.searchParams.date,
         eventTime: quoteData.searchParams.time,

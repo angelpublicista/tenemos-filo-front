@@ -41,6 +41,8 @@ export interface CreateCompanyData {
 export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo' | 'rutKey' | 'camaraKey'>> & {
   logo?: string | null;
   tagline?: string | null;
+  brandPrimary?: string | null;
+  brandSecondary?: string | null;
   /** Id del restaurante en OpenTable (el "rid" de sus enlaces). */
   openTableRid?: string | null;
   coverType?: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER';
@@ -80,6 +82,8 @@ export interface ApiCompany {
   employeeCount: string | null;
   embedDomains?: string[];
   tagline: string | null;
+  brandPrimary: string | null;
+  brandSecondary: string | null;
   openTableRid: string | null;
   coverType: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER' | null;
   coverImages: string[] | null;
@@ -157,6 +161,8 @@ export function toCompany(c: ApiCompany): Company {
     employeeCount: (c.employeeCount as Company['employeeCount']) ?? undefined,
     embedDomains: c.embedDomains ?? [],
     tagline: c.tagline ?? undefined,
+    brandPrimary: c.brandPrimary ?? undefined,
+    brandSecondary: c.brandSecondary ?? undefined,
     openTableRid: c.openTableRid ?? undefined,
     coverType: c.coverType ?? 'NONE',
     coverImages: c.coverImages ?? [],
@@ -203,6 +209,9 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
   if (upd.rutKey !== undefined) out.rutKey = upd.rutKey;
   if (upd.camaraKey !== undefined) out.camaraKey = upd.camaraKey;
   if (upd.tagline !== undefined) out.tagline = upd.tagline;
+  // null borra el color y devuelve el catalogo a los de la plataforma.
+  if (upd.brandPrimary !== undefined) out.brandPrimary = upd.brandPrimary;
+  if (upd.brandSecondary !== undefined) out.brandSecondary = upd.brandSecondary;
   if (upd.openTableRid !== undefined) out.openTableRid = upd.openTableRid;
   if (upd.coverType !== undefined) out.coverType = upd.coverType;
   if (upd.coverImages !== undefined) out.coverImages = upd.coverImages;

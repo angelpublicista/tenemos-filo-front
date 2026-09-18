@@ -140,7 +140,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
 
       <div className="mb-6">
         <h2 className="text-xl font-bold text-gray-900 leading-tight">Fecha y hora</h2>
-        <p className="text-xs text-[#F26726] font-semibold uppercase tracking-wide mt-1.5">{experience.title}</p>
+        <p className="text-xs text-marca font-semibold uppercase tracking-wide mt-1.5">{experience.title}</p>
       </div>
 
       <div className="space-y-6">
@@ -183,7 +183,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
                 type="button"
                 onClick={() => setParticipants(p => Math.max(experience.minCapacity ?? 1, p - 1))}
                 disabled={participants <= (experience.minCapacity ?? 1)}
-                className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-[#F26726] hover:text-[#F26726] disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
+                className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-marca hover:text-marca disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
               >
                 −
               </button>
@@ -192,7 +192,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
                 type="button"
                 onClick={() => setParticipants(p => Math.min(experience.capacity, p + 1))}
                 disabled={participants >= experience.capacity}
-                className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-[#F26726] hover:text-[#F26726] disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
+                className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-marca hover:text-marca disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
               >
                 +
               </button>
@@ -232,13 +232,13 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
                     }}
                     className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
                       checked
-                        ? 'border-[#F26726] bg-orange-50'
+                        ? 'border-marca bg-marca-tenue'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <span className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                        checked ? 'border-[#F26726] bg-[#F26726]' : 'border-gray-300 bg-white'
+                        checked ? 'border-marca bg-marca' : 'border-gray-300 bg-white'
                       }`}>
                         {checked && (
                           <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,7 +258,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
                           <p className="text-xs text-gray-500 mt-0.5">{addon.description}</p>
                         )}
                         {checked && addon.priceType === 'per_person' && participants > 1 && (
-                          <p className="text-xs text-[#F26726] font-medium mt-1">
+                          <p className="text-xs text-marca font-medium mt-1">
                             {participants} × {formatPrice(addon.price, experience.currency)} = {formatPrice(lineTotal, experience.currency)}
                           </p>
                         )}
@@ -287,7 +287,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
                       onClick={() => setLocationId(loc._id)}
                       className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
                         locationId === loc._id
-                          ? 'border-[#F26726] bg-orange-50 text-[#F26726] font-medium'
+                          ? 'border-marca bg-marca-tenue text-marca font-medium'
                           : 'border-gray-200 hover:border-gray-300 text-gray-700'
                       }`}
                     >
@@ -351,7 +351,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
           disabled={!canContinue}
           className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-semibold text-base transition-all ${
             canContinue
-              ? 'bg-[#F26726] hover:bg-[#d9571f] text-white shadow-sm'
+              ? 'bg-marca hover:bg-marca-fuerte text-marca-contraste shadow-sm'
               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
           }`}
         >

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { enviarCorreo, esc } from '@/lib/email/zeptomail';
+import { textoSobre } from '@/lib/marca';
 
 interface ExperienceForEmail {
   title: string;
@@ -65,6 +66,8 @@ export async function POST(request: NextRequest) {
       hostName,
       companyName,
       logoUrl,
+      colorPrimario,
+      colorSecundario,
       experiences,
       eventDate,
       eventTime,
@@ -90,6 +93,24 @@ export async function POST(request: NextRequest) {
       typeof logoUrl === 'string' && /^https?:\/\//i.test(logoUrl) ? logoUrl : null;
     const logo = logoValido ?? `${base.replace(/\/$/, '')}/filo-logo.png`;
 
+    /**
+     * Los colores del anfitrion.
+     *
+     * Se validan aqui otra vez aunque el formulario solo deje elegir colores
+     * validos: esto llega por HTTP y acaba dentro de un atributo style. Lo que
+     * no cuadre con #RRGGBB se descarta y manda el de la plataforma.
+     */
+    const hex = (v: unknown, pordefecto: string) =>
+      typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.trim())
+        ? v.trim().toUpperCase()
+        : pordefecto;
+    const principal = hex(colorPrimario, '#F26726');
+    const secundario = hex(colorSecundario, '#E23694');
+    // El anfitrion elige el color sin pensar que encima va texto: con una
+    // marca clara, el blanco de siempre dejaria el titular ilegible.
+    const sobrePrincipal = textoSobre(principal);
+    const degradado = `linear-gradient(135deg, ${principal} 0%, ${secundario} 100%)`;
+
     if (!customerEmail || !Array.isArray(experiences) || experiences.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Faltan el correo del cliente o las experiencias' },
@@ -109,8 +130,8 @@ export async function POST(request: NextRequest) {
       .map(
         (exp, index) => `
       <div style="background-color: #ffffff; border: 2px solid #e5e7eb; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
-        <div style="background: linear-gradient(135deg, #F26726 0%, #E23694 100%); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 15px;">
-          <h3 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: bold;">Opción ${index + 1}</h3>
+        <div style="background: ${degradado}; padding: 12px 20px; border-radius: 8px; margin-bottom: 15px;">
+          <h3 style="color: ${sobrePrincipal}; margin: 0; font-size: 20px; font-weight: bold;">Opción ${index + 1}</h3>
         </div>
 
         <h4 style="color: #334C5D; margin: 0 0 10px 0; font-size: 18px;">${esc(exp.title)}</h4>
@@ -130,7 +151,7 @@ export async function POST(request: NextRequest) {
               <p style="margin: 5px 0; color: #6b7280; font-size: 13px;">
                 $${dinero(exp.basePrice)} ${esc(exp.currency)} × ${esc(guests)} personas
               </p>
-              <p style="margin: 5px 0; color: #F26726; font-size: 20px; font-weight: bold;">
+              <p style="margin: 5px 0; color: ${principal}; font-size: 20px; font-weight: bold;">
                 $${dinero(exp.basePrice * guests)} ${esc(exp.currency)}
               </p>
             </td>
@@ -165,14 +186,14 @@ export async function POST(request: NextRequest) {
       <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
           <!-- Header -->
-          <div style="background: linear-gradient(135deg, #F26726 0%, #E23694 100%); padding: 40px 20px; text-align: center;">
+          <div style="background: ${degradado}; padding: 40px 20px; text-align: center;">
             <!-- El logo va sobre una tarjeta blanca, no suelto sobre el
                  degradado: se diseñan para fondo claro y muchos son oscuros. -->
             <div style="display: inline-block; background-color: #ffffff; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px;">
               <img src="${esc(logo)}" alt="${esc(companyName)}" style="display: block; max-height: 48px; max-width: 180px; height: auto; width: auto; border: 0;">
             </div>
-            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Cotización de Experiencias</h1>
-            <p style="color: #ffffff; margin: 10px 0 0 0; opacity: 0.9;">
+            <h1 style="color: ${sobrePrincipal}; margin: 0; font-size: 28px;">Cotización de Experiencias</h1>
+            <p style="color: ${sobrePrincipal}; margin: 10px 0 0 0; opacity: 0.9;">
               ${esc(companyName)}
             </p>
           </div>

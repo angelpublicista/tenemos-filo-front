@@ -28,32 +28,32 @@ export default function ConfirmationStep({ booking, cobraEnLinea, submitting, on
 
   const rows = [
     {
-      icon: <HiCalendar className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiCalendar className="w-4 h-4 text-marca" />,
       label: 'Fecha y hora',
       value: `${formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)}, ${time}`,
     },
     {
-      icon: <HiUsers className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiUsers className="w-4 h-4 text-marca" />,
       label: 'Personas',
       value: `${participants} persona${participants > 1 ? 's' : ''}`,
     },
     ...(experience.experienceType !== 'virtual' && locationName ? [{
-      icon: <HiLocationMarker className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiLocationMarker className="w-4 h-4 text-marca" />,
       label: 'Sede',
       value: locationName,
     }] : []),
     ...(experience.experienceType === 'virtual' ? [{
-      icon: <HiVideoCamera className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiVideoCamera className="w-4 h-4 text-marca" />,
       label: 'Modalidad',
       value: 'Virtual',
     }] : []),
     {
-      icon: <HiMail className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiMail className="w-4 h-4 text-marca" />,
       label: 'Email',
       value: guestInfo.email,
     },
     {
-      icon: <HiPhone className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiPhone className="w-4 h-4 text-marca" />,
       label: 'Teléfono',
       value: guestInfo.phone,
     },
@@ -71,8 +71,8 @@ export default function ConfirmationStep({ booking, cobraEnLinea, submitting, on
       </div>
 
       {/* Experiencia */}
-      <div className="bg-orange-50 rounded-xl px-4 py-3.5 mb-5 border border-orange-100">
-        <p className="text-xs text-[#F26726] font-semibold uppercase tracking-wide mb-1">Experiencia</p>
+      <div className="bg-marca-tenue rounded-xl px-4 py-3.5 mb-5 border border-marca-borde">
+        <p className="text-xs text-marca font-semibold uppercase tracking-wide mb-1">Experiencia</p>
         <p className="text-base font-bold text-gray-900">{experience.title}</p>
       </div>
 
@@ -129,7 +129,7 @@ export default function ConfirmationStep({ booking, cobraEnLinea, submitting, on
           className={`w-full py-4 rounded-xl font-bold text-base transition-all ${
             submitting
               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : 'bg-[#F26726] hover:bg-[#d9571f] text-white shadow-sm'
+              : 'bg-marca hover:bg-marca-fuerte text-marca-contraste shadow-sm'
           }`}
         >
           {submitting ? 'Enviando reserva...' : 'Confirmar reserva'}

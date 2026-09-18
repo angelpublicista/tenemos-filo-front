@@ -8,6 +8,9 @@ interface QuoteEmailData {
   companyName: string;
   /** Logo de quien cotiza; sin el, el correo sale con el de Tenemos Filo. */
   logoUrl?: string | null;
+  /** Colores de marca; sin ellos, los de Tenemos Filo. */
+  colorPrimario?: string | null;
+  colorSecundario?: string | null;
   experiences: Experience[];
   eventDate: string;
   eventTime: string;

@@ -81,7 +81,7 @@ export default function EditorPortada({
             onClick={() => onChange({ tipo: o.valor, imagenes, video })}
             className={`text-left rounded-xl border px-4 py-3 transition-colors ${
               tipo === o.valor
-                ? 'border-[#F26726] bg-orange-50'
+                ? 'border-marca bg-marca-tenue'
                 : 'border-gray-200 hover:border-gray-300 bg-white'
             }`}
           >

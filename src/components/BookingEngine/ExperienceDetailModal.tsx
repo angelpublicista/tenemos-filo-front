@@ -136,7 +136,7 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
             )}
           </div>
         ) : (
-          <div className="w-full h-56 bg-linear-to-br from-[#F26726]/10 via-[#E23694]/10 to-[#334C5D]/10" />
+          <div className="w-full h-56 bg-linear-to-br from-marca-tenue via-acento-tenue to-[#334C5D]/10" />
         )}
 
         {/* Contenido */}
@@ -155,7 +155,7 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
           {experience.categories?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-5">
               {experience.categories.map(c => (
-                <span key={c} className="text-xs bg-orange-50 text-[#F26726] px-2.5 py-1 rounded-full">
+                <span key={c} className="text-xs bg-marca-tenue text-marca px-2.5 py-1 rounded-full">
                   {CATEGORY_LABEL[c] ?? c}
                 </span>
               ))}
@@ -342,7 +342,7 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
           </div>
           <button
             onClick={() => onBook(experience)}
-            className="px-6 py-3 bg-[#F26726] hover:bg-[#d9571f] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+            className="px-6 py-3 bg-marca hover:bg-marca-fuerte text-marca-contraste text-sm font-semibold rounded-xl transition-colors shadow-sm"
           >
             Reservar
           </button>

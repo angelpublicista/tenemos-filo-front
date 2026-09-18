@@ -208,6 +208,13 @@ export interface Company {
   embedDomains?: string[];
   /** Frase corta de la empresa. */
   tagline?: string;
+  /**
+   * Colores de marca, en hexadecimal (#RRGGBB). Sin ellos se usan los de la
+   * plataforma. El secundario es decorativo —degradados, etiquetas, portada—;
+   * nunca se usa para texto corrido.
+   */
+  brandPrimary?: string;
+  brandSecondary?: string;
   /** Id del restaurante en OpenTable, para enlazar su ficha. */
   openTableRid?: string;
   /** Portada del catálogo público. */

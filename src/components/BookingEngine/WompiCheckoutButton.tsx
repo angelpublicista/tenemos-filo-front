@@ -45,7 +45,7 @@ export default function WompiCheckoutButton({ datos }: { datos: DatosCheckout })
           type="submit"
           onClick={() => setEnviando(true)}
           disabled={enviando}
-          className="w-full flex items-center justify-center gap-2 bg-[#F26726] hover:bg-[#d9571f] disabled:opacity-60 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-marca hover:bg-marca-fuerte disabled:opacity-60 text-marca-contraste font-semibold px-6 py-3 rounded-xl transition-colors"
         >
           <HiLockClosed className="w-5 h-5" />
           {enviando ? 'Abriendo pasarela...' : `Pagar ${total}`}

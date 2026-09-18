@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { getPublicCatalog, getResellerCatalog } from '@/lib/api/catalog';
 import { createPublicReservation } from '@/lib/sanity/reservationService';
 import type { Company, AvailabilitySchedule } from '@/types';
+import { estiloDeMarca } from '@/lib/marca';
 import type { Experience } from '@/types';
 import ExperienceList from '@/components/BookingEngine/ExperienceList';
 import DateTimeStep from '@/components/BookingEngine/DateTimeStep';
@@ -215,11 +216,22 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       (company.coverType === 'SLIDER' && (company.coverImages?.length ?? 0) > 0) ||
       (company.coverType === 'VIDEO' && !!company.coverVideo));
 
+  /**
+   * Los colores del anfitrion, aplicados a todo el catalogo.
+   *
+   * Van como variables CSS en este contenedor y no en una hoja global: asi
+   * las utilidades `bg-marca`, `text-marca` y demas cogen su color aqui
+   * dentro, mientras el resto de la aplicacion —el panel, sin ir mas lejos—
+   * sigue con los de la plataforma. Sin colores elegidos no se pone nada y
+   * mandan los de siempre.
+   */
+  const colores = estiloDeMarca(company?.brandPrimary, company?.brandSecondary);
+
   const wrap = (
     content: React.ReactNode,
     options: { showHeader?: boolean; banner?: React.ReactNode } = {},
   ) => (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col" style={colores}>
       {!isEmbed && options.showHeader && (
         <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 min-w-0">
@@ -300,7 +312,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       </p>
       <div className="inline-block bg-gray-50 border border-gray-200 rounded-xl px-8 py-4 mb-6">
         <p className="text-xs text-gray-400 mb-1">Número de reserva</p>
-        <p className="text-2xl font-bold text-[#F26726]">{reservationNumber}</p>
+        <p className="text-2xl font-bold text-marca">{reservationNumber}</p>
       </div>
 
       {pago && (
@@ -315,7 +327,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       {!isEmbed && (
         <button
           onClick={() => { setStep('experiences'); setBooking({}); }}
-          className="mt-8 text-sm text-[#F26726] hover:underline"
+          className="mt-8 text-sm text-marca hover:underline"
         >
           Hacer otra reserva
         </button>
@@ -378,7 +390,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
           <div className={`min-w-0 ${hayPortada ? 'sm:pt-3' : ''}`}>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{company.companyName}</h1>
             {company.tagline && (
-              <p className="text-[#F26726] font-medium mt-1 text-sm sm:text-base">{company.tagline}</p>
+              <p className="text-marca font-medium mt-1 text-sm sm:text-base">{company.tagline}</p>
             )}
             {(company as Company & { description?: string }).description && (
               <p className="text-gray-500 mt-2 text-sm sm:text-base leading-relaxed">
@@ -395,12 +407,12 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
           {STEP_ORDER.map((s, i) => (
             <React.Fragment key={s}>
               <div className={`flex items-center gap-2 text-xs font-medium whitespace-nowrap ${
-                i === currentStepIndex ? 'text-[#F26726]' :
+                i === currentStepIndex ? 'text-marca' :
                 i < currentStepIndex ? 'text-green-600' : 'text-gray-400'
               }`}>
                 <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                   i < currentStepIndex ? 'bg-green-500 text-white' :
-                  i === currentStepIndex ? 'bg-[#F26726] text-white' : 'bg-gray-200 text-gray-400'
+                  i === currentStepIndex ? 'bg-marca text-marca-contraste' : 'bg-gray-200 text-gray-400'
                 }`}>
                   {i < currentStepIndex ? '✓' : i + 1}
                 </span>

@@ -66,7 +66,7 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
                   className="block w-full h-56 object-cover border-b border-gray-100"
                 />
               ) : (
-                <div className="w-full h-56 bg-linear-to-br from-[#F26726]/10 via-[#E23694]/10 to-[#334C5D]/10 flex items-center justify-center border-b border-gray-100">
+                <div className="w-full h-56 bg-linear-to-br from-marca-tenue via-acento-tenue to-[#334C5D]/10 flex items-center justify-center border-b border-gray-100">
                   <div className="text-center px-4">
                     <div className="mx-auto w-10 h-10 rounded-full bg-white/80 border border-gray-200 flex items-center justify-center mb-2">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,7 +96,7 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
                   {exp.categories?.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       {exp.categories.slice(0, 3).map(c => (
-                        <span key={c} className="text-xs bg-orange-50 text-[#F26726] px-2.5 py-1 rounded-full">
+                        <span key={c} className="text-xs bg-marca-tenue text-marca px-2.5 py-1 rounded-full">
                           {CATEGORY_LABEL[c] ?? c}
                         </span>
                       ))}
@@ -145,7 +145,7 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
                     </button>
                     <button
                       onClick={() => onSelect(exp)}
-                      className="flex-1 px-4 py-2.5 bg-[#F26726] hover:bg-[#d9571f] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                      className="flex-1 px-4 py-2.5 bg-marca hover:bg-marca-fuerte text-marca-contraste text-sm font-semibold rounded-xl transition-colors shadow-sm"
                     >
                       Reservar
                     </button>

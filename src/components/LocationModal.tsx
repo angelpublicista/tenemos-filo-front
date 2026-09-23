@@ -12,6 +12,7 @@ import { AiOutlineClose } from 'react-icons/ai';
 import { COUNTRIES, COUNTRIES_MAP } from '@/lib/constants/countries';
 import DepartamentoCiudad from './DepartamentoCiudad';
 import TelefonoInput from './TelefonoInput';
+import PaisFijo, { PAIS_FIJO_CODIGO } from './PaisFijo';
 
 /**
  * El mapeo del API convierte los nulos en cadena vacia (`companyEmail ?? ''`),
@@ -187,7 +188,8 @@ const LocationModal: React.FC<LocationModalProps> = ({
           city: formData.city.trim(),
           state: formData.state.trim() || undefined,
           postalCode: formData.postalCode.trim() || undefined,
-          country: formData.country.trim() || undefined,
+          // El pais ya no se elige: se guarda el unico que hay.
+          country: PAIS_FIJO_CODIGO,
         },
         contactInfo: {
           phone: formData.phone.trim() || undefined,
@@ -353,7 +355,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
                   ciudad={formData.city}
                   onDepartamentoChange={(v) => handleInputChange('state', v)}
                   onCiudadChange={(v) => handleInputChange('city', v)}
-                  pais={formData.country}
+                  pais={PAIS_FIJO_CODIGO}
                   idDepartamento="sede-state"
                   idCiudad="sede-city"
                   requerido
@@ -372,22 +374,8 @@ const LocationModal: React.FC<LocationModalProps> = ({
                       placeholder="Ej: 110111"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                      País
-                    </label>
-                    <select
-                      value={formData.country}
-                      onChange={(e) => handleInputChange('country', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                    >
-                      <option value="">Selecciona un país</option>
-                      {COUNTRIES.map((country) => (
-                        <option key={country.code} value={country.code}>
-                          {country.name}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="text-left">
+                    <PaisFijo id="location-country" />
                   </div>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import SelectorColorMarca from "@/components/SelectorColorMarca";
 import { estiloDeMarca } from "@/lib/marca";
 import { TIPOS_DE_EMPRESA, TIPOS_DE_PERSONA, etiquetaDeTipo } from "@/lib/company/tipos";
 import { CIIU_SUGERIDOS, ciiuValido, nombreDeCiiu } from "@/data/ciiu";
+import PaisFijo, { PAIS_FIJO } from "@/components/PaisFijo";
 
 // Los de la plataforma. Son el valor por defecto, y lo que se ve mientras la
 // empresa no elija los suyos.
@@ -265,7 +266,8 @@ export default function SettingsPage() {
           city: generalForm.address.city.trim() || undefined,
           state: generalForm.address.state.trim() || undefined,
           postalCode: generalForm.address.postalCode.trim() || undefined,
-          country: generalForm.address.country.trim() || undefined,
+          // El pais ya no se elige: se guarda el unico que hay.
+          country: PAIS_FIJO,
         },
       };
       await updateCompanyInSanity(company._id, payload);
@@ -741,7 +743,7 @@ export default function SettingsPage() {
                         onCiudadChange={(v) =>
                           setGeneralForm({ ...generalForm, address: { ...generalForm.address, city: v } })
                         }
-                        pais={generalForm.address.country}
+                        pais={PAIS_FIJO}
                         idDepartamento="ajustes-state"
                         idCiudad="ajustes-city"
                       />
@@ -752,12 +754,7 @@ export default function SettingsPage() {
                           onChange={(e) => setGeneralForm({ ...generalForm, address: { ...generalForm.address, postalCode: e.target.value } })}
                           disabled={savingGeneral}
                         />
-                        <TextInput
-                          placeholder="País"
-                          value={generalForm.address.country}
-                          onChange={(e) => setGeneralForm({ ...generalForm, address: { ...generalForm.address, country: e.target.value } })}
-                          disabled={savingGeneral}
-                        />
+                        <PaisFijo id="settings-country" label="" />
                       </div>
                     </div>
                   </div>

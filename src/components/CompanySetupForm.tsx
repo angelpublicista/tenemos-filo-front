@@ -32,6 +32,7 @@ import DepartamentoCiudad from './DepartamentoCiudad';
 import { digitoVerificacion } from '@/lib/company/nit';
 import { CIIU_SUGERIDOS, nombreDeCiiu } from '@/data/ciiu';
 import ContactosDeEmpresa from './ContactosDeEmpresa';
+import PaisFijo, { PAIS_FIJO } from './PaisFijo';
 import {
   CONTACTOS_OBLIGATORIOS,
   contactoVacio,
@@ -259,7 +260,7 @@ export default function CompanySetupForm() {
         city: '',
         state: '',
         postalCode: '',
-        country: 'Colombia'
+        country: PAIS_FIJO
       },
       employeeCount: '1-10',
       annualRevenue: '0-100k',
@@ -328,7 +329,9 @@ export default function CompanySetupForm() {
           city: existingCompany.address?.city || '',
           state: existingCompany.address?.state || '',
           postalCode: existingCompany.address?.postalCode || '',
-          country: existingCompany.address?.country || 'Colombia'
+          // No se lee lo guardado: el campo ya no se puede cambiar, asi que
+          // enseñar otro pais seria enseñar algo que nadie podria corregir.
+          country: PAIS_FIJO,
         },
         employeeCount: existingCompany.employeeCount || '1-10',
         annualRevenue: existingCompany.annualRevenue || '0-100k',
@@ -821,7 +824,7 @@ export default function CompanySetupForm() {
 
     // El pais no viene en el RUT, pero si el departamento es colombiano, el
     // pais tambien lo es.
-    if (depto) setValue('address.country', 'Colombia', { shouldValidate: true });
+    if (depto) setValue('address.country', PAIS_FIJO, { shouldValidate: true });
 
     // Estos dos viven fuera de react-hook-form.
     if (telefono) setCompanyPhone(telefono);
@@ -1026,7 +1029,7 @@ export default function CompanySetupForm() {
           onCiudadChange={(v) =>
             setValue('address.city', v, { shouldValidate: true, shouldDirty: true })
           }
-          pais={watch('address.country')}
+          pais={PAIS_FIJO}
           idDepartamento="address.state"
           idCiudad="address.city"
           requerido
@@ -1051,21 +1054,7 @@ export default function CompanySetupForm() {
             )}
           </div>
 
-          <div>
-            <Label color="gray" className="mb-2 block">
-              País <span className="text-red-500">*</span>
-            </Label>
-            <TextInput
-              id="address.country"
-              type="text"
-              placeholder="Colombia"
-              color={errors.address?.country ? 'failure' : 'white'}
-              {...register('address.country')}
-            />
-            {errors.address?.country && (
-              <p className="mt-1 text-sm text-red-600">{errors.address.country.message}</p>
-            )}
-          </div>
+          <PaisFijo id="address.country" requerido />
         </div>
       </div>
     </div>

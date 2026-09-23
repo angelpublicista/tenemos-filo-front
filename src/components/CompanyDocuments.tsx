@@ -77,7 +77,21 @@ export default function CompanyDocuments({
       cuerpo.append('archivo', file);
       cuerpo.append('tipo', tipo);
 
-      const res = await fetch('/api/ai/extraer-documento', { method: 'POST', body: cuerpo });
+      // Tiempo limite. Un fetch colgado no falla nunca, se queda esperando: sin
+      // esto el spinner giraria para siempre y, como durante la lectura no se
+      // puede quitar el documento, la persona no tendria salida.
+      const corte = new AbortController();
+      const alarma = setTimeout(() => corte.abort(), 90_000);
+      let res: Response;
+      try {
+        res = await fetch('/api/ai/extraer-documento', {
+          method: 'POST',
+          body: cuerpo,
+          signal: corte.signal,
+        });
+      } finally {
+        clearTimeout(alarma);
+      }
       const json = await res.json();
 
       if (!res.ok) {
@@ -132,7 +146,15 @@ export default function CompanyDocuments({
       showSuccess('Datos aplicados', 'Revísalos antes de continuar.');
     } catch (error) {
       console.error('Error leyendo documento:', error);
-      showError('Error de red', 'No pudimos leer el documento. Inténtalo de nuevo.');
+      const seAgoto = error instanceof DOMException && error.name === 'AbortError';
+      showError(
+        seAgoto ? 'La lectura tardó demasiado' : 'Error de red',
+        // El documento ya esta guardado en los dos casos: lo unico que no se
+        // pudo fue leerlo, y eso solo cuesta teclear.
+        seAgoto
+          ? 'Tu documento quedó guardado. Completa los datos a mano o inténtalo de nuevo.'
+          : 'No pudimos leer el documento. Inténtalo de nuevo.',
+      );
     } finally {
       setLeyendo(null);
     }
@@ -141,13 +163,23 @@ export default function CompanyDocuments({
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-5 space-y-4">
       <div className="flex items-start gap-3">
-        <HiSparkles className="w-6 h-6 text-[#F26726] shrink-0 mt-0.5" />
+        {leyendo ? (
+          <div className="animate-spin rounded-full border-b-2 border-[#F26726] h-6 w-6 shrink-0 mt-0.5" />
+        ) : (
+          <HiSparkles className="w-6 h-6 text-[#F26726] shrink-0 mt-0.5" />
+        )}
         <div className="min-w-0">
-          <h4 className="font-semibold text-[#334C5D]">Sube tus documentos y ahorra tiempo</h4>
+          <h4 className="font-semibold text-[#334C5D]">
+            {leyendo
+              ? `Analizando tu ${leyendo === 'rut' ? 'RUT' : 'certificado'}…`
+              : 'Sube tus documentos y ahorra tiempo'}
+          </h4>
           <p className="text-sm text-gray-600 mt-0.5">
-            Al cargar el RUT leemos el NIT, la razón social, la dirección, el
-            contacto y la actividad económica, y rellenamos el formulario por
-            ti. Siempre podrás corregirlo.
+            {leyendo
+              ? 'Estamos leyendo los datos. Puede tardar unos segundos; no cierres ni recargues esta página.'
+              : `Al cargar el RUT leemos el NIT, la razón social, la dirección, el
+                 contacto y la actividad económica, y rellenamos el formulario por
+                 ti. Siempre podrás corregirlo.`}
           </p>
         </div>
       </div>
@@ -159,7 +191,8 @@ export default function CompanyDocuments({
           onChange={onRutChange}
           onArchivo={(f) => leer(f, 'rut')}
           disabled={leyendo !== null}
-          helpText={leyendo === 'rut' ? 'Leyendo el documento...' : 'Opcional'}
+          analizando={leyendo === 'rut'}
+          helpText="Opcional"
         />
         {/* Se sigue mostrando si ya hay uno subido aunque ahora no toque: la
             empresa pudo cambiar de tipo despues, y esconderselo dejaria un
@@ -171,12 +204,9 @@ export default function CompanyDocuments({
             onChange={onCamaraChange}
             onArchivo={(f) => leer(f, 'camara')}
             disabled={leyendo !== null}
+            analizando={leyendo === 'camara'}
             helpText={
-              leyendo === 'camara'
-                ? 'Leyendo el documento...'
-                : pideCamara
-                  ? 'Opcional'
-                  : 'No aplica a una persona natural. Puedes quitarlo.'
+              pideCamara ? 'Opcional' : 'No aplica a una persona natural. Puedes quitarlo.'
             }
           />
         )}

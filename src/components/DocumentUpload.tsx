@@ -16,6 +16,15 @@ interface DocumentUploadProps {
   /** Se llama con el fichero recien elegido, antes de subirlo. */
   onArchivo?: (file: File) => void;
   disabled?: boolean;
+  /**
+   * La IA esta leyendo ESTE documento.
+   *
+   * Es un estado aparte de `subiendo` y no un detalle: la subida termina en
+   * un par de segundos y la lectura tarda bastantes mas. Justo cuando empieza
+   * la espera larga, la caja ya se ha convertido en "documento cargado" y
+   * dejaba de haber cualquier señal de que algo seguia pasando.
+   */
+  analizando?: boolean;
 }
 
 const TIPOS = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
@@ -41,6 +50,7 @@ export default function DocumentUpload({
   scope = 'documentos',
   onArchivo,
   disabled = false,
+  analizando = false,
 }: DocumentUploadProps) {
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,27 +118,46 @@ export default function DocumentUpload({
       {helpText && <p className="text-sm text-gray-500">{helpText}</p>}
 
       {value ? (
-        <div className="flex items-center gap-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
-          <HiDocumentText className="w-8 h-8 text-[#F26726] shrink-0" />
+        <div
+          className={`flex items-center gap-3 border rounded-lg p-3 transition-colors ${
+            analizando ? 'border-[#F26726] bg-orange-50' : 'border-gray-200 bg-gray-50'
+          }`}
+          aria-busy={analizando}
+        >
+          {analizando ? (
+            <div className="animate-spin rounded-full border-b-2 border-[#F26726] h-8 w-8 shrink-0" />
+          ) : (
+            <HiDocumentText className="w-8 h-8 text-[#F26726] shrink-0" />
+          )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-[#334C5D] truncate">
               {nombre ?? 'Documento cargado'}
             </p>
-            <button
-              type="button"
-              onClick={abrir}
-              disabled={abriendo}
-              className="text-xs text-[#F26726] hover:underline inline-flex items-center gap-1 cursor-pointer disabled:opacity-60"
-            >
-              <HiExternalLink className="w-3 h-3" />
-              {abriendo ? 'Abriendo...' : 'Ver documento'}
-            </button>
+            {analizando ? (
+              // Se dice que puede tardar: sin eso, diez segundos de spinner
+              // parecen que algo se colgo.
+              <p className="text-xs text-[#F26726]">
+                Analizando el documento… puede tardar unos segundos
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={abrir}
+                disabled={abriendo}
+                className="text-xs text-[#F26726] hover:underline inline-flex items-center gap-1 cursor-pointer disabled:opacity-60"
+              >
+                <HiExternalLink className="w-3 h-3" />
+                {abriendo ? 'Abriendo...' : 'Ver documento'}
+              </button>
+            )}
           </div>
+          {/* Quitarlo a mitad de la lectura dejaria el resumen aplicandose
+              sobre un documento que ya no esta. */}
           <button
             type="button"
             onClick={quitar}
-            disabled={disabled}
-            className="p-2 text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0"
+            disabled={disabled || analizando}
+            className="p-2 text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label={`Quitar ${label}`}
           >
             <HiTrash className="w-4 h-4" />

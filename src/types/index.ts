@@ -15,6 +15,8 @@ export interface CompanyBasicInfo {
 }
 
 export interface CompanyFiscalInfo {
+  /** Actividad economica, codigo CIIU de cuatro digitos (RUT casilla 46). */
+  ciiuCode?: string;
   documentType: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
   businessName: string; // Razón social
@@ -223,6 +225,8 @@ export interface Company {
   brandSecondary?: string;
   /** Decide que documentacion legal se le pide. */
   personType?: TipoDePersona;
+  /** Actividad economica, codigo CIIU de cuatro digitos. */
+  ciiuCode?: string;
   /** Segundo tipo de negocio, opcional. Nunca igual al principal. */
   companyTypeSecondary?: TipoDeEmpresa;
   /** Id del restaurante en OpenTable, para enlazar su ficha. */

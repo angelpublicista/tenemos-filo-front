@@ -9,6 +9,7 @@ import { getCompanyById, updateCompanyInSanity, type UpdateCompanyData } from "@
 import SelectorColorMarca from "@/components/SelectorColorMarca";
 import { estiloDeMarca } from "@/lib/marca";
 import { TIPOS_DE_EMPRESA, TIPOS_DE_PERSONA, etiquetaDeTipo } from "@/lib/company/tipos";
+import { CIIU_SUGERIDOS, ciiuValido, nombreDeCiiu } from "@/data/ciiu";
 
 // Los de la plataforma. Son el valor por defecto, y lo que se ve mientras la
 // empresa no elija los suyos.
@@ -46,6 +47,7 @@ function formatAddress(address?: Company["address"]): string {
 type GeneralFormState = {
   companyName: string;
   personType: NonNullable<Company["personType"]> | "";
+  ciiuCode: string;
   companyType: Company["companyType"];
   /** Vacio = ninguno. */
   companyTypeSecondary: Company["companyType"] | "";
@@ -66,6 +68,7 @@ function companyToFormState(c: Company): GeneralFormState {
   return {
     companyName: c.companyName ?? "",
     personType: c.personType ?? "",
+    ciiuCode: c.ciiuCode ?? "",
     companyType: c.companyType ?? "restaurant",
     companyTypeSecondary: c.companyTypeSecondary ?? "",
     companyEmail: c.companyEmail ?? "",
@@ -233,12 +236,24 @@ export default function SettingsPage() {
 
   const handleSaveGeneral = async () => {
     if (!company || !generalForm) return;
+
+    // Se corta aqui y no se deja llegar al API: rechazaria el codigo con un
+    // 400 generico, y el mensaje util —cuantos digitos son— ya lo sabemos.
+    if (generalForm.ciiuCode.trim() && !ciiuValido(generalForm.ciiuCode)) {
+      setGeneralFeedback({
+        type: "error",
+        message: "El código CIIU son cuatro dígitos. Míralo en la casilla 46 de tu RUT.",
+      });
+      return;
+    }
+
     setSavingGeneral(true);
     setGeneralFeedback(null);
     try {
       const payload: UpdateCompanyData = {
         companyName: generalForm.companyName.trim(),
         personType: generalForm.personType || null,
+        ciiuCode: generalForm.ciiuCode.trim() || null,
         companyType: generalForm.companyType,
         companyTypeSecondary: generalForm.companyTypeSecondary || null,
         companyEmail: generalForm.companyEmail.trim(),
@@ -655,6 +670,37 @@ export default function SettingsPage() {
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="ciiuCode" className="mb-2 block text-sm font-medium text-gray-700">
+                      Actividad económica <span className="text-gray-400">(código CIIU)</span>
+                    </Label>
+                    <TextInput
+                      id="ciiuCode"
+                      inputMode="numeric"
+                      maxLength={4}
+                      placeholder="Ej: 5611"
+                      list="ciiu-sugeridos-ajustes"
+                      value={generalForm.ciiuCode}
+                      onChange={(e) => setGeneralForm({ ...generalForm, ciiuCode: e.target.value })}
+                      disabled={savingGeneral}
+                      color={
+                        generalForm.ciiuCode && !ciiuValido(generalForm.ciiuCode)
+                          ? "failure"
+                          : undefined
+                      }
+                    />
+                    <datalist id="ciiu-sugeridos-ajustes">
+                      {CIIU_SUGERIDOS.map((c) => (
+                        <option key={c.codigo} value={c.codigo}>{c.nombre}</option>
+                      ))}
+                    </datalist>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {generalForm.ciiuCode && !ciiuValido(generalForm.ciiuCode)
+                        ? "Son cuatro dígitos."
+                        : (nombreDeCiiu(generalForm.ciiuCode) ??
+                          "Lo encuentras en la casilla 46 de tu RUT.")}
+                    </p>
                   </div>
                   <div>
                     <Label htmlFor="companyTypeSecondary" className="mb-2 block text-sm font-medium text-gray-700">

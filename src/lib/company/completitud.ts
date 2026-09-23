@@ -57,6 +57,7 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
     { etiqueta: 'Tipo de documento', relleno: tiene(empresa?.documentType), obligatorio: true, paso: 2 },
     { etiqueta: 'Número de documento', relleno: tiene(empresa?.documentNumber), obligatorio: true, paso: 2 },
     { etiqueta: 'Razón social', relleno: tiene(empresa?.businessName), obligatorio: true, paso: 2 },
+    { etiqueta: 'Actividad económica (CIIU)', relleno: tiene(empresa?.ciiuCode), obligatorio: false, paso: 2 },
     { etiqueta: 'Dirección', relleno: tiene(dir?.street), obligatorio: true, paso: 2 },
     { etiqueta: 'Ciudad', relleno: tiene(dir?.city), obligatorio: true, paso: 2 },
     { etiqueta: 'Departamento', relleno: tiene(dir?.state), obligatorio: true, paso: 2 },

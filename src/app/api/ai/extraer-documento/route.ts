@@ -53,10 +53,16 @@ const ESQUEMA_RUT = {
     correo: { type: ['string', 'null'], description: 'Casilla 42' },
     telefono: { type: ['string', 'null'], description: 'Casilla 43 o 44' },
     esPersonaJuridica: { type: ['boolean', 'null'], description: 'true si es empresa, false si persona natural' },
+    codigoCiiu: {
+      type: ['string', 'null'],
+      description:
+        'Casilla 46, actividad economica principal: SOLO el codigo CIIU de cuatro digitos, sin su descripcion. Si hay varias actividades, la principal.',
+    },
   },
   required: [
     'nit', 'digitoVerificacion', 'razonSocial', 'nombreComercial', 'direccion',
     'departamento', 'ciudad', 'correo', 'telefono', 'esPersonaJuridica',
+    'codigoCiiu',
   ],
   additionalProperties: false,
 } as const;
@@ -73,10 +79,15 @@ const ESQUEMA_CAMARA = {
     ciudad: { type: ['string', 'null'] },
     correo: { type: ['string', 'null'] },
     telefono: { type: ['string', 'null'] },
+    codigoCiiu: {
+      type: ['string', 'null'],
+      description:
+        'Codigo CIIU de cuatro digitos de la actividad principal inscrita, sin su descripcion. Si hay varias, la primera.',
+    },
   },
   required: [
     'nit', 'razonSocial', 'matriculaMercantil', 'representanteLegal',
-    'direccion', 'departamento', 'ciudad', 'correo', 'telefono',
+    'direccion', 'departamento', 'ciudad', 'correo', 'telefono', 'codigoCiiu',
   ],
   additionalProperties: false,
 } as const;

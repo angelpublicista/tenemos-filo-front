@@ -23,6 +23,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from './Loader';
 import { urlDeImagen } from '@/lib/images';
 import { etiquetaDeTipo, etiquetaDePersona } from '@/lib/company/tipos';
+import { nombreDeCiiu } from '@/data/ciiu';
 
 
 interface CompanyInfoViewProps {
@@ -304,6 +305,23 @@ export default function CompanyInfoView({
                 {existingCompany.companyName}
               </p>
             </div>
+
+            {existingCompany.ciiuCode && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 block mb-1">
+                  Actividad económica (CIIU)
+                </label>
+                <p className="text-gray-900">
+                  {existingCompany.ciiuCode}
+                  {nombreDeCiiu(existingCompany.ciiuCode) && (
+                    <span className="text-gray-500">
+                      {' · '}
+                      {nombreDeCiiu(existingCompany.ciiuCode)}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium text-gray-500 block mb-1">

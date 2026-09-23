@@ -30,6 +30,7 @@ import Loader from './Loader';
 import { ImageUpload } from './ImageUpload';
 import DepartamentoCiudad from './DepartamentoCiudad';
 import { digitoVerificacion } from '@/lib/company/nit';
+import { CIIU_SUGERIDOS, nombreDeCiiu } from '@/data/ciiu';
 
 // Esquemas de validación por pasos
 const basicInfoSchema = z.object({
@@ -81,6 +82,11 @@ const fiscalInfoSchema = z.object({
     .min(6, 'El número de documento debe tener al menos 6 caracteres')
     .max(20, 'El número de documento no puede exceder 20 caracteres')
     .regex(/^[0-9]+$/, 'El número de documento solo puede contener números'),
+  ciiuCode: z
+    .string()
+    .regex(/^[0-9]{4}$/, 'El código CIIU son cuatro dígitos')
+    .optional()
+    .or(z.literal('')),
   businessName: z.string()
     .min(2, 'La razón social debe tener al menos 2 caracteres')
     .max(200, 'La razón social no puede exceder 200 caracteres'),
@@ -221,6 +227,7 @@ export default function CompanySetupForm() {
       companyEmail: '',
       companyPhone: '',
       documentType: 'nit',
+      ciiuCode: '',
       documentNumber: '',
       businessName: '',
       website: '',
@@ -243,6 +250,7 @@ export default function CompanySetupForm() {
   const documentTypeActual = watch('documentType');
   const personTypeActual = watch('personType');
   const companyTypeActual = watch('companyType');
+  const ciiuActual = watch('ciiuCode');
 
   /**
    * Al cambiar el tipo de persona se preselecciona el documento que le toca.
@@ -289,6 +297,7 @@ export default function CompanySetupForm() {
         companyPhone: existingCompany.companyPhone || '',
         documentType: existingCompany.documentType || 'nit',
         documentNumber: existingCompany.documentNumber || '',
+        ciiuCode: existingCompany.ciiuCode || '',
         businessName: existingCompany.businessName || '',
         website: existingCompany.website || '',
         address: {
@@ -425,6 +434,7 @@ export default function CompanySetupForm() {
           logo: logoAssetId || null,
           documentType: data.documentType,
           documentNumber: data.documentNumber,
+          ciiuCode: data.ciiuCode || undefined,
           documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
@@ -461,6 +471,7 @@ export default function CompanySetupForm() {
           logo: logoAssetId || undefined,
           documentType: data.documentType,
           documentNumber: data.documentNumber,
+          ciiuCode: data.ciiuCode || undefined,
           documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
@@ -871,6 +882,39 @@ export default function CompanySetupForm() {
         />
         {errors.businessName && (
           <p className="mt-1 text-sm text-red-600">{errors.businessName.message}</p>
+        )}
+      </div>
+
+      {/* Actividad económica */}
+      <div>
+        <Label color="gray" className="mb-2 block">
+          Actividad económica <span className="text-gray-400">(código CIIU)</span>
+        </Label>
+        <TextInput
+          id="ciiuCode"
+          type="text"
+          inputMode="numeric"
+          maxLength={4}
+          placeholder="Ej: 5611"
+          list="ciiu-sugeridos"
+          color={errors.ciiuCode ? 'failure' : 'white'}
+          {...register('ciiuCode')}
+        />
+        {/* Sugerencias, no catalogo: el campo acepta cualquier codigo de
+            cuatro digitos porque la clasificacion es de la DIAN y cambia. */}
+        <datalist id="ciiu-sugeridos">
+          {CIIU_SUGERIDOS.map((c) => (
+            <option key={c.codigo} value={c.codigo}>
+              {c.nombre}
+            </option>
+          ))}
+        </datalist>
+        <p className="mt-1 text-sm text-gray-500">
+          {nombreDeCiiu(ciiuActual) ??
+            'Lo encuentras en la casilla 46 de tu RUT. Si subes el documento lo tomamos de ahí.'}
+        </p>
+        {errors.ciiuCode && (
+          <p className="mt-1 text-sm text-red-600">{errors.ciiuCode.message}</p>
         )}
       </div>
 

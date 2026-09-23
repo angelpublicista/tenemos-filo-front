@@ -13,6 +13,7 @@ export interface CreateCompanyData {
   companyType: TipoDeEmpresa;
   personType?: TipoDePersona;
   companyTypeSecondary?: TipoDeEmpresa;
+  ciiuCode?: string;
   description?: string;
   companyEmail: string;
   companyPhone: string;
@@ -42,7 +43,7 @@ export interface CreateCompanyData {
 // el campo en NULL en Postgres). Usamos Omit para que no se intersecte con
 // el `logo: string | undefined` de CreateCompanyData.
 export type UpdateCompanyData = Partial<
-  Omit<CreateCompanyData, 'logo' | 'rutKey' | 'camaraKey' | 'personType' | 'companyTypeSecondary'>
+  Omit<CreateCompanyData, 'logo' | 'rutKey' | 'camaraKey' | 'personType' | 'companyTypeSecondary' | 'ciiuCode'>
 > & {
   logo?: string | null;
   tagline?: string | null;
@@ -50,6 +51,7 @@ export type UpdateCompanyData = Partial<
   brandSecondary?: string | null;
   personType?: TipoDePersona | null;
   companyTypeSecondary?: TipoDeEmpresa | null;
+  ciiuCode?: string | null;
   /** Id del restaurante en OpenTable (el "rid" de sus enlaces). */
   openTableRid?: string | null;
   coverType?: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER';
@@ -94,6 +96,7 @@ export interface ApiCompany {
   brandPrimary: string | null;
   brandSecondary: string | null;
   personType: Uppercase<TipoDePersona> | null;
+  ciiuCode: string | null;
   companyTypeSecondary: ApiCompanyType | null;
   openTableRid: string | null;
   coverType: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER' | null;
@@ -167,6 +170,7 @@ export function toCompany(c: ApiCompany): Company {
     employeeCount: (c.employeeCount as Company['employeeCount']) ?? undefined,
     embedDomains: c.embedDomains ?? [],
     tagline: c.tagline ?? undefined,
+    ciiuCode: c.ciiuCode ?? undefined,
     personType: c.personType
       ? (c.personType.toLowerCase() as TipoDePersona)
       : undefined,
@@ -222,6 +226,7 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
   if (upd.camaraKey !== undefined) out.camaraKey = upd.camaraKey;
   if (upd.tagline !== undefined) out.tagline = upd.tagline;
   // null borra el color y devuelve el catalogo a los de la plataforma.
+  if (upd.ciiuCode !== undefined) out.ciiuCode = upd.ciiuCode;
   if (upd.personType !== undefined)
     out.personType = upd.personType ? upd.personType.toUpperCase() : null;
   if (upd.companyTypeSecondary !== undefined)

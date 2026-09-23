@@ -24,6 +24,7 @@ export interface DatosExtraidos {
   correo?: string | null;
   telefono?: string | null;
   esPersonaJuridica?: boolean | null;
+  codigoCiiu?: string | null;
 }
 
 /** Un campo listo para aplicar, con su nombre en cristiano para el resumen. */
@@ -120,6 +121,14 @@ export function camposDesdeDocumento(datos: DatosExtraidos): CampoDetectado[] {
   }
 
   añadir('companyEmail', 'Correo de contacto', limpiar(datos.correo));
+
+  // El modelo a veces devuelve el codigo con su descripcion pegada
+  // ("5611 - Expendio a la mesa..."). Se queda solo el numero, que es lo que
+  // se guarda; y si no salen cuatro digitos limpios no se aplica nada, porque
+  // un codigo tributario a medias es peor que ninguno.
+  const ciiu = (limpiar(datos.codigoCiiu).match(/\b\d{4}\b/) ?? [])[0];
+  if (ciiu) añadir('ciiuCode', 'Actividad económica (CIIU)', ciiu);
+
   return campos;
 }
 

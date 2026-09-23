@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import DocumentUpload from './DocumentUpload';
+import { nombreDeCiiu } from '@/data/ciiu';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { dvCoincide } from '@/lib/company/nit';
 import {
@@ -40,8 +41,16 @@ const ETIQUETAS_DE_VALOR: Record<string, string> = {
   other: 'Otro',
 };
 
-const paraMostrar = (campo: string, valor: string) =>
-  campo === 'documentType' ? (ETIQUETAS_DE_VALOR[valor] ?? valor) : valor;
+const paraMostrar = (campo: string, valor: string) => {
+  if (campo === 'documentType') return ETIQUETAS_DE_VALOR[valor] ?? valor;
+  // Un codigo CIIU a secas no le dice nada a nadie, y aqui es justo donde hay
+  // que decidir si se aplica. Se acompaña del nombre cuando lo conocemos.
+  if (campo === 'ciiuCode') {
+    const nombre = nombreDeCiiu(valor);
+    return nombre ? `${valor} · ${nombre}` : valor;
+  }
+  return valor;
+};
 
 /**
  * Carga del RUT y del certificado de Camara de Comercio, con lectura
@@ -136,9 +145,9 @@ export default function CompanyDocuments({
         <div className="min-w-0">
           <h4 className="font-semibold text-[#334C5D]">Sube tus documentos y ahorra tiempo</h4>
           <p className="text-sm text-gray-600 mt-0.5">
-            Al cargar el RUT leemos el NIT, la razón social, la dirección y el
-            contacto, y rellenamos el formulario por ti. Siempre podrás
-            corregirlo.
+            Al cargar el RUT leemos el NIT, la razón social, la dirección, el
+            contacto y la actividad económica, y rellenamos el formulario por
+            ti. Siempre podrás corregirlo.
           </p>
         </div>
       </div>

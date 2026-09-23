@@ -5,6 +5,7 @@
 import { api } from '@/lib/api/client';
 import { Company } from '@/types';
 import type { TipoDeEmpresa, TipoDePersona } from '@/lib/company/tipos';
+import type { ContactoDeEmpresa } from '@/lib/company/contactos';
 
 // ─── Tipos publicos (se conservan para compat) ─────────────────────────────
 
@@ -14,6 +15,7 @@ export interface CreateCompanyData {
   personType?: TipoDePersona;
   companyTypeSecondary?: TipoDeEmpresa;
   ciiuCode?: string;
+  contacts?: ContactoDeEmpresa[];
   description?: string;
   companyEmail: string;
   companyPhone: string;
@@ -43,7 +45,7 @@ export interface CreateCompanyData {
 // el campo en NULL en Postgres). Usamos Omit para que no se intersecte con
 // el `logo: string | undefined` de CreateCompanyData.
 export type UpdateCompanyData = Partial<
-  Omit<CreateCompanyData, 'logo' | 'rutKey' | 'camaraKey' | 'personType' | 'companyTypeSecondary' | 'ciiuCode'>
+  Omit<CreateCompanyData, 'logo' | 'rutKey' | 'camaraKey' | 'personType' | 'companyTypeSecondary' | 'ciiuCode' | 'contacts'>
 > & {
   logo?: string | null;
   tagline?: string | null;
@@ -52,6 +54,7 @@ export type UpdateCompanyData = Partial<
   personType?: TipoDePersona | null;
   companyTypeSecondary?: TipoDeEmpresa | null;
   ciiuCode?: string | null;
+  contacts?: ContactoDeEmpresa[];
   /** Id del restaurante en OpenTable (el "rid" de sus enlaces). */
   openTableRid?: string | null;
   coverType?: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER';
@@ -97,6 +100,14 @@ export interface ApiCompany {
   brandSecondary: string | null;
   personType: Uppercase<TipoDePersona> | null;
   ciiuCode: string | null;
+  companyContacts?: Array<{
+    type: 'RESERVAS' | 'CONTABILIDAD' | 'OTRO';
+    label: string | null;
+    name: string;
+    email: string;
+    phone: string | null;
+    position: string | null;
+  }> | null;
   companyTypeSecondary: ApiCompanyType | null;
   openTableRid: string | null;
   coverType: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER' | null;
@@ -171,6 +182,14 @@ export function toCompany(c: ApiCompany): Company {
     embedDomains: c.embedDomains ?? [],
     tagline: c.tagline ?? undefined,
     ciiuCode: c.ciiuCode ?? undefined,
+    contacts: (c.companyContacts ?? []).map((k) => ({
+      type: k.type.toLowerCase() as ContactoDeEmpresa['type'],
+      label: k.label ?? undefined,
+      name: k.name,
+      email: k.email,
+      phone: k.phone ?? undefined,
+      position: k.position ?? undefined,
+    })),
     personType: c.personType
       ? (c.personType.toLowerCase() as TipoDePersona)
       : undefined,
@@ -227,6 +246,9 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
   if (upd.tagline !== undefined) out.tagline = upd.tagline;
   // null borra el color y devuelve el catalogo a los de la plataforma.
   if (upd.ciiuCode !== undefined) out.ciiuCode = upd.ciiuCode;
+  // El API los quiere en mayusculas, como el resto de enums.
+  if (upd.contacts !== undefined)
+    out.contacts = upd.contacts.map((k) => ({ ...k, type: k.type.toUpperCase() }));
   if (upd.personType !== undefined)
     out.personType = upd.personType ? upd.personType.toUpperCase() : null;
   if (upd.companyTypeSecondary !== undefined)

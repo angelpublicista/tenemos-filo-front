@@ -31,6 +31,14 @@ import { ImageUpload } from './ImageUpload';
 import DepartamentoCiudad from './DepartamentoCiudad';
 import { digitoVerificacion } from '@/lib/company/nit';
 import { CIIU_SUGERIDOS, nombreDeCiiu } from '@/data/ciiu';
+import ContactosDeEmpresa from './ContactosDeEmpresa';
+import {
+  CONTACTOS_OBLIGATORIOS,
+  contactoVacio,
+  erroresDeContactos,
+  paraGuardar as contactosParaGuardar,
+  type ContactoDeEmpresa,
+} from '@/lib/company/contactos';
 
 // Esquemas de validación por pasos
 const basicInfoSchema = z.object({
@@ -161,13 +169,28 @@ const businessYears = [
   { value: '10+', label: 'Más de 10 años' }
 ];
 
-const steps = ['Información Básica', 'Información Fiscal', 'Tamaño de Empresa'];
+const steps = ['Información Básica', 'Información Fiscal', 'Contactos', 'Tamaño de Empresa'];
 
 export default function CompanySetupForm() {
   const router = useRouter();
   const { user, sanityUser, markSetupCompleted, isSetupCompleted, hasCompany } = useAuth();
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
   const [currentStep, setCurrentStep] = useState(1);
+
+  /**
+   * Los contactos viven fuera de react-hook-form.
+   *
+   * Es una lista de longitud variable con reglas propias —dos fijos, hasta
+   * tres libres—; meterla en el esquema de pasos obligaria a un array de
+   * campos anidados para no ganar nada. Igual que el telefono y el logo.
+   *
+   * Arranca con los dos obligatorios vacios para que se vean desde el
+   * principio: son parte del formulario, no algo que haya que ir a buscar.
+   */
+  const [contactos, setContactos] = useState<ContactoDeEmpresa[]>(() =>
+    CONTACTOS_OBLIGATORIOS.map((c) => contactoVacio(c.type)),
+  );
+  const [erroresContactos, setErroresContactos] = useState(false);
   const [companyPhone, setCompanyPhone] = useState("");
   const [logoAssetId, setLogoAssetId] = useState<string>("");
   // Claves de S3, no URLs: los documentos son privados. Van en useState y no
@@ -311,6 +334,18 @@ export default function CompanySetupForm() {
         annualRevenue: existingCompany.annualRevenue || '0-100k',
         businessYears: existingCompany.businessYears || '0-1'
       });
+
+      // Los contactos van aparte de react-hook-form. Los obligatorios se
+      // completan con uno vacio si faltan: las empresas anteriores a este
+      // campo no tienen ninguno, y sin esto el paso saldria en blanco sin
+      // dejar claro que hay dos que rellenar.
+      const guardados = existingCompany.contacts ?? [];
+      setContactos([
+        ...CONTACTOS_OBLIGATORIOS.map(
+          (o) => guardados.find((c) => c.type === o.type) ?? contactoVacio(o.type),
+        ),
+        ...guardados.filter((c) => c.type === 'otro'),
+      ]);
     }
   }, [existingCompany, reset]);
 
@@ -388,7 +423,22 @@ export default function CompanySetupForm() {
         fiscalInfoSchema.parse(currentData);
         isValid = true;
       } else if (currentStep === 3) {
-        // En el paso 3, validar pero no avanzar (el botón cambiará a "Completar Registro")
+        // Contactos: se validan aqui y no con zod porque el mensaje util es
+        // cual de los bloques esta mal, y eso el esquema no lo señala.
+        const fallos = erroresDeContactos(contactos);
+        if (fallos.size > 0) {
+          setErroresContactos(true);
+          await showError(
+            'Faltan datos de contacto',
+            'Revisa los contactos marcados en rojo. Reservas y contabilidad son obligatorios.',
+          );
+          return;
+        }
+        setErroresContactos(false);
+        isValid = true;
+      } else if (currentStep === 4) {
+        // En el ultimo paso se valida pero no se avanza: el boton pasa a ser
+        // "Completar Registro".
         sizeInfoSchema.parse(currentData);
         isValid = true;
       }
@@ -435,6 +485,7 @@ export default function CompanySetupForm() {
           documentType: data.documentType,
           documentNumber: data.documentNumber,
           ciiuCode: data.ciiuCode || undefined,
+          contacts: contactosParaGuardar(contactos),
           documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
@@ -472,6 +523,7 @@ export default function CompanySetupForm() {
           documentType: data.documentType,
           documentNumber: data.documentNumber,
           ciiuCode: data.ciiuCode || undefined,
+          contacts: contactosParaGuardar(contactos),
           documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
@@ -1019,6 +1071,29 @@ export default function CompanySetupForm() {
     </div>
   );
 
+  const renderStepContactos = () => (
+    <div className="space-y-6">
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold text-[#334C5D] mb-2">Contactos</h3>
+        <p className="text-gray-600">
+          A quién escribimos para cada asunto. Si tu empresa eres tú, usa el
+          botón para copiar tus datos.
+        </p>
+      </div>
+
+      <ContactosDeEmpresa
+        valor={contactos}
+        onChange={setContactos}
+        misDatos={{
+          name: sanityUser?.name,
+          email: sanityUser?.email,
+          phone: companyPhone,
+        }}
+        mostrarErrores={erroresContactos}
+      />
+    </div>
+  );
+
   const renderStep3 = () => (
     <div className="space-y-6">
       <div className="mb-6">
@@ -1147,7 +1222,8 @@ export default function CompanySetupForm() {
         {/* Contenido del paso actual */}
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
+        {currentStep === 3 && renderStepContactos()}
+        {currentStep === 4 && renderStep3()}
 
         {/* Botones de navegación */}
         <div className="flex justify-between items-center pt-8 border-t border-gray-200">

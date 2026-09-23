@@ -1,5 +1,10 @@
 import { Company } from '@/types';
 import { pideCamaraDeComercio } from '@/lib/company/tipos';
+import type { TipoDeContacto } from '@/lib/company/contactos';
+
+/** Un contacto cuenta solo si tiene a quien escribir. */
+const tieneContacto = (empresa: Company | null, tipo: TipoDeContacto) =>
+  Boolean(empresa?.contacts?.some((c) => c.type === tipo && c.email?.trim()));
 
 /**
  * Cuanto le falta a una empresa por rellenar.
@@ -20,7 +25,7 @@ export interface CampoEmpresa {
   relleno: boolean;
   obligatorio: boolean;
   /** Paso del formulario donde se rellena, para poder llevar hasta el. */
-  paso: 1 | 2 | 3;
+  paso: 1 | 2 | 3 | 4;
 }
 
 export interface Completitud {
@@ -79,10 +84,24 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
         ]
       : []),
 
-    // ─── Paso 3: tamaño del negocio ───
-    { etiqueta: 'Número de empleados', relleno: tiene(empresa?.employeeCount), obligatorio: true, paso: 3 },
-    { etiqueta: 'Ingresos anuales', relleno: tiene(empresa?.annualRevenue), obligatorio: false, paso: 3 },
-    { etiqueta: 'Años de operación', relleno: tiene(empresa?.businessYears), obligatorio: false, paso: 3 },
+    // ─── Paso 3: contactos ───
+    {
+      etiqueta: 'Contacto de reservas',
+      relleno: tieneContacto(empresa, 'reservas'),
+      obligatorio: true,
+      paso: 3,
+    },
+    {
+      etiqueta: 'Contacto de contabilidad',
+      relleno: tieneContacto(empresa, 'contabilidad'),
+      obligatorio: true,
+      paso: 3,
+    },
+
+    // ─── Paso 4: tamaño del negocio ───
+    { etiqueta: 'Número de empleados', relleno: tiene(empresa?.employeeCount), obligatorio: true, paso: 4 },
+    { etiqueta: 'Ingresos anuales', relleno: tiene(empresa?.annualRevenue), obligatorio: false, paso: 4 },
+    { etiqueta: 'Años de operación', relleno: tiene(empresa?.businessYears), obligatorio: false, paso: 4 },
   ];
 
   const rellenos = campos.filter((c) => c.relleno).length;

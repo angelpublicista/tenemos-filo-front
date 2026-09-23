@@ -1,4 +1,5 @@
 import type { TipoDeEmpresa, TipoDePersona } from '@/lib/company/tipos';
+import type { ContactoDeEmpresa } from '@/lib/company/contactos';
 
 // Tipos para formularios de configuración de empresa por pasos
 export interface CompanyBasicInfo {
@@ -227,6 +228,8 @@ export interface Company {
   personType?: TipoDePersona;
   /** Actividad economica, codigo CIIU de cuatro digitos. */
   ciiuCode?: string;
+  /** A quien escribir para cada asunto. Ver lib/company/contactos. */
+  contacts?: ContactoDeEmpresa[];
   /** Segundo tipo de negocio, opcional. Nunca igual al principal. */
   companyTypeSecondary?: TipoDeEmpresa;
   /** Id del restaurante en OpenTable, para enlazar su ficha. */

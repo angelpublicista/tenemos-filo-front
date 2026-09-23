@@ -24,6 +24,7 @@ import Loader from './Loader';
 import { urlDeImagen } from '@/lib/images';
 import { etiquetaDeTipo, etiquetaDePersona } from '@/lib/company/tipos';
 import { nombreDeCiiu } from '@/data/ciiu';
+import { TITULOS } from '@/lib/company/contactos';
 
 
 interface CompanyInfoViewProps {
@@ -305,6 +306,27 @@ export default function CompanyInfoView({
                 {existingCompany.companyName}
               </p>
             </div>
+
+            {(existingCompany.contacts?.length ?? 0) > 0 && (
+              <div className="sm:col-span-2">
+                <label className="text-sm font-medium text-gray-500 block mb-2">
+                  Contactos
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {existingCompany.contacts?.map((c, i) => (
+                    <div key={i} className="rounded-lg border border-gray-200 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#F26726]">
+                        {c.type === 'otro' ? c.label : TITULOS[c.type]}
+                      </p>
+                      <p className="text-gray-900">{c.name}</p>
+                      {c.position && <p className="text-sm text-gray-500">{c.position}</p>}
+                      <p className="text-sm text-gray-600 break-all">{c.email}</p>
+                      {c.phone && <p className="text-sm text-gray-600">{c.phone}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {existingCompany.ciiuCode && (
               <div>

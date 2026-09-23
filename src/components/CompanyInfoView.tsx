@@ -22,6 +22,7 @@ import {
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from './Loader';
 import { urlDeImagen } from '@/lib/images';
+import { etiquetaDeTipo } from '@/lib/company/tipos';
 
 
 interface CompanyInfoViewProps {
@@ -309,10 +310,7 @@ export default function CompanyInfoView({
                 Tipo de Empresa
               </label>
               <p className="text-gray-900">
-                {existingCompany.companyType === 'restaurant' && 'Restaurante'}
-                {existingCompany.companyType === 'catering' && 'Catering'}
-                {existingCompany.companyType === 'foodtruck' && 'Food Truck'}
-                {existingCompany.companyType === 'other' && 'Otro'}
+                {etiquetaDeTipo(existingCompany.companyType)}
               </p>
             </div>
 

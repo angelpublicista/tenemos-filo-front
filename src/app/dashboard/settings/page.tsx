@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getCompanyById, updateCompanyInSanity, type UpdateCompanyData } from "@/lib/sanity/companyService";
 import SelectorColorMarca from "@/components/SelectorColorMarca";
 import { estiloDeMarca } from "@/lib/marca";
+import { TIPOS_DE_EMPRESA, etiquetaDeTipo } from "@/lib/company/tipos";
 
 // Los de la plataforma. Son el valor por defecto, y lo que se ve mientras la
 // empresa no elija los suyos.
@@ -31,19 +32,9 @@ import {
   ToggleSwitch
 } from "flowbite-react";
 
-const COMPANY_TYPE_OPTIONS: Array<{ value: Company["companyType"]; label: string }> = [
-  { value: "restaurant", label: "Restaurante" },
-  { value: "catering", label: "Catering" },
-  { value: "foodtruck", label: "Food Truck" },
-  { value: "other", label: "Otro" },
-];
+const COMPANY_TYPE_OPTIONS = TIPOS_DE_EMPRESA;
 
-const COMPANY_TYPE_LABEL: Record<Company["companyType"], string> = {
-  restaurant: "Restaurante",
-  catering: "Catering",
-  foodtruck: "Food Truck",
-  other: "Otro",
-};
+
 
 function formatAddress(address?: Company["address"]): string {
   if (!address) return "";
@@ -537,7 +528,7 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">Sector principal</label>
-                    <TextInput readOnly value={COMPANY_TYPE_LABEL[company.companyType] ?? company.companyType ?? ""} />
+                    <TextInput readOnly value={etiquetaDeTipo(company.companyType)} />
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">Dirección</label>

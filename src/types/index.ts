@@ -1,7 +1,9 @@
+import type { TipoDeEmpresa } from '@/lib/company/tipos';
+
 // Tipos para formularios de configuración de empresa por pasos
 export interface CompanyBasicInfo {
   companyName: string;
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  companyType: TipoDeEmpresa;
   description?: string;
   companyEmail: string;
   companyPhone: string;
@@ -186,7 +188,7 @@ export interface Company {
       _type: 'reference';
     };
   };
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  companyType: TipoDeEmpresa;
   companyEmail: string;
   companyPhone: string;
   documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
@@ -348,7 +350,7 @@ export interface HostStep1Data {
 
 export interface HostStep2Data {
   companyName: string;
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  companyType: TipoDeEmpresa;
   description?: string;
   companyEmail: string;
   companyPhone: string;
@@ -568,7 +570,7 @@ export interface GuestStep1Data {
 
 export interface GuestStep2Data {
   companyName: string;
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other' | null;
+  companyType: TipoDeEmpresa | null;
   companyEmail: string;
   companyPhone: string;
   jobTitle?: string;

@@ -4,12 +4,13 @@
 // que ningun caller necesita cambiar mientras el tipo `Company` no cambie.
 import { api } from '@/lib/api/client';
 import { Company } from '@/types';
+import type { TipoDeEmpresa } from '@/lib/company/tipos';
 
 // ─── Tipos publicos (se conservan para compat) ─────────────────────────────
 
 export interface CreateCompanyData {
   companyName: string;
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  companyType: TipoDeEmpresa;
   description?: string;
   companyEmail: string;
   companyPhone: string;
@@ -60,7 +61,9 @@ export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo' | 'rutKey
 
 // ─── Tipos del API (Postgres) ──────────────────────────────────────────────
 
-type ApiCompanyType = 'RESTAURANT' | 'CATERING' | 'FOODTRUCK' | 'OTHER';
+// Lo que el API acepta: los mismos valores en mayusculas. Se deriva de la
+// lista en vez de reescribirla, que es como llegaron a decir cosas distintas.
+type ApiCompanyType = Uppercase<TipoDeEmpresa>;
 type ApiDocumentType = 'NIT' | 'CEDULA' | 'PASAPORTE' | 'OTHER';
 
 export interface ApiCompany {
@@ -107,18 +110,13 @@ export interface ApiCompany {
 
 // ─── Mapeos enum (lower<->upper) ───────────────────────────────────────────
 
-const COMPANY_TYPE_TO_API: Record<NonNullable<CreateCompanyData['companyType']>, ApiCompanyType> = {
-  restaurant: 'RESTAURANT',
-  catering: 'CATERING',
-  foodtruck: 'FOODTRUCK',
-  other: 'OTHER',
-};
-const COMPANY_TYPE_FROM_API: Record<ApiCompanyType, Company['companyType']> = {
-  RESTAURANT: 'restaurant',
-  CATERING: 'catering',
-  FOODTRUCK: 'foodtruck',
-  OTHER: 'other',
-};
+// El front usa minusculas y el API mayusculas, y la correspondencia es
+// exacta: no hace falta una tabla que mantener a mano —ya se quedo atras una
+// vez— sino traducir la forma.
+const COMPANY_TYPE_TO_API = (t: TipoDeEmpresa): ApiCompanyType =>
+  t.toUpperCase() as ApiCompanyType;
+const COMPANY_TYPE_FROM_API = (t: ApiCompanyType): TipoDeEmpresa =>
+  t.toLowerCase() as TipoDeEmpresa;
 
 const DOC_TYPE_TO_API: Record<NonNullable<CreateCompanyData['documentType']>, ApiDocumentType> = {
   nit: 'NIT',
@@ -150,7 +148,7 @@ export function toCompany(c: ApiCompany): Company {
     logo: c.logo
       ? { asset: { _ref: c.logo, _type: 'reference' } }
       : undefined,
-    companyType: c.companyType ? COMPANY_TYPE_FROM_API[c.companyType] : 'other',
+    companyType: c.companyType ? COMPANY_TYPE_FROM_API(c.companyType) : 'other',
     companyEmail: c.companyEmail ?? '',
     companyPhone: c.companyPhone ?? '',
     documentType: c.documentType ? DOC_TYPE_FROM_API[c.documentType] : undefined,
@@ -191,7 +189,7 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
   const upd = data as UpdateCompanyData;
   const out: Record<string, unknown> = {};
   if (data.companyName !== undefined) out.companyName = data.companyName;
-  if (data.companyType !== undefined) out.companyType = COMPANY_TYPE_TO_API[data.companyType];
+  if (data.companyType !== undefined) out.companyType = COMPANY_TYPE_TO_API(data.companyType);
   if (data.description !== undefined) out.description = data.description;
   if (data.companyEmail !== undefined) out.companyEmail = data.companyEmail;
   if (data.companyPhone !== undefined) out.companyPhone = data.companyPhone;

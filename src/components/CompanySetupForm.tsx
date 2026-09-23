@@ -18,6 +18,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import CompanyInfoView from './CompanyInfoView';
 import CompanyDocuments from './CompanyDocuments';
 import type { CampoDetectado } from '@/lib/company/documentos';
+import { TIPOS_DE_EMPRESA, VALORES_DE_TIPO } from '@/lib/company/tipos';
 import Loader from './Loader';
 import { ImageUpload } from './ImageUpload';
 import DepartamentoCiudad from './DepartamentoCiudad';
@@ -28,7 +29,9 @@ const basicInfoSchema = z.object({
   companyName: z.string()
     .min(2, 'El nombre de la empresa debe tener al menos 2 caracteres')
     .max(100, 'El nombre de la empresa no puede exceder 100 caracteres'),
-  companyType: z.enum(['restaurant', 'catering', 'foodtruck', 'other'], {
+  // Sale de la lista comun: escrita a mano se quedo atras y habria rechazado
+  // los tipos nuevos con un "selecciona un tipo valido" sobre uno que si lo era.
+  companyType: z.enum(VALORES_DE_TIPO, {
     message: 'Selecciona un tipo de empresa válido'
   }),
   description: z.string()
@@ -106,12 +109,7 @@ const sizeInfoSchema = z.object({
   }).optional(),
 });
 
-const companyTypes = [
-  { value: 'restaurant', label: 'Restaurante' },
-  { value: 'catering', label: 'Catering' },
-  { value: 'foodtruck', label: 'Food Truck' },
-  { value: 'other', label: 'Otro' }
-];
+const companyTypes = TIPOS_DE_EMPRESA;
 
 const documentTypes = [
   { value: 'nit', label: 'NIT' },

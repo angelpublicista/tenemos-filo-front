@@ -22,7 +22,7 @@ import {
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from './Loader';
 import { urlDeImagen } from '@/lib/images';
-import { etiquetaDeTipo } from '@/lib/company/tipos';
+import { etiquetaDeTipo, etiquetaDePersona } from '@/lib/company/tipos';
 
 
 interface CompanyInfoViewProps {
@@ -307,10 +307,25 @@ export default function CompanyInfoView({
 
             <div>
               <label className="text-sm font-medium text-gray-500 block mb-1">
+                Tipo de persona
+              </label>
+              <p className="text-gray-900">
+                {etiquetaDePersona(existingCompany.personType)}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-500 block mb-1">
                 Tipo de Empresa
               </label>
               <p className="text-gray-900">
                 {etiquetaDeTipo(existingCompany.companyType)}
+                {existingCompany.companyTypeSecondary && (
+                  <span className="text-gray-500">
+                    {' · '}
+                    {etiquetaDeTipo(existingCompany.companyTypeSecondary)}
+                  </span>
+                )}
               </p>
             </div>
 

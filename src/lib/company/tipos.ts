@@ -38,3 +38,56 @@ export const VALORES_DE_TIPO = TIPOS_DE_EMPRESA.map((t) => t.value) as unknown a
 export function etiquetaDeTipo(valor?: TipoDeEmpresa | null): string {
   return TIPOS_DE_EMPRESA.find((t) => t.value === valor)?.label ?? 'Sin especificar';
 }
+
+/**
+ * Si el anfitrion es una persona o una empresa constituida.
+ *
+ * No es un dato descriptivo: decide que documentacion legal se le pide. Una
+ * persona natural no esta inscrita en Camara de Comercio, asi que pedirle ese
+ * certificado seria pedirle un papel que no existe.
+ */
+export const TIPOS_DE_PERSONA = [
+  {
+    value: 'natural',
+    label: 'Persona natural',
+    ayuda: 'Trabajas a tu nombre, sin sociedad constituida.',
+  },
+  {
+    value: 'juridica',
+    label: 'Persona jurídica',
+    ayuda: 'Tienes una sociedad registrada en Cámara de Comercio.',
+  },
+] as const;
+
+export type TipoDePersona = (typeof TIPOS_DE_PERSONA)[number]['value'];
+
+export const VALORES_DE_PERSONA = TIPOS_DE_PERSONA.map((t) => t.value) as unknown as [
+  TipoDePersona,
+  ...TipoDePersona[],
+];
+
+/**
+ * Si a este anfitrion hay que pedirle el certificado de Camara de Comercio.
+ *
+ * Mientras no haya dicho que es —las empresas de antes de este campo— se le
+ * pide igual: es lo que veia antes, y ocultarselo de golpe le esconderia un
+ * documento que quiza ya tenia subido.
+ */
+export function pideCamaraDeComercio(persona?: TipoDePersona | null): boolean {
+  return persona !== 'natural';
+}
+
+/**
+ * El documento fiscal que le corresponde por defecto.
+ *
+ * Es una preseleccion, no una imposicion: una persona natural comerciante si
+ * tiene NIT, y forzarle la cedula la dejaria sin poder declararlo.
+ */
+export function documentoSugerido(persona: TipoDePersona): 'nit' | 'cedula' {
+  return persona === 'natural' ? 'cedula' : 'nit';
+}
+
+/** Como se llama un tipo de persona, para enseñarlo donde no hay desplegable. */
+export function etiquetaDePersona(valor?: TipoDePersona | null): string {
+  return TIPOS_DE_PERSONA.find((t) => t.value === valor)?.label ?? 'Sin especificar';
+}

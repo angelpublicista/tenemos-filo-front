@@ -1,4 +1,5 @@
 import { Company } from '@/types';
+import { pideCamaraDeComercio } from '@/lib/company/tipos';
 
 /**
  * Cuanto le falta a una empresa por rellenar.
@@ -45,6 +46,7 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
   const campos: CampoEmpresa[] = [
     // ─── Paso 1: informacion basica ───
     { etiqueta: 'Nombre de la empresa', relleno: tiene(empresa?.companyName), obligatorio: true, paso: 1 },
+    { etiqueta: 'Tipo de persona', relleno: tiene(empresa?.personType), obligatorio: true, paso: 1 },
     { etiqueta: 'Tipo de empresa', relleno: tiene(empresa?.companyType), obligatorio: true, paso: 1 },
     { etiqueta: 'Correo de contacto', relleno: tiene(empresa?.companyEmail), obligatorio: true, paso: 1 },
     { etiqueta: 'Teléfono', relleno: tiene(empresa?.companyPhone), obligatorio: true, paso: 1 },
@@ -62,7 +64,19 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
     { etiqueta: 'Sitio web', relleno: tiene(empresa?.website), obligatorio: false, paso: 2 },
     { etiqueta: 'Código postal', relleno: tiene(dir?.postalCode), obligatorio: false, paso: 2 },
     { etiqueta: 'RUT', relleno: tiene(empresa?.rutKey), obligatorio: false, paso: 2 },
-    { etiqueta: 'Cámara de Comercio', relleno: tiene(empresa?.camaraKey), obligatorio: false, paso: 2 },
+    // A una persona natural no se le pide, asi que tampoco cuenta: dejarlo
+    // seria enseñarle un perfil eternamente incompleto por un papel que no
+    // puede conseguir.
+    ...(pideCamaraDeComercio(empresa?.personType)
+      ? [
+          {
+            etiqueta: 'Cámara de Comercio',
+            relleno: tiene(empresa?.camaraKey),
+            obligatorio: false,
+            paso: 2 as const,
+          },
+        ]
+      : []),
 
     // ─── Paso 3: tamaño del negocio ───
     { etiqueta: 'Número de empleados', relleno: tiene(empresa?.employeeCount), obligatorio: true, paso: 3 },

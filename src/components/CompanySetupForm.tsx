@@ -18,7 +18,14 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import CompanyInfoView from './CompanyInfoView';
 import CompanyDocuments from './CompanyDocuments';
 import type { CampoDetectado } from '@/lib/company/documentos';
-import { TIPOS_DE_EMPRESA, VALORES_DE_TIPO } from '@/lib/company/tipos';
+import {
+  TIPOS_DE_EMPRESA,
+  VALORES_DE_TIPO,
+  TIPOS_DE_PERSONA,
+  VALORES_DE_PERSONA,
+  documentoSugerido,
+  pideCamaraDeComercio,
+} from '@/lib/company/tipos';
 import Loader from './Loader';
 import { ImageUpload } from './ImageUpload';
 import DepartamentoCiudad from './DepartamentoCiudad';
@@ -33,6 +40,12 @@ const basicInfoSchema = z.object({
   // los tipos nuevos con un "selecciona un tipo valido" sobre uno que si lo era.
   companyType: z.enum(VALORES_DE_TIPO, {
     message: 'Selecciona un tipo de empresa válido'
+  }),
+  // Vacio = sin segundo tipo. Se admite la cadena vacia porque es lo que
+  // entrega un <select> cuando se elige "Ninguno".
+  companyTypeSecondary: z.union([z.enum(VALORES_DE_TIPO), z.literal('')]).optional(),
+  personType: z.enum(VALORES_DE_PERSONA, {
+    message: 'Indica si eres persona natural o jurídica'
   }),
   description: z.string()
     .max(500, 'La descripción no puede exceder 500 caracteres')
@@ -202,6 +215,8 @@ export default function CompanySetupForm() {
     defaultValues: {
       companyName: '',
       companyType: 'restaurant',
+      companyTypeSecondary: '',
+      personType: 'juridica',
       description: '',
       companyEmail: '',
       companyPhone: '',
@@ -226,6 +241,35 @@ export default function CompanySetupForm() {
   // del numero, asi que tener una copia editable solo abriria la puerta a que
   // se desincronicen.
   const documentTypeActual = watch('documentType');
+  const personTypeActual = watch('personType');
+  const companyTypeActual = watch('companyType');
+
+  /**
+   * Al cambiar el tipo de persona se preselecciona el documento que le toca.
+   *
+   * Es una sugerencia, no una imposicion: una persona natural comerciante si
+   * tiene NIT. Por eso solo se toca si el campo sigue en el otro valor por
+   * defecto —nit o cedula—; si el anfitrion eligio pasaporte u otro, se
+   * respeta, porque eso ya es una decision suya.
+   */
+  useEffect(() => {
+    if (!personTypeActual) return;
+    const sugerido = documentoSugerido(personTypeActual);
+    const actual = getValues('documentType');
+    if (actual !== 'nit' && actual !== 'cedula') return;
+    if (actual !== sugerido) setValue('documentType', sugerido, { shouldValidate: true });
+  }, [personTypeActual, getValues, setValue]);
+
+  /**
+   * El segundo tipo no puede repetir al principal. Si al cambiar el principal
+   * coinciden, el segundo se vacia: dejarlo mostraria una opcion que el
+   * desplegable ya no ofrece.
+   */
+  useEffect(() => {
+    if (companyTypeActual && getValues('companyTypeSecondary') === companyTypeActual) {
+      setValue('companyTypeSecondary', '');
+    }
+  }, [companyTypeActual, getValues, setValue]);
   const documentNumberActual = watch('documentNumber') || '';
   const dvCalculado =
     documentTypeActual === 'nit' ? digitoVerificacion(documentNumberActual) : null;
@@ -238,6 +282,8 @@ export default function CompanySetupForm() {
       reset({
         companyName: existingCompany.companyName || '',
         companyType: existingCompany.companyType || 'restaurant',
+        companyTypeSecondary: existingCompany.companyTypeSecondary || '',
+        personType: existingCompany.personType || 'juridica',
         description: existingCompany.description || '',
         companyEmail: existingCompany.companyEmail || '',
         companyPhone: existingCompany.companyPhone || '',
@@ -370,6 +416,9 @@ export default function CompanySetupForm() {
         await updateCompanyInSanity(existingCompany._id, {
           companyName: data.companyName,
           companyType: data.companyType,
+          personType: data.personType,
+          // Vacio significa "ninguno": va como null para borrarlo, no como "".
+          companyTypeSecondary: data.companyTypeSecondary || null,
           description: data.description || undefined,
           companyEmail: data.companyEmail,
           companyPhone: companyPhone,
@@ -403,6 +452,9 @@ export default function CompanySetupForm() {
         const companyData = {
           companyName: data.companyName,
           companyType: data.companyType,
+          personType: data.personType,
+          // En un alta no hay nada que borrar: "ninguno" es no mandarlo.
+          companyTypeSecondary: data.companyTypeSecondary || undefined,
           description: data.description || undefined,
           companyEmail: data.companyEmail,
           companyPhone: companyPhone,
@@ -540,10 +592,47 @@ export default function CompanySetupForm() {
         )}
       </div>
 
-      {/* Tipo de Empresa */}
+      {/* Tipo de Persona. Va antes que el tipo de empresa porque decide que
+          documentacion se pedira en el paso siguiente. */}
       <div>
         <Label color="gray" className="mb-2 block">
-          Tipo de empresa <span className="text-red-500">*</span>
+          Tipo de persona <span className="text-red-500">*</span>
+        </Label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {TIPOS_DE_PERSONA.map((t) => (
+            <label
+              key={t.value}
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                personTypeActual === t.value
+                  ? 'border-[#F26726] bg-orange-50'
+                  : 'border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <input
+                type="radio"
+                value={t.value}
+                className="mt-1 accent-[#F26726]"
+                {...register('personType')}
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-gray-900">{t.label}</span>
+                <span className="block text-xs text-gray-500">{t.ayuda}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          Determina qué documentos legales te pediremos más adelante.
+        </p>
+        {errors.personType && (
+          <p className="mt-1 text-sm text-red-600">{errors.personType.message}</p>
+        )}
+      </div>
+
+      {/* Tipo de Empresa principal */}
+      <div>
+        <Label color="gray" className="mb-2 block">
+          Tipo de empresa principal <span className="text-red-500">*</span>
         </Label>
         <Select
           id="companyType"
@@ -559,6 +648,36 @@ export default function CompanySetupForm() {
         </Select>
         {errors.companyType && (
           <p className="mt-1 text-sm text-red-600">{errors.companyType.message}</p>
+        )}
+      </div>
+
+      {/* Tipo de Empresa secundario */}
+      <div>
+        <Label color="gray" className="mb-2 block">
+          Tipo de empresa secundario <span className="text-gray-400">(opcional)</span>
+        </Label>
+        <Select
+          id="companyTypeSecondary"
+          icon={AiOutlineInfoCircle}
+          color={errors.companyTypeSecondary ? 'failure' : 'white'}
+          {...register('companyTypeSecondary')}
+        >
+          <option value="">Ninguno</option>
+          {/* El principal se excluye: repetirlo no clasificaria nada. */}
+          {companyTypes
+            .filter((type) => type.value !== companyTypeActual)
+            .map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+        </Select>
+        <p className="mt-1 text-xs text-gray-500">
+          Si tu negocio es más de una cosa: un hotel que además hace catering,
+          una finca que además da clases.
+        </p>
+        {errors.companyTypeSecondary && (
+          <p className="mt-1 text-sm text-red-600">{errors.companyTypeSecondary.message}</p>
         )}
       </div>
 
@@ -665,6 +784,7 @@ export default function CompanySetupForm() {
         onRutChange={setRutKey}
         onCamaraChange={setCamaraKey}
         onAplicar={aplicarDatosDelDocumento}
+              pideCamara={pideCamaraDeComercio(personTypeActual)}
       />
       
       {/* Tipo de Documento */}

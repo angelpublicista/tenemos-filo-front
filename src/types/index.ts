@@ -1,9 +1,13 @@
-import type { TipoDeEmpresa } from '@/lib/company/tipos';
+import type { TipoDeEmpresa, TipoDePersona } from '@/lib/company/tipos';
 
 // Tipos para formularios de configuración de empresa por pasos
 export interface CompanyBasicInfo {
   companyName: string;
+  /** Decide que documentacion legal se pide en el paso siguiente. */
+  personType: TipoDePersona;
   companyType: TipoDeEmpresa;
+  /** Cadena vacia = ninguno. Es lo que entrega el <select>. */
+  companyTypeSecondary?: TipoDeEmpresa | '';
   description?: string;
   companyEmail: string;
   companyPhone: string;
@@ -217,6 +221,10 @@ export interface Company {
    */
   brandPrimary?: string;
   brandSecondary?: string;
+  /** Decide que documentacion legal se le pide. */
+  personType?: TipoDePersona;
+  /** Segundo tipo de negocio, opcional. Nunca igual al principal. */
+  companyTypeSecondary?: TipoDeEmpresa;
   /** Id del restaurante en OpenTable, para enlazar su ficha. */
   openTableRid?: string;
   /** Portada del catálogo público. */

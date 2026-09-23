@@ -4,13 +4,15 @@
 // que ningun caller necesita cambiar mientras el tipo `Company` no cambie.
 import { api } from '@/lib/api/client';
 import { Company } from '@/types';
-import type { TipoDeEmpresa } from '@/lib/company/tipos';
+import type { TipoDeEmpresa, TipoDePersona } from '@/lib/company/tipos';
 
 // ─── Tipos publicos (se conservan para compat) ─────────────────────────────
 
 export interface CreateCompanyData {
   companyName: string;
   companyType: TipoDeEmpresa;
+  personType?: TipoDePersona;
+  companyTypeSecondary?: TipoDeEmpresa;
   description?: string;
   companyEmail: string;
   companyPhone: string;
@@ -39,11 +41,15 @@ export interface CreateCompanyData {
 // `logo` admite null para borrarlo explicitamente (PATCH con logo:null deja
 // el campo en NULL en Postgres). Usamos Omit para que no se intersecte con
 // el `logo: string | undefined` de CreateCompanyData.
-export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo' | 'rutKey' | 'camaraKey'>> & {
+export type UpdateCompanyData = Partial<
+  Omit<CreateCompanyData, 'logo' | 'rutKey' | 'camaraKey' | 'personType' | 'companyTypeSecondary'>
+> & {
   logo?: string | null;
   tagline?: string | null;
   brandPrimary?: string | null;
   brandSecondary?: string | null;
+  personType?: TipoDePersona | null;
+  companyTypeSecondary?: TipoDeEmpresa | null;
   /** Id del restaurante en OpenTable (el "rid" de sus enlaces). */
   openTableRid?: string | null;
   coverType?: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER';
@@ -87,6 +93,8 @@ export interface ApiCompany {
   tagline: string | null;
   brandPrimary: string | null;
   brandSecondary: string | null;
+  personType: Uppercase<TipoDePersona> | null;
+  companyTypeSecondary: ApiCompanyType | null;
   openTableRid: string | null;
   coverType: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER' | null;
   coverImages: string[] | null;
@@ -159,6 +167,12 @@ export function toCompany(c: ApiCompany): Company {
     employeeCount: (c.employeeCount as Company['employeeCount']) ?? undefined,
     embedDomains: c.embedDomains ?? [],
     tagline: c.tagline ?? undefined,
+    personType: c.personType
+      ? (c.personType.toLowerCase() as TipoDePersona)
+      : undefined,
+    companyTypeSecondary: c.companyTypeSecondary
+      ? COMPANY_TYPE_FROM_API(c.companyTypeSecondary)
+      : undefined,
     brandPrimary: c.brandPrimary ?? undefined,
     brandSecondary: c.brandSecondary ?? undefined,
     openTableRid: c.openTableRid ?? undefined,
@@ -208,6 +222,12 @@ function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<strin
   if (upd.camaraKey !== undefined) out.camaraKey = upd.camaraKey;
   if (upd.tagline !== undefined) out.tagline = upd.tagline;
   // null borra el color y devuelve el catalogo a los de la plataforma.
+  if (upd.personType !== undefined)
+    out.personType = upd.personType ? upd.personType.toUpperCase() : null;
+  if (upd.companyTypeSecondary !== undefined)
+    out.companyTypeSecondary = upd.companyTypeSecondary
+      ? COMPANY_TYPE_TO_API(upd.companyTypeSecondary)
+      : null;
   if (upd.brandPrimary !== undefined) out.brandPrimary = upd.brandPrimary;
   if (upd.brandSecondary !== undefined) out.brandSecondary = upd.brandSecondary;
   if (upd.openTableRid !== undefined) out.openTableRid = upd.openTableRid;

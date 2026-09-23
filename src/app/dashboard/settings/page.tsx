@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getCompanyById, updateCompanyInSanity, type UpdateCompanyData } from "@/lib/sanity/companyService";
 import SelectorColorMarca from "@/components/SelectorColorMarca";
 import { estiloDeMarca } from "@/lib/marca";
-import { TIPOS_DE_EMPRESA, etiquetaDeTipo } from "@/lib/company/tipos";
+import { TIPOS_DE_EMPRESA, TIPOS_DE_PERSONA, etiquetaDeTipo } from "@/lib/company/tipos";
 
 // Los de la plataforma. Son el valor por defecto, y lo que se ve mientras la
 // empresa no elija los suyos.
@@ -45,7 +45,10 @@ function formatAddress(address?: Company["address"]): string {
 
 type GeneralFormState = {
   companyName: string;
+  personType: NonNullable<Company["personType"]> | "";
   companyType: Company["companyType"];
+  /** Vacio = ninguno. */
+  companyTypeSecondary: Company["companyType"] | "";
   companyEmail: string;
   companyPhone: string;
   description: string;
@@ -62,7 +65,9 @@ type GeneralFormState = {
 function companyToFormState(c: Company): GeneralFormState {
   return {
     companyName: c.companyName ?? "",
+    personType: c.personType ?? "",
     companyType: c.companyType ?? "restaurant",
+    companyTypeSecondary: c.companyTypeSecondary ?? "",
     companyEmail: c.companyEmail ?? "",
     companyPhone: c.companyPhone ?? "",
     description: c.description ?? "",
@@ -233,7 +238,9 @@ export default function SettingsPage() {
     try {
       const payload: UpdateCompanyData = {
         companyName: generalForm.companyName.trim(),
+        personType: generalForm.personType || null,
         companyType: generalForm.companyType,
+        companyTypeSecondary: generalForm.companyTypeSecondary || null,
         companyEmail: generalForm.companyEmail.trim(),
         companyPhone: generalForm.companyPhone.trim(),
         description: generalForm.description.trim() || undefined,
@@ -599,16 +606,73 @@ export default function SettingsPage() {
 
                 <div className="space-y-4">
                   <div>
+                    <Label htmlFor="personType" className="mb-2 block text-sm font-medium text-gray-700">
+                      Tipo de persona
+                    </Label>
+                    <Select
+                      id="personType"
+                      value={generalForm.personType}
+                      onChange={(e) =>
+                        setGeneralForm({
+                          ...generalForm,
+                          personType: e.target.value as GeneralFormState["personType"],
+                        })
+                      }
+                      disabled={savingGeneral}
+                    >
+                      <option value="">Sin especificar</option>
+                      {TIPOS_DE_PERSONA.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </Select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Determina qué documentos legales se te piden.
+                    </p>
+                  </div>
+                  <div>
                     <Label htmlFor="companyType" className="mb-2 block text-sm font-medium text-gray-700">
-                      Sector principal
+                      Tipo de empresa principal
                     </Label>
                     <Select
                       id="companyType"
                       value={generalForm.companyType}
-                      onChange={(e) => setGeneralForm({ ...generalForm, companyType: e.target.value as Company["companyType"] })}
+                      onChange={(e) => {
+                        const principal = e.target.value as Company["companyType"];
+                        setGeneralForm({
+                          ...generalForm,
+                          companyType: principal,
+                          // Si el segundo pasa a coincidir, se vacia: el
+                          // desplegable ya no lo ofrece.
+                          companyTypeSecondary:
+                            generalForm.companyTypeSecondary === principal
+                              ? ""
+                              : generalForm.companyTypeSecondary,
+                        });
+                      }}
                       disabled={savingGeneral}
                     >
                       {COMPANY_TYPE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="companyTypeSecondary" className="mb-2 block text-sm font-medium text-gray-700">
+                      Tipo de empresa secundario <span className="text-gray-400">(opcional)</span>
+                    </Label>
+                    <Select
+                      id="companyTypeSecondary"
+                      value={generalForm.companyTypeSecondary}
+                      onChange={(e) =>
+                        setGeneralForm({
+                          ...generalForm,
+                          companyTypeSecondary: e.target.value as GeneralFormState["companyTypeSecondary"],
+                        })
+                      }
+                      disabled={savingGeneral}
+                    >
+                      <option value="">Ninguno</option>
+                      {COMPANY_TYPE_OPTIONS.filter((opt) => opt.value !== generalForm.companyType).map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </Select>

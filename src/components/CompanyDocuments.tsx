@@ -20,6 +20,14 @@ interface CompanyDocumentsProps {
   onCamaraChange: (key: string) => void;
   /** Aplica los campos al formulario. Lo hace quien lo usa, que es quien tiene RHF. */
   onAplicar: (campos: CampoDetectado[], telefono: string, nombre: string) => void;
+  /**
+   * Si se pide el certificado de Camara de Comercio.
+   *
+   * Una persona natural no esta inscrita, asi que pedirselo seria pedirle un
+   * papel que no existe. Lo decide quien usa el componente, a partir del tipo
+   * de persona.
+   */
+  pideCamara?: boolean;
 }
 
 type Tipo = 'rut' | 'camara';
@@ -45,6 +53,7 @@ const paraMostrar = (campo: string, valor: string) =>
 export default function CompanyDocuments({
   rutKey,
   camaraKey,
+  pideCamara = true,
   onRutChange,
   onCamaraChange,
   onAplicar,
@@ -134,7 +143,7 @@ export default function CompanyDocuments({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${pideCamara ? 'sm:grid-cols-2' : ''}`}>
         <DocumentUpload
           label="RUT"
           value={rutKey || undefined}
@@ -143,14 +152,25 @@ export default function CompanyDocuments({
           disabled={leyendo !== null}
           helpText={leyendo === 'rut' ? 'Leyendo el documento...' : 'Opcional'}
         />
-        <DocumentUpload
-          label="Cámara de Comercio"
-          value={camaraKey || undefined}
-          onChange={onCamaraChange}
-          onArchivo={(f) => leer(f, 'camara')}
-          disabled={leyendo !== null}
-          helpText={leyendo === 'camara' ? 'Leyendo el documento...' : 'Opcional'}
-        />
+        {/* Se sigue mostrando si ya hay uno subido aunque ahora no toque: la
+            empresa pudo cambiar de tipo despues, y esconderselo dejaria un
+            documento suyo guardado y sin forma de verlo ni quitarlo. */}
+        {(pideCamara || camaraKey) && (
+          <DocumentUpload
+            label="Cámara de Comercio"
+            value={camaraKey || undefined}
+            onChange={onCamaraChange}
+            onArchivo={(f) => leer(f, 'camara')}
+            disabled={leyendo !== null}
+            helpText={
+              leyendo === 'camara'
+                ? 'Leyendo el documento...'
+                : pideCamara
+                  ? 'Opcional'
+                  : 'No aplica a una persona natural. Puedes quitarlo.'
+            }
+          />
+        )}
       </div>
     </div>
   );

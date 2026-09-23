@@ -9,7 +9,7 @@ import { createCompanyInSanity, getCompanyByUserId, updateCompanyInSanity } from
 import { associateUserWithCompany, markCompanySetupCompleted } from '@/lib/sanity/userService';
 import { Button, Label, TextInput, Select, Textarea } from 'flowbite-react';
 import { HiExclamationCircle, HiCheckCircle } from 'react-icons/hi';
-import { AiOutlineBuild, AiOutlineMail, AiOutlineInfoCircle, AiOutlineIdcard, AiOutlineHome, AiOutlineGlobal, AiOutlineTeam } from 'react-icons/ai';
+import { AiOutlineBuild, AiOutlineMail, AiOutlineInfoCircle, AiOutlineIdcard, AiOutlineHome, AiOutlineGlobal, AiOutlineTeam, AiOutlineUser } from 'react-icons/ai';
 import TelefonoInput from "./TelefonoInput";
 import { telefonoVacio } from "@/lib/telefono";
 import StepIndicator from './StepIndicator';
@@ -94,6 +94,14 @@ const fiscalInfoSchema = z.object({
   ciiuCode: z
     .string()
     .regex(/^[0-9]{4}$/, 'El código CIIU son cuatro dígitos')
+    .optional()
+    .or(z.literal('')),
+  legalRepName: z.string().max(150).optional().or(z.literal('')),
+  legalRepDocType: z.enum(['cedula', 'pasaporte', 'other']).optional(),
+  legalRepDocNumber: z
+    .string()
+    .regex(/^[0-9]*$/, 'El documento solo puede contener números')
+    .max(20)
     .optional()
     .or(z.literal('')),
   businessName: z.string()
@@ -252,6 +260,9 @@ export default function CompanySetupForm() {
       companyPhone: '',
       documentType: 'nit',
       ciiuCode: '',
+      legalRepName: '',
+      legalRepDocType: 'cedula',
+      legalRepDocNumber: '',
       documentNumber: '',
       businessName: '',
       website: '',
@@ -275,6 +286,8 @@ export default function CompanySetupForm() {
   const personTypeActual = watch('personType');
   const companyTypeActual = watch('companyType');
   const ciiuActual = watch('ciiuCode');
+  // Una persona natural es su propio representante: no se le pregunta.
+  const esJuridica = personTypeActual !== 'natural';
 
   /**
    * Al cambiar el tipo de persona se preselecciona el documento que le toca.
@@ -322,6 +335,9 @@ export default function CompanySetupForm() {
         documentType: existingCompany.documentType || 'nit',
         documentNumber: existingCompany.documentNumber || '',
         ciiuCode: existingCompany.ciiuCode || '',
+        legalRepName: existingCompany.legalRepName || '',
+        legalRepDocType: existingCompany.legalRepDocType || 'cedula',
+        legalRepDocNumber: existingCompany.legalRepDocNumber || '',
         businessName: existingCompany.businessName || '',
         website: existingCompany.website || '',
         address: {
@@ -488,6 +504,12 @@ export default function CompanySetupForm() {
           documentType: data.documentType,
           documentNumber: data.documentNumber,
           ciiuCode: data.ciiuCode || undefined,
+          // Una persona natural se representa a si misma: guardar un
+          // representante seria guardar una copia suya que despues puede
+          // quedarse vieja.
+          legalRepName: esJuridica ? data.legalRepName || undefined : undefined,
+          legalRepDocType: esJuridica ? data.legalRepDocType : undefined,
+          legalRepDocNumber: esJuridica ? data.legalRepDocNumber || undefined : undefined,
           contacts: contactosParaGuardar(contactos),
           documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
@@ -526,6 +548,12 @@ export default function CompanySetupForm() {
           documentType: data.documentType,
           documentNumber: data.documentNumber,
           ciiuCode: data.ciiuCode || undefined,
+          // Una persona natural se representa a si misma: guardar un
+          // representante seria guardar una copia suya que despues puede
+          // quedarse vieja.
+          legalRepName: esJuridica ? data.legalRepName || undefined : undefined,
+          legalRepDocType: esJuridica ? data.legalRepDocType : undefined,
+          legalRepDocNumber: esJuridica ? data.legalRepDocNumber || undefined : undefined,
           contacts: contactosParaGuardar(contactos),
           documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
@@ -939,6 +967,71 @@ export default function CompanySetupForm() {
           <p className="mt-1 text-sm text-red-600">{errors.businessName.message}</p>
         )}
       </div>
+
+      {/* Representante legal. Solo para persona juridica: una persona natural
+          firma por si misma, y preguntarselo seria pedirle que repita sus
+          propios datos. */}
+      {esJuridica && (
+        <div className="rounded-xl border border-gray-200 p-4">
+          <h4 className="font-semibold text-[#334C5D]">Representante legal</h4>
+          <p className="mb-3 text-xs text-gray-500">
+            Quien firma por la empresa. Si subes el certificado de Cámara de
+            Comercio lo tomamos de ahí.
+          </p>
+
+          <div className="space-y-3">
+            <div>
+              <Label color="gray" className="mb-2 block">
+                Nombre completo
+              </Label>
+              <TextInput
+                id="legalRepName"
+                type="text"
+                placeholder="Nombre y apellidos"
+                icon={AiOutlineUser}
+                color={errors.legalRepName ? 'failure' : 'white'}
+                {...register('legalRepName')}
+              />
+              {errors.legalRepName && (
+                <p className="mt-1 text-sm text-red-600">{errors.legalRepName.message}</p>
+              )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,10rem)_1fr]">
+              <div>
+                <Label color="gray" className="mb-2 block">
+                  Tipo de documento
+                </Label>
+                <Select id="legalRepDocType" color="white" {...register('legalRepDocType')}>
+                  {/* Sin NIT: esto identifica a una persona, no a una empresa. */}
+                  <option value="cedula">Cédula</option>
+                  <option value="pasaporte">Pasaporte</option>
+                  <option value="other">Otro</option>
+                </Select>
+              </div>
+              <div>
+                <Label color="gray" className="mb-2 block">
+                  Número de documento
+                </Label>
+                <TextInput
+                  id="legalRepDocNumber"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="12345678"
+                  icon={AiOutlineIdcard}
+                  color={errors.legalRepDocNumber ? 'failure' : 'white'}
+                  {...register('legalRepDocNumber')}
+                />
+                {errors.legalRepDocNumber && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.legalRepDocNumber.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Actividad económica */}
       <div>

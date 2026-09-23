@@ -26,6 +26,13 @@ import { etiquetaDeTipo, etiquetaDePersona } from '@/lib/company/tipos';
 import { nombreDeCiiu } from '@/data/ciiu';
 import { TITULOS } from '@/lib/company/contactos';
 
+/** Como se llama cada documento de persona al enseñarlo. */
+const DOC_REPRESENTANTE: Record<string, string> = {
+  cedula: 'C.C.',
+  pasaporte: 'Pasaporte',
+  other: 'Doc.',
+};
+
 
 interface CompanyInfoViewProps {
   showEditButton?: boolean;
@@ -325,6 +332,21 @@ export default function CompanyInfoView({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {existingCompany.legalRepName && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 block mb-1">
+                  Representante legal
+                </label>
+                <p className="text-gray-900">{existingCompany.legalRepName}</p>
+                {existingCompany.legalRepDocNumber && (
+                  <p className="text-sm text-gray-500">
+                    {DOC_REPRESENTANTE[existingCompany.legalRepDocType ?? 'cedula']}{' '}
+                    {existingCompany.legalRepDocNumber}
+                  </p>
+                )}
               </div>
             )}
 

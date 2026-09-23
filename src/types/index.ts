@@ -18,6 +18,10 @@ export interface CompanyBasicInfo {
 export interface CompanyFiscalInfo {
   /** Actividad economica, codigo CIIU de cuatro digitos (RUT casilla 46). */
   ciiuCode?: string;
+  /** Representante legal. Solo aplica a una persona juridica. */
+  legalRepName?: string;
+  legalRepDocType?: 'cedula' | 'pasaporte' | 'other';
+  legalRepDocNumber?: string;
   documentType: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
   businessName: string; // Razón social
@@ -228,6 +232,10 @@ export interface Company {
   personType?: TipoDePersona;
   /** Actividad economica, codigo CIIU de cuatro digitos. */
   ciiuCode?: string;
+  /** Representante legal. Solo aplica a una persona juridica. */
+  legalRepName?: string;
+  legalRepDocType?: 'cedula' | 'pasaporte' | 'other';
+  legalRepDocNumber?: string;
   /** A quien escribir para cada asunto. Ver lib/company/contactos. */
   contacts?: ContactoDeEmpresa[];
   /** Segundo tipo de negocio, opcional. Nunca igual al principal. */

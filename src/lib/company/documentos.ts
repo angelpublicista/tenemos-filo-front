@@ -18,6 +18,7 @@ export interface DatosExtraidos {
   nombreComercial?: string | null;
   matriculaMercantil?: string | null;
   representanteLegal?: string | null;
+  documentoRepresentante?: string | null;
   direccion?: string | null;
   departamento?: string | null;
   ciudad?: string | null;
@@ -131,6 +132,17 @@ export function camposDesdeDocumento(datos: DatosExtraidos): CampoDetectado[] {
   // un codigo tributario a medias es peor que ninguno.
   const ciiu = (limpiar(datos.codigoCiiu).match(/\b\d{4}\b/) ?? [])[0];
   if (ciiu) añadir('ciiuCode', 'Actividad económica (CIIU)', ciiu);
+
+  // Representante legal. Sale del certificado de Camara de Comercio, que es
+  // donde consta quien firma por la empresa; el RUT no lo trae.
+  añadir('legalRepName', 'Representante legal', limpiar(datos.representanteLegal));
+  const docRepresentante = soloDigitos(limpiar(datos.documentoRepresentante));
+  if (docRepresentante) {
+    añadir('legalRepDocNumber', 'Documento del representante', docRepresentante);
+    // El certificado identifica al representante por cedula salvo rarezas; se
+    // deja puesta y quien tenga pasaporte la cambia.
+    añadir('legalRepDocType', 'Tipo de documento del representante', 'cedula');
+  }
 
   return campos;
 }

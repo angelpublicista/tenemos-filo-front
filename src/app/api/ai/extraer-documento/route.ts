@@ -73,7 +73,15 @@ const ESQUEMA_CAMARA = {
     nit: { type: ['string', 'null'], description: 'NIT sin digito de verificacion' },
     razonSocial: { type: ['string', 'null'] },
     matriculaMercantil: { type: ['string', 'null'] },
-    representanteLegal: { type: ['string', 'null'] },
+    representanteLegal: {
+      type: ['string', 'null'],
+      description: 'Nombre completo del representante legal principal',
+    },
+    documentoRepresentante: {
+      type: ['string', 'null'],
+      description:
+        'Documento del representante legal: SOLO los digitos, sin el tipo ("C.C." o similar) y sin puntos',
+    },
     direccion: { type: ['string', 'null'] },
     departamento: { type: ['string', 'null'] },
     ciudad: { type: ['string', 'null'] },
@@ -87,6 +95,7 @@ const ESQUEMA_CAMARA = {
   },
   required: [
     'nit', 'razonSocial', 'matriculaMercantil', 'representanteLegal',
+    'documentoRepresentante',
     'direccion', 'departamento', 'ciudad', 'correo', 'telefono', 'codigoCiiu',
   ],
   additionalProperties: false,

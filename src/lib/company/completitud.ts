@@ -63,6 +63,18 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
     { etiqueta: 'Número de documento', relleno: tiene(empresa?.documentNumber), obligatorio: true, paso: 2 },
     { etiqueta: 'Razón social', relleno: tiene(empresa?.businessName), obligatorio: true, paso: 2 },
     { etiqueta: 'Actividad económica (CIIU)', relleno: tiene(empresa?.ciiuCode), obligatorio: false, paso: 2 },
+    // Una persona natural firma por si misma: no tiene representante que
+    // registrar, y contarlo le dejaria el perfil incompleto para siempre.
+    ...(empresa?.personType === 'natural'
+      ? []
+      : [
+          {
+            etiqueta: 'Representante legal',
+            relleno: tiene(empresa?.legalRepName),
+            obligatorio: false,
+            paso: 2 as const,
+          },
+        ]),
     { etiqueta: 'Dirección', relleno: tiene(dir?.street), obligatorio: true, paso: 2 },
     { etiqueta: 'Ciudad', relleno: tiene(dir?.city), obligatorio: true, paso: 2 },
     { etiqueta: 'Departamento', relleno: tiene(dir?.state), obligatorio: true, paso: 2 },

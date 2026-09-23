@@ -103,11 +103,14 @@ export function camposDesdeDocumento(datos: DatosExtraidos): CampoDetectado[] {
   const nit = nitSinVerificacion(datos.nit);
   if (nit) {
     añadir('documentNumber', 'Número de documento', nit);
-    // Un RUT de persona juridica siempre es NIT. Si el documento dice que es
-    // persona natural no se toca el tipo: puede ser cedula y no lo sabemos.
-    if (datos.esPersonaJuridica !== false) {
-      añadir('documentType', 'Tipo de documento', 'nit');
-    }
+    // Tener un RUT es tener un NIT, tambien siendo persona natural: la casilla
+    // 5 del formulario se llama NIT para todo el que este inscrito, y la 6 es
+    // su digito de verificacion.
+    //
+    // Antes esto solo se aplicaba a las personas juridicas, y como el digito
+    // de verificacion solo se enseña cuando el tipo es NIT, una persona
+    // natural subia su RUT y no veia ningun digito por ningun lado.
+    añadir('documentType', 'Tipo de documento', 'nit');
   }
 
   añadir('businessName', 'Razón social', limpiar(datos.razonSocial));

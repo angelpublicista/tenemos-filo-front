@@ -126,6 +126,20 @@ export default function CompanyDocuments({
           ? ['', '⚠ El dígito de verificación del documento no coincide con el NIT que leímos. Revisa el número antes de continuar.']
           : [];
 
+      /**
+       * El digito de verificacion, en la misma linea que el NIT.
+       *
+       * Se leia del documento desde el principio, pero solo para el aviso de
+       * arriba: no salia en esta lista y en el formulario aparece calculado,
+       * asi que desde fuera no habia forma de saber que se habia detectado.
+       *
+       * No es un campo propio del resumen porque no es un dato mas: es una
+       * cifra del NIT, y separarlos invita a leerlos como dos cosas.
+       */
+      const dvLeido = (datos.digitoVerificacion ?? '').replace(/\D/g, '').slice(0, 1);
+      const conDigito = (campo: string, valor: string) =>
+        campo === 'documentNumber' && dvLeido ? `${valor}-${dvLeido}` : paraMostrar(campo, valor);
+
       // Se enseña antes de tocar nada: son varios campos de golpe y alguno
       // puede pisar lo que la persona ya escribio.
       const confirmado = await showConfirmation(
@@ -134,7 +148,7 @@ export default function CompanyDocuments({
         'Usar estos datos',
         'Prefiero escribirlos yo',
         [
-          ...campos.map((c) => `• ${c.etiqueta}: ${paraMostrar(c.campo, c.valor)}`),
+          ...campos.map((c) => `• ${c.etiqueta}: ${conDigito(c.campo, c.valor)}`),
           ...aviso,
           '',
           'Se usarán para rellenar el formulario. Podrás corregir lo que quieras.',

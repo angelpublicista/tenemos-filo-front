@@ -13,10 +13,12 @@ interface Props {
   valor: string[];
   onChange: (fotos: string[]) => void;
   disabled?: boolean;
+  /** Para los textos: "la sede", "el salón". */
+  queEs?: string;
 }
 
 /**
- * Las fotos de una sede.
+ * Una galeria ordenada de fotos: sirve para una sede y para un salon.
  *
  * El orden ES el dato: la primera es la principal. No hay un campo aparte que
  * diga cual lo es, porque dos sitios donde decirlo acaban diciendo cosas
@@ -27,7 +29,12 @@ interface Props {
  * ya tiene scroll propio pelea con el scroll, y en movil es directamente
  * incomodo.
  */
-export default function FotosDeSede({ valor, onChange, disabled = false }: Props) {
+export default function GaleriaDeFotos({
+  valor,
+  onChange,
+  disabled = false,
+  queEs = 'la sede',
+}: Props) {
   const entrada = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [errores, setErrores] = useState<string[]>([]);
@@ -99,7 +106,7 @@ export default function FotosDeSede({ valor, onChange, disabled = false }: Props
               <div className="relative aspect-video bg-gray-100">
                 <Image
                   src={urlDeImagen(foto) ?? ''}
-                  alt={i === 0 ? 'Foto principal de la sede' : `Foto ${i + 1} de la sede`}
+                  alt={i === 0 ? `Foto principal de ${queEs}` : `Foto ${i + 1} de ${queEs}`}
                   fill
                   className="object-cover"
                   unoptimized

@@ -304,6 +304,16 @@ export interface Location {
   longitude?: number | null;
   /** Fotos en orden. La primera es la principal. */
   photos?: string[];
+  /** Respuesta a "¿tiene espacios diferenciados?". null = sin contestar. */
+  hasRooms?: boolean | null;
+  rooms?: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    maxCapacity: number;
+    photos?: string[];
+    isActive: boolean;
+  }>;
   /** Enlace del video. YouTube y Vimeo se incrustan; otros se enlazan. */
   videoUrl?: string | null;
   /** Quien responde por la sede: un contacto de la empresa, no datos sueltos. */

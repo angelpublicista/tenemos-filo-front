@@ -297,6 +297,24 @@ const LocationCard: React.FC<LocationCardProps> = ({
           </div>
         )}
 
+        {/* Los salones, con su capacidad. Los inactivos no se listan: no se
+            pueden usar, y enseñarlos infla lo que la sede parece ofrecer. */}
+        {location.hasRooms && (location.rooms?.length ?? 0) > 0 && (
+          <div className="mb-4 border-t border-gray-100 pt-3">
+            <p className="text-xs uppercase tracking-wide text-gray-400">Salones</p>
+            <ul className="mt-1 space-y-0.5">
+              {location.rooms
+                ?.filter((r) => r.isActive)
+                .map((r) => (
+                  <li key={r.id} className="flex justify-between gap-2 text-sm">
+                    <span className="truncate text-gray-900">{r.name}</span>
+                    <span className="shrink-0 text-gray-500">{r.maxCapacity} personas</span>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
+
         {/* Responsable. Debajo de los datos de la sede y visiblemente
             separado: son dos cosas distintas y confundirlas es justo lo que
             hacia el bloque de "contacto" de antes. */}

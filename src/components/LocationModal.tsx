@@ -13,7 +13,8 @@ import DepartamentoCiudad from './DepartamentoCiudad';
 import TelefonoInput from './TelefonoInput';
 import PaisFijo, { PAIS_FIJO_CODIGO } from './PaisFijo';
 import MapaUbicacion, { type Coordenadas } from './MapaUbicacion';
-import FotosDeSede from './FotosDeSede';
+import GaleriaDeFotos from './GaleriaDeFotos';
+import SalonesDeSede, { errorDeSalon, type Salon } from './SalonesDeSede';
 import { TITULOS, type ContactoDeEmpresa } from '@/lib/company/contactos';
 import { datosCopiables, resumenDeCopia } from '@/lib/company/copiarALaSede';
 
@@ -66,6 +67,15 @@ const LocationModal: React.FC<LocationModalProps> = ({
   /** Fotos en orden; la primera es la principal. Aparte de formData: es una
    *  lista, no un campo de texto. */
   const [fotos, setFotos] = useState<string[]>([]);
+  /**
+   * La respuesta a "¿tiene espacios diferenciados?", y los salones.
+   *
+   * '' es "sin contestar": distinto de "no". Las sedes anteriores a este campo
+   * estan asi, y no se les supone ninguna de las dos.
+   */
+  const [tieneSalones, setTieneSalones] = useState<'' | 'si' | 'no'>('');
+  const [salones, setSalones] = useState<Salon[]>([]);
+  const [erroresSalones, setErroresSalones] = useState(false);
   /**
    * La empresa, cargada una sola vez al abrir.
    *
@@ -136,6 +146,17 @@ const LocationModal: React.FC<LocationModalProps> = ({
       });
       // Van juntas o no van: media coordenada no ubica nada.
       setFotos(location.photos ?? []);
+      setTieneSalones(location.hasRooms === true ? 'si' : location.hasRooms === false ? 'no' : '');
+      setSalones(
+        (location.rooms ?? []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description ?? '',
+          maxCapacity: String(r.maxCapacity),
+          photos: r.photos ?? [],
+          isActive: r.isActive,
+        })),
+      );
       setCoordenadas(
         typeof location.latitude === 'number' && typeof location.longitude === 'number'
           ? { lat: location.latitude, lng: location.longitude }
@@ -176,6 +197,19 @@ const LocationModal: React.FC<LocationModalProps> = ({
       showError('Por favor ingresa la ciudad');
       return;
     }
+
+    if (tieneSalones === 'si') {
+      if (salones.length === 0) {
+        showError('Añade al menos un salón', 'O responde que la sede no tiene espacios diferenciados.');
+        return;
+      }
+      if (salones.some((x) => errorDeSalon(x))) {
+        setErroresSalones(true);
+        showError('Revisa los salones', 'Cada salón necesita nombre y capacidad máxima.');
+        return;
+      }
+    }
+    setErroresSalones(false);
 
     const video = formData.videoUrl.trim();
     if (video && !/^https?:\/\/\S+\.\S+/.test(video)) {
@@ -219,6 +253,21 @@ const LocationModal: React.FC<LocationModalProps> = ({
         responsibleContactId: formData.responsibleContactId || null,
         photos: fotos,
         videoUrl: formData.videoUrl.trim() || null,
+        hasRooms: tieneSalones === '' ? null : tieneSalones === 'si',
+        // Si dice que no tiene, se manda la lista vacia: contestar "no"
+        // despues de haber creado salones tiene que borrarlos, o quedarian
+        // guardados y sin forma de verlos.
+        rooms:
+          tieneSalones === 'si'
+            ? salones.map((x) => ({
+                ...(x.id ? { id: x.id } : {}),
+                name: x.name.trim(),
+                description: x.description?.trim() || undefined,
+                maxCapacity: Number(x.maxCapacity),
+                photos: x.photos,
+                isActive: x.isActive,
+              }))
+            : [],
         latitude: coordenadas?.lat ?? null,
         longitude: coordenadas?.lng ?? null,
         // Sin responder se manda null: "no lo he dicho" no es lo mismo que
@@ -523,6 +572,58 @@ const LocationModal: React.FC<LocationModalProps> = ({
               )}
             </div>
 
+            {/* Espacios / salones. Se pregunta primero: si la sede funciona
+                como un solo espacio, no hay nada mas que enseñar y un bloque
+                de salones vacio solo confundiria. */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">Espacios o salones</h3>
+              <label className="mb-3 block text-sm font-medium text-gray-700 text-left">
+                ¿La sede tiene espacios o salones diferenciados?
+              </label>
+              <div className="flex gap-3">
+                {([
+                  { valor: 'no', texto: 'No' },
+                  { valor: 'si', texto: 'Sí' },
+                ] as const).map((o) => (
+                  <label
+                    key={o.valor}
+                    className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm transition-colors ${
+                      tieneSalones === o.valor
+                        ? 'border-[#F26726] bg-orange-50 text-[#F26726] font-medium'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="tieneSalones"
+                      value={o.valor}
+                      checked={tieneSalones === o.valor}
+                      onChange={(e) => setTieneSalones(e.target.value as 'si' | 'no')}
+                      className="accent-[#F26726]"
+                    />
+                    {o.texto}
+                  </label>
+                ))}
+              </div>
+
+              {tieneSalones === 'no' && (
+                <p className="mt-2 text-sm text-gray-500 text-left">
+                  La sede completa funciona como espacio para las experiencias.
+                </p>
+              )}
+
+              {tieneSalones === 'si' && (
+                <div className="mt-4">
+                  <SalonesDeSede
+                    valor={salones}
+                    onChange={setSalones}
+                    mostrarErrores={erroresSalones}
+                    disabled={saving}
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Fotos y video */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-1">Fotos y video</h3>
@@ -531,7 +632,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
                 lugar; puedes cambiar el orden y cuál va primero.
               </p>
 
-              <FotosDeSede valor={fotos} onChange={setFotos} disabled={saving} />
+              <GaleriaDeFotos valor={fotos} onChange={setFotos} disabled={saving} />
 
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2 text-left">

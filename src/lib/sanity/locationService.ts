@@ -28,6 +28,15 @@ export interface CreateLocationData {
   responsibleContactId?: string | null;
   photos?: string[];
   videoUrl?: string | null;
+  hasRooms?: boolean | null;
+  rooms?: Array<{
+    id?: string;
+    name: string;
+    description?: string;
+    maxCapacity: number;
+    photos?: string[];
+    isActive?: boolean;
+  }>;
   isActive?: boolean;
 }
 
@@ -45,6 +54,15 @@ interface ApiLocation {
   longitude: number | null;
   photos: string[] | null;
   videoUrl: string | null;
+  hasRooms: boolean | null;
+  rooms?: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    maxCapacity: number;
+    photos: string[];
+    isActive: boolean;
+  }> | null;
   responsibleContactId: string | null;
   responsibleContact: {
     id: string;
@@ -77,6 +95,8 @@ function toLocation(l: ApiLocation): Location {
     longitude: l.longitude,
     photos: l.photos ?? [],
     videoUrl: l.videoUrl,
+    hasRooms: l.hasRooms,
+    rooms: (l.rooms ?? []).map((r) => ({ ...r, photos: r.photos ?? [] })),
     responsibleContactId: l.responsibleContactId,
     responsibleContact: l.responsibleContact
       ? {
@@ -105,6 +125,8 @@ export const createLocationInSanity = async (data: CreateLocationData) => {
     responsibleContactId: data.responsibleContactId,
     photos: data.photos,
     videoUrl: data.videoUrl,
+    hasRooms: data.hasRooms,
+    rooms: data.rooms,
     isActive: data.isActive,
   });
   return toLocation(created);
@@ -144,6 +166,8 @@ export const updateLocationInSanity = async (
     responsibleContactId: updateData.responsibleContactId,
     photos: updateData.photos,
     videoUrl: updateData.videoUrl,
+    hasRooms: updateData.hasRooms,
+    rooms: updateData.rooms,
     isActive: updateData.isActive,
   });
   return toLocation(updated);

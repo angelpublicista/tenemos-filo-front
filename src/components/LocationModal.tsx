@@ -95,20 +95,42 @@ const LocationModal: React.FC<LocationModalProps> = ({
         return;
       }
 
+      // El pais no se copia: es Colombia siempre y no se elige.
       const copiado = {
         street: conValor(company.address?.street),
         city: conValor(company.address?.city),
         state: conValor(company.address?.state),
         postalCode: conValor(company.address?.postalCode),
-        country: aCodigoDePais(company.address?.country),
         email: conValor(company.companyEmail),
         phone: conValor(company.companyPhone),
       };
 
-      // Si la empresa no tiene nada guardado no hay nada que copiar. Antes
-      // se anunciaba igual "datos cargados" y el formulario se quedaba vacio,
-      // que es justo lo que parecia un fallo del boton.
-      if (!Object.values(copiado).some(Boolean)) {
+      /**
+       * Que se copio y que no.
+       *
+       * Antes se anunciaba "Datos de la empresa cargados" pasara lo que
+       * pasara. Una empresa con correo pero sin direccion ni telefono daba el
+       * mensaje de exito y dejaba los campos de direccion vacios: el boton
+       * parecia roto cuando lo que faltaba era el dato en la empresa. Ahora se
+       * dice cual vino y cual no, que es lo unico accionable.
+       */
+      const ETIQUETAS: Record<keyof typeof copiado, string> = {
+        street: 'dirección',
+        city: 'ciudad',
+        state: 'departamento',
+        postalCode: 'código postal',
+        email: 'email',
+        phone: 'teléfono',
+      };
+      const claves = Object.keys(copiado) as Array<keyof typeof copiado>;
+      const vinieron = claves.filter((k) => copiado[k]).map((k) => ETIQUETAS[k]);
+      // El codigo postal no se echa en falta: casi nadie lo tiene y listarlo
+      // como ausente solo hace ruido.
+      const faltaron = claves
+        .filter((k) => !copiado[k] && k !== 'postalCode')
+        .map((k) => ETIQUETAS[k]);
+
+      if (vinieron.length === 0) {
         showError(
           'Tu empresa no tiene esos datos',
           'Completa la dirección y el contacto en la información de la empresa y vuelve a intentarlo.',
@@ -122,11 +144,15 @@ const LocationModal: React.FC<LocationModalProps> = ({
         city: copiado.city ?? prev.city,
         state: copiado.state ?? prev.state,
         postalCode: copiado.postalCode ?? prev.postalCode,
-        country: copiado.country ?? prev.country,
         email: copiado.email ?? prev.email,
         phone: copiado.phone ?? prev.phone,
       }));
-      showSuccess('Datos de la empresa cargados');
+      showSuccess(
+        `Copiamos ${vinieron.join(', ')}`,
+        faltaron.length
+          ? `Tu empresa no tiene ${faltaron.join(', ')}. Complétalo aquí o en la información de la empresa.`
+          : '',
+      );
     } catch (error) {
       showError('Error al cargar los datos de la empresa');
       console.error(error);

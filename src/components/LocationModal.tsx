@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Location } from '@/types';
+import { Company, Location } from '@/types';
 import {
   createLocationInSanity,
   updateLocationInSanity
@@ -14,17 +14,13 @@ import TelefonoInput from './TelefonoInput';
 import PaisFijo, { PAIS_FIJO_CODIGO } from './PaisFijo';
 import MapaUbicacion, { type Coordenadas } from './MapaUbicacion';
 import { TITULOS, type ContactoDeEmpresa } from '@/lib/company/contactos';
+import { datosCopiables, resumenDeCopia } from '@/lib/company/copiarALaSede';
 
 /**
  * El mapeo del API convierte los nulos en cadena vacia (`companyEmail ?? ''`),
  * asi que un `?? prev.x` nunca salta y acaba borrando lo que ya habia escrito
  * quien crea la sede. Aqui el vacio vuelve a ser "no hay dato".
  */
-const conValor = (v?: string | null): string | undefined => {
-  const s = v?.trim();
-  return s ? s : undefined;
-};
-
 interface LocationModalProps {
   location: Location | null;
   companyId: string;
@@ -65,84 +61,37 @@ const LocationModal: React.FC<LocationModalProps> = ({
    * convertirlas de ida y vuelta en cada arrastre.
    */
   const [coordenadas, setCoordenadas] = useState<Coordenadas | null>(null);
-  /** Los contactos de la empresa, para elegir responsable entre ellos. */
-  const [contactos, setContactos] = useState<ContactoDeEmpresa[]>([]);
-  const [loadingCompanyData, setLoadingCompanyData] = useState(false);
+  /**
+   * La empresa, cargada una sola vez al abrir.
+   *
+   * Da dos cosas: los contactos para elegir responsable, y que datos hay para
+   * copiar. Antes se pedia por separado y otra vez en cada pulsacion del
+   * boton de copiar.
+   */
+  const [empresa, setEmpresa] = useState<Company | null>(null);
+  const contactos: ContactoDeEmpresa[] = empresa?.contacts ?? [];
+  const copiables = datosCopiables(empresa);
   const { showSuccess, showError } = useSweetAlert();
 
-  const handleUseCompanyData = async () => {
-    try {
-      setLoadingCompanyData(true);
-      const company = await getCompanyById(companyId);
-      if (!company) {
-        showError('No se encontraron datos de la empresa');
-        return;
-      }
-
-      // El pais no se copia: es Colombia siempre y no se elige.
-      const copiado = {
-        street: conValor(company.address?.street),
-        city: conValor(company.address?.city),
-        state: conValor(company.address?.state),
-        postalCode: conValor(company.address?.postalCode),
-        email: conValor(company.companyEmail),
-        phone: conValor(company.companyPhone),
-      };
-
-      /**
-       * Que se copio y que no.
-       *
-       * Antes se anunciaba "Datos de la empresa cargados" pasara lo que
-       * pasara. Una empresa con correo pero sin direccion ni telefono daba el
-       * mensaje de exito y dejaba los campos de direccion vacios: el boton
-       * parecia roto cuando lo que faltaba era el dato en la empresa. Ahora se
-       * dice cual vino y cual no, que es lo unico accionable.
-       */
-      const ETIQUETAS: Record<keyof typeof copiado, string> = {
-        street: 'dirección',
-        city: 'ciudad',
-        state: 'departamento',
-        postalCode: 'código postal',
-        email: 'email',
-        phone: 'teléfono',
-      };
-      const claves = Object.keys(copiado) as Array<keyof typeof copiado>;
-      const vinieron = claves.filter((k) => copiado[k]).map((k) => ETIQUETAS[k]);
-      // El codigo postal no se echa en falta: casi nadie lo tiene y listarlo
-      // como ausente solo hace ruido.
-      const faltaron = claves
-        .filter((k) => !copiado[k] && k !== 'postalCode')
-        .map((k) => ETIQUETAS[k]);
-
-      if (vinieron.length === 0) {
-        showError(
-          'Tu empresa no tiene esos datos',
-          'Completa la dirección y el contacto en la información de la empresa y vuelve a intentarlo.',
-        );
-        return;
-      }
-
-      setFormData(prev => ({
-        ...prev,
-        street: copiado.street ?? prev.street,
-        city: copiado.city ?? prev.city,
-        state: copiado.state ?? prev.state,
-        postalCode: copiado.postalCode ?? prev.postalCode,
-        email: copiado.email ?? prev.email,
-        phone: copiado.phone ?? prev.phone,
-      }));
-      showSuccess(
-        `Copiamos ${vinieron.join(', ')}`,
-        faltaron.length
-          ? `Tu empresa no tiene ${faltaron.join(', ')}. Complétalo aquí o en la información de la empresa.`
-          : '',
-      );
-    } catch (error) {
-      showError('Error al cargar los datos de la empresa');
-      console.error(error);
-    } finally {
-      setLoadingCompanyData(false);
-    }
+  /**
+   * Copia a la sede lo que la empresa tenga.
+   *
+   * Ya no pide la empresa: se cargo al abrir el modal, y con ella se decide
+   * si este boton siquiera se puede pulsar. Aqui solo se aplica.
+   */
+  const handleUseCompanyData = () => {
+    if (!copiables.hayAlgo) return;
+    const v = copiables.valores;
+    setFormData((prev) => ({
+      ...prev,
+      street: v.street ?? prev.street,
+      city: v.city ?? prev.city,
+      state: v.state ?? prev.state,
+      postalCode: v.postalCode ?? prev.postalCode,
+      email: v.email ?? prev.email,
+      phone: v.phone ?? prev.phone,
+    }));
+    showSuccess(`Copiamos ${copiables.disponibles.join(', ')}`, resumenDeCopia(copiables));
   };
 
   useEffect(() => {
@@ -150,11 +99,11 @@ const LocationModal: React.FC<LocationModalProps> = ({
     let vigente = true;
     getCompanyById(companyId)
       .then((c) => {
-        if (vigente) setContactos(c?.contacts ?? []);
+        if (vigente) setEmpresa(c);
       })
-      // Sin contactos el bloque explica que hay que crearlos; no se rompe.
+      // Sin empresa, cada bloque explica lo suyo; nada se rompe.
       .catch(() => {
-        if (vigente) setContactos([]);
+        if (vigente) setEmpresa(null);
       });
     return () => {
       vigente = false;
@@ -312,25 +261,48 @@ const LocationModal: React.FC<LocationModalProps> = ({
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Se dice ANTES de pulsar que hay para copiar. Enterarse despues
+                de que no habia nada es enterarse tarde: el boton parece roto
+                cuando lo que falta es el dato en la empresa. */}
             {!location && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col gap-3">
-                <div>
-                  <p className="text-sm font-medium text-blue-900">
-                    ¿Misma información que tu empresa?
+              copiables.hayAlgo ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col gap-3 text-left">
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">
+                      ¿Misma información que tu empresa?
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      Se copiará: {copiables.disponibles.join(', ')}.
+                    </p>
+                    {copiables.faltantes.length > 0 && (
+                      <p className="mt-1 text-xs text-blue-700/80">
+                        Tu empresa no tiene {copiables.faltantes.join(', ')}; eso
+                        tendrás que escribirlo aquí.
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUseCompanyData}
+                    className="w-full px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Usar datos de mi empresa
+                  </button>
+                </div>
+              ) : (
+                // Nada que copiar. No se enseña un boton que no haria nada:
+                // se explica por que y donde se arregla.
+                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-left">
+                  <p className="text-sm font-medium text-gray-700">
+                    Tu empresa no tiene datos que copiar
                   </p>
-                  <p className="text-xs text-blue-700">
-                    Copia dirección, ciudad, email y teléfono de tu empresa.
+                  <p className="mt-1 text-xs text-gray-500">
+                    No hay dirección ni datos de contacto guardados en la
+                    información de tu empresa. Complétalos allí y este atajo
+                    aparecerá, o escribe los de esta sede abajo.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleUseCompanyData}
-                  disabled={loadingCompanyData}
-                  className="w-full px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loadingCompanyData ? 'Cargando...' : 'Usar datos de mi empresa'}
-                </button>
-              </div>
+              )
             )}
 
             {/* Información Básica */}

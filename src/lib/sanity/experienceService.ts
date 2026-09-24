@@ -57,7 +57,7 @@ export interface ApiExperience {
     name: string;
     isMain: boolean;
     address?: Experience['locations'] extends Array<infer L> ? L extends { address?: infer A } ? A : unknown : unknown;
-    capacity?: unknown;
+    maxCapacity?: number | null;
   }>;
   menus?: ApiMenu[];
   availabilities?: Array<{
@@ -132,7 +132,7 @@ export function toExperience(e: ApiExperience): Experience {
       name: l.name,
       address: l.address as { street?: string; city?: string; state?: string; postalCode?: string; country?: string } | undefined,
       isMain: l.isMain,
-      capacity: l.capacity as { minGuests?: number; maxGuests?: number } | undefined,
+      maxCapacity: l.maxCapacity ?? undefined,
     })),
     menus: e.menus?.map((m) => ({
       _ref: m.id,

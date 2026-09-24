@@ -20,10 +20,9 @@ export interface CreateLocationData {
     phone?: string;
     email?: string;
   };
-  capacity?: {
-    minGuests?: number;
-    maxGuests?: number;
-  };
+  /** Obligatoria: cuanta gente cabe a la vez. */
+  maxCapacity?: number;
+  isPublic?: boolean | null;
   isActive?: boolean;
 }
 
@@ -35,7 +34,8 @@ interface ApiLocation {
   description: string | null;
   address: Location['address'] | null;
   contactInfo: Location['contactInfo'] | null;
-  capacity: Location['capacity'] | null;
+  maxCapacity: number | null;
+  isPublic: boolean | null;
   isMain: boolean;
   isActive: boolean;
   createdAt: string;
@@ -53,7 +53,8 @@ function toLocation(l: ApiLocation): Location {
     description: l.description ?? undefined,
     address: l.address ?? { street: '', city: '' },
     contactInfo: l.contactInfo ?? undefined,
-    capacity: l.capacity ?? undefined,
+    maxCapacity: l.maxCapacity ?? undefined,
+    isPublic: l.isPublic,
     isActive: l.isActive,
     createdAt: l.createdAt,
     updatedAt: l.updatedAt,
@@ -68,7 +69,8 @@ export const createLocationInSanity = async (data: CreateLocationData) => {
     description: data.description,
     address: data.address,
     contactInfo: data.contactInfo,
-    capacity: data.capacity,
+    maxCapacity: data.maxCapacity,
+    isPublic: data.isPublic,
     isActive: data.isActive,
   });
   return toLocation(created);
@@ -101,7 +103,8 @@ export const updateLocationInSanity = async (
     description: updateData.description,
     address: updateData.address,
     contactInfo: updateData.contactInfo,
-    capacity: updateData.capacity,
+    maxCapacity: updateData.maxCapacity,
+    isPublic: updateData.isPublic,
     isActive: updateData.isActive,
   });
   return toLocation(updated);

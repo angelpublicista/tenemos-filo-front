@@ -213,19 +213,8 @@ const LocationCard: React.FC<LocationCardProps> = ({
     return parts.join(', ');
   };
 
-  const getCapacityText = (capacity?: Location['capacity']) => {
-    if (!capacity) return 'Sin especificar';
-    if (capacity.minGuests && capacity.maxGuests) {
-      return `${capacity.minGuests} - ${capacity.maxGuests} invitados`;
-    }
-    if (capacity.maxGuests) {
-      return `Hasta ${capacity.maxGuests} invitados`;
-    }
-    if (capacity.minGuests) {
-      return `Mínimo ${capacity.minGuests} invitados`;
-    }
-    return 'Sin especificar';
-  };
+  const getCapacityText = (maxCapacity?: number) =>
+    maxCapacity ? `Hasta ${maxCapacity} personas` : 'Sin especificar';
 
   return (
     <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
@@ -285,12 +274,21 @@ const LocationCard: React.FC<LocationCardProps> = ({
           )}
         </div>
 
-        {/* Capacity */}
-        <div className="mb-4">
+        {/* Capacidad y si esta abierta al publico */}
+        <div className="mb-4 space-y-1">
           <div className="flex items-center gap-2">
             <BiUser className="text-gray-400 text-sm" />
-            <span className="text-sm text-gray-600">{getCapacityText(location.capacity)}</span>
+            <span className="text-sm text-gray-600">{getCapacityText(location.maxCapacity)}</span>
           </div>
+          {/* Solo si lo declaro: null significa que nadie lo dijo, y pintar
+              "No" seria afirmar algo que no consta. */}
+          {location.isPublic !== null && location.isPublic !== undefined && (
+            <p className="text-xs text-gray-500">
+              {location.isPublic
+                ? 'Abierta al público'
+                : 'Solo con reserva previa'}
+            </p>
+          )}
         </div>
 
         {/* Actions */}

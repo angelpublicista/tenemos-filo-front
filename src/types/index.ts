@@ -295,10 +295,10 @@ export interface Location {
     phone?: string;
     email?: string;
   };
-  capacity?: {
-    minGuests?: number;
-    maxGuests?: number;
-  };
+  /** Cuanta gente cabe a la vez. */
+  maxCapacity?: number;
+  /** Si es un local abierto al publico. null/undefined = sin declarar. */
+  isPublic?: boolean | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -388,8 +388,8 @@ export interface HostStep3Data {
   country?: string;
   locationPhone?: string;
   locationEmail?: string;
-  minGuests?: number;
-  maxGuests?: number;
+  maxCapacity?: number;
+  isPublic?: boolean | null;
 }
 
 // Tipos para experiencias
@@ -447,7 +447,7 @@ export interface Experience {
       country?: string;
     };
     isMain?: boolean;
-    capacity?: { minGuests?: number; maxGuests?: number };
+    maxCapacity?: number;
   }>;
   /** Las cartas que ofrece. Mismo doble shape que `locations`. */
   menus?: Array<{

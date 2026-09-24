@@ -65,8 +65,9 @@ const LocationModal: React.FC<LocationModalProps> = ({
     country: 'CO',
     phone: '',
     email: '',
-    minGuests: '',
-    maxGuests: '',
+    maxCapacity: '',
+    // '' = sin declarar, que es como quedan las sedes anteriores a este campo.
+    isPublic: '' as '' | 'si' | 'no',
     isActive: true,
   });
 
@@ -136,8 +137,8 @@ const LocationModal: React.FC<LocationModalProps> = ({
         country: location.address?.country || 'CO',
         phone: location.contactInfo?.phone || '',
         email: location.contactInfo?.email || '',
-        minGuests: location.capacity?.minGuests?.toString() || '',
-        maxGuests: location.capacity?.maxGuests?.toString() || '',
+        maxCapacity: location.maxCapacity?.toString() || '',
+        isPublic: location.isPublic === true ? 'si' : location.isPublic === false ? 'no' : '',
         isActive: location.isActive !== false,
       });
     } else {
@@ -176,6 +177,14 @@ const LocationModal: React.FC<LocationModalProps> = ({
       return;
     }
 
+    // La capacidad es obligatoria. Se corta aqui y no se deja llegar al API,
+    // que contestaria un 400 sin decir cual de los campos falla.
+    const capacidad = Number(formData.maxCapacity);
+    if (!formData.maxCapacity.trim() || !Number.isInteger(capacidad) || capacidad < 1) {
+      showError('Indica la capacidad máxima de la sede (al menos 1 persona)');
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -195,10 +204,10 @@ const LocationModal: React.FC<LocationModalProps> = ({
           phone: formData.phone.trim() || undefined,
           email: formData.email.trim() || undefined,
         },
-        capacity: {
-          minGuests: formData.minGuests ? parseInt(formData.minGuests) : undefined,
-          maxGuests: formData.maxGuests ? parseInt(formData.maxGuests) : undefined,
-        },
+        maxCapacity: capacidad,
+        // Sin responder se manda null: "no lo he dicho" no es lo mismo que
+        // "no esta abierta al publico".
+        isPublic: formData.isPublic === '' ? null : formData.isPublic === 'si',
         isActive: formData.isActive,
       };
 
@@ -403,37 +412,58 @@ const LocationModal: React.FC<LocationModalProps> = ({
               </div>
             </div>
 
-            {/* Capacidad */}
+            {/* Capacidad y acceso */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Capacidad para Eventos
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Capacidad y acceso</h3>
+
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                    Mínimo de Invitados
+                    ¿Es un establecimiento abierto al público?
                   </label>
-                  <input
-                    type="number"
-                    value={formData.minGuests}
-                    onChange={(e) => handleInputChange('minGuests', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                    placeholder="Ej: 10"
-                    min="1"
-                  />
+                  <div className="flex gap-3">
+                    {([
+                      { valor: 'si', texto: 'Sí' },
+                      { valor: 'no', texto: 'No' },
+                    ] as const).map((o) => (
+                      <label
+                        key={o.valor}
+                        className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm transition-colors ${
+                          formData.isPublic === o.valor
+                            ? 'border-[#F26726] bg-orange-50 text-[#F26726] font-medium'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="isPublic"
+                          value={o.valor}
+                          checked={formData.isPublic === o.valor}
+                          onChange={(e) => handleInputChange('isPublic', e.target.value)}
+                          className="accent-[#F26726]"
+                        />
+                        {o.texto}
+                      </label>
+                    ))}
+                  </div>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                    Máximo de Invitados
+                    Capacidad máxima de la sede <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
-                    value={formData.maxGuests}
-                    onChange={(e) => handleInputChange('maxGuests', e.target.value)}
+                    value={formData.maxCapacity}
+                    onChange={(e) => handleInputChange('maxCapacity', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
                     placeholder="Ej: 100"
                     min="1"
+                    required
                   />
+                  <p className="mt-1 text-sm text-gray-500 text-left">
+                    Número máximo de personas que puede recibir simultáneamente.
+                  </p>
                 </div>
               </div>
             </div>

@@ -12,6 +12,14 @@
 export type TipoDeContacto = 'reservas' | 'contabilidad' | 'otro';
 
 export interface ContactoDeEmpresa {
+  /**
+   * El id cuando ya existe. Se conserva y se reenvia al guardar.
+   *
+   * No es un detalle: las sedes apuntan a un contacto como responsable. Si al
+   * guardar la empresa se mandaran sin id, el API los tomaria por nuevos y las
+   * sedes se quedarian sin responsable en silencio.
+   */
+  id?: string;
   type: TipoDeContacto;
   /** Solo en los libres: los obligatorios ya se llaman por su tipo. */
   label?: string;
@@ -83,6 +91,7 @@ export function erroresDeContactos(lista: ContactoDeEmpresa[]): Map<number, stri
  */
 export function paraGuardar(lista: ContactoDeEmpresa[]): ContactoDeEmpresa[] {
   return lista.map((c) => ({
+    ...(c.id ? { id: c.id } : {}),
     type: c.type,
     name: c.name.trim(),
     email: c.email.trim(),

@@ -21,6 +21,7 @@ import {
 import { BiMap, BiPhone, BiEnvelope, BiUser } from 'react-icons/bi';
 import LocationModal from './LocationModal';
 import { getCountryName } from '@/lib/constants/countries';
+import { TITULOS } from '@/lib/company/contactos';
 
 interface LocationManagerProps {
   locations: Location[];
@@ -273,6 +274,26 @@ const LocationCard: React.FC<LocationCardProps> = ({
             </div>
           )}
         </div>
+
+        {/* Responsable. Debajo de los datos de la sede y visiblemente
+            separado: son dos cosas distintas y confundirlas es justo lo que
+            hacia el bloque de "contacto" de antes. */}
+        {location.responsibleContact && (
+          <div className="mb-4 border-t border-gray-100 pt-3">
+            <p className="text-xs uppercase tracking-wide text-gray-400">Responsable</p>
+            <p className="text-sm text-gray-900">{location.responsibleContact.name}</p>
+            <p className="text-xs text-gray-500">
+              {[
+                location.responsibleContact.type === 'otro'
+                  ? location.responsibleContact.label
+                  : TITULOS[location.responsibleContact.type],
+                location.responsibleContact.phone,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+        )}
 
         {/* Capacidad y si esta abierta al publico */}
         <div className="mb-4 space-y-1">

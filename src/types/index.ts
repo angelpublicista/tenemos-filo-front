@@ -302,6 +302,16 @@ export interface Location {
   /** Donde cae en el mapa. Van juntas o no van. */
   latitude?: number | null;
   longitude?: number | null;
+  /** Quien responde por la sede: un contacto de la empresa, no datos sueltos. */
+  responsibleContactId?: string | null;
+  responsibleContact?: {
+    id: string;
+    name: string;
+    type: 'reservas' | 'contabilidad' | 'otro';
+    label?: string | null;
+    phone?: string | null;
+    position?: string | null;
+  } | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

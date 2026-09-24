@@ -25,6 +25,7 @@ export interface CreateLocationData {
   isPublic?: boolean | null;
   latitude?: number | null;
   longitude?: number | null;
+  responsibleContactId?: string | null;
   isActive?: boolean;
 }
 
@@ -40,6 +41,15 @@ interface ApiLocation {
   isPublic: boolean | null;
   latitude: number | null;
   longitude: number | null;
+  responsibleContactId: string | null;
+  responsibleContact: {
+    id: string;
+    name: string;
+    type: 'RESERVAS' | 'CONTABILIDAD' | 'OTRO';
+    label: string | null;
+    phone: string | null;
+    position: string | null;
+  } | null;
   isMain: boolean;
   isActive: boolean;
   createdAt: string;
@@ -61,6 +71,13 @@ function toLocation(l: ApiLocation): Location {
     isPublic: l.isPublic,
     latitude: l.latitude,
     longitude: l.longitude,
+    responsibleContactId: l.responsibleContactId,
+    responsibleContact: l.responsibleContact
+      ? {
+          ...l.responsibleContact,
+          type: l.responsibleContact.type.toLowerCase() as 'reservas' | 'contabilidad' | 'otro',
+        }
+      : null,
     isActive: l.isActive,
     createdAt: l.createdAt,
     updatedAt: l.updatedAt,
@@ -79,6 +96,7 @@ export const createLocationInSanity = async (data: CreateLocationData) => {
     isPublic: data.isPublic,
     latitude: data.latitude,
     longitude: data.longitude,
+    responsibleContactId: data.responsibleContactId,
     isActive: data.isActive,
   });
   return toLocation(created);
@@ -115,6 +133,7 @@ export const updateLocationInSanity = async (
     isPublic: updateData.isPublic,
     latitude: updateData.latitude,
     longitude: updateData.longitude,
+    responsibleContactId: updateData.responsibleContactId,
     isActive: updateData.isActive,
   });
   return toLocation(updated);

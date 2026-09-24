@@ -14,6 +14,7 @@ import DepartamentoCiudad from './DepartamentoCiudad';
 import TelefonoInput from './TelefonoInput';
 import PaisFijo, { PAIS_FIJO_CODIGO } from './PaisFijo';
 import MapaUbicacion, { type Coordenadas } from './MapaUbicacion';
+import { TITULOS, type ContactoDeEmpresa } from '@/lib/company/contactos';
 
 /**
  * El mapeo del API convierte los nulos en cadena vacia (`companyEmail ?? ''`),
@@ -67,6 +68,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
     phone: '',
     email: '',
     maxCapacity: '',
+    responsibleContactId: '',
     // '' = sin declarar, que es como quedan las sedes anteriores a este campo.
     isPublic: '' as '' | 'si' | 'no',
     isActive: true,
@@ -79,6 +81,8 @@ const LocationModal: React.FC<LocationModalProps> = ({
    * convertirlas de ida y vuelta en cada arrastre.
    */
   const [coordenadas, setCoordenadas] = useState<Coordenadas | null>(null);
+  /** Los contactos de la empresa, para elegir responsable entre ellos. */
+  const [contactos, setContactos] = useState<ContactoDeEmpresa[]>([]);
   const [loadingCompanyData, setLoadingCompanyData] = useState(false);
   const { showSuccess, showError } = useSweetAlert();
 
@@ -132,6 +136,22 @@ const LocationModal: React.FC<LocationModalProps> = ({
   };
 
   useEffect(() => {
+    if (!companyId) return;
+    let vigente = true;
+    getCompanyById(companyId)
+      .then((c) => {
+        if (vigente) setContactos(c?.contacts ?? []);
+      })
+      // Sin contactos el bloque explica que hay que crearlos; no se rompe.
+      .catch(() => {
+        if (vigente) setContactos([]);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [companyId]);
+
+  useEffect(() => {
     if (location) {
       setFormData({
         name: location.name || '',
@@ -145,6 +165,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
         phone: location.contactInfo?.phone || '',
         email: location.contactInfo?.email || '',
         maxCapacity: location.maxCapacity?.toString() || '',
+        responsibleContactId: location.responsibleContactId || '',
         isPublic: location.isPublic === true ? 'si' : location.isPublic === false ? 'no' : '',
         isActive: location.isActive !== false,
       });
@@ -190,6 +211,11 @@ const LocationModal: React.FC<LocationModalProps> = ({
       return;
     }
 
+    if (!formData.responsibleContactId) {
+      showError('Elige la persona responsable de la sede');
+      return;
+    }
+
     // La capacidad es obligatoria. Se corta aqui y no se deja llegar al API,
     // que contestaria un 400 sin decir cual de los campos falla.
     const capacidad = Number(formData.maxCapacity);
@@ -218,6 +244,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
           email: formData.email.trim() || undefined,
         },
         maxCapacity: capacidad,
+        responsibleContactId: formData.responsibleContactId || null,
         latitude: coordenadas?.lat ?? null,
         longitude: coordenadas?.lng ?? null,
         // Sin responder se manda null: "no lo he dicho" no es lo mismo que
@@ -421,26 +448,82 @@ const LocationModal: React.FC<LocationModalProps> = ({
               </div>
             </div>
 
-            {/* Información de Contacto */}
+            {/* Contacto de la sede: el del local, no el de una persona. */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Información de Contacto
-              </h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">Contacto de la sede</h3>
+              <p className="mb-4 text-sm text-gray-500 text-left">
+                Los datos del local, los que se pueden publicar. Por ejemplo el
+                fijo del restaurante o reservas@turestaurante.com.
+              </p>
               <div className="space-y-4">
-                <TelefonoInput label="Teléfono" value={formData.phone} onChange={(v) => handleInputChange('phone', v)} />
+                <TelefonoInput label="Teléfono de la sede" value={formData.phone} onChange={(v) => handleInputChange('phone', v)} />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                    Email
+                    Email de la sede
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                    placeholder="Ej: sede@empresa.com"
+                    placeholder="Ej: reservas@turestaurante.com"
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Persona responsable: se elige, no se teclea. Sus datos ya estan
+                guardados una vez en los contactos de la empresa, y repetirlos
+                aqui los condenaria a quedarse viejos. */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">
+                Persona responsable de la sede <span className="text-red-500">*</span>
+              </h3>
+              <p className="mb-4 text-sm text-gray-500 text-left">
+                Quién responde por esta sede. Se elige entre los contactos de tu
+                empresa.
+              </p>
+
+              {contactos.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-left">
+                  <p className="text-sm text-gray-600">
+                    Todavía no tienes contactos registrados. Añádelos en los
+                    datos de tu empresa y vuelve aquí para asignar el
+                    responsable.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {contactos.map((c) => (
+                    <label
+                      key={c.id}
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
+                        formData.responsibleContactId === c.id
+                          ? 'border-[#F26726] bg-orange-50'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="responsable"
+                        className="mt-1 accent-[#F26726]"
+                        checked={formData.responsibleContactId === c.id}
+                        onChange={() => handleInputChange('responsibleContactId', c.id ?? '')}
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-gray-900">
+                          {c.name}
+                        </span>
+                        <span className="block text-xs text-gray-500">
+                          {c.type === 'otro' ? c.label : TITULOS[c.type]}
+                          {c.position ? ` · ${c.position}` : ''}
+                          {c.phone ? ` · ${c.phone}` : ''}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Capacidad y acceso */}

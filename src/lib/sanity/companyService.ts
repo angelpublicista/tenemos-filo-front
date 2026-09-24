@@ -110,6 +110,7 @@ export interface ApiCompany {
   legalRepDocType: 'CEDULA' | 'PASAPORTE' | 'OTHER' | null;
   legalRepDocNumber: string | null;
   companyContacts?: Array<{
+    id: string;
     type: 'RESERVAS' | 'CONTABILIDAD' | 'OTRO';
     label: string | null;
     name: string;
@@ -197,6 +198,7 @@ export function toCompany(c: ApiCompany): Company {
       : undefined,
     legalRepDocNumber: c.legalRepDocNumber ?? undefined,
     contacts: (c.companyContacts ?? []).map((k) => ({
+      id: k.id,
       type: k.type.toLowerCase() as ContactoDeEmpresa['type'],
       label: k.label ?? undefined,
       name: k.name,

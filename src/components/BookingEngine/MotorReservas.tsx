@@ -36,6 +36,8 @@ export interface BookingExperience extends Omit<Experience, 'locations' | 'avail
     isMain?: boolean;
     latitude?: number | null;
     longitude?: number | null;
+    photos?: string[];
+    videoUrl?: string | null;
   }>;
 }
 

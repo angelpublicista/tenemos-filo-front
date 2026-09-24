@@ -470,6 +470,9 @@ export interface Experience {
     /** Donde cae en el mapa. El catalogo publico lo usa para el pin. */
     latitude?: number | null;
     longitude?: number | null;
+    /** Fotos en orden; la primera es la principal. */
+    photos?: string[];
+    videoUrl?: string | null;
   }>;
   /** Las cartas que ofrece. Mismo doble shape que `locations`. */
   menus?: Array<{

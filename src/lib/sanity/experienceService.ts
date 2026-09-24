@@ -60,6 +60,8 @@ export interface ApiExperience {
     maxCapacity?: number | null;
     latitude?: number | null;
     longitude?: number | null;
+    photos?: string[] | null;
+    videoUrl?: string | null;
   }>;
   menus?: ApiMenu[];
   availabilities?: Array<{
@@ -138,6 +140,8 @@ export function toExperience(e: ApiExperience): Experience {
       // El mapa del catalogo se pinta con esto.
       latitude: l.latitude ?? null,
       longitude: l.longitude ?? null,
+      photos: l.photos ?? [],
+      videoUrl: l.videoUrl ?? null,
     })),
     menus: e.menus?.map((m) => ({
       _ref: m.id,

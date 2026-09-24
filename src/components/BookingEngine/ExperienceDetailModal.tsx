@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { HiX, HiClock, HiUsers, HiLocationMarker, HiVideoCamera, HiCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 import type { BookingExperience, BookingLocationAddress } from '@/components/BookingEngine/MotorReservas';
 import MapaUbicacion from '@/components/MapaUbicacion';
+import MediosDeSede from '@/components/BookingEngine/MediosDeSede';
 import { urlDeImagen } from '@/lib/images';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -320,6 +321,16 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                           <p className="text-xs text-gray-500 mt-0.5">{formatAddress(loc.address)}</p>
                         )
                       )}
+                      {/* Las fotos y el video SI se enseñan aunque la
+                          direccion este oculta: son material comercial, no
+                          ubicacion. Ensenan como es el sitio, que es
+                          justamente lo que ayuda a decidir. */}
+                      <MediosDeSede
+                        fotos={loc.photos}
+                        video={loc.videoUrl}
+                        nombreSede={loc.name}
+                      />
+
                       {/* El mapa sigue a hideAddress. Enseñarlo cuando la
                           direccion esta oculta la revelaria igual: un pin es
                           mas preciso que la calle escrita. */}

@@ -26,6 +26,8 @@ export interface CreateLocationData {
   latitude?: number | null;
   longitude?: number | null;
   responsibleContactId?: string | null;
+  photos?: string[];
+  videoUrl?: string | null;
   isActive?: boolean;
 }
 
@@ -41,6 +43,8 @@ interface ApiLocation {
   isPublic: boolean | null;
   latitude: number | null;
   longitude: number | null;
+  photos: string[] | null;
+  videoUrl: string | null;
   responsibleContactId: string | null;
   responsibleContact: {
     id: string;
@@ -71,6 +75,8 @@ function toLocation(l: ApiLocation): Location {
     isPublic: l.isPublic,
     latitude: l.latitude,
     longitude: l.longitude,
+    photos: l.photos ?? [],
+    videoUrl: l.videoUrl,
     responsibleContactId: l.responsibleContactId,
     responsibleContact: l.responsibleContact
       ? {
@@ -97,6 +103,8 @@ export const createLocationInSanity = async (data: CreateLocationData) => {
     latitude: data.latitude,
     longitude: data.longitude,
     responsibleContactId: data.responsibleContactId,
+    photos: data.photos,
+    videoUrl: data.videoUrl,
     isActive: data.isActive,
   });
   return toLocation(created);
@@ -134,6 +142,8 @@ export const updateLocationInSanity = async (
     latitude: updateData.latitude,
     longitude: updateData.longitude,
     responsibleContactId: updateData.responsibleContactId,
+    photos: updateData.photos,
+    videoUrl: updateData.videoUrl,
     isActive: updateData.isActive,
   });
   return toLocation(updated);

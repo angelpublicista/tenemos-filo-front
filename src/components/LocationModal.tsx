@@ -13,6 +13,7 @@ import DepartamentoCiudad from './DepartamentoCiudad';
 import TelefonoInput from './TelefonoInput';
 import PaisFijo, { PAIS_FIJO_CODIGO } from './PaisFijo';
 import MapaUbicacion, { type Coordenadas } from './MapaUbicacion';
+import FotosDeSede from './FotosDeSede';
 import { TITULOS, type ContactoDeEmpresa } from '@/lib/company/contactos';
 import { datosCopiables, resumenDeCopia } from '@/lib/company/copiarALaSede';
 
@@ -49,6 +50,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
     email: '',
     maxCapacity: '',
     responsibleContactId: '',
+    videoUrl: '',
     // '' = sin declarar, que es como quedan las sedes anteriores a este campo.
     isPublic: '' as '' | 'si' | 'no',
     isActive: true,
@@ -61,6 +63,9 @@ const LocationModal: React.FC<LocationModalProps> = ({
    * convertirlas de ida y vuelta en cada arrastre.
    */
   const [coordenadas, setCoordenadas] = useState<Coordenadas | null>(null);
+  /** Fotos en orden; la primera es la principal. Aparte de formData: es una
+   *  lista, no un campo de texto. */
+  const [fotos, setFotos] = useState<string[]>([]);
   /**
    * La empresa, cargada una sola vez al abrir.
    *
@@ -125,10 +130,12 @@ const LocationModal: React.FC<LocationModalProps> = ({
         email: location.contactInfo?.email || '',
         maxCapacity: location.maxCapacity?.toString() || '',
         responsibleContactId: location.responsibleContactId || '',
+        videoUrl: location.videoUrl || '',
         isPublic: location.isPublic === true ? 'si' : location.isPublic === false ? 'no' : '',
         isActive: location.isActive !== false,
       });
       // Van juntas o no van: media coordenada no ubica nada.
+      setFotos(location.photos ?? []);
       setCoordenadas(
         typeof location.latitude === 'number' && typeof location.longitude === 'number'
           ? { lat: location.latitude, lng: location.longitude }
@@ -170,6 +177,12 @@ const LocationModal: React.FC<LocationModalProps> = ({
       return;
     }
 
+    const video = formData.videoUrl.trim();
+    if (video && !/^https?:\/\/\S+\.\S+/.test(video)) {
+      showError('El enlace del video no parece válido', 'Debe empezar por http:// o https://');
+      return;
+    }
+
     if (!formData.responsibleContactId) {
       showError('Elige la persona responsable de la sede');
       return;
@@ -204,6 +217,8 @@ const LocationModal: React.FC<LocationModalProps> = ({
         },
         maxCapacity: capacidad,
         responsibleContactId: formData.responsibleContactId || null,
+        photos: fotos,
+        videoUrl: formData.videoUrl.trim() || null,
         latitude: coordenadas?.lat ?? null,
         longitude: coordenadas?.lng ?? null,
         // Sin responder se manda null: "no lo he dicho" no es lo mismo que
@@ -506,6 +521,34 @@ const LocationModal: React.FC<LocationModalProps> = ({
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Fotos y video */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">Fotos y video</h3>
+              <p className="mb-4 text-sm text-gray-500 text-left">
+                Cómo se ve la sede. La primera foto es la que representa al
+                lugar; puedes cambiar el orden y cuál va primero.
+              </p>
+
+              <FotosDeSede valor={fotos} onChange={setFotos} disabled={saving} />
+
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                  Video <span className="text-gray-400">(opcional)</span>
+                </label>
+                <input
+                  type="url"
+                  value={formData.videoUrl}
+                  onChange={(e) => handleInputChange('videoUrl', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                  placeholder="https://youtube.com/watch?v=..."
+                />
+                <p className="mt-1 text-sm text-gray-500 text-left">
+                  Pega el enlace; no subimos el archivo. Los de YouTube y Vimeo
+                  se ven dentro de la página, cualquier otro se enlaza.
+                </p>
+              </div>
             </div>
 
             {/* Capacidad y acceso */}

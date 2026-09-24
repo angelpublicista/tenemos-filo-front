@@ -1,5 +1,6 @@
 "use client";
 
+import Image from 'next/image';
 import React, { useState } from 'react';
 import { 
   Location
@@ -22,6 +23,7 @@ import { BiMap, BiPhone, BiEnvelope, BiUser } from 'react-icons/bi';
 import LocationModal from './LocationModal';
 import { getCountryName } from '@/lib/constants/countries';
 import { TITULOS } from '@/lib/company/contactos';
+import { urlDeImagen } from '@/lib/images';
 
 interface LocationManagerProps {
   locations: Location[];
@@ -274,6 +276,26 @@ const LocationCard: React.FC<LocationCardProps> = ({
             </div>
           )}
         </div>
+
+        {/* La principal, que es la primera: identifica la sede de un vistazo
+            mucho mejor que su nombre. */}
+        {location.photos && location.photos.length > 0 && (
+          <div className="relative mb-4 aspect-video overflow-hidden rounded-lg bg-gray-100">
+            <Image
+              src={urlDeImagen(location.photos[0]) ?? ''}
+              alt={`Foto de ${location.name}`}
+              fill
+              className="object-cover"
+              unoptimized
+              sizes="(max-width: 768px) 100vw, 33vw"
+            />
+            {location.photos.length > 1 && (
+              <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                {location.photos.length} fotos
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Responsable. Debajo de los datos de la sede y visiblemente
             separado: son dos cosas distintas y confundirlas es justo lo que

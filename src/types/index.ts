@@ -302,6 +302,10 @@ export interface Location {
   /** Donde cae en el mapa. Van juntas o no van. */
   latitude?: number | null;
   longitude?: number | null;
+  /** Fotos en orden. La primera es la principal. */
+  photos?: string[];
+  /** Enlace del video. YouTube y Vimeo se incrustan; otros se enlazan. */
+  videoUrl?: string | null;
   /** Quien responde por la sede: un contacto de la empresa, no datos sueltos. */
   responsibleContactId?: string | null;
   responsibleContact?: {

@@ -29,7 +29,14 @@ export interface BookingLocationAddress {
 
 export interface BookingExperience extends Omit<Experience, 'locations' | 'availabilities'> {
   availabilitySchedules?: AvailabilitySchedule[];
-  locations?: Array<{ _id: string; name: string; address?: BookingLocationAddress | string; isMain?: boolean }>;
+  locations?: Array<{
+    _id: string;
+    name: string;
+    address?: BookingLocationAddress | string;
+    isMain?: boolean;
+    latitude?: number | null;
+    longitude?: number | null;
+  }>;
 }
 
 export interface SelectedAddon {

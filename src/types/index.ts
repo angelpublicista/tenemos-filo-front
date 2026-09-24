@@ -299,6 +299,9 @@ export interface Location {
   maxCapacity?: number;
   /** Si es un local abierto al publico. null/undefined = sin declarar. */
   isPublic?: boolean | null;
+  /** Donde cae en el mapa. Van juntas o no van. */
+  latitude?: number | null;
+  longitude?: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -390,6 +393,8 @@ export interface HostStep3Data {
   locationEmail?: string;
   maxCapacity?: number;
   isPublic?: boolean | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 // Tipos para experiencias
@@ -448,6 +453,9 @@ export interface Experience {
     };
     isMain?: boolean;
     maxCapacity?: number;
+    /** Donde cae en el mapa. El catalogo publico lo usa para el pin. */
+    latitude?: number | null;
+    longitude?: number | null;
   }>;
   /** Las cartas que ofrece. Mismo doble shape que `locations`. */
   menus?: Array<{

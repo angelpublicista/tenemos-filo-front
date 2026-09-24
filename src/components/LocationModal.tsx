@@ -13,6 +13,7 @@ import { COUNTRIES, COUNTRIES_MAP } from '@/lib/constants/countries';
 import DepartamentoCiudad from './DepartamentoCiudad';
 import TelefonoInput from './TelefonoInput';
 import PaisFijo, { PAIS_FIJO_CODIGO } from './PaisFijo';
+import MapaUbicacion, { type Coordenadas } from './MapaUbicacion';
 
 /**
  * El mapeo del API convierte los nulos en cadena vacia (`companyEmail ?? ''`),
@@ -72,6 +73,12 @@ const LocationModal: React.FC<LocationModalProps> = ({
   });
 
   const [saving, setSaving] = useState(false);
+  /**
+   * El pin. Aparte de formData porque son numeros y no texto, y porque el
+   * mapa las entrega ya en su forma final: meterlas ahi obligaria a
+   * convertirlas de ida y vuelta en cada arrastre.
+   */
+  const [coordenadas, setCoordenadas] = useState<Coordenadas | null>(null);
   const [loadingCompanyData, setLoadingCompanyData] = useState(false);
   const { showSuccess, showError } = useSweetAlert();
 
@@ -141,6 +148,12 @@ const LocationModal: React.FC<LocationModalProps> = ({
         isPublic: location.isPublic === true ? 'si' : location.isPublic === false ? 'no' : '',
         isActive: location.isActive !== false,
       });
+      // Van juntas o no van: media coordenada no ubica nada.
+      setCoordenadas(
+        typeof location.latitude === 'number' && typeof location.longitude === 'number'
+          ? { lat: location.latitude, lng: location.longitude }
+          : null,
+      );
     } else {
       // Para nueva sede, verificar si ya existe una principal
       const hasMainLocation = existingLocations.some(loc => loc.isMain);
@@ -205,6 +218,8 @@ const LocationModal: React.FC<LocationModalProps> = ({
           email: formData.email.trim() || undefined,
         },
         maxCapacity: capacidad,
+        latitude: coordenadas?.lat ?? null,
+        longitude: coordenadas?.lng ?? null,
         // Sin responder se manda null: "no lo he dicho" no es lo mismo que
         // "no esta abierta al publico".
         isPublic: formData.isPublic === '' ? null : formData.isPublic === 'si',
@@ -386,6 +401,22 @@ const LocationModal: React.FC<LocationModalProps> = ({
                   <div className="text-left">
                     <PaisFijo id="location-country" />
                   </div>
+                </div>
+
+                <div className="text-left">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Ubicación en el mapa
+                  </label>
+                  <MapaUbicacion
+                    valor={coordenadas}
+                    onChange={setCoordenadas}
+                    direccion={{
+                      street: formData.street,
+                      city: formData.city,
+                      state: formData.state,
+                    }}
+                    editable
+                  />
                 </div>
               </div>
             </div>

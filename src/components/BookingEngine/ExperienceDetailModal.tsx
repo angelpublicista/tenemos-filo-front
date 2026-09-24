@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { HiX, HiClock, HiUsers, HiLocationMarker, HiVideoCamera, HiCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 import type { BookingExperience, BookingLocationAddress } from '@/components/BookingEngine/MotorReservas';
+import MapaUbicacion from '@/components/MapaUbicacion';
 import { urlDeImagen } from '@/lib/images';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -319,6 +320,19 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                           <p className="text-xs text-gray-500 mt-0.5">{formatAddress(loc.address)}</p>
                         )
                       )}
+                      {/* El mapa sigue a hideAddress. Enseñarlo cuando la
+                          direccion esta oculta la revelaria igual: un pin es
+                          mas preciso que la calle escrita. */}
+                      {!experience.hideAddress &&
+                        typeof loc.latitude === 'number' &&
+                        typeof loc.longitude === 'number' && (
+                          <div className="mt-2">
+                            <MapaUbicacion
+                              valor={{ lat: loc.latitude, lng: loc.longitude }}
+                              altura="h-40"
+                            />
+                          </div>
+                        )}
                     </div>
                   );
                 })}

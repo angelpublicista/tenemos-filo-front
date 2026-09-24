@@ -58,6 +58,8 @@ export interface ApiExperience {
     isMain: boolean;
     address?: Experience['locations'] extends Array<infer L> ? L extends { address?: infer A } ? A : unknown : unknown;
     maxCapacity?: number | null;
+    latitude?: number | null;
+    longitude?: number | null;
   }>;
   menus?: ApiMenu[];
   availabilities?: Array<{
@@ -133,6 +135,9 @@ export function toExperience(e: ApiExperience): Experience {
       address: l.address as { street?: string; city?: string; state?: string; postalCode?: string; country?: string } | undefined,
       isMain: l.isMain,
       maxCapacity: l.maxCapacity ?? undefined,
+      // El mapa del catalogo se pinta con esto.
+      latitude: l.latitude ?? null,
+      longitude: l.longitude ?? null,
     })),
     menus: e.menus?.map((m) => ({
       _ref: m.id,

@@ -23,6 +23,8 @@ export interface CreateLocationData {
   /** Obligatoria: cuanta gente cabe a la vez. */
   maxCapacity?: number;
   isPublic?: boolean | null;
+  latitude?: number | null;
+  longitude?: number | null;
   isActive?: boolean;
 }
 
@@ -36,6 +38,8 @@ interface ApiLocation {
   contactInfo: Location['contactInfo'] | null;
   maxCapacity: number | null;
   isPublic: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
   isMain: boolean;
   isActive: boolean;
   createdAt: string;
@@ -55,6 +59,8 @@ function toLocation(l: ApiLocation): Location {
     contactInfo: l.contactInfo ?? undefined,
     maxCapacity: l.maxCapacity ?? undefined,
     isPublic: l.isPublic,
+    latitude: l.latitude,
+    longitude: l.longitude,
     isActive: l.isActive,
     createdAt: l.createdAt,
     updatedAt: l.updatedAt,
@@ -71,6 +77,8 @@ export const createLocationInSanity = async (data: CreateLocationData) => {
     contactInfo: data.contactInfo,
     maxCapacity: data.maxCapacity,
     isPublic: data.isPublic,
+    latitude: data.latitude,
+    longitude: data.longitude,
     isActive: data.isActive,
   });
   return toLocation(created);
@@ -105,6 +113,8 @@ export const updateLocationInSanity = async (
     contactInfo: updateData.contactInfo,
     maxCapacity: updateData.maxCapacity,
     isPublic: updateData.isPublic,
+    latitude: updateData.latitude,
+    longitude: updateData.longitude,
     isActive: updateData.isActive,
   });
   return toLocation(updated);

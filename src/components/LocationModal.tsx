@@ -9,7 +9,6 @@ import {
 import { getCompanyById } from '@/lib/sanity/companyService';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose } from 'react-icons/ai';
-import { COUNTRIES, COUNTRIES_MAP } from '@/lib/constants/countries';
 import DepartamentoCiudad from './DepartamentoCiudad';
 import TelefonoInput from './TelefonoInput';
 import PaisFijo, { PAIS_FIJO_CODIGO } from './PaisFijo';
@@ -24,21 +23,6 @@ import { TITULOS, type ContactoDeEmpresa } from '@/lib/company/contactos';
 const conValor = (v?: string | null): string | undefined => {
   const s = v?.trim();
   return s ? s : undefined;
-};
-
-const sinTildes = (s: string) =>
-  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-/**
- * La empresa guarda el pais como texto libre ("Colombia"); el select de la
- * sede trabaja con el codigo ISO ("CO"). Sin traducirlo el select se queda
- * en blanco aunque la empresa si tuviera pais.
- */
-const aCodigoDePais = (valor?: string | null): string | undefined => {
-  const v = conValor(valor);
-  if (!v) return undefined;
-  if (COUNTRIES_MAP[v.toUpperCase()]) return v.toUpperCase();
-  return COUNTRIES.find(c => sinTildes(c.name) === sinTildes(v))?.code;
 };
 
 interface LocationModalProps {

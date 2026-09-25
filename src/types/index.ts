@@ -1,5 +1,6 @@
 import type { TipoDeEmpresa, TipoDePersona } from '@/lib/company/tipos';
 import type { ContactoDeEmpresa } from '@/lib/company/contactos';
+import type { HorarioSemanal } from '@/lib/company/horarios';
 
 // Tipos para formularios de configuración de empresa por pasos
 export interface CompanyBasicInfo {
@@ -311,6 +312,8 @@ export interface Location {
   bathroomsCount?: number | null;
   /** Condiciones que hay que conocer para montar algo aqui. Texto abierto. */
   importantInfo?: string | null;
+  /** Horario semanal. Ver lib/company/horarios. */
+  openingHours?: HorarioSemanal | null;
   /** Respuesta a "¿tiene espacios diferenciados?". null = sin contestar. */
   hasRooms?: boolean | null;
   rooms?: Array<{

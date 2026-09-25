@@ -16,6 +16,13 @@ import MapaUbicacion, { type Coordenadas } from './MapaUbicacion';
 import GaleriaDeFotos from './GaleriaDeFotos';
 import SalonesDeSede, { errorDeSalon, type Salon } from './SalonesDeSede';
 import { CARACTERISTICAS, CLAVE_AUDIOVISUALES } from '@/lib/company/caracteristicas';
+import HorarioSemanal from './HorarioSemanal';
+import {
+  errorDeHorario,
+  horarioDesde,
+  horarioPorDefecto,
+  type HorarioSemanal as Horario,
+} from '@/lib/company/horarios';
 import { TITULOS, type ContactoDeEmpresa } from '@/lib/company/contactos';
 import { datosCopiables, resumenDeCopia } from '@/lib/company/copiarALaSede';
 
@@ -82,6 +89,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
   const [erroresSalones, setErroresSalones] = useState(false);
   /** Las casillas marcadas. Un Set: marcar dos veces no significa nada. */
   const [caracteristicas, setCaracteristicas] = useState<Set<string>>(new Set());
+  const [horario, setHorario] = useState<Horario>(horarioPorDefecto());
 
   const alternarCaracteristica = (clave: string) =>
     setCaracteristicas((prev) => {
@@ -164,6 +172,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
       // Van juntas o no van: media coordenada no ubica nada.
       setFotos(location.photos ?? []);
       setCaracteristicas(new Set(location.amenities ?? []));
+      setHorario(horarioDesde(location.openingHours));
       setTieneSalones(location.hasRooms === true ? 'si' : location.hasRooms === false ? 'no' : '');
       setSalones(
         (location.rooms ?? []).map((r) => ({
@@ -213,6 +222,12 @@ const LocationModal: React.FC<LocationModalProps> = ({
 
     if (!formData.city.trim()) {
       showError('Por favor ingresa la ciudad');
+      return;
+    }
+
+    const errorHorario = errorDeHorario(horario);
+    if (errorHorario) {
+      showError('Revisa el horario', errorHorario);
       return;
     }
 
@@ -287,6 +302,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
           ? Number(formData.bathroomsCount)
           : null,
         importantInfo: formData.importantInfo.trim() || null,
+        openingHours: horario,
         hasRooms: tieneSalones === '' ? null : tieneSalones === 'si',
         // Si dice que no tiene, se manda la lista vacia: contestar "no"
         // despues de haber creado salones tiene que borrarlos, o quedarian
@@ -604,6 +620,17 @@ const LocationModal: React.FC<LocationModalProps> = ({
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* El horario. El titulo depende de si la sede esta abierta al
+                publico, que se contesta justo arriba; el dato es el mismo. */}
+            <div>
+              <HorarioSemanal
+                valor={horario}
+                onChange={setHorario}
+                abiertoAlPublico={formData.isPublic !== 'no'}
+                disabled={saving}
+              />
             </div>
 
             {/* Caracteristicas: casillas, no campos. */}

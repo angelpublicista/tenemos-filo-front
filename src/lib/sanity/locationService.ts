@@ -2,6 +2,7 @@
 // para no tocar los callers (dashboard/locations, dashboard/availability,
 // CompanySetupForm, etc.). El shape de retorno se mantiene "Sanity-like".
 import { api } from '@/lib/api/client';
+import { horarioDesde, type HorarioSemanal } from '@/lib/company/horarios';
 import { Location } from '@/types';
 
 export interface CreateLocationData {
@@ -32,6 +33,7 @@ export interface CreateLocationData {
   avEquipmentDetail?: string | null;
   bathroomsCount?: number | null;
   importantInfo?: string | null;
+  openingHours?: HorarioSemanal | null;
   hasRooms?: boolean | null;
   rooms?: Array<{
     id?: string;
@@ -62,6 +64,7 @@ interface ApiLocation {
   avEquipmentDetail: string | null;
   bathroomsCount: number | null;
   importantInfo: string | null;
+  openingHours: unknown;
   hasRooms: boolean | null;
   rooms?: Array<{
     id: string;
@@ -107,6 +110,8 @@ function toLocation(l: ApiLocation): Location {
     avEquipmentDetail: l.avEquipmentDetail,
     bathroomsCount: l.bathroomsCount,
     importantInfo: l.importantInfo,
+    // Llega como Json suelto; horarioDesde lo completa si viniera a medias.
+    openingHours: l.openingHours ? horarioDesde(l.openingHours) : null,
     hasRooms: l.hasRooms,
     rooms: (l.rooms ?? []).map((r) => ({ ...r, photos: r.photos ?? [] })),
     responsibleContactId: l.responsibleContactId,
@@ -141,6 +146,7 @@ export const createLocationInSanity = async (data: CreateLocationData) => {
     avEquipmentDetail: data.avEquipmentDetail,
     bathroomsCount: data.bathroomsCount,
     importantInfo: data.importantInfo,
+    openingHours: data.openingHours,
     hasRooms: data.hasRooms,
     rooms: data.rooms,
     isActive: data.isActive,
@@ -186,6 +192,7 @@ export const updateLocationInSanity = async (
     avEquipmentDetail: updateData.avEquipmentDetail,
     bathroomsCount: updateData.bathroomsCount,
     importantInfo: updateData.importantInfo,
+    openingHours: updateData.openingHours,
     hasRooms: updateData.hasRooms,
     rooms: updateData.rooms,
     isActive: updateData.isActive,

@@ -15,7 +15,13 @@ import {
   HiXCircle,
 } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
-import { getOpportunityById, deleteOpportunity } from '@/lib/sanity/opportunityService';
+import {
+  getOpportunityById,
+  deleteOpportunity,
+  marcarPropuestaEnviada,
+} from '@/lib/sanity/opportunityService';
+import CotizacionesDeOportunidad from '@/components/CRM/CotizacionesDeOportunidad';
+import Swal from 'sweetalert2';
 import { Opportunity } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
@@ -36,13 +42,13 @@ const statusColors: Record<string, string> = {
 };
 
 const stageLabels: Record<string, string> = {
-  prospecting: 'Prospección',
+  prospecting: 'Cliente potencial',
   qualification: 'Calificación',
-  proposal: 'Propuesta',
+  proposal: 'Propuesta enviada',
   negotiation: 'Negociación',
   approval: 'Aprobación',
-  closed_won: 'Cerrado Ganado',
-  closed_lost: 'Cerrado Perdido',
+  closed_won: 'Ganado cerrado',
+  closed_lost: 'Perdido cerrado',
 };
 
 const sourceLabels: Record<string, string> = {
@@ -87,6 +93,34 @@ export default function OportunidadDetailPage() {
       loadOpportunity();
     }
   }, [opportunityId]);
+
+  /**
+   * Registrar que la propuesta salio por un canal externo.
+   *
+   * Se pide una nota corta: sin saber por donde se mando, dentro de un mes
+   * nadie sabra si el cliente recibio algo o no.
+   */
+  const registrarEnvioExterno = async () => {
+    if (!opportunity) return;
+    const { value: nota, isConfirmed } = await Swal.fire({
+      title: '¿Por dónde se la enviaste?',
+      input: 'text',
+      inputPlaceholder: 'Ej: cotización por WhatsApp',
+      showCancelButton: true,
+      confirmButtonText: 'Marcar como enviada',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#F26726',
+    });
+    if (!isConfirmed) return;
+    try {
+      await marcarPropuestaEnviada(opportunity._id, (nota as string) || undefined);
+      await loadOpportunity();
+      showSuccess('Propuesta enviada', 'La oportunidad avanzó de etapa.');
+    } catch (err) {
+      console.error('Error registrando el envío:', err);
+      showError('No pudimos registrarlo', 'Inténtalo de nuevo.');
+    }
+  };
 
   const loadOpportunity = async () => {
     setIsLoading(true);
@@ -485,6 +519,33 @@ export default function OportunidadDetailPage() {
                 )}
               </div>
             </Card>
+
+            {/* Cotizaciones de esta oportunidad, con su historial de
+                versiones. Crear una no mueve la etapa; marcarla enviada si. */}
+            <CotizacionesDeOportunidad
+              opportunityId={opportunity._id}
+              onCambio={() => void loadOpportunity()}
+            />
+
+            {/* CRM-11: la propuesta se manda mas veces por WhatsApp que desde
+                aqui, y el embudo tiene que poder reflejarlo. */}
+            {['prospecting', 'qualification'].includes(opportunity.stage) && (
+              <Card>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                  ¿Ya le enviaste la propuesta por fuera?
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Si le mandaste la cotización o el enlace del catálogo por
+                  WhatsApp o por tu propio correo, márcalo aquí para que el
+                  embudo no se quede atrás.
+                </p>
+                <div className="mt-3">
+                  <Button color="secondary" size="sm" onClick={registrarEnvioExterno}>
+                    Marcar como propuesta enviada
+                  </Button>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>

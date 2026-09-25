@@ -37,13 +37,13 @@ const statusColors: Record<string, string> = {
 };
 
 const stageLabels: Record<string, string> = {
-  prospecting: 'Prospección',
+  prospecting: 'Cliente potencial',
   qualification: 'Calificación',
-  proposal: 'Propuesta',
+  proposal: 'Propuesta enviada',
   negotiation: 'Negociación',
   approval: 'Aprobación',
-  closed_won: 'Cerrado Ganado',
-  closed_lost: 'Cerrado Perdido',
+  closed_won: 'Ganado cerrado',
+  closed_lost: 'Perdido cerrado',
 };
 
 export default function OportunidadesPage() {

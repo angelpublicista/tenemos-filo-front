@@ -1,5 +1,5 @@
 // Reescrito sobre el API. Mismas firmas para no romper callers.
-import { api } from '@/lib/api/client';
+import { api, apiEnvelope } from '@/lib/api/client';
 import { Experience } from '@/types';
 
 interface SearchParams {
@@ -11,11 +11,20 @@ interface SearchParams {
 }
 
 export interface QuoteData {
+  /**
+   * De que oportunidad sale.
+   *
+   * Con esto, el cliente y sus datos se heredan y no hay que reescribirlos; y
+   * la cotizacion entra en la serie de versiones de esa oportunidad.
+   */
+  opportunityId?: string;
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
-  eventDate: string;
-  eventTime: string;
+  // Sin fecha ni hora se puede cotizar: la propuesta queda sujeta a
+  // disponibilidad. Exigirlas obligaba a inventarse una para poder cotizar.
+  eventDate?: string;
+  eventTime?: string;
   guests: number;
   location?: string;
   experiences: string[];
@@ -119,11 +128,12 @@ export const searchExperiencesForQuote = async (params: SearchParams): Promise<E
 
 export const createQuote = async (quoteData: QuoteData): Promise<{ _id: string }> => {
   const created = await api.post<{ id: string }>('/quotes', {
+    opportunityId: quoteData.opportunityId,
     customerName: quoteData.customerName,
     customerEmail: quoteData.customerEmail,
     customerPhone: quoteData.customerPhone,
-    eventDate: quoteData.eventDate,
-    eventTime: quoteData.eventTime,
+    eventDate: quoteData.eventDate || undefined,
+    eventTime: quoteData.eventTime || undefined,
     guests: quoteData.guests,
     location: quoteData.location,
     experiences: quoteData.experiences,
@@ -197,4 +207,45 @@ export const updateQuoteStatus = async (quoteId: string, status: string) => {
   const apiStatus =
     QUOTE_STATUS_TO_API[status as keyof typeof QUOTE_STATUS_TO_API] ?? status.toUpperCase();
   return api.patch(`/quotes/${encodeURIComponent(quoteId)}/status`, { status: apiStatus });
+};
+
+
+/** Una cotizacion dentro del historial de su oportunidad. */
+export interface CotizacionDeOportunidad {
+  id: string;
+  version: number;
+  guests: number | null;
+  eventDate: string | null;
+  sentAt: string | null;
+  sentVia: 'FILO' | 'EXTERNO' | null;
+  status: string;
+  createdAt: string;
+}
+
+/**
+ * El historial de cotizaciones de una oportunidad.
+ *
+ * `vigenteId` lo calcula el API: es la enviada de version mas alta. No se
+ * deduce aqui para que no haya dos criterios de "cual manda".
+ */
+export const cotizacionesDeOportunidad = async (
+  opportunityId: string,
+): Promise<{ items: CotizacionDeOportunidad[]; vigenteId: string | null }> => {
+  // apiEnvelope y no api.get: `vigenteId` viaja en `meta`, que api.get
+  // descarta al desenvolver.
+  const res = await apiEnvelope<CotizacionDeOportunidad[]>(
+    `/quotes/por-oportunidad/${encodeURIComponent(opportunityId)}`,
+  );
+  return {
+    items: res?.data ?? [],
+    vigenteId: (res?.meta?.vigenteId as string | null | undefined) ?? null,
+  };
+};
+
+/** Marca una cotizacion como enviada; el API mueve la oportunidad. */
+export const marcarCotizacionEnviada = async (
+  quoteId: string,
+  via: 'FILO' | 'EXTERNO' = 'FILO',
+): Promise<void> => {
+  await api.post(`/quotes/${encodeURIComponent(quoteId)}/enviada`, { via });
 };

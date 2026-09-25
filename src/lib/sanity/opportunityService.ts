@@ -234,3 +234,21 @@ export const updateOpportunity = async (
 export const deleteOpportunity = async (opportunityId: string): Promise<void> => {
   await api.delete(`/opportunities/${encodeURIComponent(opportunityId)}`);
 };
+
+
+/**
+ * Registrar que la propuesta ya salio, aunque no haya salido de FILO.
+ *
+ * Mucha propuesta se manda por WhatsApp o por el correo propio. Si el CRM solo
+ * supiera de lo que envia el, el embudo estaria siempre desfasado y nadie se
+ * fiaria de el.
+ */
+export const marcarPropuestaEnviada = async (
+  opportunityId: string,
+  nota?: string,
+): Promise<void> => {
+  await api.post(
+    `/opportunities/${encodeURIComponent(opportunityId)}/propuesta-enviada`,
+    { nota },
+  );
+};

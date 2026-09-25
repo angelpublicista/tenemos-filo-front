@@ -298,6 +298,15 @@ const LocationCard: React.FC<LocationCardProps> = ({
           </div>
         )}
 
+        {location.importantInfo && (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-xs font-medium text-amber-900">Condiciones importantes</p>
+            {/* Se recorta: pueden ser varios parrafos y aqui solo hace falta
+                saber que existen. Enteras, al editar la sede. */}
+            <p className="line-clamp-2 text-xs text-amber-800">{location.importantInfo}</p>
+          </div>
+        )}
+
         {/* Las caracteristicas, como etiquetas: se ojean, no se leen. */}
         {(location.amenities?.length ?? 0) > 0 && (
           <div className="mb-4 flex flex-wrap gap-1">

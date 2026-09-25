@@ -309,6 +309,8 @@ export interface Location {
   /** Qué incluyen los audiovisuales. Solo si está esa característica. */
   avEquipmentDetail?: string | null;
   bathroomsCount?: number | null;
+  /** Condiciones que hay que conocer para montar algo aqui. Texto abierto. */
+  importantInfo?: string | null;
   /** Respuesta a "¿tiene espacios diferenciados?". null = sin contestar. */
   hasRooms?: boolean | null;
   rooms?: Array<{

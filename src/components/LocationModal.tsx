@@ -55,6 +55,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
     videoUrl: '',
     avEquipmentDetail: '',
     bathroomsCount: '',
+    importantInfo: '',
     // '' = sin declarar, que es como quedan las sedes anteriores a este campo.
     isPublic: '' as '' | 'si' | 'no',
     isActive: true,
@@ -156,6 +157,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
         videoUrl: location.videoUrl || '',
         avEquipmentDetail: location.avEquipmentDetail || '',
         bathroomsCount: location.bathroomsCount?.toString() ?? '',
+        importantInfo: location.importantInfo || '',
         isPublic: location.isPublic === true ? 'si' : location.isPublic === false ? 'no' : '',
         isActive: location.isActive !== false,
       });
@@ -284,6 +286,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
         bathroomsCount: formData.bathroomsCount.trim()
           ? Number(formData.bathroomsCount)
           : null,
+        importantInfo: formData.importantInfo.trim() || null,
         hasRooms: tieneSalones === '' ? null : tieneSalones === 'si',
         // Si dice que no tiene, se manda la lista vacia: contestar "no"
         // despues de haber creado salones tiene que borrarlos, o quedarian
@@ -688,6 +691,28 @@ const LocationModal: React.FC<LocationModalProps> = ({
                     disabled={saving}
                     placeholder="Ej: 3"
                     className="w-full max-w-[9rem] rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-[#F26726]"
+                  />
+                </div>
+
+                {/* Un campo abierto en vez de veinte casillas mas: las
+                    condiciones de un local son demasiado particulares para
+                    anticiparlas. */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Información importante sobre la sede
+                  </label>
+                  <p className="mb-2 text-sm text-gray-500">
+                    Incluye cualquier condición que debamos conocer para realizar
+                    experiencias o eventos en este espacio.
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={formData.importantInfo}
+                    onChange={(e) => handleInputChange('importantInfo', e.target.value)}
+                    disabled={saving}
+                    maxLength={2000}
+                    placeholder="Ej: restricciones de ruido después de las 10 p. m., acceso de proveedores por la puerta trasera, montaje desde las 8 a. m., hay escaleras sin ascensor, no se permite catering externo, parqueadero limitado a 5 vehículos…"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-[#F26726]"
                   />
                 </div>
               </div>

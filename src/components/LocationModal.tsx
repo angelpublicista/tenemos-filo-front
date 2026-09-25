@@ -225,10 +225,14 @@ const LocationModal: React.FC<LocationModalProps> = ({
       return;
     }
 
-    const errorHorario = errorDeHorario(horario);
-    if (errorHorario) {
-      showError('Revisa el horario', errorHorario);
-      return;
+    // Solo si se enseño: sin contestar la pregunta de arriba, el horario no
+    // esta en pantalla y no hay nada que revisar.
+    if (formData.isPublic !== '') {
+      const errorHorario = errorDeHorario(horario);
+      if (errorHorario) {
+        showError('Revisa el horario', errorHorario);
+        return;
+      }
     }
 
     const baños = formData.bathroomsCount.trim();
@@ -302,7 +306,9 @@ const LocationModal: React.FC<LocationModalProps> = ({
           ? Number(formData.bathroomsCount)
           : null,
         importantInfo: formData.importantInfo.trim() || null,
-        openingHours: horario,
+        // Sin contestar si esta abierta al publico, el horario no se enseño:
+        // guardar el de por defecto seria inventarse un dato que nadie dio.
+        openingHours: formData.isPublic === '' ? null : horario,
         hasRooms: tieneSalones === '' ? null : tieneSalones === 'si',
         // Si dice que no tiene, se manda la lista vacia: contestar "no"
         // despues de haber creado salones tiene que borrarlos, o quedarian
@@ -622,16 +628,75 @@ const LocationModal: React.FC<LocationModalProps> = ({
               )}
             </div>
 
-            {/* El horario. El titulo depende de si la sede esta abierta al
-                publico, que se contesta justo arriba; el dato es el mismo. */}
+            {/* Capacidad y acceso */}
             <div>
-              <HorarioSemanal
-                valor={horario}
-                onChange={setHorario}
-                abiertoAlPublico={formData.isPublic !== 'no'}
-                disabled={saving}
-              />
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Capacidad y acceso</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                    ¿Es un establecimiento abierto al público?
+                  </label>
+                  <div className="flex gap-3">
+                    {([
+                      { valor: 'si', texto: 'Sí' },
+                      { valor: 'no', texto: 'No' },
+                    ] as const).map((o) => (
+                      <label
+                        key={o.valor}
+                        className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm transition-colors ${
+                          formData.isPublic === o.valor
+                            ? 'border-[#F26726] bg-orange-50 text-[#F26726] font-medium'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="isPublic"
+                          value={o.valor}
+                          checked={formData.isPublic === o.valor}
+                          onChange={(e) => handleInputChange('isPublic', e.target.value)}
+                          className="accent-[#F26726]"
+                        />
+                        {o.texto}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                    Capacidad máxima de la sede <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.maxCapacity}
+                    onChange={(e) => handleInputChange('maxCapacity', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+                    placeholder="Ej: 100"
+                    min="1"
+                    required
+                  />
+                  <p className="mt-1 text-sm text-gray-500 text-left">
+                    Número máximo de personas que puede recibir simultáneamente.
+                  </p>
+                </div>
+              </div>
             </div>
+
+            {/* El horario depende de la pregunta de arriba y no se enseña
+                hasta contestarla: sin respuesta habria que titularlo de una de
+                las dos formas, y eso es adivinar. */}
+            {formData.isPublic !== '' && (
+              <div>
+                <HorarioSemanal
+                  valor={horario}
+                  onChange={setHorario}
+                  abiertoAlPublico={formData.isPublic === 'si'}
+                  disabled={saving}
+                />
+              </div>
+            )}
 
             {/* Caracteristicas: casillas, no campos. */}
             <div>
@@ -825,61 +890,6 @@ const LocationModal: React.FC<LocationModalProps> = ({
               </div>
             </div>
 
-            {/* Capacidad y acceso */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Capacidad y acceso</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                    ¿Es un establecimiento abierto al público?
-                  </label>
-                  <div className="flex gap-3">
-                    {([
-                      { valor: 'si', texto: 'Sí' },
-                      { valor: 'no', texto: 'No' },
-                    ] as const).map((o) => (
-                      <label
-                        key={o.valor}
-                        className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm transition-colors ${
-                          formData.isPublic === o.valor
-                            ? 'border-[#F26726] bg-orange-50 text-[#F26726] font-medium'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="isPublic"
-                          value={o.valor}
-                          checked={formData.isPublic === o.valor}
-                          onChange={(e) => handleInputChange('isPublic', e.target.value)}
-                          className="accent-[#F26726]"
-                        />
-                        {o.texto}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                    Capacidad máxima de la sede <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.maxCapacity}
-                    onChange={(e) => handleInputChange('maxCapacity', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                    placeholder="Ej: 100"
-                    min="1"
-                    required
-                  />
-                  <p className="mt-1 text-sm text-gray-500 text-left">
-                    Número máximo de personas que puede recibir simultáneamente.
-                  </p>
-                </div>
-              </div>
-            </div>
           </form>
         </div>
 

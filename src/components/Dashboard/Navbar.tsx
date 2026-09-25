@@ -7,9 +7,10 @@ import FiloLogo from "@/components/FiloLogo";
 import { useEffect, useState } from "react";
 import { HiPlus, HiMenu } from "react-icons/hi";
 import NotificationBell from "@/components/Notifications/NotificationBell";
+import NuevaSolicitudModal from "@/components/CRM/NuevaSolicitudModal";
 import CompanySwitcher from "@/components/Admin/CompanySwitcher";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -18,6 +19,7 @@ interface NavbarProps {
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const { user, sanityUser, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   // El bloque de acciones depende de auth (sanityUser?.role) y monta el
   // Dropdown de flowbite (que usa useId via @floating-ui). Para evitar
@@ -55,6 +57,8 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
     if (pathname?.startsWith('/dashboard/experiences')) return null;
     return { href: '/dashboard/experiences/create', label: 'Crear experiencia' };
   })();
+
+  const [solicitudAbierta, setSolicitudAbierta] = useState(false);
 
   const getUserDisplayName = () => sanityUser?.name || user?.email || 'Usuario';
 
@@ -96,6 +100,20 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             <HiPlus className="w-4 h-4 shrink-0" />
             {accionRapida.label}
           </Link>
+        )}
+
+        {/* Nueva solicitud: el punto de entrada del CRM, desde cualquier
+            pantalla. Un lead llega por WhatsApp mientras se mira otra cosa, y
+            tener que navegar hasta el CRM es como se pierden. */}
+        {sanityUser?.role === 'host' && (
+          <button
+            type="button"
+            onClick={() => setSolicitudAbierta(true)}
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-[#F26726] px-3 py-1.5 text-sm text-[#F26726] transition-colors hover:bg-orange-50"
+          >
+            <HiPlus className="h-4 w-4 shrink-0" />
+            Nueva solicitud
+          </button>
         )}
 
         <NotificationBell />
@@ -164,6 +182,12 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
         </>
         )}
       </div>
+
+      <NuevaSolicitudModal
+        abierto={solicitudAbierta}
+        onClose={() => setSolicitudAbierta(false)}
+        onCreada={(id) => router.push(`/dashboard/crm/oportunidades/${id}`)}
+      />
     </header>
   );
 }

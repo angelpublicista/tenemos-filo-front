@@ -304,6 +304,11 @@ export interface Location {
   longitude?: number | null;
   /** Fotos en orden. La primera es la principal. */
   photos?: string[];
+  /** Lo que ofrece la sede, como claves. Ver lib/company/caracteristicas. */
+  amenities?: string[];
+  /** Qué incluyen los audiovisuales. Solo si está esa característica. */
+  avEquipmentDetail?: string | null;
+  bathroomsCount?: number | null;
   /** Respuesta a "¿tiene espacios diferenciados?". null = sin contestar. */
   hasRooms?: boolean | null;
   rooms?: Array<{

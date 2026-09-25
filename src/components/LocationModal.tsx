@@ -15,6 +15,7 @@ import PaisFijo, { PAIS_FIJO_CODIGO } from './PaisFijo';
 import MapaUbicacion, { type Coordenadas } from './MapaUbicacion';
 import GaleriaDeFotos from './GaleriaDeFotos';
 import SalonesDeSede, { errorDeSalon, type Salon } from './SalonesDeSede';
+import { CARACTERISTICAS, CLAVE_AUDIOVISUALES } from '@/lib/company/caracteristicas';
 import { TITULOS, type ContactoDeEmpresa } from '@/lib/company/contactos';
 import { datosCopiables, resumenDeCopia } from '@/lib/company/copiarALaSede';
 
@@ -52,6 +53,8 @@ const LocationModal: React.FC<LocationModalProps> = ({
     maxCapacity: '',
     responsibleContactId: '',
     videoUrl: '',
+    avEquipmentDetail: '',
+    bathroomsCount: '',
     // '' = sin declarar, que es como quedan las sedes anteriores a este campo.
     isPublic: '' as '' | 'si' | 'no',
     isActive: true,
@@ -76,6 +79,16 @@ const LocationModal: React.FC<LocationModalProps> = ({
   const [tieneSalones, setTieneSalones] = useState<'' | 'si' | 'no'>('');
   const [salones, setSalones] = useState<Salon[]>([]);
   const [erroresSalones, setErroresSalones] = useState(false);
+  /** Las casillas marcadas. Un Set: marcar dos veces no significa nada. */
+  const [caracteristicas, setCaracteristicas] = useState<Set<string>>(new Set());
+
+  const alternarCaracteristica = (clave: string) =>
+    setCaracteristicas((prev) => {
+      const siguiente = new Set(prev);
+      if (siguiente.has(clave)) siguiente.delete(clave);
+      else siguiente.add(clave);
+      return siguiente;
+    });
   /**
    * La empresa, cargada una sola vez al abrir.
    *
@@ -141,11 +154,14 @@ const LocationModal: React.FC<LocationModalProps> = ({
         maxCapacity: location.maxCapacity?.toString() || '',
         responsibleContactId: location.responsibleContactId || '',
         videoUrl: location.videoUrl || '',
+        avEquipmentDetail: location.avEquipmentDetail || '',
+        bathroomsCount: location.bathroomsCount?.toString() ?? '',
         isPublic: location.isPublic === true ? 'si' : location.isPublic === false ? 'no' : '',
         isActive: location.isActive !== false,
       });
       // Van juntas o no van: media coordenada no ubica nada.
       setFotos(location.photos ?? []);
+      setCaracteristicas(new Set(location.amenities ?? []));
       setTieneSalones(location.hasRooms === true ? 'si' : location.hasRooms === false ? 'no' : '');
       setSalones(
         (location.rooms ?? []).map((r) => ({
@@ -195,6 +211,12 @@ const LocationModal: React.FC<LocationModalProps> = ({
 
     if (!formData.city.trim()) {
       showError('Por favor ingresa la ciudad');
+      return;
+    }
+
+    const baños = formData.bathroomsCount.trim();
+    if (baños && (!Number.isInteger(Number(baños)) || Number(baños) < 0)) {
+      showError('El número de baños debe ser un número entero');
       return;
     }
 
@@ -253,6 +275,15 @@ const LocationModal: React.FC<LocationModalProps> = ({
         responsibleContactId: formData.responsibleContactId || null,
         photos: fotos,
         videoUrl: formData.videoUrl.trim() || null,
+        amenities: [...caracteristicas],
+        // La frase solo se manda si la casilla esta marcada; el API la borra
+        // igualmente si no, pero mandarla seria decir algo que no se sostiene.
+        avEquipmentDetail: caracteristicas.has(CLAVE_AUDIOVISUALES)
+          ? formData.avEquipmentDetail.trim() || null
+          : null,
+        bathroomsCount: formData.bathroomsCount.trim()
+          ? Number(formData.bathroomsCount)
+          : null,
         hasRooms: tieneSalones === '' ? null : tieneSalones === 'si',
         // Si dice que no tiene, se manda la lista vacia: contestar "no"
         // despues de haber creado salones tiene que borrarlos, o quedarian
@@ -570,6 +601,96 @@ const LocationModal: React.FC<LocationModalProps> = ({
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Caracteristicas: casillas, no campos. */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Características de la sede
+              </h3>
+
+              <div className="space-y-5 text-left">
+                <div>
+                  <p className="mb-2 text-sm font-medium text-gray-700">
+                    Espacios y facilidades
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {CARACTERISTICAS.map((c) => (
+                      <label
+                        key={c.clave}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          caracteristicas.has(c.clave)
+                            ? 'border-[#F26726] bg-orange-50'
+                            : 'border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={caracteristicas.has(c.clave)}
+                          onChange={() => alternarCaracteristica(c.clave)}
+                          disabled={saving}
+                          className="accent-[#F26726]"
+                        />
+                        <span className="text-gray-700">{c.etiqueta}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-sm font-medium text-gray-700">Audiovisuales</p>
+                  <label
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                      caracteristicas.has(CLAVE_AUDIOVISUALES)
+                        ? 'border-[#F26726] bg-orange-50'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={caracteristicas.has(CLAVE_AUDIOVISUALES)}
+                      onChange={() => alternarCaracteristica(CLAVE_AUDIOVISUALES)}
+                      disabled={saving}
+                      className="accent-[#F26726]"
+                    />
+                    <span className="text-gray-700">Equipos audiovisuales disponibles</span>
+                  </label>
+
+                  {/* El detalle solo aparece si la casilla esta marcada: sin
+                      ella no describe nada. */}
+                  {caracteristicas.has(CLAVE_AUDIOVISUALES) && (
+                    <div className="mt-3">
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        ¿Qué incluye? <span className="text-gray-400">(opcional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.avEquipmentDetail}
+                        onChange={(e) => handleInputChange('avEquipmentDetail', e.target.value)}
+                        disabled={saving}
+                        maxLength={300}
+                        placeholder="Ej: TV, video beam, pantalla, sonido y 2 micrófonos"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-[#F26726]"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Número de baños
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.bathroomsCount}
+                    onChange={(e) => handleInputChange('bathroomsCount', e.target.value)}
+                    disabled={saving}
+                    placeholder="Ej: 3"
+                    className="w-full max-w-[9rem] rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-[#F26726]"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Espacios / salones. Se pregunta primero: si la sede funciona

@@ -23,6 +23,7 @@ import { BiMap, BiPhone, BiEnvelope, BiUser } from 'react-icons/bi';
 import LocationModal from './LocationModal';
 import { getCountryName } from '@/lib/constants/countries';
 import { TITULOS } from '@/lib/company/contactos';
+import { etiquetaDeCaracteristica } from '@/lib/company/caracteristicas';
 import { urlDeImagen } from '@/lib/images';
 
 interface LocationManagerProps {
@@ -292,6 +293,25 @@ const LocationCard: React.FC<LocationCardProps> = ({
             {location.photos.length > 1 && (
               <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
                 {location.photos.length} fotos
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Las caracteristicas, como etiquetas: se ojean, no se leen. */}
+        {(location.amenities?.length ?? 0) > 0 && (
+          <div className="mb-4 flex flex-wrap gap-1">
+            {location.amenities?.map((a) => (
+              <span
+                key={a}
+                className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+              >
+                {etiquetaDeCaracteristica(a)}
+              </span>
+            ))}
+            {typeof location.bathroomsCount === 'number' && (
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                {location.bathroomsCount} baños
               </span>
             )}
           </div>

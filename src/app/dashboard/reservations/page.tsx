@@ -30,6 +30,8 @@ import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import { getReservationById, getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
 import { Experience, Reservation } from '@/types';
 import CreateReservationModal from '@/components/CreateReservationModal';
+import OportunidadesDelDia from '@/components/CRM/OportunidadesDelDia';
+import { getAgenda, oportunidadesDelDia, type OportunidadEnAgenda } from '@/lib/crm/agenda';
 import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
 
 interface ReservationStats {
@@ -75,6 +77,11 @@ export default function ReservationsPage() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'calendar'>('calendar');
   const [currentDate, setCurrentDate] = useState(new Date()); // Fecha actual (Hoy)
+
+  // CRM-12/13. Las oportunidades con fecha tentativa que miran al periodo
+  // visible. No son reservas y no bloquean nada, pero mirar un sabado sin
+  // verlas lleva a venderlo dos veces o a dejarlo libre por error.
+  const [oportunidades, setOportunidades] = useState<OportunidadEnAgenda[]>([]);
 
   // Estados para el calendario
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -145,6 +152,24 @@ export default function ReservationsPage() {
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sanityUser]);
+
+  // Un margen generoso alrededor del mes: la rejilla enseña dias del mes
+  // anterior y del siguiente, y una oportunidad justo en el borde tiene que
+  // salir igual.
+  useEffect(() => {
+    if (!sanityUser?.companyId || viewMode !== 'calendar') return;
+    const desde = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const hasta = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0, 23, 59, 59);
+    let vigente = true;
+    getAgenda(desde, hasta)
+      .then((data) => { if (vigente) setOportunidades(data); })
+      .catch(() => {
+        // La agenda es informativa: si falla, el calendario de reservas
+        // —que es lo que de verdad manda— tiene que seguir funcionando.
+        if (vigente) setOportunidades([]);
+      });
+    return () => { vigente = false; };
+  }, [sanityUser?.companyId, currentDate, viewMode]);
 
   // Funciones para el calendario
   const getDaysInMonth = (date: Date) => {
@@ -696,6 +721,14 @@ export default function ReservationsPage() {
                       </span>
                     </button>
                   )}
+
+                  {/* CRM-12/13: propuestas con fecha tentativa. En discontinuo
+                      porque no ocupan el espacio. */}
+                  <OportunidadesDelDia
+                    dia={date}
+                    oportunidades={oportunidadesDelDia(oportunidades, date)}
+                    compacto
+                  />
                 </div>
               </div>
             );
@@ -746,6 +779,10 @@ export default function ReservationsPage() {
                       >
                         Ver todas
                       </button>
+                      <OportunidadesDelDia
+                        dia={day}
+                        oportunidades={oportunidadesDelDia(oportunidades, day)}
+                      />
                     </div>
             
                     <div className="space-y-2">
@@ -792,6 +829,12 @@ export default function ReservationsPage() {
                     HOY
                   </Badge>
                 )}
+                {/* En la cabecera y no dentro de una hora: una propuesta puede
+                    traer fecha sin hora, y ahi no cabria en ningun tramo. */}
+                <OportunidadesDelDia
+                  dia={currentDate}
+                  oportunidades={oportunidadesDelDia(oportunidades, currentDate)}
+                />
               </div>
             </div>
             

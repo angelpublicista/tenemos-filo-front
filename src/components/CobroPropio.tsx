@@ -56,6 +56,7 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
   if (cargando) return null;
 
   const activa = estado?.enabled === true;
+  const esMercadoPago = proveedor === 'MERCADO_PAGO';
 
   const enviar = async (cambios: Parameters<typeof guardarPasarela>[1]) => {
     setGuardando(true);
@@ -81,16 +82,22 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
     }
   };
 
-  const guardarLlaves = () => {
+  /**
+   * Lo que hay que mandar: proveedor, entorno y solo los secretos escritos.
+   *
+   * Un campo en blanco es "no lo toques", no "bórralo" —borrar se hace
+   * apagando la pasarela— y por eso no viajan los vacíos.
+   */
+  const cambiosPendientes = (): Parameters<typeof guardarPasarela>[1] => {
     const cambios: Parameters<typeof guardarPasarela>[1] = { provider: proveedor, environment: entorno };
-    // Solo viajan los que se escribieron: un campo en blanco es "no lo toques",
-    // no "bórralo". Borrar se hace apagando la pasarela.
     if (secretos.publicKey !== (estado?.publicKey ?? '')) cambios.publicKey = secretos.publicKey;
     if (secretos.privateKey) cambios.privateKey = secretos.privateKey;
     if (secretos.integritySecret) cambios.integritySecret = secretos.integritySecret;
     if (secretos.eventsSecret) cambios.eventsSecret = secretos.eventsSecret;
-    return enviar(cambios);
+    return cambios;
   };
+
+  const guardarLlaves = () => enviar(cambiosPendientes());
 
   const alternar = async () => {
     if (activa) {
@@ -121,7 +128,10 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
       ],
     );
     if (!ok) return;
-    return enviar({ provider: proveedor, environment: entorno, enabled: true });
+    // Van también las credenciales que acaba de escribir. Sin esto, activar
+    // justo después de teclearlas fallaba diciendo que faltaban, con el campo
+    // lleno delante.
+    return enviar({ ...cambiosPendientes(), enabled: true });
   };
 
   return (
@@ -158,7 +168,7 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
             onChange={(e) => setProveedor(e.target.value as ProveedorDePago)}
           >
             <option value="WOMPI">Wompi</option>
-            <option value="MERCADO_PAGO">Mercado Pago (aún no disponible)</option>
+            <option value="MERCADO_PAGO">Mercado Pago</option>
           </Select>
         </div>
         <div>
@@ -172,74 +182,142 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
             <option value="PRODUCTION">Producción</option>
           </Select>
           <p className="mt-1 text-xs text-gray-500">
-            Las llaves de Wompi llevan el entorno dentro (<code>_test_</code> o <code>_prod_</code>);
-            si no coinciden, los pagos no entran y cuesta darse cuenta.
+            {esMercadoPago ? (
+              <>
+                Las credenciales de prueba de Mercado Pago empiezan por <code>TEST-</code>; si no
+                coinciden con el entorno, los pagos no entran y cuesta darse cuenta.
+              </>
+            ) : (
+              <>
+                Las llaves de Wompi llevan el entorno dentro (<code>_test_</code> o{' '}
+                <code>_prod_</code>); si no coinciden, los pagos no entran y cuesta darse cuenta.
+              </>
+            )}
           </p>
         </div>
 
-        <div className="md:col-span-2">
-          <Label htmlFor="pas-publica">Llave pública</Label>
-          <TextInput
-            id="pas-publica"
-            value={secretos.publicKey}
-            placeholder="pub_test_..."
-            onChange={(e) => setSecretos((s) => ({ ...s, publicKey: e.target.value }))}
-          />
-        </div>
+        {/* Cada pasarela pide cosas distintas. Mercado Pago cobra creando una
+            preferencia desde el servidor y le basta su access token; Wompi
+            firma en el navegador y necesita llave pública y secreto de
+            integridad. Enseñar los cuatro campos siempre haría que la mitad
+            pareciera obligatoria sin serlo. */}
+        {esMercadoPago ? (
+          <>
+            <div className="md:col-span-2">
+              <Label htmlFor="pas-privada">
+                Access token {estado?.privateKeyConfigured && '· guardado'}
+              </Label>
+              <TextInput
+                id="pas-privada"
+                type="password"
+                autoComplete="off"
+                value={secretos.privateKey}
+                placeholder={
+                  estado?.privateKeyConfigured
+                    ? 'Déjalo en blanco para no cambiarlo'
+                    : entorno === 'SANDBOX' ? 'TEST-...' : 'APP_USR-...'
+                }
+                onChange={(e) => setSecretos((s) => ({ ...s, privateKey: e.target.value }))}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Está en tu panel de Mercado Pago, en Tus integraciones → Credenciales.
+              </p>
+            </div>
 
-        <div>
-          <Label htmlFor="pas-integridad">
-            Secreto de integridad {estado?.integritySecretConfigured && '· guardado'}
-          </Label>
-          <TextInput
-            id="pas-integridad"
-            type="password"
-            autoComplete="off"
-            value={secretos.integritySecret}
-            placeholder={estado?.integritySecretConfigured ? 'Déjalo en blanco para no cambiarlo' : ''}
-            onChange={(e) => setSecretos((s) => ({ ...s, integritySecret: e.target.value }))}
-          />
-        </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="pas-eventos">
+                Clave secreta de notificaciones {estado?.eventsSecretConfigured && '· guardada'}
+              </Label>
+              <TextInput
+                id="pas-eventos"
+                type="password"
+                autoComplete="off"
+                value={secretos.eventsSecret}
+                placeholder={estado?.eventsSecretConfigured ? 'Déjala en blanco para no cambiarla' : 'Opcional'}
+                onChange={(e) => setSecretos((s) => ({ ...s, eventsSecret: e.target.value }))}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Opcional: cobras igual sin ella. Sirve para comprobar que las notificaciones
+                vienen de verdad de Mercado Pago.
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="md:col-span-2">
+              <Label htmlFor="pas-publica">Llave pública</Label>
+              <TextInput
+                id="pas-publica"
+                value={secretos.publicKey}
+                placeholder="pub_test_..."
+                onChange={(e) => setSecretos((s) => ({ ...s, publicKey: e.target.value }))}
+              />
+            </div>
 
-        <div>
-          <Label htmlFor="pas-eventos">
-            Secreto de eventos {estado?.eventsSecretConfigured && '· guardado'}
-          </Label>
-          <TextInput
-            id="pas-eventos"
-            type="password"
-            autoComplete="off"
-            value={secretos.eventsSecret}
-            placeholder={estado?.eventsSecretConfigured ? 'Déjalo en blanco para no cambiarlo' : ''}
-            onChange={(e) => setSecretos((s) => ({ ...s, eventsSecret: e.target.value }))}
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Sin él no sabremos cuándo te pagan: la reserva se quedaría sin confirmar aunque el
-            cliente haya pagado.
-          </p>
-        </div>
+            <div>
+              <Label htmlFor="pas-integridad">
+                Secreto de integridad {estado?.integritySecretConfigured && '· guardado'}
+              </Label>
+              <TextInput
+                id="pas-integridad"
+                type="password"
+                autoComplete="off"
+                value={secretos.integritySecret}
+                placeholder={estado?.integritySecretConfigured ? 'Déjalo en blanco para no cambiarlo' : ''}
+                onChange={(e) => setSecretos((s) => ({ ...s, integritySecret: e.target.value }))}
+              />
+            </div>
 
-        <div className="md:col-span-2">
-          <Label htmlFor="pas-privada">
-            Llave privada {estado?.privateKeyConfigured && '· guardada'}
-          </Label>
-          <TextInput
-            id="pas-privada"
-            type="password"
-            autoComplete="off"
-            value={secretos.privateKey}
-            placeholder={estado?.privateKeyConfigured ? 'Déjalo en blanco para no cambiarla' : 'Opcional'}
-            onChange={(e) => setSecretos((s) => ({ ...s, privateKey: e.target.value }))}
-          />
-        </div>
+            <div>
+              <Label htmlFor="pas-eventos">
+                Secreto de eventos {estado?.eventsSecretConfigured && '· guardado'}
+              </Label>
+              <TextInput
+                id="pas-eventos"
+                type="password"
+                autoComplete="off"
+                value={secretos.eventsSecret}
+                placeholder={estado?.eventsSecretConfigured ? 'Déjalo en blanco para no cambiarlo' : ''}
+                onChange={(e) => setSecretos((s) => ({ ...s, eventsSecret: e.target.value }))}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Sin él no sabremos cuándo te pagan: la reserva se quedaría sin confirmar aunque el
+                cliente haya pagado.
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <Label htmlFor="pas-privada">
+                Llave privada {estado?.privateKeyConfigured && '· guardada'}
+              </Label>
+              <TextInput
+                id="pas-privada"
+                type="password"
+                autoComplete="off"
+                value={secretos.privateKey}
+                placeholder={estado?.privateKeyConfigured ? 'Déjalo en blanco para no cambiarla' : 'Opcional'}
+                onChange={(e) => setSecretos((s) => ({ ...s, privateKey: e.target.value }))}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <p className="mt-4 text-xs text-gray-500">
-        En el panel de tu pasarela, apunta los eventos a{' '}
-        <code className="rounded bg-gray-100 px-1">
-          {process.env.NEXT_PUBLIC_API_URL ?? ''}/payments/wompi/webhook
-        </code>
-        . Tus llaves se guardan cifradas y no se vuelven a mostrar, ni siquiera a ti.
+        {esMercadoPago ? (
+          <>
+            No tienes que configurar ninguna URL: se la indicamos a Mercado Pago en cada cobro.{' '}
+          </>
+        ) : (
+          <>
+            En el panel de Wompi, apunta los eventos a{' '}
+            <code className="rounded bg-gray-100 px-1">
+              {process.env.NEXT_PUBLIC_API_URL ?? ''}/payments/wompi/webhook
+            </code>
+            .{' '}
+          </>
+        )}
+        Tus credenciales se guardan cifradas y no se vuelven a mostrar, ni siquiera a ti.
       </p>
 
       <div className="mt-4">

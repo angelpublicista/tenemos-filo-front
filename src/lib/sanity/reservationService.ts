@@ -1,6 +1,6 @@
 // Reescrito sobre el API. Conserva firmas para no tocar callers.
 import { api, apiFetch } from '@/lib/api/client';
-import type { DatosCheckout } from '@/components/BookingEngine/WompiCheckoutButton';
+import type { DatosCheckout } from '@/components/BookingEngine/BotonDePago';
 import {
   Reservation,
   CreateReservationData,

@@ -13,7 +13,7 @@ import DateTimeStep from '@/components/BookingEngine/DateTimeStep';
 import ContactStep from '@/components/BookingEngine/ContactStep';
 import ConfirmationStep from '@/components/BookingEngine/ConfirmationStep';
 import FiloLogo from '@/components/FiloLogo';
-import WompiCheckoutButton, { type DatosCheckout } from '@/components/BookingEngine/WompiCheckoutButton';
+import BotonDePago, { type DatosCheckout } from '@/components/BookingEngine/BotonDePago';
 import { SkeletonCard } from '@/components/Skeleton';
 import { urlDeImagen } from '@/lib/images';
 import PortadaCatalogo from '@/components/BookingEngine/PortadaCatalogo';
@@ -102,7 +102,9 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   const [step, setStep] = useState<Step>('experiences');
   const [booking, setBooking] = useState<Partial<BookingData>>({});
   const [reservationNumber, setReservationNumber] = useState('');
-  // Datos firmados para cobrar; llegan con la reserva si Wompi esta activo.
+  // Con que cobrar; llega con la reserva si hay pasarela activa. La forma
+  // depende de cual sea: Wompi manda un formulario firmado y Mercado Pago una
+  // URL ya creada.
   const [pago, setPago] = useState<DatosCheckout | null>(null);
   // Lo dice el catalogo, no el cliente: si la pasarela esta apagada el
   // resumen no debe anunciar un cobro en linea.
@@ -352,7 +354,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
 
       {pago && (
         <div className="max-w-sm mx-auto mb-6">
-          <WompiCheckoutButton datos={pago} />
+          <BotonDePago datos={pago} />
         </div>
       )}
 

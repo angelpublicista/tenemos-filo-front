@@ -7,9 +7,9 @@ import { HiCheckCircle, HiClock, HiXCircle } from 'react-icons/hi';
 import { getEstadoReserva, type EstadoReserva } from '@/lib/api/catalog';
 
 /**
- * A donde vuelve el cliente desde Wompi.
+ * A donde vuelve el cliente desde la pasarela, sea cual sea.
  *
- * Es la URL que el API firma como `redirect-url` del checkout. Hasta ahora
+ * Es la URL que el API pone como retorno del checkout. Hasta ahora
  * no existia: se pagaba y se aterrizaba en un 404, sin saber si el cobro
  * habia entrado.
  *
@@ -39,7 +39,7 @@ export default function PaginaRetornoPago() {
   const [noEncontrada, setNoEncontrada] = useState(false);
   const [sondeando, setSondeando] = useState(true);
 
-  // El pago lo confirma el webhook de Wompi, que llega por su cuenta y unos
+  // El pago lo confirma el webhook de la pasarela, que llega por su cuenta y unos
   // segundos despues del redirect. Por eso se pregunta varias veces en vez
   // de una: si se resolviera de una sola lectura, casi siempre saldria
   // "pendiente" en un cobro que si entro.

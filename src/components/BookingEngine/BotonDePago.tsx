@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { HiLockClosed } from 'react-icons/hi';
+import LogoDePasarela from '@/components/LogoDePasarela';
 
 /**
  * Lo que hace falta para llevar al cliente a pagar.
@@ -34,22 +35,28 @@ export type CheckoutMercadoPago = {
 
 export type DatosCheckout = CheckoutWompi | CheckoutMercadoPago;
 
-const NOMBRE: Record<DatosCheckout['proveedor'], string> = {
-  WOMPI: 'Wompi',
-  MERCADO_PAGO: 'Mercado Pago',
-};
-
 const pesos = (monto: number, moneda: string) =>
   monto.toLocaleString('es-CO', { style: 'currency', currency: moneda, maximumFractionDigits: 0 });
 
+/**
+ * Quién procesa el cobro, con su logo.
+ *
+ * Al comensal le importa: está a punto de meter su tarjeta y reconocer la
+ * marca es lo que le dice que está en un sitio conocido. El logo va sobre
+ * blanco siempre —los dos son oscuros y el fondo de la página podría no
+ * serlo— y a un tamaño discreto: acompaña al botón, no compite con él.
+ */
 function Pie({ datos }: { datos: DatosCheckout }) {
   return (
-    <p className="text-xs text-gray-400 text-center">
-      Pago seguro procesado por {NOMBRE[datos.proveedor]}
+    <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-400">
+      <span>Pago seguro procesado por</span>
+      <span className="inline-flex items-center rounded bg-white px-1.5 py-1">
+        <LogoDePasarela pasarela={datos.proveedor} alto={10} />
+      </span>
       {datos.environment === 'SANDBOX' && (
-        <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">modo pruebas</span>
+        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">modo pruebas</span>
       )}
-    </p>
+    </div>
   );
 }
 

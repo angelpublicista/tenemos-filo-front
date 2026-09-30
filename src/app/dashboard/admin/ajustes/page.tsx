@@ -5,6 +5,7 @@ import { Badge, Button, Card, Select, TextInput, ToggleSwitch } from 'flowbite-r
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { AdminHeader } from '@/components/Admin/AdminTable';
 import CommissionInput from '@/components/Admin/CommissionInput';
+import LogoDePasarela from '@/components/LogoDePasarela';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
   getSettings,
@@ -221,7 +222,10 @@ export default function AdminAjustesPage() {
         <Card>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Pasarela de pagos (Wompi)</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-semibold text-gray-900">Pasarela de pagos</h2>
+                <LogoDePasarela pasarela="WOMPI" alto={12} />
+              </div>
               <p className="text-sm text-gray-600">
                 Las experiencias se cobran a través de Wompi y el dinero entra a Tenemos Filo;
                 después se reparte desde Dispersiones.

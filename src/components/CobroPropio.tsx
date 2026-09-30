@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button, Label, Select, TextInput, ToggleSwitch } from 'flowbite-react';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import LogoDePasarela from '@/components/LogoDePasarela';
 import {
   getPasarela,
   guardarPasarela,
@@ -160,17 +161,32 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <Label htmlFor="pas-proveedor">Pasarela</Label>
-          <Select
-            id="pas-proveedor"
-            value={proveedor}
-            onChange={(e) => setProveedor(e.target.value as ProveedorDePago)}
-          >
-            <option value="WOMPI">Wompi</option>
-            <option value="MERCADO_PAGO">Mercado Pago</option>
-          </Select>
+        {/* Dos tarjetas y no un desplegable: un <select> no puede llevar el
+            logo, y aquí reconocer la marca de un vistazo vale más que ahorrar
+            espacio — es la pasarela con la que uno ya tiene cuenta. */}
+        <div className="md:col-span-2">
+          <span className="mb-2 block text-sm font-medium text-gray-900 dark:text-gray-300">
+            Pasarela
+          </span>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(['WOMPI', 'MERCADO_PAGO'] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setProveedor(p)}
+                aria-pressed={proveedor === p}
+                className={`flex h-20 items-center justify-center rounded-xl border-2 bg-white transition-colors ${
+                  proveedor === p
+                    ? 'border-marca shadow-sm'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <LogoDePasarela pasarela={p} alto={14} />
+              </button>
+            ))}
+          </div>
         </div>
+
         <div>
           <Label htmlFor="pas-entorno">Entorno</Label>
           <Select

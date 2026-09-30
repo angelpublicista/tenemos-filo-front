@@ -25,6 +25,7 @@ const STATUS_FROM_API: Record<ApiStatus, ContactStatus> = {
 };
 
 interface ApiContact {
+  doNotContact?: boolean;
   id: string;
   hostCompanyId: string;
   firstName: string;
@@ -59,6 +60,7 @@ interface ApiContact {
 
 function toContact(c: ApiContact): Contact {
   return {
+    doNotContact: c.doNotContact ?? false,
     _id: c.id,
     _type: 'contact',
     hostCompany: { _ref: c.hostCompanyId, _type: 'reference' },
@@ -124,6 +126,7 @@ function buildCreatePayload(data: CreateContactData): Record<string, unknown> {
 function buildUpdatePayload(data: UpdateContactData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (data.firstName !== undefined) out.firstName = data.firstName;
+  if (data.doNotContact !== undefined) out.doNotContact = data.doNotContact;
   if (data.lastName !== undefined) out.lastName = data.lastName;
   if (data.email !== undefined) out.email = data.email;
   if (data.phone !== undefined) out.phone = data.phone;

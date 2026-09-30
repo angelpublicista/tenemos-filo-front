@@ -14,7 +14,7 @@ import {
   HiCalendar
 } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
-import { getContactById, deleteContact } from '@/lib/sanity/contactService';
+import { getContactById, deleteContact, updateContact } from '@/lib/sanity/contactService';
 import { Contact } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
@@ -56,6 +56,46 @@ export default function ContactoDetailPage() {
       loadContact();
     }
   }, [contactId]);
+
+  const [guardandoContacto, setGuardandoContacto] = useState(false);
+
+  /**
+   * Marcar o desmarcar "no contactar".
+   *
+   * Al marcarlo, el API retira sus seguimientos pendientes. Se confirma antes
+   * porque es una peticion del cliente y desmarcarla por error significaria
+   * volver a escribirle a quien pidio que no.
+   */
+  const alternarNoContactar = async () => {
+    if (!contact) return;
+    const activando = !contact.doNotContact;
+    const ok = await showConfirmation(
+      activando ? '¿Marcar como no contactar?' : '¿Volver a contactarle?',
+      '',
+      activando ? 'Sí, no contactar' : 'Sí, reactivar',
+      'Cancelar',
+      activando
+        ? ['Dejará de aparecer en los seguimientos comerciales y no se le',
+           'crearán recordatorios nuevos. Sus datos y su historial se conservan.']
+        : ['Volverá a recibir recordatorios de seguimiento en sus próximas solicitudes.'],
+    );
+    if (!ok) return;
+
+    setGuardandoContacto(true);
+    try {
+      await updateContact(contact._id, { _id: contact._id, doNotContact: activando });
+      await loadContact();
+      showSuccess(
+        activando ? 'Marcado como no contactar' : 'Seguimiento reactivado',
+        '',
+      );
+    } catch (err) {
+      console.error('Error actualizando el contacto:', err);
+      showError('No pudimos guardarlo', 'Inténtalo de nuevo.');
+    } finally {
+      setGuardandoContacto(false);
+    }
+  };
 
   const loadContact = async () => {
     setIsLoading(true);
@@ -164,6 +204,11 @@ export default function ContactoDetailPage() {
                       {contact.status === 'qualified' && 'Calificado'}
                       {contact.status === 'unqualified' && 'No Calificado'}
                     </Badge>
+                    {/* Se enseña junto al estado porque cambia lo que se puede
+                        hacer con el contacto, no solo como se clasifica. */}
+                    {contact.doNotContact && (
+                      <Badge color="failure">No contactar</Badge>
+                    )}
                   </div>
                   {contact.jobTitle && (
                     <p className="text-gray-600 dark:text-gray-400 mt-1">
@@ -196,6 +241,31 @@ export default function ContactoDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Columna Principal */}
           <div className="lg:col-span-2 space-y-6">
+            {/* CRM-21. Va arriba del todo porque condiciona todo lo demas: si
+                pidio no ser contactado, da igual lo bien clasificado que este. */}
+            <Card>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+                    Seguimiento comercial
+                  </h2>
+                  <p className="mt-0.5 text-sm text-gray-500">
+                    {contact.doNotContact
+                      ? 'Pidió no recibir seguimiento. No se le crean recordatorios y los que tenía dejaron de aplicar.'
+                      : 'Se le crean recordatorios automáticos a las 24, 48 y 72 horas de cada solicitud.'}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  color={contact.doNotContact ? 'secondary' : 'danger'}
+                  onClick={alternarNoContactar}
+                  disabled={guardandoContacto}
+                >
+                  {contact.doNotContact ? 'Volver a contactar' : 'No contactar'}
+                </Button>
+              </div>
+            </Card>
+
             {/* Información Personal */}
             <Card>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">

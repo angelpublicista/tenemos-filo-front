@@ -1100,6 +1100,13 @@ export interface Contact {
   };
   contactType: ContactType;
   status: ContactStatus;
+  /**
+   * Pidio no recibir seguimiento comercial.
+   *
+   * Va aparte de `status` porque es una peticion suya, no un estado del
+   * negocio: se puede estar activo y aun asi haber pedido que no te escriban.
+   */
+  doNotContact?: boolean;
   source?: ContactSource;
   address?: ContactAddress;
   avatar?: {
@@ -1158,6 +1165,8 @@ export interface CreateContactData {
 }
 
 export interface UpdateContactData extends Partial<CreateContactData> {
+  /** Pidio no recibir seguimiento comercial. */
+  doNotContact?: boolean;
   _id: string;
 }
 

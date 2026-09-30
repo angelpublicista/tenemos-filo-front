@@ -5,6 +5,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineTrendingUp } from 'react-icons/hi';
 import { BiStore } from 'react-icons/bi';
 import Link from 'next/link';
+import PanelDePendientes from '@/components/CRM/PanelDePendientes';
 
 export default function CRMPage() {
   const { sanityUser } = useAuth();
@@ -42,14 +43,6 @@ export default function CRMPage() {
       color: 'bg-[#E23694]',
       available: true,
     },
-    {
-      title: 'Clientes',
-      description: 'Gestiona tu base de datos de clientes',
-      icon: HiOutlineUsers,
-      href: '/dashboard/crm/clientes',
-      color: 'bg-[#F59E0B]',
-      available: false,
-    },
   ];
 
   return (
@@ -57,13 +50,21 @@ export default function CRMPage() {
       <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            CRM - Gestión de Relaciones
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">CRM</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Administra tus cotizaciones, clientes y oportunidades de negocio
+            Lo que necesita tu atención hoy.
           </p>
         </div>
+
+        {/* Lo primero es el trabajo pendiente, no el directorio: el CRM es una
+            herramienta de venta, no un archivo. Las secciones quedan debajo. */}
+        <div className="mb-8">
+          <PanelDePendientes />
+        </div>
+
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+          Secciones
+        </h2>
 
         {/* Módulos Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

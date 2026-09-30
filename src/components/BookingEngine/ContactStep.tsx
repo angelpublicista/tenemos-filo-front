@@ -20,11 +20,19 @@ type FormValues = z.infer<typeof schema>;
 interface Props {
   onNext: (guestInfo: BookingData['guestInfo']) => void;
   onBack: () => void;
+  /**
+   * Lo que el anfitrión ya sabe de quien llega por su enlace. Se rellena, no
+   * se bloquea: es su información y puede corregirla.
+   */
+  conocido?: { name: string; email: string; phone: string } | null;
 }
 
-export default function ContactStep({ onNext, onBack }: Props) {
+export default function ContactStep({ onNext, onBack, conocido }: Props) {
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    defaultValues: conocido
+      ? { name: conocido.name, email: conocido.email, phone: conocido.phone }
+      : undefined,
   });
 
   const onSubmit = (values: FormValues) => {
@@ -39,7 +47,11 @@ export default function ContactStep({ onNext, onBack }: Props) {
 
       <div className="mb-6">
         <h2 className="text-xl font-bold text-gray-900 leading-tight">Tus datos de contacto</h2>
-        <p className="text-sm text-gray-500 mt-1.5">El anfitrión usará esta información para confirmar tu reserva.</p>
+        <p className="text-sm text-gray-500 mt-1.5">
+          {conocido
+            ? 'Ya los teníamos. Revísalos y corrige lo que haga falta.'
+            : 'El anfitrión usará esta información para confirmar tu reserva.'}
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">

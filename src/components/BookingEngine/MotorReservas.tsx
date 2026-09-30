@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
-import { getPublicCatalog, getResellerCatalog } from '@/lib/api/catalog';
+import { getDatosDeSolicitud, getPublicCatalog, getResellerCatalog } from '@/lib/api/catalog';
 import { createPublicReservation } from '@/lib/sanity/reservationService';
 import type { Company, AvailabilitySchedule } from '@/types';
 import { estiloDeMarca } from '@/lib/marca';
@@ -90,6 +90,9 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   const searchParams = useSearchParams();
   const slug = params.slug as string;
   const isEmbed = searchParams.get('embed') === '1';
+  // CRM-33. El enlace que el anfitrion genero desde su CRM. Lo que sabemos
+  // del cliente no viaja en la URL: esto es un token, y se canjea.
+  const solicitud = searchParams.get('solicitud');
 
   const [company, setCompany] = useState<Company | null>(null);
   const [experiences, setExperiences] = useState<BookingExperience[]>([]);
@@ -109,6 +112,8 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   // va creyendo que ya tiene su mesa.
   const [pagoObligatorio, setPagoObligatorio] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Lo que el anfitrion ya sabe del cliente, para no volver a pedirselo.
+  const [conocido, setConocido] = useState<{ name: string; email: string; phone: string } | null>(null);
 
   useEffect(() => {
     if (!slug) {
@@ -133,6 +138,24 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
         setCobraEnLinea(paymentsEnabled);
         setPagoObligatorio(Boolean(paymentRequired));
 
+        // CRM-33. Con el enlace del CRM no se empieza de cero: los datos del
+        // cliente se rellenan solos y, si la oportunidad ya apuntaba a una
+        // experiencia, se entra directo a elegir fecha. Que el enlace no
+        // sirva no puede romper el catalogo: se reserva a mano y ya.
+        if (solicitud) {
+          const previo = await getDatosDeSolicitud(solicitud);
+          if (previo && !controller.signal.aborted) {
+            setConocido({ name: previo.nombre, email: previo.email, phone: previo.telefono });
+            const elegida = previo.experienceId
+              ? (expData as BookingExperience[]).find((e) => e._id === previo.experienceId)
+              : undefined;
+            if (elegida) {
+              setBooking({ experience: elegida });
+              setStep('datetime');
+            }
+          }
+        }
+
         // Si se llego por un slug antiguo (o por el id), la barra pasa a
         // mostrar el actual. El enlace viejo sigue funcionando, pero quien
         // copie la URL desde aqui se lleva la buena.
@@ -155,7 +178,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
     };
     load();
     return () => { controller.abort(); clearTimeout(timeout); };
-  }, [slug, modoReseller]);
+  }, [slug, modoReseller, solicitud]);
 
   const handleSelectExperience = (exp: BookingExperience) => {
     setBooking({ experience: exp });
@@ -190,6 +213,9 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       const result = await createPublicReservation({
         // Con esto la venta se atribuye al revendedor y le genera comision.
         ...(modoReseller ? { reseller: slug } : {}),
+        // Y con esto la reserva queda colgada de la oportunidad que la
+        // origino, en vez de aparecer suelta en el CRM del anfitrion.
+        ...(solicitud ? { solicitudToken: solicitud } : {}),
         experience: booking.experience._id,
         location: booking.locationId,
         reservationDate: reservationDate.toISOString(),
@@ -446,7 +472,11 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
         />
       )}
       {step === 'contact' && (
-        <ContactStep onNext={handleContactNext} onBack={() => setStep('datetime')} />
+        <ContactStep
+          onNext={handleContactNext}
+          onBack={() => setStep('datetime')}
+          conocido={conocido}
+        />
       )}
       {step === 'confirmation' && booking.experience && booking.date && booking.time && booking.participants && booking.guestInfo && (
         <ConfirmationStep

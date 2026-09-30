@@ -73,3 +73,27 @@ export const getEstadoReserva = async (reservationNumber: string): Promise<Estad
   api.get<EstadoReserva>(
     `/public/reservations/${encodeURIComponent(reservationNumber)}/status`,
   );
+
+/** Lo que el anfitrión ya sabe de quien abre su enlace de reserva. */
+export type DatosDeLaSolicitud = {
+  nombre: string;
+  email: string;
+  telefono: string;
+  experienceId: string | null;
+};
+
+/**
+ * CRM-33. Canjea el token del enlace por los datos que ya tenemos.
+ *
+ * El enlace no lleva el nombre ni el teléfono en la URL —se reenvía, se pega
+ * en un chat y acaba donde nadie previó—, así que viajan por aquí. Devuelve
+ * null si el enlace ya no sirve: la venta se cerró, o el token no existe.
+ */
+export async function getDatosDeSolicitud(token: string): Promise<DatosDeLaSolicitud | null> {
+  try {
+    return await api.get<DatosDeLaSolicitud>(`/public/solicitud/${encodeURIComponent(token)}`);
+  } catch {
+    // Un enlace caducado no puede romper el catálogo: se reserva a mano.
+    return null;
+  }
+}

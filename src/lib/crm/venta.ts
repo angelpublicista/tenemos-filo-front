@@ -53,6 +53,57 @@ export const autorizarCondicionDePago = (opportunityId: string, nota: string) =>
 export const confirmarVenta = (opportunityId: string) =>
   api.post(`/opportunities/${encodeURIComponent(opportunityId)}/confirmar-venta`, {});
 
+/** CRM-32. En una abierta no hay pre-reserva: se crea la reserva y ya. */
+export const crearReservaDeOportunidad = (
+  opportunityId: string,
+  datos: {
+    experienceId: string;
+    locationId?: string;
+    reservationDate: string;
+    participants: number;
+    total: number;
+  },
+) => api.post(`/opportunities/${encodeURIComponent(opportunityId)}/reserva`, datos);
+
+/**
+ * CRM-32/33. El enlace con lo que ya sabemos del cliente.
+ *
+ * Devuelve un token, no los datos en la URL: un enlace se reenvía y acaba en
+ * sitios que nadie previó. Mandarlo cuenta como propuesta enviada.
+ */
+export const generarEnlaceDeReserva = (opportunityId: string) =>
+  api.post<{ url: string; token: string }>(
+    `/opportunities/${encodeURIComponent(opportunityId)}/enlace-de-reserva`,
+    {},
+  );
+
+/** CRM-31. Los datos fiscales, con lo que ya haya en el sistema. */
+export interface DatosDeFacturacion {
+  businessName?: string | null;
+  documentType?: string | null;
+  documentNumber?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: {
+    street?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
+  } | null;
+}
+
+/** De dónde salieron: la venta ya cerrada, la empresa o el contacto. */
+export type OrigenDeFacturacion = 'venta' | 'empresa' | 'contacto';
+
+export const getFacturacion = (opportunityId: string) =>
+  api.get<{ datos: DatosDeFacturacion; origen: OrigenDeFacturacion }>(
+    `/opportunities/${encodeURIComponent(opportunityId)}/facturacion`,
+  );
+
+export const guardarFacturacion = (opportunityId: string, datos: DatosDeFacturacion) =>
+  api.put(`/opportunities/${encodeURIComponent(opportunityId)}/facturacion`, datos);
+
 export const perderOportunidad = (opportunityId: string, motivo: string, notas?: string) =>
   api.post(`/opportunities/${encodeURIComponent(opportunityId)}/perder`, { motivo, notas });
 

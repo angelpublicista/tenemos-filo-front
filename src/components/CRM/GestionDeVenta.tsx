@@ -9,7 +9,9 @@ import {
   autorizarCondicionDePago,
   confirmarVenta,
   crearPreReserva,
+  crearReservaDeOportunidad,
   faltaParaConfirmar,
+  generarEnlaceDeReserva,
   perderOportunidad,
   registrarPago,
   type ReservaDeOportunidad,
@@ -53,8 +55,13 @@ export default function GestionDeVenta({
 
   const esAbierta = experienceKind === 'ABIERTA';
   const abierta = status === 'OPEN' || status === 'open';
-  const reserva = reservations.find((r) => r.status === 'PRE_RESERVED' || r.status === 'CONFIRMED');
+  // PENDING entra igual: la reserva de una abierta nace pendiente de pago, y
+  // sobre ella tambien se cobra y se confirma.
+  const reserva = reservations.find(
+    (r) => r.status === 'PRE_RESERVED' || r.status === 'PENDING' || r.status === 'CONFIRMED',
+  );
   const preReservada = reserva?.status === 'PRE_RESERVED';
+  const porCobrar = reserva?.status === 'PRE_RESERVED' || reserva?.status === 'PENDING';
   const { total, pagado, falta } = faltaParaConfirmar(reserva, esAbierta);
 
   const conError = async (fn: () => Promise<unknown>, exito: string) => {
@@ -73,13 +80,18 @@ export default function GestionDeVenta({
     }
   };
 
-  const apartar = async () => {
+  /**
+   * El mismo formulario para apartar un espacio y para crear la reserva de
+   * una abierta: se piden los mismos cuatro datos, y lo que cambia —el
+   * estado con el que nace, si hay abono minimo— lo decide el API.
+   */
+  const pedirDatosDeReserva = async (titulo: string, boton: string) => {
     if (experiencias.length === 0) {
-      showError('No tienes experiencias', 'Crea una experiencia antes de apartar un espacio.');
-      return;
+      showError('No tienes experiencias', 'Crea una experiencia antes de continuar.');
+      return null;
     }
     const { value, isConfirmed } = await Swal.fire({
-      title: 'Apartar el espacio',
+      title: titulo,
       html: `
         <div style="text-align:left;font-size:14px">
           <label style="display:block;margin:8px 0 4px">Experiencia</label>
@@ -94,7 +106,7 @@ export default function GestionDeVenta({
           <input id="total" type="number" min="0" class="swal2-input" style="width:100%;margin:0">
         </div>`,
       showCancelButton: true,
-      confirmButtonText: 'Apartar',
+      confirmButtonText: boton,
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#F26726',
       preConfirm: () => {
@@ -108,11 +120,62 @@ export default function GestionDeVenta({
         return { experienceId: g('exp'), reservationDate: new Date(fecha).toISOString(), participants: pax, total: tot };
       },
     });
-    if (!isConfirmed || !value) return;
+    return isConfirmed && value ? (value as Parameters<typeof crearPreReserva>[1]) : null;
+  };
+
+  const apartar = async () => {
+    const datos = await pedirDatosDeReserva('Apartar el espacio', 'Apartar');
+    if (!datos) return;
     await conError(
-      () => crearPreReserva(opportunityId, value as never),
+      () => crearPreReserva(opportunityId, datos),
       'Espacio apartado. Queda bloqueado hasta que confirmes o cierres.',
     );
+  };
+
+  const crearReserva = async () => {
+    const datos = await pedirDatosDeReserva('Crear la reserva', 'Crear reserva');
+    if (!datos) return;
+    await conError(
+      () => crearReservaDeOportunidad(opportunityId, datos),
+      'Reserva creada. Queda pendiente hasta que se pague completa.',
+    );
+  };
+
+  /**
+   * El enlace de reserva con los datos del cliente ya dentro.
+   *
+   * Se copia al portapapeles en vez de mandarlo: el canal lo elige quien
+   * vende —WhatsApp casi siempre— y adivinarlo desde aqui seria mandar un
+   * correo que nadie pidio.
+   */
+  const enviarEnlace = async () => {
+    setTrabajando(true);
+    try {
+      const { url } = await generarEnlaceDeReserva(opportunityId);
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        // Sin permiso de portapapeles el enlace se enseña igual: verlo y
+        // copiarlo a mano sigue funcionando.
+      }
+      onCambio();
+      await Swal.fire({
+        title: 'Enlace listo',
+        html: `
+          <p style="font-size:14px;color:#6b7280;margin-bottom:12px">
+            Ya está copiado. Al abrirlo, el cliente encuentra sus datos puestos.
+          </p>
+          <input readonly value="${url}" class="swal2-input" style="width:100%;font-size:12px"
+                 onclick="this.select()">`,
+        confirmButtonText: 'Listo',
+        confirmButtonColor: '#F26726',
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      showError('No se pudo generar el enlace', msg || 'Inténtalo de nuevo.');
+    } finally {
+      setTrabajando(false);
+    }
   };
 
   const abonar = async () => {
@@ -211,7 +274,12 @@ export default function GestionDeVenta({
         <div className="mt-3 space-y-3">
           <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {preReservada ? 'Espacio apartado' : 'Reserva confirmada'} · {reserva.reservationNumber}
+              {preReservada
+                ? 'Espacio apartado'
+                : reserva.status === 'CONFIRMED'
+                  ? 'Reserva confirmada'
+                  : 'Reserva pendiente de pago'}{' '}
+              · {reserva.reservationNumber}
             </p>
             <p className="text-xs text-gray-500">
               {new Date(reserva.reservationDate).toLocaleString('es-CO', {
@@ -247,7 +315,7 @@ export default function GestionDeVenta({
           )}
 
           <div className="flex flex-wrap gap-2">
-            {preReservada && (
+            {porCobrar && (
               <>
                 <Button size="sm" color="secondary" onClick={abonar} disabled={trabajando}>
                   Registrar abono
@@ -272,7 +340,8 @@ export default function GestionDeVenta({
           {esAbierta ? (
             <p className="text-sm text-gray-500">
               Es una experiencia abierta: sus cupos se pagan completos y no se
-              apartan. Crea la reserva o envíale el enlace del catálogo.
+              apartan. Crea tú la reserva, o mándale su enlace y que reserve
+              él —el enlace ya lleva sus datos puestos.
             </p>
           ) : (
             <p className="text-sm text-gray-500">
@@ -281,7 +350,16 @@ export default function GestionDeVenta({
             </p>
           )}
           <div className="flex flex-wrap gap-2">
-            {!esAbierta && (
+            {esAbierta ? (
+              <>
+                <Button size="sm" onClick={crearReserva} disabled={trabajando}>
+                  Crear reserva
+                </Button>
+                <Button size="sm" color="secondary" onClick={enviarEnlace} disabled={trabajando}>
+                  Copiar enlace de reserva
+                </Button>
+              </>
+            ) : (
               <Button size="sm" onClick={apartar} disabled={trabajando}>
                 Medios de pago enviados
               </Button>

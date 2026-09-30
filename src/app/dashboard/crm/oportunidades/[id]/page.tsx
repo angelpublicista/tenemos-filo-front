@@ -22,6 +22,7 @@ import {
 } from '@/lib/sanity/opportunityService';
 import CotizacionesDeOportunidad from '@/components/CRM/CotizacionesDeOportunidad';
 import GestionDeVenta from '@/components/CRM/GestionDeVenta';
+import DatosDeFacturacion from '@/components/CRM/DatosDeFacturacion';
 import type { ReservaDeOportunidad } from '@/lib/crm/venta';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -548,6 +549,13 @@ export default function OportunidadDetailPage() {
               condicionDePago={opportunity.paymentConditionNote}
               experiencias={experienciasDisponibles}
               onCambio={() => void loadOpportunity()}
+            />
+
+            {/* CRM-31: los datos fiscales no se piden al abrir el lead, sino
+                cuando ya hay una reserva y la venta se esta concretando. */}
+            <DatosDeFacturacion
+              opportunityId={opportunity._id}
+              hayReserva={(opportunity.reservations?.length ?? 0) > 0}
             />
 
             {/* Cotizaciones de esta oportunidad, con su historial de

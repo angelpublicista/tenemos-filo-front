@@ -387,6 +387,12 @@ export interface CreatePublicReservationData {
   specialRequests?: string;
   selectedAddons?: Array<{ name: string; price: number; quantity: number }>;
   guestInfo: { name: string; email: string; phone: string };
+  /**
+   * Token del enlace que el anfitrión generó desde su CRM. Cuelga la reserva
+   * de esa oportunidad, para que el comercial vea en ella la reserva que su
+   * propio enlace acaba de producir.
+   */
+  solicitudToken?: string;
 }
 
 export const createPublicReservation = async (
@@ -405,6 +411,7 @@ export const createPublicReservation = async (
       // Slug del revendedor cuando la reserva entra por su catalogo. El
       // API lo valida y de el depende que se genere la comision.
       ...(data.reseller ? { reseller: data.reseller } : {}),
+      ...(data.solicitudToken ? { solicitudToken: data.solicitudToken } : {}),
       location: data.location,
       client: data.guestInfo,
       reservationDate: data.reservationDate,

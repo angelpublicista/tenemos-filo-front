@@ -280,6 +280,15 @@ export type Saldo = {
   companyId: string;
   companyName: string;
   role: PayoutRole;
+  /**
+   * Quién debe este dinero. null = FILO.
+   *
+   * Existe desde que un anfitrión puede cobrar con su propia pasarela: ahí el
+   * dinero no pasa por FILO, así que la comisión del revendedor la debe el
+   * anfitrión que la cobró.
+   */
+  payerCompanyId: string | null;
+  payerCompanyName: string | null;
   accrued: number;
   paid: number;
   pending: number;
@@ -313,6 +322,12 @@ export const createPayout = (data: {
   companyId: string;
   role: PayoutRole;
   amount: number;
+  /**
+   * Quién pagó. Omitido = FILO. Con una empresa, es un anfitrión que cobró
+   * con su propia pasarela saldando la comisión de su revendedor: ese dinero
+   * nunca pasó por FILO y no puede descontarse de lo que FILO debe.
+   */
+  payerCompanyId?: string;
   reference?: string;
   notes?: string;
 }) => api.post<Payout>('/payouts', data);

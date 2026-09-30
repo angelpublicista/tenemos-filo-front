@@ -35,7 +35,11 @@ export default function IngresosPage() {
 
   const [saldos, setSaldos] = useState<Saldo[]>([]);
   const [recibidas, setRecibidas] = useState<PayoutRecibido[]>([]);
-  const [totales, setTotales] = useState({ accrued: 0, paid: 0, pending: 0 });
+  const [totales, setTotales] = useState({ accrued: 0, paid: 0, pending: 0, owed: 0 });
+  // Lo que ESTA empresa le debe a otras: la comisión de sus revendedores sobre
+  // ventas que cobró con su propia pasarela. Es lo contrario de un saldo y no
+  // se puede sumar con él.
+  const [deudas, setDeudas] = useState<Saldo[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const [rol, setRol] = useState<PayoutRole>('HOST');
@@ -49,6 +53,7 @@ export default function IngresosPage() {
     try {
       const r = await getResumenIngresos();
       setSaldos(r.balances);
+      setDeudas(r.debts);
       setRecibidas(r.payouts);
       setTotales(r.totals);
     } catch (err) {
@@ -105,7 +110,9 @@ export default function IngresosPage() {
             <HiCash className="w-4 h-4 text-[#F26726]" /> Generado
           </div>
           <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pesos(totales.accrued)}</div>
-          <div className="text-xs text-gray-500 -mt-2">Después de comisiones</div>
+          <div className="text-xs text-gray-500 -mt-2">
+            Después de comisiones{deudas.length > 0 && ', sin lo que cobraste tú'}
+          </div>
         </Card>
         <Card>
           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -122,6 +129,36 @@ export default function IngresosPage() {
           <div className="text-xs text-gray-500 -mt-2">Pendiente de dispersar</div>
         </Card>
       </div>
+
+      {/* Lo que debes, cuando cobras en tu propia cuenta.
+          Va antes del desglose y aparte: mezclarlo con lo que te deben daría
+          una cifra que no significa nada. */}
+      {deudas.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+            Lo que debes a tus revendedores
+          </h2>
+          <p className="text-sm text-gray-500 mb-3">
+            Estas ventas las cobraste en tu cuenta, así que FILO no pudo descontar la comisión de
+            quien te las trajo. Se la pagas tú.
+          </p>
+          <AdminTable
+            columnas={['Revendedor', 'Comisión', 'Ya pagado', 'Por pagar']}
+            cargando={cargando}
+            vacio={false}
+            mensajeVacio=""
+          >
+            {deudas.map((d) => (
+              <tr key={`deuda:${d.companyId}`} className="bg-white border-b">
+                <td className="px-6 py-4">{d.companyName}</td>
+                <td className="px-6 py-4">{pesos(d.accrued)}</td>
+                <td className="px-6 py-4 text-gray-500">{pesos(d.paid)}</td>
+                <td className="px-6 py-4 font-semibold text-amber-700">{pesos(d.pending)}</td>
+              </tr>
+            ))}
+          </AdminTable>
+        </div>
+      )}
 
       {/* Desglose por rol: una misma empresa puede ganar como anfitriona y
           ademas cobrar comisiones por vender experiencias de otras. */}
@@ -185,7 +222,17 @@ export default function IngresosPage() {
         {reservas.map((r) => (
           <tr key={r.id} className="bg-white border-b hover:bg-gray-50">
             <td className="px-6 py-4 text-xs whitespace-nowrap">{fecha(r.reservationDate)}</td>
-            <td className="px-6 py-4 font-medium text-gray-900">{r.reservationNumber}</td>
+            <td className="px-6 py-4 font-medium text-gray-900">
+              {r.reservationNumber}
+              {/* Lo cobrado directo no entra en "por recibir": ese dinero ya
+                  está en su cuenta. Sin decirlo, la lista no cuadra con el
+                  total de arriba y parece que falta dinero. */}
+              {r.collectedBy === 'HOST' && (
+                <span className="ml-2 rounded border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-normal text-green-700">
+                  cobrada por ti
+                </span>
+              )}
+            </td>
             <td className="px-6 py-4">{r.experienceTitle ?? '—'}</td>
             {rol === 'RESELLER' && <td className="px-6 py-4 text-xs">{r.companyName ?? '—'}</td>}
             <td className="px-6 py-4">{pesos(r.total)}</td>

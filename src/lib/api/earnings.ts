@@ -20,8 +20,14 @@ export type PayoutRecibido = {
 
 export type ResumenIngresos = {
   balances: Saldo[];
+  /**
+   * Lo que ESTA empresa le debe a otras: la comisión de sus revendedores
+   * sobre ventas que ella cobró con su propia pasarela. No se puede sumar con
+   * `balances`, que es lo contrario —lo que le deben a ella.
+   */
+  debts: Saldo[];
   payouts: PayoutRecibido[];
-  totals: { accrued: number; paid: number; pending: number };
+  totals: { accrued: number; paid: number; pending: number; owed: number };
 };
 
 /** Una reserva cobrada, con el desglose de a donde fue cada peso. */
@@ -38,22 +44,31 @@ export type IngresoPorReserva = {
   resellerCommission: number;
   /** Lo que le queda a la empresa por esta reserva. */
   earnings: number;
+  /**
+   * A qué cuenta entró el dinero. Con PLATFORM, FILO lo tiene y se lo debe;
+   * con HOST ya está en el banco del anfitrión y no hay nada que dispersar.
+   */
+  collectedBy: 'PLATFORM' | 'HOST';
 };
+
+const aSaldo = (s: Saldo): Saldo => ({
+  ...s,
+  accrued: aNumero(s.accrued),
+  paid: aNumero(s.paid),
+  pending: aNumero(s.pending),
+});
 
 export const getResumenIngresos = async (): Promise<ResumenIngresos> => {
   const r = await api.get<ResumenIngresos>('/payouts/me');
   return {
-    balances: (r?.balances ?? []).map((s) => ({
-      ...s,
-      accrued: aNumero(s.accrued),
-      paid: aNumero(s.paid),
-      pending: aNumero(s.pending),
-    })),
+    balances: (r?.balances ?? []).map(aSaldo),
+    debts: (r?.debts ?? []).map(aSaldo),
     payouts: (r?.payouts ?? []).map((p) => ({ ...p, amount: aNumero(p.amount) })),
     totals: {
       accrued: aNumero(r?.totals?.accrued),
       paid: aNumero(r?.totals?.paid),
       pending: aNumero(r?.totals?.pending),
+      owed: aNumero(r?.totals?.owed),
     },
   };
 };

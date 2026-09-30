@@ -75,6 +75,9 @@ export default function AdminDispersionesPage() {
       await createPayout({
         companyId: pagando.companyId,
         role: pagando.role,
+        // Sin esto, saldar la deuda de un anfitrión se registraría como si la
+        // hubiera pagado FILO, y se descontaría del saldo equivocado.
+        payerCompanyId: pagando.payerCompanyId ?? undefined,
         amount: monto,
         reference: referencia.trim() || undefined,
       });
@@ -116,12 +119,22 @@ export default function AdminDispersionesPage() {
         mensajeVacio="Todavía no hay reservas cobradas que generen fondos por dispersar."
       >
         {saldos.map((s) => (
-          <tr key={`${s.companyId}:${s.role}`} className="bg-white border-b hover:bg-gray-50">
+          <tr
+            key={`${s.companyId}:${s.role}:${s.payerCompanyId ?? 'filo'}`}
+            className="bg-white border-b hover:bg-gray-50"
+          >
             <td className="px-6 py-4">
               <div className="font-medium text-gray-900">{s.companyName}</div>
               <Badge color={s.role === 'HOST' ? 'info' : 'warning'} className="w-fit mt-1">
                 {s.role === 'HOST' ? 'Anfitrión' : 'Revendedor'}
               </Badge>
+              {/* Quién paga deja de ser obvio desde que un anfitrión puede
+                  cobrar en su cuenta: esa comisión la debe él, no FILO. */}
+              {s.payerCompanyId && (
+                <div className="mt-1 text-xs text-amber-700">
+                  Lo debe {s.payerCompanyName ?? 'el anfitrión'}, no FILO
+                </div>
+              )}
             </td>
             <td className="px-6 py-4">{pesos(s.accrued)}</td>
             <td className="px-6 py-4 text-gray-500">{pesos(s.paid)}</td>
@@ -178,6 +191,13 @@ export default function AdminDispersionesPage() {
                 <div className="text-gray-600">
                   {pagando.role === 'HOST' ? 'Anfitrión' : 'Revendedor'} · pendiente{' '}
                   <span className="font-medium">{pesos(pagando.pending)}</span>
+                </div>
+                <div className="mt-1 text-gray-600">
+                  Paga{' '}
+                  <span className="font-medium">
+                    {pagando.payerCompanyName ?? 'Tenemos Filo'}
+                  </span>
+                  {pagando.payerCompanyId && ' — este dinero nunca pasó por FILO'}
                 </div>
               </div>
 

@@ -21,13 +21,20 @@ import {
   marcarPropuestaEnviada,
 } from '@/lib/sanity/opportunityService';
 import CotizacionesDeOportunidad from '@/components/CRM/CotizacionesDeOportunidad';
+import GestionDeVenta from '@/components/CRM/GestionDeVenta';
+import type { ReservaDeOportunidad } from '@/lib/crm/venta';
+import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
+import { useAuth } from '@/lib/auth/AuthContext';
 import Swal from 'sweetalert2';
-import { Opportunity } from '@/types';
+import { Opportunity, Experience } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
 
 // Tipo extendido para oportunidad con propiedades expandidas
 type OpportunityWithExpanded = Opportunity & {
+  experienceKind?: 'ABIERTA' | 'PRIVADA' | null;
+  paymentConditionNote?: string | null;
+  reservations?: ReservaDeOportunidad[];
   crmCompanyName?: string;
   contactName?: string;
   assignedToName?: string;
@@ -84,6 +91,18 @@ export default function OportunidadDetailPage() {
   const params = useParams();
   const opportunityId = params.id as string;
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
+  const { sanityUser } = useAuth();
+
+  /** Para poder elegir cual se aparta al mandar los medios de pago. */
+  const [experienciasDisponibles, setExperienciasDisponibles] = useState<Experience[]>([]);
+
+  useEffect(() => {
+    if (!sanityUser?.companyId) return;
+    getExperiencesByCompany(sanityUser.companyId)
+      .then((e) => setExperienciasDisponibles(e ?? []))
+      // Sin experiencias, el bloque de venta lo dice al intentar apartar.
+      .catch(() => setExperienciasDisponibles([]));
+  }, [sanityUser?.companyId]);
   const [opportunity, setOpportunity] = useState<OpportunityWithExpanded | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -519,6 +538,17 @@ export default function OportunidadDetailPage() {
                 )}
               </div>
             </Card>
+
+            {/* El tramo final: apartar el espacio, cobrar y cerrar. */}
+            <GestionDeVenta
+              opportunityId={opportunity._id}
+              experienceKind={opportunity.experienceKind ?? null}
+              status={String(opportunity.status)}
+              reservations={opportunity.reservations}
+              condicionDePago={opportunity.paymentConditionNote}
+              experiencias={experienciasDisponibles}
+              onCambio={() => void loadOpportunity()}
+            />
 
             {/* Cotizaciones de esta oportunidad, con su historial de
                 versiones. Crear una no mueve la etapa; marcarla enviada si. */}

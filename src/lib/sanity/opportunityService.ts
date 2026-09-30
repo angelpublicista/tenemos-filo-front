@@ -52,6 +52,20 @@ const STATUS_FROM_API: Record<ApiStatus, OpportunityStatus> = {
 
 interface ApiOpportunity {
   id: string;
+  experienceKind?: 'ABIERTA' | 'PRIVADA' | null;
+  buyerKind?: 'SOCIAL' | 'CORPORATIVO' | null;
+  paymentConditionNote?: string | null;
+  // Las reservas vivas: dicen si el espacio esta apartado y cuanto se cobro.
+  reservations?: Array<{
+    id: string;
+    reservationNumber: string;
+    status: string;
+    reservationDate: string;
+    participants: number;
+    paidAmount: string | number;
+    paymentStatus: string;
+    pricing?: { total?: number } | null;
+  }>;
   name: string;
   hostCompanyId: string;
   crmCompanyId: string | null;
@@ -92,6 +106,10 @@ interface ApiOpportunity {
 }
 
 function toOpportunity(o: ApiOpportunity): Opportunity & {
+  experienceKind?: 'ABIERTA' | 'PRIVADA' | null;
+  buyerKind?: 'SOCIAL' | 'CORPORATIVO' | null;
+  paymentConditionNote?: string | null;
+  reservations?: ApiOpportunity['reservations'];
   crmCompanyName?: string;
   contactName?: string;
   assignedToName?: string;
@@ -100,6 +118,11 @@ function toOpportunity(o: ApiOpportunity): Opportunity & {
   return {
     _id: o.id,
     _type: 'opportunity',
+    // Lo que gobierna el tramo final del embudo.
+    experienceKind: o.experienceKind ?? null,
+    buyerKind: o.buyerKind ?? null,
+    paymentConditionNote: o.paymentConditionNote ?? null,
+    reservations: o.reservations ?? [],
     name: o.name,
     hostCompany: { _ref: o.hostCompanyId, _type: 'reference' },
     crmCompany: o.crmCompanyId ? { _ref: o.crmCompanyId, _type: 'reference' } : undefined,

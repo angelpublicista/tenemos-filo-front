@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { HiCalendar, HiArrowRight } from "react-icons/hi";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import CobroPropio from "@/components/CobroPropio";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getCompanyById, updateCompanyInSanity, type UpdateCompanyData } from "@/lib/sanity/companyService";
 import SelectorColorMarca from "@/components/SelectorColorMarca";
@@ -951,7 +950,7 @@ export default function SettingsPage() {
                   <div className="rounded-lg bg-gray-50 p-4 text-sm text-gray-600 w-full">
                     Vincularlo te permite llevar tus experiencias a OpenTable desde{' '}
                     <Link href="/dashboard/canales" className="text-[#F26726] hover:underline">
-                      Otros canales
+                      Integraciones → Canales de venta
                     </Link>
                     .
                     {company?.openTableRid && (
@@ -1132,12 +1131,6 @@ export default function SettingsPage() {
               </div>
             </div>
           </section>
-          )}
-
-          {/* Cobro directo: cambia a que cuenta entra el dinero, asi que va
-              justo despues de como entran las reservas. */}
-          {tieneExperienciasPropias && company && (
-            <CobroPropio companyId={company._id} />
           )}
 
           </>

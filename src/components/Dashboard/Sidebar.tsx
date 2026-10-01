@@ -22,7 +22,7 @@ import {
   BiChevronRight,
   BiX
 } from 'react-icons/bi';
-import { HiOutlineCash, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey } from 'react-icons/hi';
+import { HiOutlineCash, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -73,6 +73,49 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         current: boolean;
         enabled: boolean;
       };
+
+  // Las entradas de Integraciones. Se arman aparte para poder preguntar si
+  // quedo alguna antes de pintar la cabecera.
+  const integraciones: NavItem[] = [
+    // Con que pasarela cobra el anfitrion. Solo quien opera experiencias
+    // propias: un revendedor no cobra, cobra el anfitrion de la experiencia.
+    ...(operaComoEmpresa && !esReseller
+      ? [
+          {
+            name: 'Pagos',
+            href: '/dashboard/integraciones/pagos',
+            icon: HiOutlineCreditCard,
+            current: pathname === '/dashboard/integraciones/pagos',
+            enabled: true,
+          },
+        ]
+      : []),
+    ...(!esAdminSinEmpresa && !esReseller && !esComensal
+      ? [
+          {
+            name: 'Canales de venta',
+            href: '/dashboard/canales',
+            icon: HiOutlineGlobeAlt,
+            current: pathname === '/dashboard/canales',
+            enabled: true,
+          },
+        ]
+      : []),
+    // El admin entra siempre, opere o no como empresa: la clave cuelga de
+    // una empresa, pero desde la pantalla elige cual. Antes se le ocultaba
+    // la entrada por no tener empresa propia, y no habia forma de llegar.
+    ...(esReseller || sanityUser?.role === 'admin'
+      ? [
+          {
+            name: 'Claves de API',
+            href: '/dashboard/api-keys',
+            icon: HiOutlineKey,
+            current: pathname === '/dashboard/api-keys',
+            enabled: true,
+          },
+        ]
+      : []),
+  ];
 
   const navigationItems: NavItem[] = [
     {
@@ -145,13 +188,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         icon: AiOutlineShareAlt,
         current: pathname === '/dashboard/booking-link',
         enabled: true
-      },
-      {
-        name: 'Otros canales',
-        href: '/dashboard/canales',
-        icon: HiOutlineGlobeAlt,
-        current: pathname === '/dashboard/canales',
-        enabled: true
       }
     ] as NavItem[] : []),
     ...(operaComoEmpresa && !esReseller ? [
@@ -179,22 +215,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       }
     ] as NavItem[] : []),
-    // Canales de venta. Un revendedor no gestiona experiencias ni sedes:
-    // lo suyo es integrarse, y hasta ahora no tenia ninguna pantalla.
+    // Todo lo que conecta a FILO con algo de fuera, en un solo sitio: con
+    // quien se cobra, por donde se vende y con que se integra. Antes estaban
+    // repartidos —el cobro escondido dentro de Configuracion, los canales
+    // entre las herramientas propias— y no habia forma de saber donde buscar.
     //
-    // El admin entra siempre, opere o no como empresa: la clave cuelga de
-    // una empresa, pero desde la pantalla elige cual. Antes se le ocultaba
-    // la entrada por no tener empresa propia, y no habia forma de llegar.
-    ...(esReseller || sanityUser?.role === 'admin' ? [
-      { type: 'section', name: 'Integración' },
-      {
-        name: 'Claves de API',
-        href: '/dashboard/api-keys',
-        icon: HiOutlineKey,
-        current: pathname === '/dashboard/api-keys',
-        enabled: true
-      }
-    ] as NavItem[] : []),
+    // La cabecera solo aparece si debajo hay algo: cada entrada tiene su
+    // propia condicion y un revendedor, por ejemplo, solo ve las claves.
+    ...(integraciones.length > 0
+      ? ([{ type: 'section', name: 'Integraciones' }, ...integraciones] as NavItem[])
+      : []),
     // Panel de plataforma: solo para el equipo de Tenemos Filo.
     ...(sanityUser?.role === 'admin' ? [
       { type: 'section', name: 'Administración' },

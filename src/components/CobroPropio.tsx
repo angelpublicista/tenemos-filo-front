@@ -37,6 +37,10 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
   const [secretos, setSecretos] = useState<Secretos>(VACIOS);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  // Configurar el cobro se limita al titular de la empresa: es a donde va el
+  // dinero. A los demás el API les responde 403, y hay que decírselo en vez de
+  // enseñarles un formulario que no van a poder guardar.
+  const [sinAcceso, setSinAcceso] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
@@ -47,6 +51,7 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
       setSecretos({ ...VACIOS, publicKey: p.publicKey ?? '' });
     } catch {
       setEstado(null);
+      setSinAcceso(true);
     } finally {
       setCargando(false);
     }
@@ -55,6 +60,18 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
   useEffect(() => { void cargar(); }, [cargar]);
 
   if (cargando) return null;
+
+  if (sinAcceso) {
+    return (
+      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-[#334C5D]">Cobrar en tu propia cuenta</h2>
+        <p className="mt-2 text-sm text-gray-500">
+          Solo el titular de la empresa puede configurar con qué pasarela se cobra: es a dónde
+          va el dinero de las ventas. Pídeselo a quien figure como titular.
+        </p>
+      </section>
+    );
+  }
 
   const activa = estado?.enabled === true;
   const esMercadoPago = proveedor === 'MERCADO_PAGO';

@@ -66,6 +66,18 @@ export const cerrarSeguimiento = (id: string, status: 'HECHO' | 'NO_APLICA') =>
   api.patch(`/crm-panel/seguimientos/${encodeURIComponent(id)}`, { status });
 
 /**
+ * CRM-26. Cerrar una experiencia que ya ocurrió.
+ *
+ * Dos salidas porque hay dos cosas que pueden haber pasado: se realizó, o el
+ * comensal no se presentó. La calificación es opcional — exigirla convertiría
+ * un pendiente de un clic en uno que se pospone.
+ */
+export const cerrarExperiencia = (
+  reservationId: string,
+  datos: { resultado: 'REALIZADA' | 'NO_SE_PRESENTO'; rating?: number; notas?: string },
+) => api.post(`/crm-panel/experiencias/${encodeURIComponent(reservationId)}/cerrar`, datos);
+
+/**
  * Cuánto se ha pasado de su fecha, en palabras.
  *
  * Se dice "vence hoy" y no "en 3 horas": el comercial decide si lo hace hoy o

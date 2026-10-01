@@ -4,8 +4,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { HiCheck, HiChevronRight, HiOutlineClipboardCheck, HiPhone, HiX } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import Swal from 'sweetalert2';
 import {
   ETIQUETA_SEGUIMIENTO,
+  cerrarExperiencia,
   cerrarSeguimiento,
   cuandoVence,
   obtenerIndicadores,
@@ -59,6 +61,64 @@ export default function PanelDePendientes() {
     } catch (err) {
       console.error('Error cerrando el seguimiento:', err);
       showError('No pudimos actualizarlo', 'Inténtalo de nuevo.');
+    } finally {
+      setCerrando(null);
+    }
+  };
+
+  /**
+   * CRM-26. Cerrar una experiencia que ya pasó.
+   *
+   * Se pregunta aquí mismo y no se manda a otra pantalla: el pendiente dice
+   * "cierra o califica", y mandarlo a buscar dónde hacerlo es la razón por la
+   * que estas listas se quedan sin vaciar.
+   */
+  const cerrarLaExperiencia = async (id: string, titulo: string) => {
+    const { value, isConfirmed } = await Swal.fire({
+      title: '¿Cómo terminó?',
+      html: `
+        <p style="font-size:14px;color:#6b7280;margin-bottom:12px">${titulo}</p>
+        <div style="text-align:left;font-size:14px">
+          <label style="display:block;margin:8px 0 4px">¿Qué pasó?</label>
+          <select id="resultado" class="swal2-input" style="width:100%;margin:0">
+            <option value="REALIZADA">Se realizó</option>
+            <option value="NO_SE_PRESENTO">No se presentó</option>
+          </select>
+          <label style="display:block;margin:8px 0 4px">Calificación (opcional)</label>
+          <select id="rating" class="swal2-input" style="width:100%;margin:0">
+            <option value="">Sin calificar</option>
+            <option value="5">5 · Excelente</option>
+            <option value="4">4 · Buena</option>
+            <option value="3">3 · Normal</option>
+            <option value="2">2 · Floja</option>
+            <option value="1">1 · Mala</option>
+          </select>
+          <label style="display:block;margin:8px 0 4px">Nota (opcional)</label>
+          <input id="notas" class="swal2-input" style="width:100%;margin:0" placeholder="Qué conviene recordar">
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: 'Cerrar experiencia',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#F26726',
+      preConfirm: () => {
+        const g = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value ?? '';
+        const rating = Number(g('rating'));
+        return {
+          resultado: g('resultado') as 'REALIZADA' | 'NO_SE_PRESENTO',
+          ...(rating ? { rating } : {}),
+          ...(g('notas').trim() ? { notas: g('notas').trim() } : {}),
+        };
+      },
+    });
+    if (!isConfirmed || !value) return;
+
+    setCerrando(id);
+    try {
+      await cerrarExperiencia(id, value as Parameters<typeof cerrarExperiencia>[1]);
+      await cargar();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      showError('No pudimos cerrarla', msg || 'Inténtalo de nuevo.');
     } finally {
       setCerrando(null);
     }
@@ -206,7 +266,8 @@ export default function PanelDePendientes() {
             <section className="rounded-xl border border-gray-200 bg-white p-5">
               <h3 className="mb-1 font-semibold text-gray-900">Experiencias por cerrar</h3>
               <p className="mb-3 text-xs text-gray-500">
-                Ya ocurrieron y siguen como confirmadas. Cierra o califica.
+                Ya ocurrieron y siguen como confirmadas. Ciérralas y, si quieres, déjales
+                su calificación.
               </p>
               <ul className="space-y-2">
                 {porCalificar.map((r) => (
@@ -219,12 +280,13 @@ export default function PanelDePendientes() {
                         {r.reservationNumber} · {dia(r.reservationDate)}
                       </p>
                     </div>
-                    <Link
-                      href="/dashboard/reservations"
-                      className="shrink-0 text-xs text-[#F26726] hover:underline"
+                    <button
+                      onClick={() => void cerrarLaExperiencia(r.id, r.experience?.title ?? r.reservationNumber)}
+                      disabled={cerrando === r.id}
+                      className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                     >
-                      Ver
-                    </Link>
+                      {cerrando === r.id ? 'Cerrando…' : 'Cerrar'}
+                    </button>
                   </li>
                 ))}
               </ul>

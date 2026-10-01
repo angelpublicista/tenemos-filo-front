@@ -1080,6 +1080,13 @@ export interface ContactSocialMedia {
   instagram?: string;
 }
 
+/**
+ * La condición comercial de un contacto o una empresa, según lo que compró.
+ *
+ * Prospecto todavía no compró; cliente compró una vez; recurrente, dos o más.
+ */
+export type CondicionDeCliente = 'PROSPECTO' | 'CLIENTE' | 'RECURRENTE';
+
 export interface Contact {
   _id: string;
   _type: 'contact';
@@ -1100,6 +1107,18 @@ export interface Contact {
   };
   contactType: ContactType;
   status: ContactStatus;
+  /**
+   * Cliente o cliente recurrente, derivado de sus ventas.
+   *
+   * No se guarda ni se marca a mano: se calcula al leer. Así perder una
+   * oportunidad no le quita la condición a quien ya compró, que es justo lo
+   * que pasaría con un campo que alguien tiene que mantener al día.
+   */
+  condicion?: CondicionDeCliente;
+  /** Cuántas ventas suyas hay. */
+  ventas?: number;
+  /** La última, para poder decir desde cuándo o cuánto hace que no vuelve. */
+  ultimaVenta?: string | null;
   /**
    * Pidio no recibir seguimiento comercial.
    *
@@ -1172,6 +1191,8 @@ export interface UpdateContactData extends Partial<CreateContactData> {
 
 export interface ContactFilters {
   contactType?: ContactType;
+  /** CRM-20. Filtra por lo que compró, no por lo que diga su ficha. */
+  condicion?: CondicionDeCliente;
   status?: ContactStatus;
   source?: ContactSource;
   company?: string; // crmCompany ID

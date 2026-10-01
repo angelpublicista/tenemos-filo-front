@@ -38,6 +38,10 @@ interface ApiContact {
   crmCompanyId: string | null;
   contactType: string | null;
   status: ApiStatus;
+  // CRM-20. Derivados de las ventas, no guardados en la ficha.
+  condicion?: Contact['condicion'];
+  ventas?: number;
+  ultimaVenta?: string | null;
   source: string | null;
   address: Contact['address'] | null;
   avatar: string | null;
@@ -74,6 +78,9 @@ function toContact(c: ApiContact): Contact {
     company: c.crmCompanyId ? { _ref: c.crmCompanyId, _type: 'reference' } : undefined,
     contactType: (c.contactType ?? 'other') as Contact['contactType'],
     status: STATUS_FROM_API[c.status],
+    condicion: c.condicion,
+    ventas: c.ventas,
+    ultimaVenta: c.ultimaVenta ?? null,
     source: (c.source ?? undefined) as Contact['source'],
     address: c.address ?? undefined,
     avatar: c.avatar ? { asset: { _ref: c.avatar, _type: 'reference' } } : undefined,
@@ -174,6 +181,7 @@ export const getContactsByHost = async (
   const items = await api.get<ApiContact[]>('/contacts', {
     hostCompanyId,
     contactType: filters?.contactType,
+    condicion: filters?.condicion,
     status: filters?.status ? STATUS_TO_API[filters.status as ContactStatus] : undefined,
     source: filters?.source,
     company: filters?.company,

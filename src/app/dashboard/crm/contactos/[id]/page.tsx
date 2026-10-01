@@ -26,10 +26,14 @@ const statusColors: Record<string, string> = {
   unqualified: 'warning',
 };
 
-const contactTypeLabels: Record<string, string> = {
-  customer: 'Cliente',
-  supplier: 'Proveedor',
-  other: 'Otro',
+/**
+ * CRM-20. La relación comercial sale del historial de ventas, no de un campo
+ * que alguien marca.
+ */
+const CONDICION: Record<string, { etiqueta: string; color: string }> = {
+  PROSPECTO: { etiqueta: 'Prospecto', color: 'gray' },
+  CLIENTE: { etiqueta: 'Cliente', color: 'info' },
+  RECURRENTE: { etiqueta: 'Cliente recurrente', color: 'success' },
 };
 
 const sourceLabels: Record<string, string> = {
@@ -471,11 +475,28 @@ export default function ContactoDetailPage() {
                 Estado y Origen
               </h2>
               <div className="space-y-4">
+                {/* CRM-20: sale de lo que compró, no de un campo de la ficha.
+                    Por eso sigue diciendo "Recurrente" aunque se le acabe de
+                    perder una oportunidad. */}
                 <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tipo</p>
-                  <Badge color="info" className="mt-2">
-                    {contactTypeLabels[contact.contactType] || contact.contactType}
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Relación</p>
+                  <Badge
+                    color={CONDICION[contact.condicion ?? 'PROSPECTO'].color}
+                    className="mt-2 w-fit"
+                  >
+                    {CONDICION[contact.condicion ?? 'PROSPECTO'].etiqueta}
                   </Badge>
+                  {!!contact.ventas && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      {contact.ventas === 1 ? '1 compra' : `${contact.ventas} compras`}
+                      {contact.ultimaVenta &&
+                        ` · última el ${new Date(contact.ultimaVenta).toLocaleDateString('es-CO', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })}`}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</p>

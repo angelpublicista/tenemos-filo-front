@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import ImportarContactos from '@/components/CRM/ImportarContactos';
 import { Button, Label, TextInput, Select, Badge, Card, Dropdown, DropdownItem } from 'flowbite-react';
 import { 
   HiArrowLeft, 
@@ -197,6 +198,7 @@ export default function ContactosPage() {
                   </DropdownItem>
                 </Dropdown>
               )}
+              <ImportarContactos onImportado={() => void loadContacts()} />
               <Button
                 color="primary"
                 onClick={() => router.push('/dashboard/crm/contactos/crear')}

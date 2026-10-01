@@ -19,6 +19,14 @@ export interface PasarelaDeCobro {
   privateKeyConfigured: boolean;
   integritySecretConfigured: boolean;
   eventsSecretConfigured: boolean;
+  /** Qué le falta para poder cobrar, en frases listas para enseñar. */
+  faltan: string[];
+  /**
+   * Si con esto se cobra de verdad. Activa pero a medias no cobra: el dinero
+   * sigue entrando por FILO hasta que esté completa, y decir "ya cobras tú"
+   * mientras tanto sería mentir.
+   */
+  listaParaCobrar: boolean;
   /**
    * Solo al guardar: reservas suyas sin cobrar que quedan sin forma de
    * cobrarse si desconecta. No se le impide —es su pasarela— pero tiene que

@@ -80,6 +80,10 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
   }
 
   const activa = estado?.enabled === true;
+  // Activa no es lo mismo que cobrando: con las llaves a medias el dinero
+  // sigue entrando por FILO, y decir "hoy cobras tú" ahí sería mentir.
+  const cobrando = estado?.listaParaCobrar === true;
+  const faltan = estado?.faltan ?? [];
   const esMercadoPago = proveedor === 'MERCADO_PAGO';
 
   const enviar = async (cambios: Parameters<typeof guardarPasarela>[1]) => {
@@ -99,6 +103,13 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
           } sin cobrar que iba${varias ? 'n' : ''} a tu cuenta: mientras tu pasarela esté apagada no hay forma de cobrar${
             varias ? 'las' : 'la'
           }. Vuelve a encenderla o cóbra${varias ? 'las' : 'la'} por fuera.`,
+        );
+      } else if (r.enabled && r.faltan.length > 0) {
+        // Guardado sí, pero todavía no cobra. Es un aviso, no un error: el
+        // estado quedó puesto y lo único que falta son las llaves.
+        showWarning(
+          'Guardado, pero aún no cobras tú',
+          `${r.faltan.join(' ')} Mientras tanto siguen cobrándose por Tenemos Filo, con su comisión.`,
         );
       } else {
         showSuccess('Guardado', '');
@@ -180,10 +191,14 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
         <div className="flex flex-wrap items-center gap-3">
           <span
             className={`rounded-full px-3 py-1 text-xs font-medium ${
-              activa ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+              cobrando
+                ? 'bg-green-100 text-green-800'
+                : activa
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-gray-100 text-gray-600'
             }`}
           >
-            {activa ? 'Hoy cobras tú' : 'Hoy cobra Tenemos Filo'}
+            {cobrando ? 'Hoy cobras tú' : activa ? 'Falta completarla' : 'Hoy cobra Tenemos Filo'}
           </span>
           <ToggleSwitch
             checked={activa}
@@ -194,10 +209,27 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
         </div>
       </div>
 
-      {activa && (
-        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Si vendes por revendedores, su comisión la sigues debiendo tú: ese dinero ya entró a tu
-          cuenta y FILO no puede descontarlo. Lo verás en tus ingresos como pendiente de pagar.
+      {/* Con el cobro apagado no hay nada que configurar: enseñar las llaves de
+          una pasarela que no se va a usar solo invita a rellenarlas y
+          preguntarse por qué no pasa nada. */}
+      {!activa ? (
+        <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+          Hoy cobra Tenemos Filo y te dispersa lo tuyo. Enciende el cobro en tu cuenta para elegir
+          tu pasarela y pegar tus llaves.
+        </p>
+      ) : (
+      <>
+      <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Si vendes por revendedores, su comisión la sigues debiendo tú: ese dinero ya entró a tu
+        cuenta y FILO no puede descontarlo. Lo verás en tus ingresos como pendiente de pagar.
+      </p>
+
+      {/* Lo que falta, siempre a la vista mientras falte: el aviso del guardado
+          se cierra y después nadie recuerda por qué no cobra. */}
+      {faltan.length > 0 && (
+        <p className="mb-4 rounded-lg border border-amber-300 bg-amber-100 px-4 py-3 text-sm text-amber-900">
+          <strong>Todavía no cobras tú.</strong> {faltan.join(' ')} Mientras tanto tus ventas
+          siguen cobrándose por Tenemos Filo, con su comisión.
         </p>
       )}
 
@@ -401,6 +433,8 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
           {guardando ? 'Guardando…' : 'Guardar llaves'}
         </Button>
       </div>
+      </>
+      )}
     </section>
   );
 }

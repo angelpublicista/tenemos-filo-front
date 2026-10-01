@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Label, Select, TextInput, ToggleSwitch } from 'flowbite-react';
+import { Button, Label, TextInput, ToggleSwitch } from 'flowbite-react';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import LogoDePasarela from '@/components/LogoDePasarela';
 import {
@@ -16,6 +16,12 @@ interface Props {
   /** Cuánto se lleva FILO hoy, para poder decir qué se ahorra. */
   comisionDeFilo?: number | null;
 }
+
+/** Los dos entornos, siempre los dos a la vista. */
+const ENTORNOS: Array<{ valor: 'SANDBOX' | 'PRODUCTION'; etiqueta: string }> = [
+  { valor: 'SANDBOX', etiqueta: 'Pruebas' },
+  { valor: 'PRODUCTION', etiqueta: 'Producción' },
+];
 
 /** Los secretos no vuelven del API: se escriben enteros o se dejan en blanco. */
 type Secretos = { publicKey: string; privateKey: string; integritySecret: string; eventsSecret: string };
@@ -222,17 +228,36 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
           </div>
         </div>
 
+        {/* Dos opciones a la vista y no un desplegable: elegir el entorno
+            equivocado es el error que mas cuesta diagnosticar —los pagos
+            simplemente no entran— y escondiendo una de las dos nadie se para a
+            pensar cual esta puesta. */}
         <div>
-          <Label htmlFor="pas-entorno">Entorno</Label>
-          <Select
-            id="pas-entorno"
-            value={entorno}
-            onChange={(e) => setEntorno(e.target.value as 'SANDBOX' | 'PRODUCTION')}
-          >
-            <option value="SANDBOX">Pruebas</option>
-            <option value="PRODUCTION">Producción</option>
-          </Select>
-          <p className="mt-1 text-xs text-gray-500">
+          <span className="mb-2 block text-sm font-medium text-gray-900 dark:text-gray-300">
+            Entorno
+          </span>
+          <div className="flex gap-2">
+            {ENTORNOS.map((e) => (
+              <label
+                key={e.valor}
+                className={`flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+                  entorno === e.valor
+                    ? 'border-marca bg-marca-tenue font-medium text-gray-900'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="pas-entorno"
+                  value={e.valor}
+                  checked={entorno === e.valor}
+                  onChange={() => setEntorno(e.valor)}
+                />
+                {e.etiqueta}
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
             {esMercadoPago ? (
               <>
                 Las credenciales de prueba de Mercado Pago empiezan por <code>TEST-</code>; si no

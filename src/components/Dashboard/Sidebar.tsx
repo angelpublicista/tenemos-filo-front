@@ -22,7 +22,7 @@ import {
   BiChevronRight,
   BiX
 } from 'react-icons/bi';
-import { HiOutlineCash, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey } from 'react-icons/hi';
+import { HiOutlineCash, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -86,6 +86,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             href: '/dashboard/integraciones/pagos',
             icon: HiOutlineCreditCard,
             current: pathname === '/dashboard/integraciones/pagos',
+            enabled: true,
+          },
+        ]
+      : []),
+    // El agente de IA y su WhatsApp. Es una integracion como las demas: conecta
+    // a FILO con algo de fuera.
+    ...(operaComoEmpresa && !esReseller
+      ? [
+          {
+            name: 'Agente IA',
+            href: '/dashboard/integraciones/agente',
+            icon: HiOutlineSparkles,
+            current: pathname === '/dashboard/integraciones/agente',
             enabled: true,
           },
         ]

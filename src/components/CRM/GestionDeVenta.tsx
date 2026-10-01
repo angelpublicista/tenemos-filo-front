@@ -24,6 +24,12 @@ interface Props {
   status: string;
   reservations?: ReservaDeOportunidad[];
   condicionDePago?: string | null;
+  /**
+   * Si quien mira puede autorizar una condición distinta al abono. Lo decide
+   * el API —solo el titular de la empresa—; aquí solo sirve para no ofrecer un
+   * botón que iba a fallar.
+   */
+  puedeAutorizarCondicion?: boolean;
   experiencias: Experience[];
   onCambio: () => void;
 }
@@ -47,6 +53,7 @@ export default function GestionDeVenta({
   status,
   reservations = [],
   condicionDePago,
+  puedeAutorizarCondicion = false,
   experiencias,
   onCambio,
 }: Props) {
@@ -320,7 +327,9 @@ export default function GestionDeVenta({
                 <Button size="sm" color="secondary" onClick={abonar} disabled={trabajando}>
                   Registrar abono
                 </Button>
-                {!condicionDePago && (
+                {/* Autorizar una orden de compra es confirmar una venta sin
+                    tener el dinero: lo decide el titular, no quien atiende. */}
+                {!condicionDePago && puedeAutorizarCondicion && (
                   <Button size="sm" color="secondary" onClick={autorizar} disabled={trabajando}>
                     Autorizar otra condición
                   </Button>
@@ -334,6 +343,15 @@ export default function GestionDeVenta({
               Cerrar como perdida
             </Button>
           </div>
+
+          {/* Sin esto, a quien no es titular le falta dinero para confirmar y
+              no hay nada en pantalla que explique por qué no puede saltárselo. */}
+          {porCobrar && falta > 0 && !condicionDePago && !puedeAutorizarCondicion && (
+            <p className="text-xs text-gray-500">
+              ¿Van a pagar con orden de compra o alguna otra condición? Eso solo lo
+              autoriza el titular de la empresa.
+            </p>
+          )}
         </div>
       ) : (
         <div className="mt-3 space-y-3">

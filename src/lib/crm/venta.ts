@@ -19,7 +19,7 @@ export interface ReservaDeOportunidad {
   pricing?: { total?: number } | null;
 }
 
-/** Los motivos que hoy ofrece el API. Provisionales: están por definir. */
+/** Los motivos de pérdida acordados. Si cambian, se cambian aquí. */
 export const MOTIVOS_DE_PERDIDA = [
   { valor: 'PRECIO', etiqueta: 'Por precio' },
   { valor: 'FECHA_NO_DISPONIBLE', etiqueta: 'No había disponibilidad en su fecha' },

@@ -50,11 +50,26 @@ const STATUS_FROM_API: Record<ApiStatus, OpportunityStatus> = {
   PAUSED: 'paused',
 };
 
+/**
+ * CRM-12/13. Otro compromiso ya tomó el día que mira esta oportunidad.
+ *
+ * Solo informa: una pre-reserva bloquea el espacio, y sin esto el comercial
+ * seguiría persiguiendo una fecha que ya no existe.
+ */
+export interface EspacioTomado {
+  fecha: string;
+  experiencia: string | null;
+  estado: string;
+}
+
 interface ApiOpportunity {
   id: string;
   experienceKind?: 'ABIERTA' | 'PRIVADA' | null;
   buyerKind?: 'SOCIAL' | 'CORPORATIVO' | null;
   paymentConditionNote?: string | null;
+  /** Solo el titular de la empresa autoriza una condición de pago. */
+  puedeAutorizarCondicion?: boolean;
+  espacioTomado?: EspacioTomado | null;
   // Las reservas vivas: dicen si el espacio esta apartado y cuanto se cobro.
   reservations?: Array<{
     id: string;
@@ -109,6 +124,8 @@ function toOpportunity(o: ApiOpportunity): Opportunity & {
   experienceKind?: 'ABIERTA' | 'PRIVADA' | null;
   buyerKind?: 'SOCIAL' | 'CORPORATIVO' | null;
   paymentConditionNote?: string | null;
+  puedeAutorizarCondicion?: boolean;
+  espacioTomado?: EspacioTomado | null;
   reservations?: ApiOpportunity['reservations'];
   crmCompanyName?: string;
   contactName?: string;
@@ -122,6 +139,8 @@ function toOpportunity(o: ApiOpportunity): Opportunity & {
     experienceKind: o.experienceKind ?? null,
     buyerKind: o.buyerKind ?? null,
     paymentConditionNote: o.paymentConditionNote ?? null,
+    puedeAutorizarCondicion: o.puedeAutorizarCondicion ?? false,
+    espacioTomado: o.espacioTomado ?? null,
     reservations: o.reservations ?? [],
     name: o.name,
     hostCompany: { _ref: o.hostCompanyId, _type: 'reference' },

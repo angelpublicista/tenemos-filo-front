@@ -24,6 +24,7 @@ import CotizacionesDeOportunidad from '@/components/CRM/CotizacionesDeOportunida
 import GestionDeVenta from '@/components/CRM/GestionDeVenta';
 import DatosDeFacturacion from '@/components/CRM/DatosDeFacturacion';
 import type { ReservaDeOportunidad } from '@/lib/crm/venta';
+import type { EspacioTomado } from '@/lib/sanity/opportunityService';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import { useAuth } from '@/lib/auth/AuthContext';
 import Swal from 'sweetalert2';
@@ -35,6 +36,8 @@ import Loader from '@/components/Loader';
 type OpportunityWithExpanded = Opportunity & {
   experienceKind?: 'ABIERTA' | 'PRIVADA' | null;
   paymentConditionNote?: string | null;
+  puedeAutorizarCondicion?: boolean;
+  espacioTomado?: EspacioTomado | null;
   reservations?: ReservaDeOportunidad[];
   crmCompanyName?: string;
   contactName?: string;
@@ -540,6 +543,30 @@ export default function OportunidadDetailPage() {
               </div>
             </Card>
 
+            {/* CRM-12/13. Una pre-reserva SI bloquea, asi que cuando una de
+                varias oportunidades sobre la misma fecha pasa a intencion de
+                pago, las demas se quedan sin sitio. Esto lo dice; no cierra
+                nada: quien lleva la venta decide si ofrece otra fecha. */}
+            {opportunity.espacioTomado && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-semibold">Ese día ya está tomado</p>
+                <p className="mt-1">
+                  {opportunity.espacioTomado.estado === 'PRE_RESERVED'
+                    ? 'Hay un espacio apartado'
+                    : 'Hay una reserva'}{' '}
+                  para el{' '}
+                  {new Date(opportunity.espacioTomado.fecha).toLocaleDateString('es-CO', {
+                    day: 'numeric',
+                    month: 'long',
+                  })}
+                  {opportunity.espacioTomado.experiencia &&
+                    ` · ${opportunity.espacioTomado.experiencia}`}
+                  . Si choca con lo que estabas cotizando, ofrécele otra fecha antes de
+                  seguir.
+                </p>
+              </div>
+            )}
+
             {/* El tramo final: apartar el espacio, cobrar y cerrar. */}
             <GestionDeVenta
               opportunityId={opportunity._id}
@@ -547,6 +574,7 @@ export default function OportunidadDetailPage() {
               status={String(opportunity.status)}
               reservations={opportunity.reservations}
               condicionDePago={opportunity.paymentConditionNote}
+              puedeAutorizarCondicion={opportunity.puedeAutorizarCondicion}
               experiencias={experienciasDisponibles}
               onCambio={() => void loadOpportunity()}
             />

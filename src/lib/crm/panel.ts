@@ -9,7 +9,7 @@ import { api } from '@/lib/api/client';
 
 export interface SeguimientoPendiente {
   id: string;
-  kind: 'LEAD_24H' | 'LEAD_48H' | 'LEAD_72H' | 'PROPUESTA';
+  kind: 'LEAD_24H' | 'LEAD_48H' | 'LEAD_72H' | 'PROPUESTA' | 'PROPUESTA_3D' | 'PROPUESTA_7D';
   dueAt: string;
   opportunity: {
     id: string;
@@ -55,7 +55,11 @@ export const ETIQUETA_SEGUIMIENTO: Record<SeguimientoPendiente['kind'], string> 
   LEAD_24H: 'Primer contacto (24 h)',
   LEAD_48H: 'Segundo intento (48 h)',
   LEAD_72H: 'Último intento (72 h)',
+  // Tres recordatorios de lo mismo, y la etiqueta dice en cuál vas: si los
+  // tres dijeran igual, la lista parecería repetirse sola.
   PROPUESTA: 'Propuesta sin respuesta',
+  PROPUESTA_3D: 'Propuesta sin respuesta · 3 días',
+  PROPUESTA_7D: 'Propuesta sin respuesta · última',
 };
 
 export const obtenerPendientes = () => api.get<Pendientes>('/crm-panel/pendientes');

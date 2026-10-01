@@ -32,6 +32,10 @@ interface ApiCrmCompany {
   assignedToId: string | null;
   lastContactDate: string | null;
   nextFollowUp: string | null;
+  // CRM-20. Derivados de las ventas, no guardados en la ficha.
+  condicion?: CRMCompany['condicion'];
+  ventas?: number;
+  ultimaVenta?: string | null;
   isActive: boolean;
   deletedAt: string | null;
   createdAt: string;
@@ -65,6 +69,9 @@ function toCrmCompany(c: ApiCrmCompany): CRMCompany & { hostCompanyName?: string
     tags: c.tags ?? [],
     socialMedia: c.socialMedia ?? undefined,
     assignedTo: c.assignedToId ? { _ref: c.assignedToId, _type: 'reference' } : undefined,
+    condicion: c.condicion,
+    ventas: c.ventas,
+    ultimaVenta: c.ultimaVenta ?? null,
     lastContactDate: c.lastContactDate ?? undefined,
     nextFollowUp: c.nextFollowUp ?? undefined,
     isActive: c.isActive,
@@ -132,6 +139,7 @@ export const getCRMCompaniesByHost = async (
   const items = await api.get<ApiCrmCompany[]>('/crm-companies', {
     hostCompanyId,
     companyType: filters?.companyType,
+    condicion: filters?.condicion,
     status: filters?.status,
     industry: filters?.industry,
     source: filters?.source,

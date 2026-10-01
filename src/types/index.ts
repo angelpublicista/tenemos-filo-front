@@ -1005,6 +1005,17 @@ export interface CRMCompany {
   };
   lastContactDate?: string;
   nextFollowUp?: string;
+  /**
+   * Cliente o cliente recurrente, derivado de sus ventas. Igual que en los
+   * contactos: se calcula al leer, no se marca a mano. En una empresa solo
+   * cuenta lo que llegó por una oportunidad suya —la reserva la hace una
+   * persona, y por el correo no se le puede atribuir a la empresa—.
+   */
+  condicion?: CondicionDeCliente;
+  /** Cuántas ventas suyas hay. */
+  ventas?: number;
+  /** La última, para poder decir cuánto hace que no vuelve. */
+  ultimaVenta?: string | null;
   isActive: boolean;
   deletedAt?: string;
   createdAt: string;
@@ -1044,6 +1055,8 @@ export interface UpdateCRMCompanyData extends Partial<CreateCRMCompanyData> {
 
 export interface CRMCompanyFilters {
   companyType?: CRMCompanyType;
+  /** CRM-20. Filtra por lo que compró, no por lo que diga su ficha. */
+  condicion?: CondicionDeCliente;
   status?: CRMCompanyStatus;
   industry?: CRMCompanyIndustry;
   source?: CRMCompanySource;

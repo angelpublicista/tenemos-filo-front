@@ -30,7 +30,7 @@ const VACIOS: Secretos = { publicKey: '', privateKey: '', integritySecret: '', e
  * del revendedor pasa a deberla él— antes de que toque nada.
  */
 export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
-  const { showError, showSuccess, showConfirmation } = useSweetAlert();
+  const { showError, showSuccess, showWarning, showConfirmation } = useSweetAlert();
   const [estado, setEstado] = useState<PasarelaDeCobro | null>(null);
   const [proveedor, setProveedor] = useState<ProveedorDePago>('WOMPI');
   const [entorno, setEntorno] = useState<'SANDBOX' | 'PRODUCTION'>('SANDBOX');
@@ -83,11 +83,16 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
       setEstado(r);
       setSecretos({ ...VACIOS, publicKey: r.publicKey ?? '' });
       if (r.reservasSinCobrar) {
-        showError(
-          'Ojo con las reservas pendientes',
-          `Tienes ${r.reservasSinCobrar} reserva${r.reservasSinCobrar > 1 ? 's' : ''} sin cobrar que iba${
-            r.reservasSinCobrar > 1 ? 'n' : ''
-          } a tu cuenta. Mientras la pasarela esté apagada no hay forma de cobrarlas: vuelve a encenderla o cóbralas por fuera.`,
+        // Un aviso, no un error: el cambio SÍ se guardó. Con una cruz roja
+        // delante, cualquiera entiende que no le dejó apagarlo.
+        const varias = r.reservasSinCobrar > 1;
+        showWarning(
+          'Listo, pero mira esto',
+          `Ya cobra Tenemos Filo. Te ${varias ? 'quedan' : 'queda'} ${r.reservasSinCobrar} reserva${
+            varias ? 's' : ''
+          } sin cobrar que iba${varias ? 'n' : ''} a tu cuenta: mientras tu pasarela esté apagada no hay forma de cobrar${
+            varias ? 'las' : 'la'
+          }. Vuelve a encenderla o cóbra${varias ? 'las' : 'la'} por fuera.`,
         );
       } else {
         showSuccess('Guardado', '');
@@ -162,11 +167,24 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
             por FILO. Sobre esas ventas FILO no cobra comisión.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className={`text-sm font-medium ${activa ? 'text-green-700' : 'text-gray-500'}`}>
-            {activa ? 'Cobrando en tu cuenta' : 'Cobrando por FILO'}
+        {/* El interruptor dice lo que HACE y la etiqueta de al lado quién cobra
+            hoy. Antes el texto era solo el estado —"Cobrando por FILO"— y
+            pegado a un interruptor se leía como lo que ibas a activar: la
+            gente lo encendía esperando volver a FILO y conseguía lo contrario. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              activa ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {activa ? 'Hoy cobras tú' : 'Hoy cobra Tenemos Filo'}
           </span>
-          <ToggleSwitch checked={activa} label="" onChange={() => void alternar()} disabled={guardando} />
+          <ToggleSwitch
+            checked={activa}
+            label="Cobrar en mi cuenta"
+            onChange={() => void alternar()}
+            disabled={guardando}
+          />
         </div>
       </div>
 

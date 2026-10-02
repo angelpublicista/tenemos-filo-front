@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
   CAMPOS,
+  COMO_SE_RECONOCE,
   POR_TANDA,
   QUE_HACER,
   aContactos,
@@ -121,7 +122,8 @@ export default function ImportarContactos({ onImportado }: Props) {
     // del archivo, no en cuántos trozos se mandó.
     const total: ResumenDeImportacion = {
       creados: 0, actualizados: 0, omitidos: 0, repetidosEnElArchivo: 0,
-      sinFormaDeContacto: 0, correosInvalidos: 0, empresasCreadas: 0, errores: [],
+      sinFormaDeContacto: 0, correosInvalidos: 0, empresasCreadas: 0,
+      fusionadosPorNombre: [], errores: [],
     };
     try {
       for (let i = 0; i < contactos.length; i += POR_TANDA) {
@@ -136,6 +138,9 @@ export default function ImportarContactos({ onImportado }: Props) {
         // La fila que reporta el API es la de su tanda: se corrige para que
         // apunte a la del archivo, que es la que la persona tiene delante.
         total.errores.push(...r.errores.map((e) => ({ ...e, fila: e.fila + i })));
+        total.fusionadosPorNombre.push(
+          ...r.fusionadosPorNombre.map((f) => ({ ...f, fila: f.fila + i })),
+        );
         setProgreso(Math.min(i + POR_TANDA, contactos.length));
       }
       setResumen(total);
@@ -208,6 +213,31 @@ export default function ImportarContactos({ onImportado }: Props) {
                         teléfono. No vas a poder escribirles hasta que los completes.
                       </li>
                     )}
+                  </ul>
+                </div>
+              )}
+
+              {/* Lo que se junto solo por el nombre va aparte de los avisos
+                  generales: dos "Juan Perez" son dos personas, y esto es lo
+                  unico de la importacion que puede haber mezclado dos fichas
+                  distintas. */}
+              {resumen.fusionadosPorNombre.length > 0 && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p className="font-medium">
+                    {plural(
+                      resumen.fusionadosPorNombre.length,
+                      'contacto se reconoció solo por el nombre',
+                      'contactos se reconocieron solo por el nombre',
+                    )}
+                  </p>
+                  <p className="mt-1 text-xs">
+                    No traían correo ni teléfono que coincidiera. Si alguno era otra persona con
+                    el mismo nombre, revísalo:
+                  </p>
+                  <ul className="mt-1 max-h-40 space-y-0.5 overflow-y-auto text-xs">
+                    {resumen.fusionadosPorNombre.slice(0, 50).map((f) => (
+                      <li key={f.fila}>Fila {f.fila}: {f.nombre}</li>
+                    ))}
                   </ul>
                 </div>
               )}
@@ -336,10 +366,17 @@ export default function ImportarContactos({ onImportado }: Props) {
                     </label>
                   ))}
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  Se reconoce por el correo; si no hay, por el teléfono; y si tampoco, por el
-                  nombre completo.
-                </p>
+                {/* La regla se dice ANTES: fusionar dos fichas cuesta
+                    deshacerlo, y nadie deberia enterarse de como se reconoce
+                    un contacto por lo que le paso a su archivo. */}
+                <div className="mt-2 text-xs text-gray-500">
+                  <p>Para saber si ya existe se mira, en este orden:</p>
+                  <ul className="ml-4 list-disc">
+                    {COMO_SE_RECONOCE.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">

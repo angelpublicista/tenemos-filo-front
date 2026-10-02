@@ -40,8 +40,28 @@ export interface ResumenDeImportacion {
   sinFormaDeContacto: number;
   correosInvalidos: number;
   empresasCreadas: number;
+  /**
+   * Los que se reconocieron solo por el nombre.
+   *
+   * Van aparte porque es la única clave que puede equivocarse de persona:
+   * dos "Juan Pérez" son dos personas. Quien importa es el único que puede
+   * saber si eran el mismo.
+   */
+  fusionadosPorNombre: Array<{ fila: number; nombre: string }>;
   errores: Array<{ fila: number; motivo: string }>;
 }
+
+/**
+ * Cómo se reconoce que un contacto ya existe, en orden.
+ *
+ * Se enseña antes de importar: fusionar dos fichas es difícil de deshacer, y
+ * nadie debería descubrir la regla por lo que le pasó al archivo.
+ */
+export const COMO_SE_RECONOCE = [
+  'Por el correo, si lo trae.',
+  'Si no, por el teléfono, comparando solo los dígitos.',
+  'Y en último caso por el nombre, sin tildes ni mayúsculas.',
+];
 
 /** El API acepta tandas, no archivos enteros. */
 export const POR_TANDA = 500;

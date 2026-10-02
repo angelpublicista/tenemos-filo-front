@@ -164,7 +164,7 @@ export default function AgentePage() {
   const faltan = estado?.faltan ?? [];
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute roles={['host', 'admin']}>
       <div className="max-w-4xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-[#334C5D]">Agente de IA</h1>

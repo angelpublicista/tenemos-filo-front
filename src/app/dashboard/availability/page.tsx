@@ -77,7 +77,7 @@ export default function AvailabilityPage() {
 
   if (initialLoading || !sanityUser) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <Loader message="Cargando disponibilidad..." />
       </ProtectedRoute>
     );

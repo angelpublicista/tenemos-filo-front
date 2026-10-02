@@ -1,5 +1,6 @@
 "use client";
 
+import ProtectedRoute from '@/components/ProtectedRoute';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany, getExperienceStatsByCompany, updateExperienceStatus, deleteExperienceInSanity } from '@/lib/sanity/experienceService';
@@ -31,7 +32,7 @@ import ExperienceStats from '@/components/ExperienceStats';
 import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
 import { ManageExperienceCard } from '@/components/ManageExperienceCard';
 
-export default function ExperiencesPage() {
+function ExperiencesPageContenido() {
   const { user, sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showDestructiveConfirmation } = useSweetAlert();
@@ -303,5 +304,20 @@ export default function ExperiencesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Pantalla de anfitrion: un revendedor no tiene experiencias que gestionar.
+ *
+ * El menu ya no se la enseña a un revendedor, pero por URL se llegaba igual
+ * y lo que salia era una pantalla rota —el titulo de su empresa, botones que
+ * dan 403 y un error al cargar—. ProtectedRoute lo devuelve al dashboard.
+ */
+export default function ExperiencesPage() {
+  return (
+    <ProtectedRoute roles={['host', 'admin']}>
+      <ExperiencesPageContenido />
+    </ProtectedRoute>
   );
 }

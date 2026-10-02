@@ -99,7 +99,7 @@ export default function CotizacionesPage() {
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute roles={['host', 'admin']}>
       <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <div className="mb-4">

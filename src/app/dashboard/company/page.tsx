@@ -6,7 +6,7 @@ import CompanyInfoView from "@/components/CompanyInfoView";
 export default function CompanyPage() {
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute roles={['host', 'admin']}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">

@@ -52,7 +52,7 @@ export default function EditarMenuPage() {
 
   if (cargando || !menu) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <Loader message="Cargando la carta..." />
       </ProtectedRoute>
     );

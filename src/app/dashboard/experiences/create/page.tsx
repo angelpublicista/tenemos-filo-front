@@ -1,5 +1,6 @@
 "use client";
 
+import ProtectedRoute from '@/components/ProtectedRoute';
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -54,7 +55,7 @@ const experienceSchema = z.object({
 
 type ExperienceFormData = z.infer<typeof experienceSchema>;
 
-export default function CreateExperiencePage() {
+function CreateExperiencePageContenido() {
   const { user, sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
@@ -1426,5 +1427,20 @@ export default function CreateExperiencePage() {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Pantalla de anfitrion: quien crea experiencias es el anfitrion, no su canal de venta.
+ *
+ * El menu ya no se la enseña a un revendedor, pero por URL se llegaba igual
+ * y lo que salia era una pantalla rota —el titulo de su empresa, botones que
+ * dan 403 y un error al cargar—. ProtectedRoute lo devuelve al dashboard.
+ */
+export default function CreateExperiencePage() {
+  return (
+    <ProtectedRoute roles={['host', 'admin']}>
+      <CreateExperiencePageContenido />
+    </ProtectedRoute>
   );
 }

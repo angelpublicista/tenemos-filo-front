@@ -46,7 +46,7 @@ export default function CRMPage() {
   ];
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute roles={['host', 'admin']}>
       <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <div className="mb-4">

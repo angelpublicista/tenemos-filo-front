@@ -280,7 +280,7 @@ export default function EditarEmpresaPage() {
 
   if (isLoadingData) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <Loader message="Cargando empresa..." />
         </div>

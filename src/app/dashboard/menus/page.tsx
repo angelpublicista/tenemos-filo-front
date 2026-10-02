@@ -85,7 +85,7 @@ export default function MenusPage() {
 
   if (!sanityUser) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <Loader message="Cargando información del usuario..." />
       </ProtectedRoute>
     );

@@ -5,7 +5,7 @@ import MenuForm from '@/components/MenuForm';
 
 export default function CrearMenuPage() {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute roles={['host', 'admin']}>
       <MenuForm menu={null} />
     </ProtectedRoute>
   );

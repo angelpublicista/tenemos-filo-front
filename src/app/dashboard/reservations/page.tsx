@@ -1,5 +1,6 @@
 "use client";
 
+import ProtectedRoute from '@/components/ProtectedRoute';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Select, Badge, Modal, ModalHeader, ModalBody, Tooltip } from 'flowbite-react';
@@ -50,7 +51,7 @@ interface ReservationStats {
   paidReservations: number;
 }
 
-export default function ReservationsPage() {
+function ReservationsPageContenido() {
   const { sanityUser } = useAuth();
   const { showSuccess, showError } = useSweetAlert();
   const router = useRouter();
@@ -1682,5 +1683,20 @@ export default function ReservationsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Pantalla de anfitrion: las reservas las gestiona el anfitrion; el canal ve sus comisiones.
+ *
+ * El menu ya no se la enseña a un revendedor, pero por URL se llegaba igual
+ * y lo que salia era una pantalla rota —el titulo de su empresa, botones que
+ * dan 403 y un error al cargar—. ProtectedRoute lo devuelve al dashboard.
+ */
+export default function ReservationsPage() {
+  return (
+    <ProtectedRoute roles={['host', 'admin']}>
+      <ReservationsPageContenido />
+    </ProtectedRoute>
   );
 }

@@ -55,7 +55,7 @@ export default function LocationsPage() {
   // Si no hay usuario, mostrar mensaje de carga o error
   if (!sanityUser) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <Loader message="Cargando información del usuario..." />
       </ProtectedRoute>
     );

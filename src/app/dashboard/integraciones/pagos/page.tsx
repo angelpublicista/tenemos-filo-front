@@ -36,7 +36,7 @@ export default function PagosPage() {
   const esperando = Boolean(companyId) && !cargado;
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute roles={['host', 'admin']}>
       <div className="max-w-4xl">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-[#334C5D]">Pagos</h1>

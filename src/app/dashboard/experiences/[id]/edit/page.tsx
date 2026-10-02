@@ -1,5 +1,6 @@
 "use client";
 
+import ProtectedRoute from '@/components/ProtectedRoute';
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -52,7 +53,7 @@ const experienceSchema = z.object({
 
 type ExperienceFormData = z.infer<typeof experienceSchema>;
 
-export default function EditExperiencePage() {
+function EditExperiencePageContenido() {
   const { user, sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
@@ -1240,3 +1241,17 @@ export default function EditExperiencePage() {
   );
 }
 
+/**
+ * Pantalla de anfitrion: quien edita una experiencia es el anfitrion que la hace.
+ *
+ * El menu ya no se la enseña a un revendedor, pero por URL se llegaba igual
+ * y lo que salia era una pantalla rota —el titulo de su empresa, botones que
+ * dan 403 y un error al cargar—. ProtectedRoute lo devuelve al dashboard.
+ */
+export default function EditExperiencePage() {
+  return (
+    <ProtectedRoute roles={['host', 'admin']}>
+      <EditExperiencePageContenido />
+    </ProtectedRoute>
+  );
+}

@@ -28,7 +28,13 @@ interface Props {
 }
 
 export default function ContactStep({ onNext, onBack, conocido }: Props) {
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitted },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: conocido
       ? { name: conocido.name, email: conocido.email, phone: conocido.phone }
@@ -80,7 +86,12 @@ export default function ContactStep({ onNext, onBack, conocido }: Props) {
           <label className="block text-sm font-semibold text-gray-700 mb-2.5">Teléfono *</label>
           <TelefonoInput
             value={watch('phone') || ''}
-            onChange={(v) => setValue('phone', v, { shouldValidate: true, shouldDirty: true })}
+            // Se valida solo despues de intentar enviar, como el nombre y el
+            // correo. Validando siempre, el campo nacia en rojo: el selector de
+            // pais emite "+57" al montarse y eso ya no llega a 7 digitos, asi
+            // que el cliente veia "Ingresa un telefono valido" antes de
+            // escribir nada.
+            onChange={(v) => setValue('phone', v, { shouldValidate: isSubmitted, shouldDirty: true })}
             error={errors.phone?.message}
           />
         </div>

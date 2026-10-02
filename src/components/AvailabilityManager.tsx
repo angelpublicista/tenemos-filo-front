@@ -384,16 +384,37 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   // llega por props; no hay forma de editarlas desde aqui.
   const [blockedDates] = useState<BlockedDate[]>(schedule?.blockedDates || []);
   const [notes, setNotes] = useState(schedule?.notes || '');
-  const [bufferTime, setBufferTime] = useState(schedule?.bufferTime || 0);
-  const [minimumNotice, setMinimumNotice] = useState(schedule?.minimumNotice || 24);
+  // Los dos numericos se guardan como TEXTO mientras se escriben.
+  //
+  // Antes eran numeros y el onChange hacia `parseInt(valor) || 0`: al borrar
+  // el campo para escribir otra cifra, el valor volvia solo a 0 —o a 24— y el
+  // cursor quedaba detras, asi que teclear "45" daba "045" y teclear "4"
+  // dejaba "04". En la practica el campo no se dejaba cambiar. El numero se
+  // resuelve al guardar, que es cuando hace falta que sea un numero.
+  const [bufferTime, setBufferTime] = useState(String(schedule?.bufferTime ?? 0));
+  const [minimumNotice, setMinimumNotice] = useState(String(schedule?.minimumNotice ?? 24));
   const [saving, setSaving] = useState(false);
   const { showSuccess, showError } = useSweetAlert();
+
+  /**
+   * El numero que el usuario dejo escrito, o el de por defecto.
+   *
+   * Un campo vacio no es un error: significa "lo normal". Fallar ahi obligaria
+   * a escribir un cero para decir que no hay buffer.
+   */
+  const aNumero = (valor: string, porDefecto: number, minimo: number) => {
+    const n = Number.parseInt(valor, 10);
+    return Number.isFinite(n) && n >= minimo ? n : porDefecto;
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
       showError('Por favor ingresa un nombre para el calendario');
       return;
     }
+
+    const buffer = aNumero(bufferTime, 0, 0);
+    const aviso = aNumero(minimumNotice, 24, 1);
 
     try {
       setSaving(true);
@@ -406,8 +427,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           weeklySchedule,
           blockedDates,
           notes,
-          bufferTime,
-          minimumNotice,
+          bufferTime: buffer,
+          minimumNotice: aviso,
         });
         showSuccess('Calendario actualizado exitosamente');
       } else {
@@ -418,8 +439,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           weeklySchedule,
           blockedDates,
           notes,
-          bufferTime,
-          minimumNotice,
+          bufferTime: buffer,
+          minimumNotice: aviso,
         });
         showSuccess('Calendario creado exitosamente');
       }
@@ -606,7 +627,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
               <input
                 type="number"
                 value={bufferTime}
-                onChange={(e) => setBufferTime(parseInt(e.target.value) || 0)}
+                onChange={(e) => setBufferTime(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
                 placeholder="0"
                 min="0"
@@ -622,7 +643,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
               <input
                 type="number"
                 value={minimumNotice}
-                onChange={(e) => setMinimumNotice(parseInt(e.target.value) || 24)}
+                onChange={(e) => setMinimumNotice(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
                 placeholder="24"
                 min="1"

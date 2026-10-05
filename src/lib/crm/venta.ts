@@ -50,8 +50,22 @@ export const registrarPago = (opportunityId: string, monto: number) =>
 export const autorizarCondicionDePago = (opportunityId: string, nota: string) =>
   api.post(`/opportunities/${encodeURIComponent(opportunityId)}/condicion-de-pago`, { nota });
 
+/**
+ * Confirmar la venta. Devuelve cuántas opciones siguen en el aire (TR-15).
+ *
+ * Con varias opciones sobre la mesa, confirmar una reserva ya no cierra la
+ * oportunidad: el cliente puede haber dicho que sí a la cena del sábado y
+ * seguir pensando el almuerzo del domingo.
+ */
 export const confirmarVenta = (opportunityId: string) =>
-  api.post(`/opportunities/${encodeURIComponent(opportunityId)}/confirmar-venta`, {});
+  api.post<{ opcionesPendientes?: number }>(
+    `/opportunities/${encodeURIComponent(opportunityId)}/confirmar-venta`,
+    {},
+  );
+
+/** TR-15. Cerrar como ganada cuando ya se sabe que no queda nada que vender. */
+export const cerrarGanada = (opportunityId: string) =>
+  api.post(`/opportunities/${encodeURIComponent(opportunityId)}/cerrar-ganada`, {});
 
 /** CRM-32. En una abierta no hay pre-reserva: se crea la reserva y ya. */
 export const crearReservaDeOportunidad = (

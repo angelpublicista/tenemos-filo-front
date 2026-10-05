@@ -7,6 +7,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
   MOTIVOS_DE_PERDIDA,
   autorizarCondicionDePago,
+  cerrarGanada,
   confirmarVenta,
   crearPreReserva,
   crearReservaDeOportunidad,
@@ -30,6 +31,12 @@ interface Props {
    * botón que iba a fallar.
    */
   puedeAutorizarCondicion?: boolean;
+  /**
+   * TR-15. Cuántas opciones distintas se le pusieron al cliente. Con más de
+   * una en una privada, confirmar una reserva no cierra la oportunidad: puede
+   * que el cliente siga decidiendo las demás.
+   */
+  opciones?: number;
   experiencias: Experience[];
   onCambio: () => void;
 }
@@ -54,6 +61,7 @@ export default function GestionDeVenta({
   reservations = [],
   condicionDePago,
   puedeAutorizarCondicion = false,
+  opciones = 0,
   experiencias,
   onCambio,
 }: Props) {
@@ -61,6 +69,7 @@ export default function GestionDeVenta({
   const [trabajando, setTrabajando] = useState(false);
 
   const esAbierta = experienceKind === 'ABIERTA';
+  const variasOpciones = experienceKind === 'PRIVADA' && opciones > 1;
   const abierta = status === 'OPEN' || status === 'open';
   // Una reserva viva es la que esta comprometida o confirmada: las dos
   // bloquean el espacio, y sobre las dos se cobra.
@@ -222,18 +231,59 @@ export default function GestionDeVenta({
   };
 
   const confirmar = async () => {
+    // TR-15. Lo que va a pasar depende de si hay más de una opción sobre la
+    // mesa, y decirlo antes evita la sorpresa de ver la oportunidad abierta
+    // —o cerrada— cuando se esperaba lo contrario.
     const ok = await showConfirmation(
       '¿Confirmar la venta?',
       '',
       'Sí, confirmar',
       'Cancelar',
+      variasOpciones
+        ? [
+            'La reserva quedará confirmada y el espacio sigue bloqueado.',
+            'La oportunidad NO se cierra: tiene varias opciones y puede que el cliente todavía esté decidiendo las demás.',
+            'Ciérrala como ganada cuando sepas que no queda nada por vender.',
+          ]
+        : [
+            'La reserva quedará confirmada y la oportunidad pasará a Ganado cerrado.',
+            'El espacio sigue bloqueado.',
+          ],
+    );
+    if (!ok) return;
+    setTrabajando(true);
+    try {
+      const r = await confirmarVenta(opportunityId);
+      onCambio();
+      const pendientes = r?.opcionesPendientes ?? 0;
+      showSuccess(
+        'Venta confirmada',
+        pendientes > 0
+          ? `Quedan ${pendientes} ${pendientes === 1 ? 'opción' : 'opciones'} en el aire, así que la oportunidad sigue abierta.`
+          : '',
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      showError('No se pudo confirmar', msg || 'Inténtalo de nuevo.');
+    } finally {
+      setTrabajando(false);
+    }
+  };
+
+  /** TR-15. Cerrar a mano lo que confirmar ya no cierra solo. */
+  const cerrar = async () => {
+    const ok = await showConfirmation(
+      '¿Cerrar como ganada?',
+      '',
+      'Sí, cerrar',
+      'Cancelar',
       [
-        'La reserva quedará confirmada y la oportunidad pasará a Ganado cerrado.',
-        'El espacio sigue bloqueado.',
+        'La oportunidad pasa a Ganado cerrado y se retiran sus seguimientos.',
+        'Las reservas confirmadas siguen como están.',
       ],
     );
     if (!ok) return;
-    await conError(() => confirmarVenta(opportunityId), 'Venta confirmada');
+    await conError(() => cerrarGanada(opportunityId), 'Oportunidad cerrada como ganada');
   };
 
   const perder = async () => {
@@ -341,10 +391,26 @@ export default function GestionDeVenta({
                 </Button>
               </>
             )}
+            {/* TR-15. Con una reserva ya confirmada y varias opciones encima,
+                la oportunidad sigue abierta a propósito: aquí se cierra
+                cuando quien vende sabe que no queda nada por vender. */}
+            {reserva?.status === 'CONFIRMED' && (
+              <Button size="sm" onClick={cerrar} disabled={trabajando}>
+                Cerrar como ganada
+              </Button>
+            )}
             <Button size="sm" color="danger" onClick={perder} disabled={trabajando}>
               Cerrar como perdida
             </Button>
           </div>
+
+          {reserva?.status === 'CONFIRMED' && variasOpciones && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+              Esta oportunidad tiene {opciones} opciones y sigue abierta: la venta
+              confirmada es una de ellas. Ciérrala como ganada cuando el cliente
+              haya decidido el resto.
+            </p>
+          )}
 
           {/* Sin esto, a quien no es titular le falta dinero para confirmar y
               no hay nada en pantalla que explique por qué no puede saltárselo. */}

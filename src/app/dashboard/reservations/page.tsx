@@ -31,6 +31,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import { cancelReservation, getReservationById, getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
 import { pedirDatosDeCancelacion } from '@/lib/reservas/cancelacion';
+import Reembolsos from '@/components/Reservas/Reembolsos';
 import { mensajeDeError } from '@/lib/api/client';
 import { Experience, Reservation } from '@/types';
 import CreateReservationModal from '@/components/CreateReservationModal';
@@ -1670,6 +1671,16 @@ function ReservationsPageContenido() {
                   </Select>
                 </div>
               </div>
+
+              {/* TR-30. Los reembolsos no son un campo del formulario: cada
+                  uno baja lo vendido y la comisión que se cobra sobre ello,
+                  así que se registran aparte y al momento. */}
+              {editingReservation._id && (
+                <Reembolsos
+                  reservationId={editingReservation._id}
+                  onCambio={() => void loadReservations()}
+                />
+              )}
 
               {/* Botones */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">

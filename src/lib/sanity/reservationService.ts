@@ -275,6 +275,47 @@ export const cancelReservation = async (
   return toReservation(updated);
 };
 
+// ─── Reembolsos (TR-30) ────────────────────────────────────────────────────
+
+export interface ReembolsoDeReserva {
+  id: string;
+  fecha: string;
+  importe: number;
+  motivo: string;
+  origen: 'CANCELACION' | 'BAJA_PARCIAL' | 'AJUSTE';
+  estado: 'pendiente' | 'pagado';
+  pagadoEl?: string | null;
+}
+
+export interface ReembolsosDeReserva {
+  reembolsos: ReembolsoDeReserva[];
+  totalReembolsado: number;
+  cobrado: number;
+  vendido: number;
+}
+
+export const getReembolsos = (reservationId: string) =>
+  api.get<ReembolsosDeReserva>(
+    `/reservations/${encodeURIComponent(reservationId)}/reembolsos`,
+  );
+
+/**
+ * Devolver dinero de una reserva que sigue en pie.
+ *
+ * No es una cancelación: la experiencia se dio, pero hubo que devolver algo.
+ * El API baja lo vendido y recalcula las comisiones, así que FILO deja de
+ * cobrar fee sobre un dinero devuelto.
+ */
+export const registrarReembolso = (reservationId: string, amount: number, reason: string) =>
+  api.post(`/reservations/${encodeURIComponent(reservationId)}/reembolsos`, { amount, reason });
+
+/** El dinero salió de verdad. */
+export const marcarReembolsoPagado = (reservationId: string, refundId: string) =>
+  api.post(
+    `/reservations/${encodeURIComponent(reservationId)}/reembolsos/${encodeURIComponent(refundId)}/pagado`,
+    {},
+  );
+
 export const rescheduleReservation = async (
   reservationId: string,
   newDate: string,

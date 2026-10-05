@@ -576,6 +576,7 @@ export default function OportunidadDetailPage() {
               reservations={opportunity.reservations}
               condicionDePago={opportunity.paymentConditionNote}
               puedeAutorizarCondicion={opportunity.puedeAutorizarCondicion}
+              opciones={opportunity.experiences?.length ?? 0}
               experiencias={experienciasDisponibles}
               onCambio={() => void loadOpportunity()}
             />

@@ -73,7 +73,7 @@ export default function PanelDePendientes() {
    * "cierra o califica", y mandarlo a buscar dónde hacerlo es la razón por la
    * que estas listas se quedan sin vaciar.
    */
-  const cerrarLaExperiencia = async (id: string, titulo: string) => {
+  const cerrarLaExperiencia = async (id: string, titulo: string, vendidas: number) => {
     const { value, isConfirmed } = await Swal.fire({
       title: '¿Cómo terminó?',
       html: `
@@ -84,6 +84,15 @@ export default function PanelDePendientes() {
             <option value="REALIZADA">Se realizó</option>
             <option value="NO_SE_PRESENTO">No se presentó</option>
           </select>
+          <!-- TR-09. Cuánta gente vino, que no es lo mismo que cuánta se
+               vendió: de diez reservados pueden venir ocho. Hace falta para
+               cerrar bien y para poder reportárselo al canal que lo vendió. -->
+          <label style="display:block;margin:8px 0 4px">¿Cuántas personas vinieron?</label>
+          <input id="asistentes" type="number" min="0" max="${vendidas}" value="${vendidas}"
+                 class="swal2-input" style="width:100%;margin:0">
+          <p style="margin:4px 0 0;font-size:12px;color:#6b7280">
+            Se reservaron ${vendidas}.
+          </p>
           <label style="display:block;margin:8px 0 4px">Calificación (opcional)</label>
           <select id="rating" class="swal2-input" style="width:100%;margin:0">
             <option value="">Sin calificar</option>
@@ -103,8 +112,15 @@ export default function PanelDePendientes() {
       preConfirm: () => {
         const g = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value ?? '';
         const rating = Number(g('rating'));
+        const asistentes = g('asistentes');
+        const cuantos = Number(asistentes);
+        if (asistentes !== '' && (!Number.isInteger(cuantos) || cuantos < 0 || cuantos > vendidas)) {
+          Swal.showValidationMessage(`Entre 0 y ${vendidas} personas.`);
+          return false;
+        }
         return {
           resultado: g('resultado') as 'REALIZADA' | 'NO_SE_PRESENTO',
+          ...(asistentes !== '' ? { asistentes: cuantos } : {}),
           ...(rating ? { rating } : {}),
           ...(g('notas').trim() ? { notas: g('notas').trim() } : {}),
         };
@@ -281,7 +297,7 @@ export default function PanelDePendientes() {
                       </p>
                     </div>
                     <button
-                      onClick={() => void cerrarLaExperiencia(r.id, r.experience?.title ?? r.reservationNumber)}
+                      onClick={() => void cerrarLaExperiencia(r.id, r.experience?.title ?? r.reservationNumber, r.participants ?? 1)}
                       disabled={cerrando === r.id}
                       className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                     >

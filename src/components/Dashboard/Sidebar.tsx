@@ -22,7 +22,7 @@ import {
   BiChevronRight,
   BiX
 } from 'react-icons/bi';
-import { HiOutlineCash, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
+import { HiOutlineCash, HiOutlineClipboardList, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -218,6 +218,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         href: '/dashboard/mi-catalogo',
         icon: AiOutlineShareAlt,
         current: pathname === '/dashboard/mi-catalogo',
+        enabled: true
+      },
+      {
+        // TR-25. Lo vendido y quién apareció. Separado de "Mis ingresos"
+        // porque eso es dinero cobrado y esto es operación.
+        name: 'Ventas de mi canal',
+        href: '/dashboard/ventas-de-mi-canal',
+        icon: HiOutlineClipboardList,
+        current: pathname === '/dashboard/ventas-de-mi-canal',
         enabled: true
       },
       {

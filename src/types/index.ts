@@ -740,6 +740,14 @@ export interface Reservation {
   // "reagendada" no es un estado: una reserva movida sigue viva y con el
   // estado que tenia; lo que cambia es la fecha.
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  /**
+   * TR-26. El contacto del CRM al que corresponde el comprador. Null cuando
+   * no dejó correo ni teléfono: sin eso no se puede cruzar con nadie sin
+   * arriesgarse a confundir a dos personas.
+   */
+  contactoCrm?: { _id: string; nombre: string } | null;
+  /** TR-09. Cuánta gente apareció. Null mientras no se haya cerrado. */
+  attendedCount?: number | null;
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded' | 'failed';
   pricing: ReservationPricing;
   paymentMethod?: 'advance' | 'deferred' | 'corporate_credit' | 'cash';

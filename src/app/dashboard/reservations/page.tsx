@@ -32,6 +32,7 @@ import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import { cancelReservation, getReservationById, getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
 import { pedirDatosDeCancelacion } from '@/lib/reservas/cancelacion';
 import Reembolsos from '@/components/Reservas/Reembolsos';
+import Link from 'next/link';
 import { mensajeDeError } from '@/lib/api/client';
 import { Experience, Reservation } from '@/types';
 import CreateReservationModal from '@/components/CreateReservationModal';
@@ -1671,6 +1672,21 @@ function ReservationsPageContenido() {
                   </Select>
                 </div>
               </div>
+
+              {/* TR-26. El comprador también es un contacto del CRM, y desde
+                  ahí se ve su historial: cuántas veces ha venido y qué pidió.
+                  Sin el enlace, el vínculo existe y nadie lo usa. */}
+              {editingReservation.contactoCrm && (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Cliente en tu CRM:{' '}
+                  <Link
+                    href={`/dashboard/crm/contactos/${editingReservation.contactoCrm._id}`}
+                    className="font-medium text-[#F26726] hover:underline"
+                  >
+                    {editingReservation.contactoCrm.nombre}
+                  </Link>
+                </p>
+              )}
 
               {/* TR-30. Los reembolsos no son un campo del formulario: cada
                   uno baja lo vendido y la comisión que se cobra sobre ello,

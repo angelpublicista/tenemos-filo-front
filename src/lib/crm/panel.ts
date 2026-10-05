@@ -33,6 +33,8 @@ export interface ExperienciaPorCalificar {
   reservationNumber: string;
   reservationDate: string;
   client: unknown;
+  /** Lo vendido. Al cerrar se pregunta cuánta gente vino de verdad (TR-09). */
+  participants: number;
   experience: { title: string } | null;
 }
 
@@ -78,7 +80,17 @@ export const cerrarSeguimiento = (id: string, status: 'HECHO' | 'NO_APLICA') =>
  */
 export const cerrarExperiencia = (
   reservationId: string,
-  datos: { resultado: 'REALIZADA' | 'NO_SE_PRESENTO'; rating?: number; notas?: string },
+  datos: {
+    resultado: 'REALIZADA' | 'NO_SE_PRESENTO';
+    rating?: number;
+    notas?: string;
+    /**
+     * TR-09 y TR-25. Cuánta gente apareció. Si no se dice, el API asume lo
+     * reservado en una realizada y cero en una que no se presentó, que es lo
+     * que significan esas dos palabras.
+     */
+    asistentes?: number;
+  },
 ) => api.post(`/crm-panel/experiencias/${encodeURIComponent(reservationId)}/cerrar`, datos);
 
 /**

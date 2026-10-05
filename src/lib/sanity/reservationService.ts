@@ -75,6 +75,11 @@ interface ApiReservation {
   company?: { id: string; companyName: string; companyEmail: string | null; companyPhone: string | null };
   user?: { id: string; name: string | null; email: string; phone: string | null };
   location?: { id: string; name: string; address: unknown };
+  /** TR-26. El contacto del CRM al que corresponde el comprador, si lo hay. */
+  contactId?: string | null;
+  contact?: { id: string; firstName: string; lastName: string | null } | null;
+  /** TR-09. Cuánta gente apareció. null mientras no se haya cerrado. */
+  attendedCount?: number | null;
 }
 
 function toReservation(r: ApiReservation): Reservation {
@@ -101,6 +106,14 @@ function toReservation(r: ApiReservation): Reservation {
       : { _id: r.companyId, companyName: '', companyEmail: '', companyPhone: '' },
     client: r.client,
     clientInfo: r.client,
+    // TR-26. Para poder llegar a su ficha del CRM, donde está su historial.
+    contactoCrm: r.contact
+      ? {
+          _id: r.contact.id,
+          nombre: [r.contact.firstName, r.contact.lastName].filter(Boolean).join(' '),
+        }
+      : null,
+    attendedCount: r.attendedCount ?? null,
     clientType: ((r.clientType ?? 'GUEST') as string).toLowerCase() as Reservation['clientType'],
     reservationDate: r.reservationDate,
     duration: r.duration ?? 0,

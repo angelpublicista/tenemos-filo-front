@@ -1,5 +1,6 @@
 "use client";
 
+import ImportarCatalogo from '@/components/Experiences/ImportarCatalogo';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -21,6 +22,7 @@ interface ExperienceStats {
 import { Button, Select } from 'flowbite-react';
 import { 
   HiPlus, 
+  HiOutlineSparkles,
   HiStar,
   HiExclamationCircle,
   HiViewGrid,
@@ -33,6 +35,7 @@ import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
 import { ManageExperienceCard } from '@/components/ManageExperienceCard';
 
 function ExperiencesPageContenido() {
+  const [importando, setImportando] = useState(false);
   const { user, sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showDestructiveConfirmation } = useSweetAlert();
@@ -198,12 +201,26 @@ function ExperiencesPageContenido() {
             </p>
           </div>
 
-          <Button color="primary" href="/dashboard/experiences/create" className="w-full sm:w-auto">
-            <HiPlus className="w-5 h-5 mr-2" />
-            Crear experiencia
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            {/* Importar va antes de crear: quien llega con su catálogo hecho no
+                debería tener que teclearlo ficha a ficha. */}
+            <Button color="gray" onClick={() => setImportando(true)} className="w-full sm:w-auto">
+              <HiOutlineSparkles className="w-5 h-5 mr-2" />
+              Importar mi catálogo
+            </Button>
+            <Button color="primary" href="/dashboard/experiences/create" className="w-full sm:w-auto">
+              <HiPlus className="w-5 h-5 mr-2" />
+              Crear experiencia
+            </Button>
+          </div>
         </div>
       </div>
+
+      <ImportarCatalogo
+        abierto={importando}
+        onCerrar={() => setImportando(false)}
+        onImportado={() => { void loadData(); }}
+      />
 
       {/* Estadísticas */}
       {isLoading ? (

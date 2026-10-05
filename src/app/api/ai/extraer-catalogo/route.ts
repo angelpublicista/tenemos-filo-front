@@ -239,7 +239,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ---- Texto pegado o enlace a su web ----
-    const cuerpo = (await req.json()) as { tipo?: string; texto?: string; url?: string };
+    const cuerpo = (await req.json()) as {
+      tipo?: string;
+      texto?: string;
+      url?: string;
+      origen?: string;
+    };
 
     if (cuerpo.tipo === 'enlace') {
       if (!cuerpo.url?.trim()) {
@@ -280,8 +285,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Decir de dónde viene cambia cómo hay que leerlo: una rejilla de hoja de
+    // cálculo no se interpreta igual que una carta escrita en prosa.
+    const encabezado = cuerpo.origen ? `${cuerpo.origen}\n\n` : '';
     const experiencias = await pedirAlModelo([
-      { type: 'input_text', text: texto.slice(0, MAX_TEXTO) },
+      { type: 'input_text', text: encabezado + texto.slice(0, MAX_TEXTO) },
     ]);
 
     return NextResponse.json({

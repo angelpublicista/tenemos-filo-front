@@ -8,6 +8,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { createExperienceInSanity, getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import type { CreateExperienceData, Location } from '@/types';
+import { esHojaDeCalculo, leerLibro, libroATexto } from '@/lib/hojas-de-calculo';
 import {
   ETIQUETA_CONFIANZA,
   copiarImagen,
@@ -142,12 +143,23 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
   const leer = async () => {
     setPaso('leyendo');
     try {
+      // Una hoja de cálculo se abre aquí y lo que viaja es su texto: el modelo
+      // no lee .xlsx, y mandarla entera para convertirla en el servidor sería
+      // el mismo trabajo más lejos. Además así se respeta la codificación de
+      // un .csv, que es donde se tuercen los acentos.
+      const esHoja = via === 'archivo' && !!archivo && esHojaDeCalculo(archivo.name);
+
       const r =
         via === 'enlace'
           ? await leerDesdeEnlace(url.trim())
-          : via === 'archivo'
-            ? await leerDesdeArchivo(archivo as File)
-            : await leerDesdeTexto(texto);
+          : esHoja
+            ? await leerDesdeTexto(
+                libroATexto(leerLibro(await (archivo as File).arrayBuffer(), (archivo as File).name)),
+                `Catálogo en hoja de cálculo (${(archivo as File).name}). Las columnas separadas por tabuladores; la primera fila suele ser el encabezado.`,
+              )
+            : via === 'archivo'
+              ? await leerDesdeArchivo(archivo as File)
+              : await leerDesdeTexto(texto);
 
       if (r.experiencias.length === 0) {
         setPaso('entrada');
@@ -266,7 +278,7 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
               {([
                 { v: 'enlace', icono: HiOutlineGlobeAlt, texto: 'Desde mi web' },
                 { v: 'texto', icono: HiOutlineDocumentText, texto: 'Pegar texto' },
-                { v: 'archivo', icono: HiOutlineUpload, texto: 'Subir PDF o foto' },
+                { v: 'archivo', icono: HiOutlineUpload, texto: 'Subir un archivo' },
               ] as const).map((o) => (
                 <button
                   key={o.v}
@@ -319,10 +331,12 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
                 <span className="text-sm font-medium text-gray-700">
                   {archivo ? archivo.name : 'Elegir archivo'}
                 </span>
-                <span className="mt-1 text-xs text-gray-400">PDF o foto · máx. 15 MB</span>
+                <span className="mt-1 text-xs text-gray-400">
+                  PDF, Excel, CSV o una foto · máx. 15 MB
+                </span>
                 <input
                   type="file"
-                  accept="application/pdf,image/*"
+                  accept="application/pdf,image/*,.xlsx,.xls,.csv"
                   className="hidden"
                   onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
                 />

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Button, Modal, ModalBody, ModalHeader, Select } from 'flowbite-react';
 import { HiUpload } from 'react-icons/hi';
 import * as XLSX from 'xlsx';
+import { leerLibro } from '@/lib/hojas-de-calculo';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
   CAMPOS,
@@ -34,26 +35,6 @@ const FILAS_DE_MUESTRA = 5;
  */
 const plural = (n: number, singular: string, plural: string) =>
   `${n} ${n === 1 ? singular : plural}`;
-
-/**
- * Abre el archivo respetando sus acentos.
- *
- * Un .xlsx trae su codificación dentro y se lee tal cual. Un .csv no: son
- * bytes sueltos, y si no se dice nada la librería los interpreta como latin-1
- * y "María" llega como "MarÃ­a". Se intenta UTF-8 en estricto —lo que exporta
- * casi todo hoy— y si los bytes no son UTF-8 válido se cae a windows-1252,
- * que es lo que sigue produciendo Excel en español.
- */
-function leerLibro(bytes: ArrayBuffer, nombre: string) {
-  if (!/\.csv$/i.test(nombre)) return XLSX.read(bytes, { type: 'array' });
-  let texto: string;
-  try {
-    texto = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-  } catch {
-    texto = new TextDecoder('windows-1252').decode(bytes);
-  }
-  return XLSX.read(texto, { type: 'string' });
-}
 
 /**
  * CRM-30. Traer una base histórica de contactos desde Excel o CSV.

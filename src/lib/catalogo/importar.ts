@@ -51,11 +51,17 @@ async function pedir(opciones: RequestInit): Promise<Lectura> {
   return datos;
 }
 
-export const leerDesdeTexto = (texto: string) =>
+/**
+ * El origen se le dice al modelo.
+ *
+ * No es lo mismo leer una carta escrita en prosa que una rejilla de hoja de
+ * cálculo, donde qué precio va con qué experiencia lo dice la columna.
+ */
+export const leerDesdeTexto = (texto: string, origen?: string) =>
   pedir({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tipo: 'texto', texto }),
+    body: JSON.stringify({ tipo: 'texto', texto, origen }),
   });
 
 export const leerDesdeEnlace = (url: string) =>

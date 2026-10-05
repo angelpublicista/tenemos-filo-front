@@ -11,7 +11,7 @@ import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { getMenusByCompany } from '@/lib/sanity/menuService';
 import { 
   getAvailabilitySchedulesByLocation, 
-  createAvailabilitySchedule,
+  createAvailabilitySchedule, vigenciaPorDefecto,
   generateDefaultSchedule 
 } from '@/lib/sanity/availabilityService';
 import { CreateExperienceData, Company, Location, AvailabilitySchedule, Menu } from '@/types';
@@ -422,6 +422,8 @@ function CreateExperiencePageContenido() {
               location: locationId,
               description: `Calendario personalizado para la experiencia: ${data.title}`,
               weeklySchedule: generateDefaultSchedule(),
+              // TR-35. Un horario generado solo tampoco se repite para siempre.
+              ...vigenciaPorDefecto(),
               blockedDates: [],
               notes: 'Calendario generado automáticamente. Personaliza los horarios según tus necesidades.',
               bufferTime: 0,
@@ -471,6 +473,7 @@ function CreateExperiencePageContenido() {
             experience: newExperience._id,
             description: `Disponibilidad propia de la experiencia: ${data.title}`,
             weeklySchedule: generateDefaultSchedule(),
+            ...vigenciaPorDefecto(),
             blockedDates: [],
             notes: 'Calendario generado automáticamente. Personaliza los horarios en la sección de Disponibilidad.',
             bufferTime: 0,

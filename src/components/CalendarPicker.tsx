@@ -14,6 +14,7 @@ import {
   isSameMonth,
   isSameDay,
   isBefore,
+  isAfter,
   startOfDay,
 } from 'date-fns';
 import { es } from 'date-fns/locale/es';
@@ -23,6 +24,11 @@ interface CalendarPickerProps {
   value: Date | null;
   onChange: (date: Date) => void;
   minDate?: Date;
+  /**
+   * Último día seleccionable. Lo usa el catálogo para no dejar navegar meses
+   * que ningún horario alcanza ya (TR-35).
+   */
+  maxDate?: Date;
   placeholder?: string;
   label?: string;
   required?: boolean;
@@ -47,6 +53,7 @@ export default function CalendarPicker({
   value,
   onChange,
   minDate,
+  maxDate,
   placeholder = 'Selecciona una fecha',
   required,
   className = '',
@@ -108,9 +115,11 @@ export default function CalendarPicker({
   const days = buildCalendarDays(viewMonth);
   const today = startOfDay(new Date());
   const minDay = minDate ? startOfDay(minDate) : today;
+  const maxDay = maxDate ? startOfDay(maxDate) : null;
 
   const handleSelect = (day: Date) => {
     if (isBefore(day, minDay)) return;
+    if (maxDay && isAfter(day, maxDay)) return;
     onChange(day);
     setOpen(false);
   };
@@ -170,7 +179,7 @@ export default function CalendarPicker({
           const isCurrentMonth = isSameMonth(day, viewMonth);
           const isSelected = value ? isSameDay(day, value) : false;
           const isToday = isSameDay(day, today);
-          const isDisabled = isBefore(day, minDay);
+          const isDisabled = isBefore(day, minDay) || (!!maxDay && isAfter(day, maxDay));
 
           let cellClass =
             'flex items-center justify-center h-9 w-full rounded-lg text-sm font-medium transition-colors ';

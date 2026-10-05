@@ -21,6 +21,23 @@ function formatAddress(address: BookingLocationAddress | string | undefined): st
 
 const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
+const soloElDia = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * TR-35. Si este horario se aplica en esa fecha.
+ *
+ * Un horario semanal sin vigencia ofrecería sábados de dentro de cinco años
+ * que nadie decidió abrir. Sin fecha final —los horarios creados antes de
+ * esta regla— se comporta como antes: se repite indefinidamente.
+ */
+function rigeEseDia(schedule: AvailabilitySchedule, date: Date): boolean {
+  const dia = soloElDia(date);
+  if (schedule.validFrom && dia < schedule.validFrom) return false;
+  if (schedule.validUntil && dia > schedule.validUntil) return false;
+  return true;
+}
+
 function getAvailableSlots(date: Date, schedules: AvailabilitySchedule[], duration: number): string[] {
   if (!schedules || schedules.length === 0) {
     const defaults: string[] = [];
@@ -35,6 +52,7 @@ function getAvailableSlots(date: Date, schedules: AvailabilitySchedule[], durati
   const slots = new Set<string>();
 
   schedules.forEach(schedule => {
+    if (!rigeEseDia(schedule, date)) return;
     const daySchedule = schedule.weeklySchedule?.[dayKey];
     if (!daySchedule?.isActive || !daySchedule.timeSlots) return;
 
@@ -86,6 +104,22 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
     () => (experience.availabilitySchedules ?? []) as AvailabilitySchedule[],
     [experience.availabilitySchedules]
   );
+  /**
+   * TR-35. El último día que algún horario sigue ofreciendo (si todos tienen
+   * fecha final). Se le pone tope al calendario para no dejar que alguien
+   * navegue tres meses por un calendario que ya no ofrece nada.
+   *
+   * Si algún horario no tiene fecha final, no hay tope: ese se repite
+   * indefinidamente y el tope sería mentira.
+   */
+  const ultimoDiaConHorario = useMemo(() => {
+    if (schedules.length === 0) return undefined;
+    if (schedules.some((s) => !s.validUntil)) return undefined;
+    const fechas = schedules.map((s) => s.validUntil as string).sort();
+    const ultima = fechas[fechas.length - 1];
+    return ultima ? new Date(`${ultima}T23:59:59`) : undefined;
+  }, [schedules]);
+
   const locations = useMemo(() => experience.locations ?? [], [experience.locations]);
   const isVirtual = experience.experienceType === 'virtual' || experience.isVirtual === true;
   const isPresential = !isVirtual;
@@ -154,6 +188,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
               setDate(d);
             }}
             minDate={new Date()}
+            maxDate={ultimoDiaConHorario}
             placeholder="Selecciona una fecha"
           />
         </div>

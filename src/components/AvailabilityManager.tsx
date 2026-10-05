@@ -15,6 +15,7 @@ import {
   getAvailabilitySchedulesByExperience,
   createAvailabilitySchedule,
   updateAvailabilitySchedule,
+  vigenciaPorDefecto,
   deleteAvailabilitySchedule,
   setPrimarySchedule,
   generateDefaultSchedule
@@ -393,6 +394,15 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   // resuelve al guardar, que es cuando hace falta que sea un numero.
   const [bufferTime, setBufferTime] = useState(String(schedule?.bufferTime ?? 0));
   const [minimumNotice, setMinimumNotice] = useState(String(schedule?.minimumNotice ?? 24));
+  // TR-35. Desde y hasta cuándo se repite. Un horario nuevo arranca hoy y
+  // dura un año: suficiente para no chocar con el corte mientras se monta el
+  // catálogo, y poco para que no quede una agenda abierta por décadas.
+  const [validFrom, setValidFrom] = useState(
+    schedule?.validFrom ?? vigenciaPorDefecto().validFrom,
+  );
+  const [validUntil, setValidUntil] = useState(
+    schedule ? schedule.validUntil ?? '' : vigenciaPorDefecto().validUntil,
+  );
   const [saving, setSaving] = useState(false);
   const { showSuccess, showError } = useSweetAlert();
 
@@ -416,6 +426,19 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
     const buffer = aNumero(bufferTime, 0, 0);
     const aviso = aNumero(minimumNotice, 24, 1);
 
+    if (!validFrom) {
+      showError('Indica desde cuándo se aplica este horario');
+      return;
+    }
+    if (!schedule && !validUntil) {
+      showError('Indica hasta cuándo se repite este horario');
+      return;
+    }
+    if (validUntil && validUntil < validFrom) {
+      showError('La fecha final no puede ser anterior a la de inicio');
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -429,6 +452,10 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           notes,
           bufferTime: buffer,
           minimumNotice: aviso,
+          validFrom,
+          // Vacío vuelve a «sin fecha final», que es lo que hacían los
+          // horarios creados antes de esta regla.
+          validUntil: validUntil || null,
         });
         showSuccess('Calendario actualizado exitosamente');
       } else {
@@ -441,6 +468,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           notes,
           bufferTime: buffer,
           minimumNotice: aviso,
+          validFrom,
+          validUntil,
         });
         showSuccess('Calendario creado exitosamente');
       }
@@ -650,6 +679,42 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
               />
               <p className="text-xs text-gray-500 mt-1">
                 Anticipación mínima para reservas
+              </p>
+            </div>
+          </div>
+
+          {/* TR-35. Hasta cuándo se repite. Sin fecha final, el calendario
+              ofrece sábados de dentro de cinco años que nadie decidió abrir. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Se aplica desde
+              </label>
+              <input
+                type="date"
+                value={validFrom}
+                onChange={(e) => setValidFrom(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Antes de esta fecha no se ofrecen horarios
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Hasta
+              </label>
+              <input
+                type="date"
+                value={validUntil}
+                min={validFrom}
+                onChange={(e) => setValidUntil(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {schedule && !validUntil
+                  ? 'Ahora no tiene fecha final: se repite indefinidamente. Ponle una.'
+                  : 'Después de esta fecha deja de ofrecer horarios. Puedes extenderla cuando quieras.'}
               </p>
             </div>
           </div>

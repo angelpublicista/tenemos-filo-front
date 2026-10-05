@@ -929,6 +929,15 @@ export interface AvailabilitySchedule {
   weeklySchedule: WeeklySchedule;
   bufferTime: number; // Tiempo de buffer entre reservas (minutos)
   minimumNotice: number; // Aviso mínimo para reservas (horas)
+  /**
+   * TR-35. Desde y hasta cuándo se repite este horario, en "YYYY-MM-DD".
+   *
+   * Sin fecha final, el calendario ofrece sábados de 2031 que nadie decidió
+   * abrir. `validUntil` vacío significa «sin fecha final» y es el caso de los
+   * horarios creados antes de esta regla.
+   */
+  validFrom?: string;
+  validUntil?: string | null;
   notes?: string;
   blockedDates: BlockedDate[];
   createdAt: string;
@@ -945,12 +954,18 @@ export interface CreateAvailabilityScheduleData {
   weeklySchedule: WeeklySchedule;
   bufferTime?: number;
   minimumNotice?: number;
+  /** TR-35. Obligatorias al crear: un horario sin corte no caduca nunca. */
+  validFrom: string;
+  validUntil: string;
   notes?: string;
   blockedDates?: BlockedDate[];
 }
 
-export interface UpdateAvailabilityScheduleData extends Partial<CreateAvailabilityScheduleData> {
+export interface UpdateAvailabilityScheduleData
+  extends Partial<Omit<CreateAvailabilityScheduleData, 'validUntil'>> {
   _id: string;
+  /** Null explícito vuelve a «sin fecha final». */
+  validUntil?: string | null;
 }
 
 // Tipos para CRM Company

@@ -21,6 +21,8 @@ interface ApiAvailability {
   minimumNotice: number;
   notes: string | null;
   blockedDates: string[];
+  validFrom?: string | null;
+  validUntil?: string | null;
   createdAt: string;
   updatedAt: string;
   location?: { id: string; name: string; slug: string | null; companyId: string };
@@ -38,11 +40,32 @@ function toSchedule(a: ApiAvailability): AvailabilitySchedule {
     weeklySchedule: a.weeklySchedule,
     bufferTime: a.bufferTime,
     minimumNotice: a.minimumNotice,
+    // Solo el día: la vigencia se piensa y se escribe en días, y la hora que
+    // trae el ISO no significa nada aquí.
+    validFrom: a.validFrom ? a.validFrom.slice(0, 10) : undefined,
+    validUntil: a.validUntil ? a.validUntil.slice(0, 10) : null,
     notes: a.notes ?? undefined,
     blockedDates: (a.blockedDates ?? []).map((d) => ({ date: d })),
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
   };
+}
+
+const dia = (d: Date) => d.toISOString().slice(0, 10);
+
+/**
+ * TR-35. La vigencia de un horario que se crea solo, sin que nadie la pida.
+ *
+ * Pasa cuando se crea una experiencia y se le genera un calendario por
+ * defecto. Un año: suficiente para que nadie choque con el corte mientras
+ * monta su catálogo, y poco para que no quede una agenda abierta por décadas
+ * si se olvida de revisarla. El anfitrión la extiende cuando quiera.
+ */
+export function vigenciaPorDefecto(): { validFrom: string; validUntil: string } {
+  const hoy = new Date();
+  const enUnAno = new Date(hoy);
+  enUnAno.setFullYear(enUnAno.getFullYear() + 1);
+  return { validFrom: dia(hoy), validUntil: dia(enUnAno) };
 }
 
 export const createAvailabilitySchedule = async (
@@ -58,6 +81,8 @@ export const createAvailabilitySchedule = async (
     weeklySchedule: data.weeklySchedule,
     bufferTime: data.bufferTime,
     minimumNotice: data.minimumNotice,
+    validFrom: data.validFrom,
+    validUntil: data.validUntil,
     notes: data.notes,
     // El API acepta tanto strings ISO como objetos { date }
     blockedDates: data.blockedDates,
@@ -114,6 +139,8 @@ export const updateAvailabilitySchedule = async (
       weeklySchedule: rest.weeklySchedule,
       bufferTime: rest.bufferTime,
       minimumNotice: rest.minimumNotice,
+      validFrom: rest.validFrom,
+      validUntil: rest.validUntil,
       notes: rest.notes,
       blockedDates: rest.blockedDates,
     },

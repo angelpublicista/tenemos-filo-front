@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
 import { getDatosDeSolicitud, getPublicCatalog, getResellerCatalog } from '@/lib/api/catalog';
@@ -205,6 +205,25 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
     setStep('confirmation');
   };
 
+  /**
+   * TR-43. La clave de este intento de reserva.
+   *
+   * Si el primer intento falla —se cayo la red, salio un error— y la persona
+   * vuelve a pulsar "Confirmar", la clave es la misma y el API devuelve la
+   * reserva que ya habia creado en vez de crear otra, descontar otro cupo y
+   * cobrarlo dos veces.
+   *
+   * Cambia en cuanto cambian los datos: volver atras y reservar otra fecha
+   * es otra reserva, no un reintento de la anterior.
+   */
+  const claveDelIntento = useRef<{ huella: string; clave: string } | null>(null);
+  const claveDeIdempotencia = (huella: string): string => {
+    if (claveDelIntento.current?.huella !== huella) {
+      claveDelIntento.current = { huella, clave: crypto.randomUUID() };
+    }
+    return claveDelIntento.current.clave;
+  };
+
   const handleConfirm = async () => {
     if (!booking.experience || !booking.date || !booking.time || !booking.participants || !booking.guestInfo) return;
     setSubmitting(true);
@@ -214,6 +233,16 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       reservationDate.setHours(hours, minutes, 0, 0);
 
       const result = await createPublicReservation({
+        idempotencyKey: claveDeIdempotencia(
+          [
+            booking.experience._id,
+            reservationDate.toISOString(),
+            booking.participants,
+            booking.guestInfo.email,
+            booking.locationId ?? '',
+            (booking.selectedAddons ?? []).map((a) => `${a.name}x${a.quantity}`).join(','),
+          ].join('|'),
+        ),
         // Con esto la venta se atribuye al revendedor y le genera comision.
         ...(modoReseller ? { reseller: slug } : {}),
         // Y con esto la reserva queda colgada de la oportunidad que la

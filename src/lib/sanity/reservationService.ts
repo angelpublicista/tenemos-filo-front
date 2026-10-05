@@ -380,6 +380,15 @@ export interface CreatePublicReservationData {
    * propio enlace acaba de producir.
    */
   solicitudToken?: string;
+  /**
+   * TR-43. Clave que hace que un reintento no cree una segunda reserva.
+   *
+   * La pone quien llama y la conserva mientras los datos no cambien: si el
+   * API responde con un error de red o el cliente vuelve a pulsar
+   * "Confirmar", la misma clave devuelve la reserva que ya existe en vez de
+   * vender el cupo dos veces y cobrarlo dos veces.
+   */
+  idempotencyKey?: string;
 }
 
 export const createPublicReservation = async (
@@ -402,6 +411,7 @@ export const createPublicReservation = async (
     '/reservations/public',
     {
     method: 'POST',
+    ...(data.idempotencyKey ? { headers: { 'Idempotency-Key': data.idempotencyKey } } : {}),
     json: {
       experience: data.experience,
       // Slug del revendedor cuando la reserva entra por su catalogo. El

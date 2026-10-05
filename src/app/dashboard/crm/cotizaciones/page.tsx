@@ -252,7 +252,7 @@ export default function CotizacionesPage() {
                       
                       <div className="space-y-1 text-sm">
                         <p className="text-gray-700 dark:text-gray-300">
-                          <span className="font-medium">Capacidad:</span> {experience.minCapacity || 1} - {experience.capacity} personas
+                          <span className="font-medium">Cupos:</span> {experience.minCapacity || 1} - {experience.capacity} personas
                         </p>
                         <p className="text-gray-700 dark:text-gray-300">
                           <span className="font-medium">Duración:</span> {experience.duration} minutos

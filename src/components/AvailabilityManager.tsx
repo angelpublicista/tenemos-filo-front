@@ -584,7 +584,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           {/* Week Schedule */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Horario Semanal
+              Franjas horarias de la semana
             </h3>
             <div className="space-y-4">
               {daysOrder.map((dayKey) => {
@@ -609,7 +609,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                         className="text-sm text-[#F26726] hover:text-[#d9571f] flex items-center"
                       >
                         <AiOutlinePlus className="mr-1" />
-                        Agregar Horario
+                        Agregar franja horaria
                       </button>
                     )}
                   </div>
@@ -716,7 +716,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
               <p className="text-xs text-gray-500 mt-1">
                 {schedule && !validUntil
                   ? 'Ahora no tiene fecha final: se repite indefinidamente. Ponle una.'
-                  : 'Después de esta fecha deja de ofrecer horarios. Puedes extenderla cuando quieras.'}
+                  : 'Después de esta fecha deja de ofrecer franjas. Puedes extenderla cuando quieras.'}
               </p>
             </div>
           </div>

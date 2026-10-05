@@ -533,7 +533,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                     {exp.experienceType === 'presential' ? 'Presencial' : 
                                      exp.experienceType === 'virtual' ? 'Virtual' : 'Híbrida'}
                                   </div>
-                                  <div>Capacidad: {exp.minCapacity || 1}-{exp.capacity} personas</div>
+                                  <div>Cupos: {exp.minCapacity || 1}-{exp.capacity} personas</div>
                                   {exp.presentialCity && <div>📍 {exp.presentialCity}</div>}
                                 </div>
 
@@ -609,7 +609,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                 {exp.experienceType === 'presential' ? 'Presencial' :
                                  exp.experienceType === 'virtual' ? 'Virtual' : 'Híbrida'}
                               </span>
-                              <span>Capacidad: {exp.minCapacity || 1}–{exp.capacity}</span>
+                              <span>Cupos: {exp.minCapacity || 1}–{exp.capacity}</span>
                             </div>
                           </div>
                           <div className="text-right shrink-0">

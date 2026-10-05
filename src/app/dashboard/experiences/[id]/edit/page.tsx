@@ -371,7 +371,7 @@ function EditExperiencePageContenido() {
       const missing: string[] = [];
       if (selectedCategories.length === 0) missing.push('Categorías');
       if (!values.duration) missing.push('Duración');
-      if (!values.capacity) missing.push('Capacidad');
+      if (!values.capacity) missing.push('Cupos por sesión');
       if (!values.basePrice) missing.push('Precio base');
       if ((values.experienceType === 'presential' || values.experienceType === 'hybrid') && !values.city?.trim()) {
         missing.push('Ciudad');
@@ -787,15 +787,15 @@ function EditExperiencePageContenido() {
           </div>
         </div>
 
-        {/* Capacidad y Precios */}
+        {/* Cupos y precios */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
-            Capacidad y Precios
+            Cupos y precios
           </h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="capacity">Capacidad Máxima *</Label>
+              <Label htmlFor="capacity">Cupos por sesión *</Label>
               <TextInput
                 {...register('capacity', { valueAsNumber: true })}
                 type="number"
@@ -809,7 +809,7 @@ function EditExperiencePageContenido() {
             </div>
 
             <div>
-              <Label htmlFor="minCapacity">Capacidad Mínima</Label>
+              <Label htmlFor="minCapacity">Cupos mínimos para realizarla</Label>
               <TextInput
                 {...register('minCapacity', { valueAsNumber: true })}
                 type="number"

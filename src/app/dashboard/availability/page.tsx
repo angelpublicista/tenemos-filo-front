@@ -94,7 +94,7 @@ export default function AvailabilityPage() {
             Gestión de Disponibilidad
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
-            Configura los horarios de disponibilidad para tus experiencias o sedes
+            Define las franjas horarias en las que se pueden reservar tus experiencias o sedes
           </p>
         </div>
 

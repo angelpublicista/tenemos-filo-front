@@ -11,7 +11,7 @@ import { api } from '@/lib/api/client';
 export interface ReservaDeOportunidad {
   id: string;
   reservationNumber: string;
-  status: 'PRE_RESERVED' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'IN_PROGRESS' | 'NO_SHOW' | 'RESCHEDULED';
+  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
   reservationDate: string;
   participants: number;
   paidAmount: string | number;
@@ -119,6 +119,9 @@ export function faltaParaConfirmar(
 ): { total: number; pagado: number; minimo: number; falta: number } {
   const total = Number(reserva?.pricing?.total ?? 0);
   const pagado = Number(reserva?.paidAmount ?? 0);
-  const minimo = total * (esAbierta ? 1 : 0.5);
+  // Una privada se confirma sin abono: lo que se cobra y cuando lo acuerdan
+  // anfitrion y cliente, y el API no exige minimo. Una abierta, en cambio, se
+  // paga entera para que la plaza quede firme.
+  const minimo = esAbierta ? total : 0;
   return { total, pagado, minimo, falta: Math.max(0, minimo - pagado) };
 }

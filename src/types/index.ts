@@ -736,7 +736,10 @@ export interface Reservation {
   reservationDate: string;
   duration: number;
   participants: number;
-  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'rescheduled';
+  // TR-08. Cinco estados y no mas. "En proceso" no lo marcaba nadie, y
+  // "reagendada" no es un estado: una reserva movida sigue viva y con el
+  // estado que tenia; lo que cambia es la fecha.
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded' | 'failed';
   pricing: ReservationPricing;
   paymentMethod?: 'advance' | 'deferred' | 'corporate_credit' | 'cash';

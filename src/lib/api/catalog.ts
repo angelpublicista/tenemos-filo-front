@@ -59,7 +59,7 @@ export const getResellerCatalog = async (slugOrId: string): Promise<CatalogoPubl
 /** Lo que devuelve el API sobre una reserva a quien vuelve de la pasarela. */
 export type EstadoReserva = {
   reservationNumber: string;
-  status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'RESCHEDULED';
+  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
   paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED' | 'PARTIAL' | 'FAILED';
 };
 

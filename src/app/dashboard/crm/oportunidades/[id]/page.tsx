@@ -543,17 +543,18 @@ export default function OportunidadDetailPage() {
               </div>
             </Card>
 
-            {/* CRM-12/13. Una pre-reserva SI bloquea, asi que cuando una de
-                varias oportunidades sobre la misma fecha pasa a intencion de
-                pago, las demas se quedan sin sitio. Esto lo dice; no cierra
-                nada: quien lleva la venta decide si ofrece otra fecha. */}
+            {/* CRM-12/13. Una reserva comprometida SI bloquea, asi que cuando
+                una de varias oportunidades sobre la misma fecha pasa a
+                intencion de pago, las demas se quedan sin sitio. Esto lo dice;
+                no cierra nada: quien lleva la venta decide si ofrece otra
+                fecha. */}
             {opportunity.espacioTomado && (
               <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
                 <p className="font-semibold">Ese día ya está tomado</p>
                 <p className="mt-1">
-                  {opportunity.espacioTomado.estado === 'PRE_RESERVED'
-                    ? 'Hay un espacio apartado'
-                    : 'Hay una reserva'}{' '}
+                  {opportunity.espacioTomado.estado === 'PENDING'
+                    ? 'Hay un espacio comprometido'
+                    : 'Hay una reserva confirmada'}{' '}
                   para el{' '}
                   {new Date(opportunity.espacioTomado.fecha).toLocaleDateString('es-CO', {
                     day: 'numeric',

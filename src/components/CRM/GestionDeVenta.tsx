@@ -62,13 +62,16 @@ export default function GestionDeVenta({
 
   const esAbierta = experienceKind === 'ABIERTA';
   const abierta = status === 'OPEN' || status === 'open';
-  // PENDING entra igual: la reserva de una abierta nace pendiente de pago, y
-  // sobre ella tambien se cobra y se confirma.
+  // Una reserva viva es la que esta comprometida o confirmada: las dos
+  // bloquean el espacio, y sobre las dos se cobra.
   const reserva = reservations.find(
-    (r) => r.status === 'PRE_RESERVED' || r.status === 'PENDING' || r.status === 'CONFIRMED',
+    (r) => r.status === 'PENDING' || r.status === 'CONFIRMED',
   );
-  const preReservada = reserva?.status === 'PRE_RESERVED';
-  const porCobrar = reserva?.status === 'PRE_RESERVED' || reserva?.status === 'PENDING';
+  // TR-08. "Apartado" no es un estado, es lo que significa un PENDING en una
+  // privada: el espacio esta comprometido y nadie ha cobrado todavia. En una
+  // abierta ese mismo PENDING se lee como "pendiente de pago".
+  const preReservada = !esAbierta && reserva?.status === 'PENDING';
+  const porCobrar = reserva?.status === 'PENDING';
   const { total, pagado, falta } = faltaParaConfirmar(reserva, esAbierta);
 
   const conError = async (fn: () => Promise<unknown>, exito: string) => {
@@ -300,7 +303,6 @@ export default function GestionDeVenta({
                 {falta > 0 && !condicionDePago && (
                   <span className="text-gray-500">
                     {' '}· faltan {pesos(falta)} para poder confirmar
-                    {!esAbierta && ' (el 50%)'}
                   </span>
                 )}
               </p>

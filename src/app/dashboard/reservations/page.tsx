@@ -40,11 +40,9 @@ interface ReservationStats {
   total: number;
   pending: number;
   confirmed: number;
-  inProgress: number;
   completed: number;
   cancelled: number;
   noShow: number;
-  rescheduled: number;
   totalRevenue: number;
   totalParticipants: number;
   averageParticipants: number;
@@ -69,8 +67,8 @@ function ReservationsPageContenido() {
   }, [searchParams, router]);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<ReservationStats>({
-    total: 0, pending: 0, confirmed: 0, inProgress: 0,
-    completed: 0, cancelled: 0, noShow: 0, rescheduled: 0,
+    total: 0, pending: 0, confirmed: 0,
+    completed: 0, cancelled: 0, noShow: 0,
     totalRevenue: 0, totalParticipants: 0, averageParticipants: 0,
     pendingPayments: 0, paidReservations: 0,
   });
@@ -113,11 +111,9 @@ function ReservationsPageContenido() {
           total: realReservations.length,
           pending: realReservations.filter(r => r.status === 'pending').length,
           confirmed: realReservations.filter(r => r.status === 'confirmed').length,
-          inProgress: realReservations.filter(r => r.status === 'in_progress').length,
           completed: realReservations.filter(r => r.status === 'completed').length,
           cancelled: realReservations.filter(r => r.status === 'cancelled').length,
           noShow: realReservations.filter(r => r.status === 'no_show').length,
-          rescheduled: realReservations.filter(r => r.status === 'rescheduled').length,
           totalRevenue: realReservations.reduce((sum, r) => sum + (r.pricing?.total || 0), 0),
           totalParticipants: realReservations.reduce((sum, r) => sum + r.participants, 0),
           averageParticipants: realReservations.reduce((sum, r) => sum + r.participants, 0) / realReservations.length || 0,
@@ -251,11 +247,9 @@ function ReservationsPageContenido() {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'completed': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'no_show': return 'bg-red-100 text-red-800';
-      case 'rescheduled': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -265,11 +259,9 @@ function ReservationsPageContenido() {
     switch (status) {
       case 'confirmed': return 'success';
       case 'pending': return 'warning';
-      case 'in_progress': return 'info';
       case 'completed': return 'success';
       case 'cancelled': return 'failure';
       case 'no_show': return 'failure';
-      case 'rescheduled': return 'info';
       default: return 'gray';
     }
   };
@@ -504,11 +496,9 @@ function ReservationsPageContenido() {
     switch (status) {
       case 'confirmed': return 'Confirmada';
       case 'pending': return 'Pendiente';
-      case 'in_progress': return 'En Proceso';
       case 'completed': return 'Completada';
       case 'cancelled': return 'Cancelada';
       case 'no_show': return 'No Show';
-      case 'rescheduled': return 'Reagendada';
       default: return status;
     }
   };
@@ -1027,11 +1017,9 @@ function ReservationsPageContenido() {
                       >
                         <option value="pending">Pendiente</option>
                         <option value="confirmed">Confirmada</option>
-                        <option value="in_progress">En Proceso</option>
                         <option value="completed">Completada</option>
                         <option value="cancelled">Cancelada</option>
                         <option value="no_show">No Show</option>
-                        <option value="rescheduled">Reagendada</option>
                       </Select>
                     </div>
                   </div>
@@ -1154,11 +1142,9 @@ function ReservationsPageContenido() {
               <option value="all">Todos los estados</option>
               <option value="pending">Pendientes</option>
               <option value="confirmed">Confirmadas</option>
-              <option value="in_progress">En Proceso</option>
               <option value="completed">Completadas</option>
               <option value="cancelled">Canceladas</option>
               <option value="no_show">No Show</option>
-              <option value="rescheduled">Reagendadas</option>
             </Select>
 
             <Select
@@ -1349,11 +1335,9 @@ function ReservationsPageContenido() {
                           >
                             <option value="pending">Pendiente</option>
                             <option value="confirmed">Confirmada</option>
-                            <option value="in_progress">En Proceso</option>
                             <option value="completed">Completada</option>
                             <option value="cancelled">Cancelada</option>
                             <option value="no_show">No Show</option>
-                            <option value="rescheduled">Reagendada</option>
                           </Select>
                         </div>
                       </div>
@@ -1434,11 +1418,9 @@ function ReservationsPageContenido() {
                             >
                               <option value="pending">Pendiente</option>
                               <option value="confirmed">Confirmada</option>
-                              <option value="in_progress">En Proceso</option>
                               <option value="completed">Completada</option>
                               <option value="cancelled">Cancelada</option>
                               <option value="no_show">No Show</option>
-                              <option value="rescheduled">Reagendada</option>
                             </Select>
                           </div>
                         </div>
@@ -1607,11 +1589,9 @@ function ReservationsPageContenido() {
                   >
                     <option value="pending">Pendiente</option>
                     <option value="confirmed">Confirmada</option>
-                    <option value="in_progress">En Proceso</option>
                     <option value="completed">Completada</option>
                     <option value="cancelled">Cancelada</option>
                     <option value="no_show">No Show</option>
-                    <option value="rescheduled">Reagendada</option>
                   </Select>
                 </div>
 

@@ -37,7 +37,6 @@ const COLOR_ESTADO: Record<EstadoReserva, string> = {
   COMPLETED: 'info',
   CANCELLED: 'gray',
   NO_SHOW: 'gray',
-  RESCHEDULED: 'warning',
 };
 
 /** Una reserva ya pasada no es algo que el cliente vaya a hacer. */

@@ -10,14 +10,7 @@ import {
 
 // ─── Mapeos enum ───────────────────────────────────────────────────────────
 
-type ApiStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW'
-  | 'RESCHEDULED';
+type ApiStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 type ApiPayStatus = 'PENDING' | 'PAID' | 'REFUNDED' | 'PARTIAL' | 'FAILED';
 type ApiClientType = 'GUEST' | 'REGISTERED';
 type ApiSource = 'MANUAL' | 'BOOKING_ENGINE' | 'QUOTE';
@@ -25,20 +18,16 @@ type ApiSource = 'MANUAL' | 'BOOKING_ENGINE' | 'QUOTE';
 const STATUS_TO_API: Record<Reservation['status'], ApiStatus> = {
   pending: 'PENDING',
   confirmed: 'CONFIRMED',
-  in_progress: 'IN_PROGRESS',
   completed: 'COMPLETED',
   cancelled: 'CANCELLED',
   no_show: 'NO_SHOW',
-  rescheduled: 'RESCHEDULED',
 };
 const STATUS_FROM_API: Record<ApiStatus, Reservation['status']> = {
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
-  IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
   NO_SHOW: 'no_show',
-  RESCHEDULED: 'rescheduled',
 };
 const PAY_TO_API: Record<Reservation['paymentStatus'], ApiPayStatus> = {
   pending: 'PENDING',
@@ -299,11 +288,9 @@ export const getReservationStatsByCompany = async (companyId: string) => {
     total: number;
     pending: number;
     confirmed: number;
-    inProgress: number;
     completed: number;
     cancelled: number;
     noShow: number;
-    rescheduled: number;
     totalRevenue: number;
     totalParticipants: number;
     averageParticipants: number;

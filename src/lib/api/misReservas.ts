@@ -4,13 +4,7 @@
 // del negocio, solo lo que le toca a quien va a comer.
 import { api } from './client';
 
-export type EstadoReserva =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW'
-  | 'RESCHEDULED';
+export type EstadoReserva = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export type EstadoPago = 'PENDING' | 'PAID' | 'REFUNDED' | 'FAILED';
 
@@ -46,7 +40,6 @@ export const ETIQUETA_ESTADO: Record<EstadoReserva, string> = {
   COMPLETED: 'Completada',
   CANCELLED: 'Cancelada',
   NO_SHOW: 'No asististe',
-  RESCHEDULED: 'Reprogramada',
 };
 
 export const ETIQUETA_PAGO: Record<EstadoPago, string> = {

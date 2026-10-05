@@ -38,7 +38,12 @@ function rigeEseDia(schedule: AvailabilitySchedule, date: Date): boolean {
   return true;
 }
 
-function getAvailableSlots(date: Date, schedules: AvailabilitySchedule[], duration: number): string[] {
+function getAvailableSlots(
+  date: Date,
+  schedules: AvailabilitySchedule[],
+  duration: number,
+  limpieza = 0,
+): string[] {
   if (!schedules || schedules.length === 0) {
     const defaults: string[] = [];
     for (let h = 8; h <= 20; h++) {
@@ -62,7 +67,11 @@ function getAvailableSlots(date: Date, schedules: AvailabilitySchedule[], durati
       const startMin = sh * 60 + sm;
       const endMin = eh * 60 + em;
 
-      for (let m = startMin; m + duration <= endMin; m += 30) {
+      // TR-19. La limpieza tiene que caber antes de cerrar: ofrecer una cena
+      // que acaba justo a la hora de cierre deja al equipo recogiendo fuera
+      // de horario. El montaje no se descuenta aquí porque se hace antes de
+      // abrir, y restarlo quitaría el primer turno del día.
+      for (let m = startMin; m + duration + limpieza <= endMin; m += 30) {
         const h = Math.floor(m / 60);
         const min = m % 60;
         slots.add(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`);
@@ -135,10 +144,15 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
 
   useEffect(() => {
     if (!date) { setSlots([]); setTime(''); return; }
-    const newSlots = getAvailableSlots(date, schedules, experience.duration ?? 60);
+    const newSlots = getAvailableSlots(
+      date,
+      schedules,
+      experience.duration ?? 60,
+      experience.cleanupTime ?? 0,
+    );
     setSlots(newSlots);
     setTime('');
-  }, [date, schedules, experience.duration]);
+  }, [date, schedules, experience.duration, experience.cleanupTime]);
 
   const canContinue = !!date && !!time && participants >= (experience.minCapacity ?? 1) &&
     (!isPresential || !hasLocations || !!locationId);

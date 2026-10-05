@@ -397,10 +397,12 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   // TR-35. Desde y hasta cuándo se repite. Un horario nuevo arranca hoy y
   // dura un año: suficiente para no chocar con el corte mientras se monta el
   // catálogo, y poco para que no quede una agenda abierta por décadas.
+  // Inicializadores perezosos: la vigencia por defecto lee la fecha de hoy, y
+  // calcularla en cada render es trabajo que no cambia nada.
   const [validFrom, setValidFrom] = useState(
-    schedule?.validFrom ?? vigenciaPorDefecto().validFrom,
+    () => schedule?.validFrom ?? vigenciaPorDefecto().validFrom,
   );
-  const [validUntil, setValidUntil] = useState(
+  const [validUntil, setValidUntil] = useState(() =>
     schedule ? schedule.validUntil ?? '' : vigenciaPorDefecto().validUntil,
   );
   const [saving, setSaving] = useState(false);

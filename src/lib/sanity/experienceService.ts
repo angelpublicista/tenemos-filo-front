@@ -23,6 +23,8 @@ export interface ApiExperience {
   description: string | null;
   categories: string[];
   duration: number | null;
+  prepTime?: number | null;
+  cleanupTime?: number | null;
   capacity: number | null;
   minCapacity: number | null;
   basePrice: string | number | null;
@@ -122,6 +124,8 @@ export function toExperience(e: ApiExperience): Experience {
     description: e.description ?? '',
     categories: (e.categories ?? []) as Experience['categories'],
     duration: e.duration ?? 0,
+    prepTime: e.prepTime ?? null,
+    cleanupTime: e.cleanupTime ?? null,
     capacity: e.capacity ?? 0,
     minCapacity: e.minCapacity ?? undefined,
     basePrice: typeof e.basePrice === 'string' ? Number(e.basePrice) : (e.basePrice ?? 0),
@@ -200,6 +204,8 @@ function buildCreatePayload(data: CreateExperienceData): Record<string, unknown>
     description: data.description,
     categories: data.categories,
     duration: data.duration,
+    prepTime: data.prepTime ?? null,
+    cleanupTime: data.cleanupTime ?? null,
     capacity: data.capacity,
     minCapacity: data.minCapacity,
     basePrice: data.basePrice,
@@ -235,6 +241,8 @@ function buildUpdatePayload(data: UpdateExperienceData): Record<string, unknown>
   if (data.description !== undefined) out.description = data.description;
   if (data.categories !== undefined) out.categories = data.categories;
   if (data.duration !== undefined) out.duration = data.duration;
+  if (data.prepTime !== undefined) out.prepTime = data.prepTime;
+  if (data.cleanupTime !== undefined) out.cleanupTime = data.cleanupTime;
   if (data.capacity !== undefined) out.capacity = data.capacity;
   if (data.minCapacity !== undefined) out.minCapacity = data.minCapacity;
   if (data.basePrice !== undefined) out.basePrice = data.basePrice;

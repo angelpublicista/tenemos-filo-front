@@ -38,6 +38,10 @@ const experienceSchema = z.object({
   description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres'),
   categories: z.array(z.enum(['cooking', 'mixology', 'tasting', 'catering', 'corporate', 'celebrations', 'workshops', 'other'])).min(1, 'Selecciona al menos una categoría'),
   duration: z.number().min(30, 'La duración mínima es 30 minutos').max(480, 'La duración máxima es 480 minutos'),
+  // TR-19. Montaje y limpieza. Opcionales: no es lo mismo decir que no hace
+  // falta montaje que no haberlo pensado todavía.
+  prepTime: z.number().int().min(0).max(1440).optional(),
+  cleanupTime: z.number().int().min(0).max(1440).optional(),
   capacity: z.number().min(1, 'La capacidad debe ser al menos 1').max(100, 'La capacidad máxima es 100'),
   minCapacity: z.number().min(1).optional(),
   basePrice: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
@@ -657,6 +661,38 @@ function CreateExperiencePageContenido() {
               {errors.duration && (
                 <p className="text-red-500 text-sm mt-1">{errors.duration.message}</p>
               )}
+            </div>
+
+            {/* TR-19. Lo que ocupa además de sí misma. La agenda lo cuenta:
+                una cena de tres horas no deja el sitio libre a las tres. */}
+            <div>
+              <Label htmlFor="prepTime">Montaje antes (minutos)</Label>
+              <TextInput
+                {...register('prepTime', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
+                type="number"
+                min="0"
+                max="1440"
+                className="mt-1"
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Lo que tardas en preparar el sitio. Queda ocupado en tu agenda.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="cleanupTime">Limpieza después (minutos)</Label>
+              <TextInput
+                {...register('cleanupTime', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
+                type="number"
+                min="0"
+                max="1440"
+                className="mt-1"
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Lo que tardas en recoger. Tampoco cabe otra cosa en ese rato.
+              </p>
             </div>
           </div>
 

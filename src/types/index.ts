@@ -447,6 +447,12 @@ export interface Experience {
   description: string;
   categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
   duration: number; // minutos
+  /**
+   * TR-19. Lo que ocupa además de sí misma: montar antes y recoger después.
+   * En ese rato no cabe otra cosa, y la agenda del anfitrión lo cuenta.
+   */
+  prepTime?: number | null;
+  cleanupTime?: number | null;
   capacity: number;
   minCapacity?: number;
   basePrice: number;
@@ -550,6 +556,9 @@ export interface CreateExperienceData {
   description: string;
   categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
   duration: number;
+  /** TR-19. Montaje y limpieza, en minutos. */
+  prepTime?: number | null;
+  cleanupTime?: number | null;
   capacity: number;
   minCapacity?: number;
   basePrice: number;

@@ -102,6 +102,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   const [step, setStep] = useState<Step>('experiences');
   const [booking, setBooking] = useState<Partial<BookingData>>({});
   const [reservationNumber, setReservationNumber] = useState('');
+  const [codigo, setCodigo] = useState<string | null>(null);
   // Con que cobrar; llega con la reserva si hay pasarela activa. La forma
   // depende de cual sea: Wompi manda un formulario firmado y Mercado Pago una
   // URL ya creada.
@@ -232,6 +233,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       });
 
       setReservationNumber(result.reservationNumber);
+      setCodigo(result.confirmationCode ?? null);
       setPago(result.payment ?? null);
       setStep('success');
     } catch (err) {
@@ -347,9 +349,20 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
             : 'Completa el pago para confirmar tu reserva.'
           : 'Tu solicitud fue recibida. El anfitrión la confirmará pronto.'}
       </p>
+      {/* El codigo manda sobre el numero de reserva: es lo que le van a pedir
+          en la puerta. El numero queda debajo, para el pago y para soporte. */}
       <div className="inline-block bg-gray-50 border border-gray-200 rounded-xl px-8 py-4 mb-6">
-        <p className="text-xs text-gray-400 mb-1">Número de reserva</p>
-        <p className="text-2xl font-bold text-marca">{reservationNumber}</p>
+        <p className="text-xs text-gray-400 mb-1">
+          {codigo ? 'Tu código de entrada' : 'Número de reserva'}
+        </p>
+        <p className="text-2xl font-bold text-marca tracking-wider">
+          {codigo ?? reservationNumber}
+        </p>
+        {codigo && (
+          <p className="mt-2 text-xs text-gray-400">
+            Enséñalo al llegar · Reserva {reservationNumber}
+          </p>
+        )}
       </div>
 
       {pago && (

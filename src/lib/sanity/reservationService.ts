@@ -1,5 +1,5 @@
 // Reescrito sobre el API. Conserva firmas para no tocar callers.
-import { api, apiFetch } from '@/lib/api/client';
+import { api, apiFetch, apiPostEnvelope } from '@/lib/api/client';
 import type { DatosCheckout } from '@/components/BookingEngine/BotonDePago';
 import {
   Reservation,
@@ -397,12 +397,21 @@ export interface CreatePublicReservationData {
 
 export const createPublicReservation = async (
   data: CreatePublicReservationData,
-): Promise<{ reservationNumber: string; payment?: DatosCheckout | null }> => {
+): Promise<{
+  reservationNumber: string;
+  /** El que le van a pedir al llegar. Lo trae el API desde que existe. */
+  confirmationCode?: string | null;
+  payment?: DatosCheckout | null;
+}> => {
   // El precio lo calcula el API desde la experiencia: en el catalogo
   // publico no hay sesion y un precio enviado por el cliente seria
   // manipulable. Aqui solo se manda QUE adicionales eligio.
 
-  return apiFetch<{ reservationNumber: string; payment?: DatosCheckout | null }>(
+  return apiFetch<{
+    reservationNumber: string;
+    confirmationCode?: string | null;
+    payment?: DatosCheckout | null;
+  }>(
     '/reservations/public',
     {
     method: 'POST',
@@ -429,3 +438,31 @@ export const createPublicReservation = async (
     },
   );
 };
+
+/** Una reserva como la ve el anfitrión al validarla en la puerta. */
+export interface ReservaValidada {
+  id: string;
+  reservationNumber: string;
+  reservationDate: string;
+  participants: number;
+  checkedInAt: string | null;
+  experience?: { title?: string } | null;
+  resellerCompany?: { id: string; companyName: string } | null;
+  client?: { name?: string } | null;
+}
+
+/**
+ * Validar en la puerta el código que trae el cliente, y marcar su llegada.
+ *
+ * Un 404 aquí no es un fallo de la pantalla: significa que esa venta no entró
+ * por FILO. Es justo la señal que hay que ver, así que el mensaje del API se
+ * enseña tal cual.
+ *
+ * Conserva el `meta` porque ahí viene si la persona ya había llegado, y eso
+ * no cabe dentro de la reserva.
+ */
+export const validarCodigoDeReserva = (codigo: string) =>
+  apiPostEnvelope<ReservaValidada, { yaHabiaLlegado?: boolean }>(
+    '/reservations/validar-codigo',
+    { codigo },
+  );

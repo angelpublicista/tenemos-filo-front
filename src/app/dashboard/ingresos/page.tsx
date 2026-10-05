@@ -6,6 +6,7 @@ import { HiCash, HiCheckCircle, HiClock } from 'react-icons/hi';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable from '@/components/Admin/AdminTable';
+import DesgloseDelPeriodo from '@/components/Ingresos/DesgloseDelPeriodo';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
@@ -187,7 +188,12 @@ export default function IngresosPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+      {/* TR-28. Los cortes del periodo. Van antes del listado porque
+          responden la pregunta con la que uno entra —cómo vengo, qué me deja
+          más— y el listado es para cuadrar una cifra concreta después. */}
+      <DesgloseDelPeriodo role={rol} />
+
+      <div className="flex items-center justify-between gap-3 mb-3 mt-8 flex-wrap">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Reservas cobradas</h2>
         {revende && (
           <div className="flex gap-2">

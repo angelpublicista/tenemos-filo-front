@@ -53,6 +53,8 @@ interface ApiReservation {
   clientType: ApiClientType;
   userId: string | null;
   source: ApiSource;
+  /** TR-04. El canal por el que entró la venta. De él depende el fee. */
+  channel?: 'MANUAL' | 'CHECKOUT' | 'RESELLER' | 'CRM';
   reservationDate: string;
   duration: number | null;
   participants: number;
@@ -106,6 +108,7 @@ function toReservation(r: ApiReservation): Reservation {
       : { _id: r.companyId, companyName: '', companyEmail: '', companyPhone: '' },
     client: r.client,
     clientInfo: r.client,
+    canal: r.channel ?? 'MANUAL',
     // TR-26. Para poder llegar a su ficha del CRM, donde está su historial.
     contactoCrm: r.contact
       ? {

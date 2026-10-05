@@ -94,3 +94,47 @@ export const listIngresosPorReserva = async (params: {
     total,
   };
 };
+
+// ─── Desglose del periodo (TR-28) ──────────────────────────────────────────
+
+/** Una fila de cualquiera de los cuatro cortes. */
+export type FilaDeDesglose = {
+  clave: string;
+  etiqueta: string;
+  reservas: number;
+  personas: number;
+  vendido: number;
+  /** Lo que le queda a quien pregunta: sus ingresos, o su comisión. */
+  tuyo: number;
+  feeDeFilo: number;
+  comisionDeCanal: number;
+};
+
+export type DesgloseDeIngresos = {
+  desde: string;
+  hasta: string;
+  role: PayoutRole;
+  totales: { reservas: number; personas: number; vendido: number; tuyo: number };
+  porPeriodo: FilaDeDesglose[];
+  porExperiencia: FilaDeDesglose[];
+  porModalidad: FilaDeDesglose[];
+  porCanal: FilaDeDesglose[];
+};
+
+/**
+ * Los ingresos del periodo, cortados por donde hay que decidir algo.
+ *
+ * Cuatro cortes porque son cuatro preguntas distintas: cómo vengo mes a mes,
+ * qué experiencia me da más, si lo virtual vale la pena, y cuánto me trae
+ * cada canal frente a lo que me cuesta su comisión.
+ */
+export const getDesgloseDeIngresos = (params: {
+  desde: string;
+  hasta: string;
+  role?: PayoutRole;
+}) =>
+  api.get<DesgloseDeIngresos>('/payouts/me/desglose', {
+    desde: params.desde,
+    hasta: params.hasta,
+    role: params.role ?? 'HOST',
+  });

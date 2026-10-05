@@ -757,6 +757,12 @@ export interface Reservation {
   contactoCrm?: { _id: string; nombre: string } | null;
   /** TR-09. Cuánta gente apareció. Null mientras no se haya cerrado. */
   attendedCount?: number | null;
+  /**
+   * TR-04. El canal por el que entró la venta, congelado al crearla. De él
+   * depende si genera comisión de FILO, y es distinto del origen del lead:
+   * alguien puede llegar por Instagram y acabar comprando por el catálogo.
+   */
+  canal?: 'MANUAL' | 'CHECKOUT' | 'RESELLER' | 'CRM';
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded' | 'failed';
   pricing: ReservationPricing;
   paymentMethod?: 'advance' | 'deferred' | 'corporate_credit' | 'cash';

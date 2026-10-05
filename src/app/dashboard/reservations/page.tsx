@@ -1674,6 +1674,23 @@ function ReservationsPageContenido() {
                 </div>
               </div>
 
+              {/* TR-04. Por dónde entró esta venta. Se enseña porque de ello
+                  depende la comisión, y porque explica por qué dos reservas
+                  del mismo precio dejan cifras distintas. */}
+              {editingReservation.canal && (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Entró por:{' '}
+                  <span className="font-medium">
+                    {{
+                      MANUAL: 'cargada a mano',
+                      CHECKOUT: 'tu catálogo',
+                      CRM: 'el enlace que mandaste desde el CRM',
+                      RESELLER: 'un canal de venta',
+                    }[editingReservation.canal]}
+                  </span>
+                </p>
+              )}
+
               {/* TR-26. El comprador también es un contacto del CRM, y desde
                   ahí se ve su historial: cuántas veces ha venido y qué pidió.
                   Sin el enlace, el vínculo existe y nadie lo usa. */}

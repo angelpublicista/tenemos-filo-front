@@ -5,6 +5,7 @@ import { Experience, Location, AvailabilitySchedule } from '@/types';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { getAvailabilityScheduleById } from '@/lib/sanity/availabilityService';
 import { createReservationManually } from '@/lib/sanity/reservationService';
+import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
 import { searchExperiencesForQuote } from '@/lib/sanity/quoteService';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose, AiOutlineUser, AiOutlineUserAdd } from 'react-icons/ai';
@@ -37,7 +38,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   const { sanityUser } = useAuth();
   const [step, setStep] = useState(0); // Ahora empieza en 0 (búsqueda)
   const [saving, setSaving] = useState(false);
-  const { showSuccess, showError, showLoading, hideLoading } = useSweetAlert();
+  const { showSuccess, showError, showLoading, hideLoading, showConfirmation } = useSweetAlert();
 
   // Paso 0: modo de selección (búsqueda por disponibilidad o selección directa)
   const [pickMode, setPickMode] = useState<'search' | 'direct'>('search');
@@ -315,7 +316,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         } : undefined,
       });
 
-      const result = await createReservationManually({
+      const datos = {
         experience: selectedExperience,
         location: selectedLocation,
         reservationDate: reservationDateTime,
@@ -329,7 +330,35 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
           phone: guestPhone.trim(),
         } : undefined,
         selectedAddons: selectedAddons.length > 0 ? selectedAddons : undefined,
-      });
+      } as const;
+
+      let result;
+      try {
+        result = await createReservationManually(datos);
+      } catch (error) {
+        // TR-42. Si a esa hora ya hay algo en OTRA sede, no es un error: es
+        // un aviso. Un anfitrión con dos equipos lo hace todos los días, así
+        // que se le cuenta y decide. El choque sobre la MISMA sede no llega
+        // aquí: ese no se puede saltar y se muestra como error.
+        const d =
+          error instanceof ApiHttpError
+            ? (error.details as { motivo?: string } | undefined)
+            : undefined;
+        if (d?.motivo !== 'SOLAPE_EN_OTRA_SEDE') throw error;
+
+        hideLoading();
+        const seguir = await showConfirmation(
+          'Ya tienes algo a esa hora',
+          `${mensajeDeError(error)}`,
+          'Programar de todas formas',
+        );
+        if (!seguir) {
+          setSaving(false);
+          return;
+        }
+        showLoading('Creando reserva...');
+        result = await createReservationManually({ ...datos, permitirSolape: true });
+      }
 
       console.log('✅ Reserva creada con éxito:', result);
 
@@ -340,7 +369,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     } catch (error) {
       hideLoading();
       console.error('❌ Error completo al crear la reserva:', error);
-      showError(error instanceof Error ? error.message : 'Error al crear la reserva');
+      showError(mensajeDeError(error));
     } finally {
       setSaving(false);
     }

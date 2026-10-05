@@ -329,8 +329,23 @@ export const updateExperienceInSanity = async (data: UpdateExperienceData) => {
   return toExperience(updated);
 };
 
-export const deleteExperienceInSanity = async (experienceId: string) => {
-  await api.delete(`/experiences/${encodeURIComponent(experienceId)}`);
+/**
+ * Eliminar una experiencia (TR-11).
+ *
+ * Sin `cancelarReservas`, el API se niega si tiene reservas por venir y dice
+ * cuántas. Con él, se cancelan —cada una con su aviso y su reembolso
+ * apuntado— y después se elimina. Devuelve cuántas canceló.
+ */
+export const deleteExperienceInSanity = async (
+  experienceId: string,
+  opts: { cancelarReservas?: boolean } = {},
+): Promise<{ reservasCanceladas: number }> => {
+  const r = await api.delete<{ reservasCanceladas?: number } | null>(
+    `/experiences/${encodeURIComponent(experienceId)}${
+      opts.cancelarReservas ? '?cancelarReservas=true' : ''
+    }`,
+  );
+  return { reservasCanceladas: r?.reservasCanceladas ?? 0 };
 };
 
 export const updateExperienceStatus = async (

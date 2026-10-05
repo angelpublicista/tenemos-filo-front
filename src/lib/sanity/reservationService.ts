@@ -253,15 +253,24 @@ export const updateReservationPaymentStatus = async (
   return toReservation(updated);
 };
 
+/**
+ * Cancelar una reserva, entera o en parte (TR-07).
+ *
+ * `participants` es cuánta gente se cae; sin él se cae la reserva completa.
+ * El reembolso lo decide el API cuando no se manda: si cancela el anfitrión
+ * corresponde devolver lo cobrado, y si cancela el comensal depende de los
+ * términos del anfitrión.
+ */
 export const cancelReservation = async (
   reservationId: string,
   cancelledBy: 'client' | 'host' | 'system',
   reason: string,
   refundAmount?: number,
+  participants?: number,
 ) => {
   const updated = await api.post<ApiReservation>(
     `/reservations/${encodeURIComponent(reservationId)}/cancel`,
-    { cancelledBy, reason, refundAmount },
+    { cancelledBy, reason, refundAmount, participants },
   );
   return toReservation(updated);
 };
@@ -303,6 +312,11 @@ export const getReservationStatsByCompany = async (companyId: string) => {
 
 export interface CreateManualReservationData {
   experience: string;
+  /**
+   * TR-42. El «programar de todas formas» cuando el anfitrión ya tiene algo a
+   * esa hora en otra sede. Sobre la misma sede no sirve: el sitio es uno.
+   */
+  permitirSolape?: boolean;
   location: string;
   reservationDate: string;
   participants: number;
@@ -357,6 +371,7 @@ export const createReservationManually = async (data: CreateManualReservationDat
       hostEarnings: total,
     },
     specialRequirements: data.specialRequests,
+    ...(data.permitirSolape ? { permitirSolape: true } : {}),
     notes: `Reserva creada manualmente. Cliente tipo: ${data.clientType === 'guest' ? 'Invitado' : 'Registrado'}`,
   });
   return toReservation(created);

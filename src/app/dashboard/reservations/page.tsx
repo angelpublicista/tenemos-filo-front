@@ -29,7 +29,9 @@ import {
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
-import { getReservationById, getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
+import { cancelReservation, getReservationById, getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
+import { pedirDatosDeCancelacion } from '@/lib/reservas/cancelacion';
+import { mensajeDeError } from '@/lib/api/client';
 import { Experience, Reservation } from '@/types';
 import CreateReservationModal from '@/components/CreateReservationModal';
 import OportunidadesDelDia from '@/components/CRM/OportunidadesDelDia';
@@ -367,12 +369,64 @@ function ReservationsPageContenido() {
   });
 
   // Cambiar estado de reserva
+  /**
+   * TR-07. Cancelar la reserva, entera o en parte.
+   *
+   * Una baja parcial deja la reserva viva con menos gente y libera esos
+   * cupos; el API recalcula el importe y apunta el reembolso que toque.
+   */
+  const handleCancel = async (reservationId: string) => {
+    const reserva = reservations.find(r => r._id === reservationId);
+    const datos = await pedirDatosDeCancelacion({
+      numeroDeReserva: reserva?.reservationNumber ?? '',
+      participantes: reserva?.participants ?? 1,
+      total: reserva?.pricing?.total,
+    });
+    if (!datos) return;
+
+    try {
+      setIsUpdating(reservationId);
+      const actualizada = await cancelReservation(
+        reservationId,
+        datos.cancelledBy,
+        datos.reason,
+        undefined,
+        datos.participants,
+      );
+
+      setReservations(prev =>
+        prev.map(res => (res._id === reservationId ? { ...res, ...actualizada } : res)),
+      );
+
+      const total = reserva?.participants ?? datos.participants;
+      showSuccess(
+        datos.participants >= total
+          ? 'Reserva cancelada'
+          : `${datos.participants} ${datos.participants === 1 ? 'persona' : 'personas'} dadas de baja. La reserva sigue con ${total - datos.participants}.`,
+      );
+      await loadReservations();
+    } catch (error) {
+      console.error('Error al cancelar la reserva:', error);
+      showError(mensajeDeError(error));
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
   const handleStatusChange = async (reservationId: string | undefined, newStatus: string) => {
     if (!reservationId) {
       showError('ID de reserva no válido');
       return;
     }
-    
+
+    // TR-07. Cancelar no es cambiar un estado: hay que saber quién canceló
+    // —de eso depende el reembolso—, por qué, y si se cae el grupo entero o
+    // solo parte. Así que no pasa por el selector, pasa por su propio paso.
+    if (newStatus === 'cancelled') {
+      await handleCancel(reservationId);
+      return;
+    }
+
     try {
       setIsUpdating(reservationId);
       await updateReservationStatus(reservationId, newStatus as Reservation['status']);
@@ -1590,7 +1644,9 @@ function ReservationsPageContenido() {
                     <option value="pending">Pendiente</option>
                     <option value="confirmed">Confirmada</option>
                     <option value="completed">Completada</option>
-                    <option value="cancelled">Cancelada</option>
+                    {/* "Cancelada" no está aquí a propósito (TR-07): cancelar
+                        pide saber quién canceló y si se cae todo el grupo, y
+                        eso tiene su propio paso en el menú de la reserva. */}
                     <option value="no_show">No Show</option>
                   </Select>
                 </div>

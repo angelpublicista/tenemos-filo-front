@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany, getExperienceStatsByCompany, updateExperienceStatus, deleteExperienceInSanity } from '@/lib/sanity/experienceService';
 import { getCompanyById, getCompanyByUserId } from '@/lib/sanity/companyService';
 import { Experience, Company } from '@/types';
+import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
 
 interface ExperienceStats {
   total: number;
@@ -137,23 +138,53 @@ function ExperiencesPageContenido() {
 
     if (!confirmed) return;
 
+    setIsUpdating(experienceId);
     try {
-      setIsUpdating(experienceId);
-      await deleteExperienceInSanity(experienceId);
-      
-      // Actualizar estado local
+      let canceladas = 0;
+      try {
+        canceladas = (await deleteExperienceInSanity(experienceId)).reservasCanceladas;
+      } catch (err) {
+        // TR-11. El API se niega si hay reservas por venir y dice cuántas. No
+        // se borra nada hasta que el anfitrión sepa qué va a cancelar: al
+        // otro lado hay gente que ya pagó y espera una fecha.
+        const d =
+          err instanceof ApiHttpError
+            ? (err.details as { motivo?: string; reservas?: number; conPago?: number } | undefined)
+            : undefined;
+        if (d?.motivo !== 'TIENE_RESERVAS') throw err;
+
+        const cuantas = d.reservas ?? 0;
+        const confirmaCancelar = await showDestructiveConfirmation(
+          'Hay reservas por venir',
+          `"${experienceTitle}" tiene ${cuantas} ${cuantas === 1 ? 'reserva' : 'reservas'} por venir` +
+            `${d.conPago ? `, ${d.conPago} con dinero cobrado` : ''}. ` +
+            'Si la eliminas se cancelarán, se avisará a cada comensal y tendrás que devolver lo cobrado.',
+          'Sí, cancelarlas y eliminar',
+        );
+        if (!confirmaCancelar) return;
+
+        canceladas = (
+          await deleteExperienceInSanity(experienceId, { cancelarReservas: true })
+        ).reservasCanceladas;
+      }
+
       setExperiences(prev => prev.filter(exp => exp._id !== experienceId));
 
-      // Recargar estadísticas
       if (company) {
         const newStats = await getExperienceStatsByCompany(company._id);
         setStats(newStats);
       }
 
-      showSuccess('Experiencia eliminada exitosamente');
+      showSuccess(
+        canceladas > 0
+          ? `Experiencia eliminada y ${canceladas} ${
+              canceladas === 1 ? 'reserva cancelada' : 'reservas canceladas'
+            }`
+          : 'Experiencia eliminada exitosamente',
+      );
     } catch (error) {
       console.error('Error deleting experience:', error);
-      showError('Error al eliminar la experiencia');
+      showError(mensajeDeError(error));
     } finally {
       setIsUpdating(null);
     }

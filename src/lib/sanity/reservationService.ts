@@ -329,6 +329,50 @@ export const marcarReembolsoPagado = (reservationId: string, refundId: string) =
     {},
   );
 
+// ─── Historial y cargos adicionales (TR-39, TR-12) ─────────────────────────
+
+export interface CambioDeReserva {
+  fecha: string;
+  quien: string | null;
+  campo: string;
+  antes: string | null;
+  despues: string | null;
+  motivo?: string | null;
+}
+
+export interface CargoAdicional {
+  id: string;
+  fecha: string;
+  importe: number;
+  concepto: string;
+  estado: 'pendiente' | 'cobrado';
+}
+
+export interface HistorialDeReserva {
+  creada: string;
+  cambios: CambioDeReserva[];
+  cargosAdicionales: CargoAdicional[];
+  reembolsos: ReembolsoDeReserva[];
+  bajasParciales: Array<{ fecha: string; personas: number; motivo: string; reembolso: number }>;
+  reprogramacion: { originalDate: string; newDate: string; reason: string } | null;
+  cancelacion: { cancelledAt: string; cancelledBy: string; cancellationReason: string } | null;
+}
+
+export const getHistorial = (reservationId: string) =>
+  api.get<HistorialDeReserva>(`/reservations/${encodeURIComponent(reservationId)}/historial`);
+
+/**
+ * Un cargo adicional acordado después de vender (TR-12).
+ *
+ * El precio original no se toca: lo vendido es lo vendido, y un cambio de
+ * fecha o de cantidad no mueve el dinero por su cuenta. Esto suma aparte.
+ */
+export const registrarCargoAdicional = (
+  reservationId: string,
+  amount: number,
+  concept: string,
+) => api.post(`/reservations/${encodeURIComponent(reservationId)}/cargos`, { amount, concept });
+
 export const rescheduleReservation = async (
   reservationId: string,
   newDate: string,

@@ -32,6 +32,7 @@ import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import { cancelReservation, getReservationById, getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
 import { pedirDatosDeCancelacion } from '@/lib/reservas/cancelacion';
 import Reembolsos from '@/components/Reservas/Reembolsos';
+import HistorialDeReserva from '@/components/Reservas/HistorialDeReserva';
 import Link from 'next/link';
 import { mensajeDeError } from '@/lib/api/client';
 import { Experience, Reservation } from '@/types';
@@ -1693,6 +1694,16 @@ function ReservationsPageContenido() {
                   así que se registran aparte y al momento. */}
               {editingReservation._id && (
                 <Reembolsos
+                  reservationId={editingReservation._id}
+                  onCambio={() => void loadReservations()}
+                />
+              )}
+
+              {/* TR-39 y TR-12. Qué le fue pasando, y lo que se cobró de más.
+                  Va aquí porque es donde se mira cuando alguien llama a
+                  reclamar que su reserva era otro día. */}
+              {editingReservation._id && (
+                <HistorialDeReserva
                   reservationId={editingReservation._id}
                   onCambio={() => void loadReservations()}
                 />

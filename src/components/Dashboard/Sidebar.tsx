@@ -12,7 +12,8 @@ import {
   AiOutlineUser,
   AiOutlineClockCircle,
   AiOutlineShareAlt,
-  AiOutlineDollar
+  AiOutlineDollar,
+  AiOutlineWarning
 } from 'react-icons/ai';
 import {
   BiMap,
@@ -276,6 +277,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         href: '/dashboard/admin/dispersiones',
         icon: AiOutlineDollar,
         current: pathname === '/dashboard/admin/dispersiones',
+        enabled: true
+      },
+      {
+        // TR-44. La bandeja de cobros que llegaron sin reserva. Va aquí y no
+        // en Dispersiones porque no es dinero que haya que mover: es dinero
+        // que no debería estar donde está.
+        name: 'Cobros sin reserva',
+        href: '/dashboard/admin/cobros-sin-reserva',
+        icon: AiOutlineWarning,
+        current: pathname === '/dashboard/admin/cobros-sin-reserva',
         enabled: true
       },
       {

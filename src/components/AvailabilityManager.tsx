@@ -680,7 +680,10 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                 min="1"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Anticipación mínima para reservas
+                {/* TR-06. Decir qué hace de verdad: no es un consejo, es un
+                    corte, y vale también cuando alguien cancela a última hora. */}
+                No se aceptan reservas con menos anticipación, ni siquiera si
+                se libera un cupo
               </p>
             </div>
           </div>

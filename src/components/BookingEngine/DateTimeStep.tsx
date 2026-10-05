@@ -56,8 +56,19 @@ function getAvailableSlots(
   const dayKey = DAYS_OF_WEEK[date.getDay()];
   const slots = new Set<string>();
 
+  /**
+   * TR-06. Lo que ya no se puede reservar por falta de anticipación.
+   *
+   * Cada horario dice cuánta necesita el anfitrión: comprar para una cena de
+   * quince personas no se hace a las seis de la tarde. El API lo rechaza
+   * igual, pero ofrecer una hora para que luego falle es hacer perder el
+   * tiempo a quien está reservando.
+   */
+  const ahora = Date.now();
+
   schedules.forEach(schedule => {
     if (!rigeEseDia(schedule, date)) return;
+    const avisoMs = (schedule.minimumNotice ?? 0) * 3_600_000;
     const daySchedule = schedule.weeklySchedule?.[dayKey];
     if (!daySchedule?.isActive || !daySchedule.timeSlots) return;
 
@@ -74,6 +85,11 @@ function getAvailableSlots(
       for (let m = startMin; m + duration + limpieza <= endMin; m += 30) {
         const h = Math.floor(m / 60);
         const min = m % 60;
+        if (avisoMs > 0) {
+          const cuando = new Date(date);
+          cuando.setHours(h, min, 0, 0);
+          if (cuando.getTime() - ahora < avisoMs) continue;
+        }
         slots.add(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`);
       }
     });

@@ -123,7 +123,20 @@ function ExperiencesPageContenido() {
       showSuccess('Estado actualizado exitosamente');
     } catch (error) {
       console.error('Error updating status:', error);
-      showError('Error al actualizar el estado');
+      // TR-23. Si está incompleta, el API dice exactamente qué falta. Un
+      // "Error al actualizar el estado" mandaría a adivinar.
+      const d =
+        error instanceof ApiHttpError
+          ? (error.details as { motivo?: string; falta?: string[] } | undefined)
+          : undefined;
+      if (d?.motivo === 'INCOMPLETA') {
+        showError(
+          'Todavía no se puede publicar',
+          `Falta ${d.falta?.join(', ')}. Complétala y vuelve a intentarlo.`,
+        );
+        return;
+      }
+      showError('Error al actualizar el estado', mensajeDeError(error));
     } finally {
       setIsUpdating(null);
     }

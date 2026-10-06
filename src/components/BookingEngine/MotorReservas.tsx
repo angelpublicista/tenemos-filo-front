@@ -132,12 +132,26 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       try {
         // Un solo endpoint publico: esta pagina la abre gente sin cuenta, y
         // los de /companies y /experiences exigen sesion.
-        const { company: companyData, experiences: expData, paymentsEnabled, paymentRequired } = modoReseller
-          ? await getResellerCatalog(slug)
-          : await getPublicCatalog(slug);
+        const {
+          company: companyData,
+          experiences: expData,
+          paymentsEnabled,
+          paymentRequired,
+          agendaDelAnfitrion,
+        } = modoReseller ? await getResellerCatalog(slug) : await getPublicCatalog(slug);
         if (controller.signal.aborted) return;
         setCompany(companyData);
-        setExperiences(expData as BookingExperience[]);
+        // TR-21. Una experiencia sin horario propio ni sede usa la agenda del
+        // anfitrión. Sin esto el catálogo de un cocinero a domicilio ofrecía
+        // las horas por defecto —de ocho a ocho, todos los días—, que no son
+        // las suyas, y el API acabaría rechazando la reserva.
+        setExperiences(
+          (expData as BookingExperience[]).map((e) =>
+            (e.availabilitySchedules?.length ?? 0) === 0 && (agendaDelAnfitrion?.length ?? 0) > 0
+              ? { ...e, availabilitySchedules: agendaDelAnfitrion }
+              : e,
+          ),
+        );
         setCobraEnLinea(paymentsEnabled);
         setPagoObligatorio(Boolean(paymentRequired));
 

@@ -211,6 +211,26 @@ export const updateQuoteStatus = async (quoteId: string, status: string) => {
 
 
 /** Una cotizacion dentro del historial de su oportunidad. */
+/**
+ * TR-14. Una de las (hasta tres) opciones de una cotización.
+ *
+ * No son versiones —eso es el historial de lo que se le fue mandando— sino
+ * alternativas vivas a la vez entre las que el cliente elige: «el sábado 12 en
+ * la terraza, el domingo 13 en el salón, o el sábado 19 más barato».
+ */
+export interface OpcionDeCotizacion {
+  id: string;
+  position: number;
+  label: string | null;
+  eventDate: string | null;
+  eventTime: string | null;
+  guests: number | null;
+  total: string | number | null;
+  notes: string | null;
+  chosenAt: string | null;
+  experience?: { id: string; title: string; basePrice: string | number | null } | null;
+}
+
 export interface CotizacionDeOportunidad {
   id: string;
   version: number;
@@ -220,7 +240,33 @@ export interface CotizacionDeOportunidad {
   sentVia: 'FILO' | 'EXTERNO' | null;
   status: string;
   createdAt: string;
+  options?: OpcionDeCotizacion[];
 }
+
+/** TR-14. Reemplaza las opciones de una cotización: hasta tres. */
+export const guardarOpcionesDeCotizacion = (
+  quoteId: string,
+  opciones: Array<{
+    label?: string;
+    experienceId?: string;
+    eventDate?: string;
+    eventTime?: string;
+    guests?: number;
+    total?: number;
+    notes?: string;
+  }>,
+) => api.put(`/quotes/${encodeURIComponent(quoteId)}/opciones`, { opciones });
+
+/**
+ * El cliente elige una opción. Puede elegir varias: un corporativo que acepta
+ * dos de las tres compra dos cenas, y entonces la oportunidad admite dos
+ * reservas.
+ */
+export const elegirOpcionDeCotizacion = (
+  quoteId: string,
+  optionId: string,
+  elegida: boolean,
+) => api.post(`/quotes/${encodeURIComponent(quoteId)}/opciones/elegir`, { optionId, elegida });
 
 /**
  * El historial de cotizaciones de una oportunidad.

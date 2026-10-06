@@ -12,7 +12,9 @@ import { AiOutlineCalendar } from 'react-icons/ai';
 import Link from 'next/link';
 import Loader from '@/components/Loader';
 
-type ViewMode = 'location' | 'experience';
+// TR-21. Tres contextos, no dos: la agenda propia del anfitrión es la de
+// quien va a casa del cliente y no tiene sede donde colgar su calendario.
+type ViewMode = 'location' | 'experience' | 'company';
 
 export default function AvailabilityPage() {
   const { sanityUser } = useAuth();
@@ -112,6 +114,17 @@ export default function AvailabilityPage() {
             Por Experiencia
           </button>
           <button
+            onClick={() => setViewMode('company')}
+            className={`flex items-center justify-center gap-2 px-3 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-1 sm:flex-none ${
+              viewMode === 'company'
+                ? 'border-[#F26726] text-[#F26726]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <BiBuilding className="text-lg" />
+            Mi agenda
+          </button>
+          <button
             onClick={() => setViewMode('location')}
             className={`flex items-center justify-center gap-2 px-3 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-1 sm:flex-none ${
               viewMode === 'location'
@@ -124,7 +137,21 @@ export default function AvailabilityPage() {
           </button>
         </div>
 
-        {isLoadingCurrent ? (
+        {viewMode === 'company' ? (
+          <div>
+            {/* TR-21. Para quien no tiene sede, esta es su única agenda; para
+                quien sí, es la que vale cuando una experiencia no tiene
+                horario propio. */}
+            <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+              <p className="text-sm text-gray-700">
+                Estas franjas valen para todo lo que no tenga su propio horario:
+                una experiencia sin calendario y sin sede se ofrece con esta
+                agenda. Es la de quien va a casa del cliente.
+              </p>
+            </div>
+            <AvailabilityManager mode="company" companyId={sanityUser.companyId || ''} />
+          </div>
+        ) : isLoadingCurrent ? (
           <Loader message={viewMode === 'experience' ? 'Cargando experiencias...' : 'Cargando sedes...'} />
         ) : viewMode === 'experience' ? (
           <ExperienceAvailabilityView

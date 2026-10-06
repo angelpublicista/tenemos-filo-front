@@ -4,10 +4,15 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { HiCheckCircle, HiPaperAirplane, HiPlus } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import Swal from 'sweetalert2';
+import { mensajeDeError } from '@/lib/api/client';
 import {
   cotizacionesDeOportunidad,
+  elegirOpcionDeCotizacion,
+  guardarOpcionesDeCotizacion,
   marcarCotizacionEnviada,
   type CotizacionDeOportunidad,
+  type OpcionDeCotizacion,
 } from '@/lib/sanity/quoteService';
 
 interface Props {
@@ -19,6 +24,18 @@ interface Props {
 
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+
+const pesos = (n: number) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+
+/** Lo que hay que escribir de una opción, en el orden en que se piensa. */
+const CAMPOS = [
+  { id: 'label', etiqueta: 'Cómo la llamas', tipo: 'text', ayuda: 'Ej: Terraza, sábado' },
+  { id: 'eventDate', etiqueta: 'Fecha', tipo: 'date', ayuda: '' },
+  { id: 'eventTime', etiqueta: 'Hora', tipo: 'time', ayuda: '' },
+  { id: 'guests', etiqueta: 'Personas', tipo: 'number', ayuda: '' },
+  { id: 'total', etiqueta: 'Valor', tipo: 'number', ayuda: 'Lo acordado para esta opción' },
+] as const;
 
 /**
  * Las cotizaciones de una oportunidad, con su historial.
@@ -59,6 +76,98 @@ export default function CotizacionesDeOportunidad({
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  /**
+   * TR-14. Las opciones se editan juntas, no de a una.
+   *
+   * Son tres como máximo y se piensan a la vez —«el sábado o el domingo»—, así
+   * que editarlas por separado obligaría a tres pasos para un cambio que es
+   * uno. Lo que el cliente ya eligió se conserva por posición.
+   */
+  const editarOpciones = async (q: CotizacionDeOportunidad) => {
+    const previas = q.options ?? [];
+    const valorDe = (i: number, campo: string): string => {
+      const op = previas[i] as unknown as Record<string, unknown> | undefined;
+      const v = op?.[campo];
+      if (v === null || v === undefined) return '';
+      if (campo === 'eventDate') return String(v).slice(0, 10);
+      return String(v);
+    };
+
+    const bloque = (i: number) => `
+      <fieldset style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:10px">
+        <legend style="font-size:12px;color:#6b7280;padding:0 4px">Opción ${i + 1}</legend>
+        ${CAMPOS.map(
+          (c) => `
+          <label style="display:block;margin:6px 0 2px;font-size:12px">${c.etiqueta}</label>
+          <input id="${c.id}-${i}" type="${c.tipo}" value="${valorDe(i, c.id)}"
+                 class="swal2-input" style="width:100%;margin:0;font-size:13px"
+                 placeholder="${c.ayuda}">`,
+        ).join('')}
+      </fieldset>`;
+
+    const { value, isConfirmed } = await Swal.fire({
+      title: 'Opciones de la propuesta',
+      html: `
+        <div style="text-align:left;font-size:14px;max-height:55vh;overflow:auto">
+          <p style="margin:0 0 10px;color:#4b5563">
+            Hasta tres alternativas a la vez. Deja una en blanco si no la usas.
+          </p>
+          ${[0, 1, 2].map(bloque).join('')}
+        </div>`,
+      width: 560,
+      showCancelButton: true,
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#F26726',
+      preConfirm: () => {
+        const g = (id: string) =>
+          (document.getElementById(id) as HTMLInputElement | null)?.value?.trim() ?? '';
+        const opciones = [0, 1, 2]
+          .map((i) => ({
+            label: g(`label-${i}`) || undefined,
+            eventDate: g(`eventDate-${i}`) || undefined,
+            eventTime: g(`eventTime-${i}`) || undefined,
+            guests: g(`guests-${i}`) ? Number(g(`guests-${i}`)) : undefined,
+            total: g(`total-${i}`) ? Number(g(`total-${i}`)) : undefined,
+          }))
+          // Una opción vacía no es una opción: se descarta sin avisar, que es
+          // lo que significa dejarla en blanco.
+          .filter((o) => o.label || o.eventDate || o.total);
+        if (opciones.length === 0) {
+          Swal.showValidationMessage('Escribe al menos una opción.');
+          return false;
+        }
+        return opciones;
+      },
+    });
+    if (!isConfirmed || !value) return;
+
+    setEnviando(q.id);
+    try {
+      await guardarOpcionesDeCotizacion(q.id, value as Parameters<typeof guardarOpcionesDeCotizacion>[1]);
+      await cargar();
+      onCambio?.();
+      showSuccess('Opciones guardadas', '');
+    } catch (err) {
+      showError('No se pudieron guardar', mensajeDeError(err));
+    } finally {
+      setEnviando(null);
+    }
+  };
+
+  const elegir = async (q: CotizacionDeOportunidad, op: OpcionDeCotizacion) => {
+    setEnviando(q.id);
+    try {
+      await elegirOpcionDeCotizacion(q.id, op.id, !op.chosenAt);
+      await cargar();
+      onCambio?.();
+    } catch (err) {
+      showError('No se pudo marcar', mensajeDeError(err));
+    } finally {
+      setEnviando(null);
+    }
+  };
 
   const enviar = async (q: CotizacionDeOportunidad) => {
     const ok = await showConfirmation(
@@ -150,6 +259,52 @@ export default function CotizacionesDeOportunidad({
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
+                </div>
+
+                {/* TR-14. Las opciones que se le pusieron sobre la mesa.
+                    Hasta tres y simultáneas: el cliente elige una o varias, y
+                    cada elegida autoriza una reserva. */}
+                <div className="w-full">
+                  {(q.options ?? []).length > 0 && (
+                    <ul className="mb-2 flex flex-col gap-1 border-t border-gray-100 pt-2 dark:border-gray-700">
+                      {(q.options ?? []).map((op) => (
+                        <li
+                          key={op.id}
+                          className="flex flex-wrap items-center justify-between gap-2 text-xs"
+                        >
+                          <span className="text-gray-700 dark:text-gray-300">
+                            <strong>{op.label || `Opción ${op.position}`}</strong>
+                            {op.eventDate ? ` · ${fecha(op.eventDate)}` : ''}
+                            {op.eventTime ? ` ${op.eventTime}` : ''}
+                            {op.experience?.title ? ` · ${op.experience.title}` : ''}
+                            {op.total ? ` · ${pesos(Number(op.total))}` : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => elegir(q, op)}
+                            disabled={enviando === q.id}
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                              op.chosenAt
+                                ? 'bg-green-600 text-white'
+                                : 'border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300'
+                            }`}
+                          >
+                            {op.chosenAt ? 'La eligió' : 'Marcar elegida'}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => editarOpciones(q)}
+                    disabled={enviando === q.id}
+                    className="text-xs text-[#F26726] hover:underline"
+                  >
+                    {(q.options ?? []).length > 0
+                      ? 'Editar opciones'
+                      : 'Poner opciones (hasta 3)'}
+                  </button>
                 </div>
 
                 {!q.sentAt && (

@@ -4,7 +4,7 @@
 // operación, e incluye lo que todavía no se ha pagado. Un revendedor necesita
 // las dos cosas por razones distintas: una para facturar, otra para contarle
 // a su cliente corporativo quién apareció.
-import { apiEnvelope } from './client';
+import { api, apiEnvelope } from './client';
 
 export interface VentaDeMiCanal {
   id: string;
@@ -47,3 +47,27 @@ export async function getVentasDeMiCanal(params?: {
     total: meta?.total ?? 0,
   };
 }
+
+/**
+ * Actualizar la propia venta (TR-27).
+ *
+ * No hay sincronización con la plataforma del revendedor: su cliente le
+ * cancela o le cambia la fecha a él, y si no puede reflejarlo aquí, el
+ * anfitrión guarda una mesa para gente que ya no viene.
+ *
+ * Solo lo que es suyo: personas, fecha y notas del cliente. El estado, el pago
+ * y el precio son del anfitrión y de FILO.
+ */
+export const actualizarVentaDeMiCanal = (
+  reservationId: string,
+  cambios: {
+    participants?: number;
+    reservationDate?: string;
+    specialRequirements?: string | null;
+    permitirSolape?: boolean;
+  },
+) => api.patch(`/reservations/${encodeURIComponent(reservationId)}/de-mi-canal`, cambios);
+
+/** Cancelar la propia venta: cuenta como cancelación del comensal. */
+export const cancelarVentaDeMiCanal = (reservationId: string, reason: string) =>
+  api.post(`/reservations/${encodeURIComponent(reservationId)}/de-mi-canal/cancelar`, { reason });

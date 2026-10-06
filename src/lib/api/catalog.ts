@@ -3,14 +3,26 @@
 import { api } from './client';
 import { toCompany, type ApiCompany } from '@/lib/sanity/companyService';
 import { toExperience, type ApiExperience } from '@/lib/sanity/experienceService';
-import type { Company, Experience } from '@/types';
+import type { AvailabilitySchedule, Company, Experience } from '@/types';
 
 /** Tal como llega del API, antes de traducir empresa y experiencias. */
 type RespuestaCruda = {
-  company: ApiCompany;
+  company: ApiCompany & { ownAvailabilities?: ApiAvailabilityCruda[] };
   experiences: ApiExperience[];
   paymentsEnabled?: boolean;
   paymentRequired?: boolean;
+};
+
+/** Un horario tal como lo manda el API público. */
+type ApiAvailabilityCruda = {
+  id: string;
+  name: string;
+  weeklySchedule: unknown;
+  bufferTime: number;
+  minimumNotice: number;
+  blockedDates: string[];
+  validFrom?: string | null;
+  validUntil?: string | null;
 };
 
 /**
@@ -26,7 +38,32 @@ export type CatalogoPublico = {
   experiences: Experience[];
   paymentsEnabled: boolean;
   paymentRequired: boolean;
+  /**
+   * TR-21. La agenda propia del anfitrión: vale para las experiencias que no
+   * tienen horario ni sede. Sin ella, el catálogo de un cocinero a domicilio
+   * ofrecía las horas por defecto —de ocho a ocho, todos los días—, que no
+   * son las suyas.
+   */
+  agendaDelAnfitrion: AvailabilitySchedule[];
 };
+
+function aHorario(a: ApiAvailabilityCruda): AvailabilitySchedule {
+  return {
+    _id: a.id,
+    _type: 'availability',
+    name: a.name,
+    isMain: false,
+    isActive: true,
+    weeklySchedule: a.weeklySchedule as AvailabilitySchedule['weeklySchedule'],
+    bufferTime: a.bufferTime,
+    minimumNotice: a.minimumNotice,
+    validFrom: a.validFrom ? a.validFrom.slice(0, 10) : undefined,
+    validUntil: a.validUntil ? a.validUntil.slice(0, 10) : null,
+    blockedDates: (a.blockedDates ?? []).map((d) => ({ date: d })),
+    createdAt: '',
+    updatedAt: '',
+  };
+}
 
 function traducir(data: RespuestaCruda): CatalogoPublico {
   return {
@@ -34,6 +71,7 @@ function traducir(data: RespuestaCruda): CatalogoPublico {
     experiences: (data.experiences ?? []).map(toExperience),
     paymentsEnabled: Boolean(data.paymentsEnabled),
     paymentRequired: Boolean(data.paymentRequired),
+    agendaDelAnfitrion: (data.company?.ownAvailabilities ?? []).map(aHorario),
   };
 }
 

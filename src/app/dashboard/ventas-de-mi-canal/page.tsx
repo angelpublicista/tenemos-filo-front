@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Badge, Card } from 'flowbite-react';
+import { Badge, Button, Card } from 'flowbite-react';
+import Swal from 'sweetalert2';
 import { HiOutlineTicket, HiOutlineUserGroup, HiOutlineCheckCircle } from 'react-icons/hi';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable, { AdminHeader } from '@/components/Admin/AdminTable';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { mensajeDeError } from '@/lib/api/client';
 import {
+  actualizarVentaDeMiCanal,
+  cancelarVentaDeMiCanal,
   getVentasDeMiCanal,
   type ResumenDeMiCanal,
   type VentaDeMiCanal,
@@ -45,10 +48,11 @@ const ETIQUETA_ESTADO: Record<string, string> = {
 };
 
 export default function VentasDeMiCanalPage() {
-  const { showError } = useSweetAlert();
+  const { showError, showSuccess } = useSweetAlert();
   const [ventas, setVentas] = useState<VentaDeMiCanal[]>([]);
   const [resumen, setResumen] = useState<ResumenDeMiCanal | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [trabajando, setTrabajando] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -66,6 +70,115 @@ export default function VentasDeMiCanalPage() {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  /**
+   * TR-27. Reflejar aquí lo que el cliente le dijo al canal.
+   *
+   * Hace falta porque no hay sincronización: si el cliente le cambia el plan
+   * al revendedor y no se puede tocar aquí, el anfitrión guarda una mesa para
+   * gente que ya no viene.
+   */
+  const editar = async (v: VentaDeMiCanal) => {
+    const fechaLocal = new Date(v.reservationDate);
+    const aInput = (f: Date) =>
+      `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(
+        f.getDate(),
+      ).padStart(2, '0')}T${String(f.getHours()).padStart(2, '0')}:${String(
+        f.getMinutes(),
+      ).padStart(2, '0')}`;
+
+    const { value, isConfirmed } = await Swal.fire({
+      title: 'Cambiar la reserva',
+      html: `
+        <div style="text-align:left;font-size:14px">
+          <p style="margin:0 0 12px;color:#4b5563">${v.reservationNumber} · ${
+            v.experienceTitle ?? ''
+          }</p>
+          <label style="display:block;margin:8px 0 4px">Personas</label>
+          <input id="pax" type="number" min="1" value="${v.participants}"
+                 class="swal2-input" style="width:100%;margin:0">
+          <label style="display:block;margin:12px 0 4px">Fecha y hora</label>
+          <input id="fecha" type="datetime-local" value="${aInput(fechaLocal)}"
+                 class="swal2-input" style="width:100%;margin:0">
+          <label style="display:block;margin:12px 0 4px">Notas del cliente</label>
+          <input id="notas" type="text" class="swal2-input" style="width:100%;margin:0"
+                 placeholder="Alergias, preferencias…">
+          <p style="margin:12px 0 0;font-size:12px;color:#6b7280">
+            El anfitrión recibe el aviso de que lo cambiaste tú.
+          </p>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#F26726',
+      preConfirm: () => {
+        const g = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value ?? '';
+        const pax = Number(g('pax'));
+        const fecha = g('fecha');
+        if (!pax || pax < 1) {
+          Swal.showValidationMessage('Indica cuántas personas.');
+          return false;
+        }
+        if (!fecha) {
+          Swal.showValidationMessage('Indica la fecha.');
+          return false;
+        }
+        return { pax, fecha, notas: g('notas').trim() };
+      },
+    });
+    if (!isConfirmed || !value) return;
+
+    const v2 = value as { pax: number; fecha: string; notas: string };
+    setTrabajando(v.id);
+    try {
+      await actualizarVentaDeMiCanal(v.id, {
+        participants: v2.pax,
+        reservationDate: new Date(v2.fecha).toISOString(),
+        ...(v2.notas ? { specialRequirements: v2.notas } : {}),
+        // El anfitrión decide sobre su agenda, no el canal: si a esa hora ya
+        // tiene algo en otra sede, no es asunto nuestro bloquearlo.
+        permitirSolape: true,
+      });
+      await cargar();
+      showSuccess('Reserva actualizada', 'El anfitrión ya tiene el aviso.');
+    } catch (err) {
+      showError('No se pudo actualizar', mensajeDeError(err));
+    } finally {
+      setTrabajando(null);
+    }
+  };
+
+  const cancelar = async (v: VentaDeMiCanal) => {
+    const { value, isConfirmed } = await Swal.fire({
+      title: 'Cancelar esta reserva',
+      input: 'text',
+      inputLabel: `${v.reservationNumber} · ${v.experienceTitle ?? ''}`,
+      inputPlaceholder: 'Por qué la cancela el cliente',
+      showCancelButton: true,
+      confirmButtonText: 'Cancelar la reserva',
+      cancelButtonText: 'Volver',
+      confirmButtonColor: '#DC2626',
+      inputValidator: (x) =>
+        x.trim() ? null : 'Escribe el motivo: el anfitrión lo va a leer.',
+    });
+    if (!isConfirmed) return;
+
+    setTrabajando(v.id);
+    try {
+      await cancelarVentaDeMiCanal(v.id, String(value));
+      await cargar();
+      showSuccess('Reserva cancelada', 'El cupo queda libre para el anfitrión.');
+    } catch (err) {
+      showError('No se pudo cancelar', mensajeDeError(err));
+    } finally {
+      setTrabajando(null);
+    }
+  };
+
+  /** Lo pasado y lo cancelado ya no se toca: no hay nada que reflejar. */
+  const sePuedeTocar = (v: VentaDeMiCanal) =>
+    !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(v.status) &&
+    new Date(v.reservationDate).getTime() > Date.now();
 
   return (
     <ProtectedRoute>
@@ -125,6 +238,7 @@ export default function VentasDeMiCanalPage() {
             'Asistieron',
             'Estado',
             'Tu comisión',
+            '',
           ]}
           cargando={cargando}
           vacio={ventas.length === 0}
@@ -161,6 +275,30 @@ export default function VentasDeMiCanalPage() {
                 </Badge>
               </td>
               <td className="px-6 py-4 tabular-nums">{pesos(v.resellerCommission)}</td>
+              <td className="px-6 py-4">
+                {/* TR-27. Lo que el cliente le dijo al canal se refleja aquí:
+                    no hay sincronización con su plataforma. */}
+                {sePuedeTocar(v) && (
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      size="xs"
+                      color="gray"
+                      onClick={() => editar(v)}
+                      disabled={trabajando === v.id}
+                    >
+                      Cambiar
+                    </Button>
+                    <Button
+                      size="xs"
+                      color="light"
+                      onClick={() => cancelar(v)}
+                      disabled={trabajando === v.id}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+              </td>
             </tr>
           ))}
         </AdminTable>

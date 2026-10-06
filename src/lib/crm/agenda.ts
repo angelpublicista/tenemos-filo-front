@@ -22,6 +22,14 @@ export interface OportunidadEnAgenda {
   solicitadaEl: string;
   versionDeCotizacion: number;
   cotizacionEnviada: boolean;
+  /**
+   * TR-14. De qué opción de la cotización es esta fila.
+   *
+   * Una propuesta puede poner tres fechas sobre la mesa, y el anfitrión
+   * necesita ver las tres en su calendario: si solo viera una, creería libres
+   * los otros dos sábados que también están en juego.
+   */
+  opcion?: { id: string; etiqueta: string | null; posicion: number } | null;
 }
 
 export const getAgenda = (desde: Date, hasta: Date) =>

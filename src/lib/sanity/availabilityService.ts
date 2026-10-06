@@ -118,6 +118,19 @@ export const getAvailabilitySchedulesByCompany = async (
   return items.map(toSchedule);
 };
 
+/**
+ * TR-21. La agenda propia del anfitrión: los horarios que no son de ninguna
+ * sede ni de ninguna experiencia.
+ *
+ * Hace falta porque un cocinero que va a casa del cliente no tiene dónde
+ * colgar su calendario, y sin esto su catálogo ofrecía las horas por defecto
+ * —de ocho a ocho, todos los días—, que no son las suyas.
+ */
+export const getAgendaDelAnfitrion = async (): Promise<AvailabilitySchedule[]> => {
+  const items = await api.get<ApiAvailability[]>('/availabilities', { soloPropias: true });
+  return items.map(toSchedule);
+};
+
 export const getAvailabilitySchedulesByExperience = async (
   experienceId: string,
 ): Promise<AvailabilitySchedule[]> => {

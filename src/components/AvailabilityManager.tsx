@@ -13,6 +13,7 @@ import {
 import {
   getAvailabilitySchedulesByLocation,
   getAvailabilitySchedulesByExperience,
+  getAgendaDelAnfitrion,
   createAvailabilitySchedule,
   updateAvailabilitySchedule,
   vigenciaPorDefecto,
@@ -34,7 +35,10 @@ import Loader from '@/components/Loader';
 
 type AvailabilityManagerProps =
   | { mode: 'location'; location: Location; companyId: string }
-  | { mode: 'experience'; experience: Experience; companyId: string };
+  | { mode: 'experience'; experience: Experience; companyId: string }
+  // TR-21. La agenda propia del anfitrión: ni sede ni experiencia. Es la de
+  // quien va a casa del cliente y no tiene dónde colgar su calendario.
+  | { mode: 'company'; companyId: string };
 
 const dayNames: Record<DayOfWeek, string> = {
   monday: 'Lunes',
@@ -55,8 +59,18 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
   const [editingSchedule, setEditingSchedule] = useState<AvailabilitySchedule | null>(null);
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
 
-  const contextId = props.mode === 'location' ? props.location._id : props.experience._id;
-  const contextLabel = props.mode === 'location' ? props.location.name : props.experience.title;
+  const contextId =
+    props.mode === 'location'
+      ? props.location._id
+      : props.mode === 'experience'
+        ? props.experience._id
+        : props.companyId;
+  const contextLabel =
+    props.mode === 'location'
+      ? props.location.name
+      : props.mode === 'experience'
+        ? props.experience.title
+        : 'tu agenda';
 
   useEffect(() => {
     loadSchedules();
@@ -65,9 +79,12 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
   const loadSchedules = async () => {
     try {
       setLoading(true);
-      const data = props.mode === 'location'
-        ? await getAvailabilitySchedulesByLocation(props.location._id)
-        : await getAvailabilitySchedulesByExperience(props.experience._id);
+      const data =
+        props.mode === 'location'
+          ? await getAvailabilitySchedulesByLocation(props.location._id)
+          : props.mode === 'experience'
+            ? await getAvailabilitySchedulesByExperience(props.experience._id)
+            : await getAgendaDelAnfitrion();
       setSchedules(data);
     } catch (error) {
       showError('Error al cargar los calendarios de disponibilidad');
@@ -111,6 +128,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
   };
 
   const handleSetPrimary = async (scheduleId: string) => {
+    // En la agenda propia no hay "principal": no se elige entre contextos,
+    // porque el contexto es el anfitrión y no hay más de uno.
+    if (props.mode === 'company') return;
     try {
       showLoading('Estableciendo como principal...');
       await setPrimarySchedule(scheduleId, contextId, props.mode);
@@ -197,6 +217,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
               onEdit={() => handleEditSchedule(schedule)}
               onDelete={() => handleDeleteSchedule(schedule._id)}
               onSetPrimary={() => handleSetPrimary(schedule._id)}
+              // En la agenda propia no hay "principal": el contexto es el
+              // anfitrión y no hay más de uno entre los que elegir.
+              puedeSerPrincipal={props.mode !== 'company'}
               onToggleActive={() => handleToggleActive(schedule)}
             />
           ))}
@@ -230,6 +253,7 @@ interface ScheduleCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onSetPrimary: () => void;
+  puedeSerPrincipal?: boolean;
   onToggleActive: () => void;
 }
 
@@ -238,6 +262,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   onEdit,
   onDelete,
   onSetPrimary,
+  puedeSerPrincipal = true,
   onToggleActive,
 }) => {
   const activeDays = Object.values(schedule.weeklySchedule).filter(day => day.isActive);
@@ -270,7 +295,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
             </p>
           </div>
           <div className="flex gap-2">
-            {!schedule.isMain && schedule.isActive && (
+            {puedeSerPrincipal && !schedule.isMain && schedule.isActive && (
               <button
                 onClick={onSetPrimary}
                 className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
@@ -363,7 +388,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
 interface ScheduleModalProps {
   schedule: AvailabilitySchedule | null;
   contextId: string;
-  contextType: 'location' | 'experience';
+  contextType: 'location' | 'experience' | 'company';
   companyId: string;
   onClose: () => void;
   onSave: () => void;
@@ -463,7 +488,14 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
       } else {
         await createAvailabilitySchedule({
           name,
-          ...(contextType === 'location' ? { location: contextId } : { experience: contextId }),
+          // TR-21. Sin sede y sin experiencia, el horario ES la agenda del
+          // anfitrión: el API le pone de dueño a su empresa y vale para todo
+          // lo que no tenga el suyo.
+          ...(contextType === 'location'
+            ? { location: contextId }
+            : contextType === 'experience'
+              ? { experience: contextId }
+              : {}),
           description,
           weeklySchedule,
           blockedDates,

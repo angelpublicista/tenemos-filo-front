@@ -87,6 +87,12 @@ export default function OportunidadesDelDia({ dia, oportunidades, compacto = fal
                     </p>
                     <p className="mt-1 text-xs text-gray-500">
                       Cotización v{o.versionDeCotizacion}
+                      {/* TR-14. De qué opción es esta fila: la misma propuesta
+                          puede aparecer en tres días distintos, y sin decirlo
+                          parecerían tres ventas. */}
+                      {o.opcion
+                        ? ` · ${o.opcion.etiqueta || `opción ${o.opcion.posicion}`}`
+                        : ''}
                       {o.cotizacionEnviada ? ' · enviada' : ' · sin enviar'}
                       {o.valor > 0 ? ` · ${pesos(o.valor)}` : ''}
                     </p>

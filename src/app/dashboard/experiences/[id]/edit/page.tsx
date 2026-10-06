@@ -17,7 +17,7 @@ import {
 import { UpdateExperienceData, Company, Location, AvailabilitySchedule, Experience, Menu } from '@/types';
 import LocationModal from '@/components/LocationModal';
 import MenuSelector from '@/components/MenuSelector';
-import CondicionesPorSede from '@/components/Experiences/CondicionesPorSede';
+import Link from 'next/link';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
 import {
   HiArrowLeft,
@@ -560,7 +560,9 @@ function EditExperiencePageContenido() {
         requirements: requirements.filter(req => req && req.trim() !== ''),
         includes: includes.filter(inc => inc && inc.trim() !== ''),
         addons: addons.filter(addon => addon && addon.name && addon.name.trim() !== ''),
-        locations: selectedLocations.length > 0 ? selectedLocations : undefined,
+        // Las sedes NO se mandan desde aquí: las escribe Publicaciones, que es
+        // donde se decide en qué escenarios se usa la pieza. Mandarlas también
+        // desde este formulario pisaría lo publicado allí.
         menus: selectedMenus,
         availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
         featuredImage: featuredImageAssetId || undefined,
@@ -912,50 +914,37 @@ function EditExperiencePageContenido() {
 
             {(experienceType === 'presential' || experienceType === 'hybrid') && (
               <div className="space-y-4">
-                <div>
-                  <Label>Sedes * (Selecciona una o más)</Label>
-                  <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
-                    {locations.length > 0 ? (
-                      locations.map((loc) => (
-                        <div key={loc._id} className="flex items-center">
-                          <Checkbox
-                            id={`location-${loc._id}`}
-                            checked={selectedLocations.includes(loc._id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedLocations(prev => [...prev, loc._id]);
-                              } else {
-                                setSelectedLocations(prev => prev.filter(id => id !== loc._id));
-                              }
-                            }}
-                            className="text-[#F26726] focus:ring-[#F26726]"
-                          />
-                          <Label htmlFor={`location-${loc._id}`} className="ml-2 cursor-pointer">
-                            {loc.name}
-                            {loc.isMain && ' (Principal)'}
-                            <span className="text-gray-500 text-sm ml-2">
-                              - {loc.address.city}
-                            </span>
-                          </Label>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        No tienes sedes registradas.{' '}
-                        <button
-                          type="button"
-                          onClick={() => setShowLocationModal(true)}
-                          className="text-[#F26726] hover:underline font-medium"
-                        >
-                          Crear una sede
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                  {selectedLocations.length > 0 && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      {selectedLocations.length} sede{selectedLocations.length > 1 ? 's' : ''} seleccionada{selectedLocations.length > 1 ? 's' : ''}
+                {/* Dónde se ofrece ya NO se decide aquí.
+                    Este panel es para la PIEZA —qué se hace, cuánto dura, qué
+                    incluye—. Ponerla en un sitio es usarla, y la misma pieza
+                    puede ir a una sede como abierta y a otra como privada, con
+                    otro horario y otro precio: eso no cabe en una casilla. */}
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
+                  <Label>Dónde se ofrece</Label>
+                  {selectedLocations.length === 0 ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                      Todavía en ningún sitio. Se decide en{' '}
+                      <Link href="/dashboard/publicaciones" className="text-[#F26726] hover:underline font-medium">
+                        Publicaciones
+                      </Link>
+                      , donde también eliges la modalidad y el horario de cada sede.
                     </p>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">
+                        {locations
+                          .filter((l) => selectedLocations.includes(l._id))
+                          .map((l) => l.name)
+                          .join(' · ')}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        La modalidad, el precio y el horario de cada sede se gestionan en{' '}
+                        <Link href="/dashboard/publicaciones" className="text-[#F26726] hover:underline font-medium">
+                          Publicaciones
+                        </Link>
+                        .
+                      </p>
+                    </>
                   )}
                 </div>
 
@@ -1034,19 +1023,6 @@ function EditExperiencePageContenido() {
             )}
           </div>
         </div>
-
-        {/* Condiciones por sede.
-            Una experiencia es una pieza con la que se arma el catalogo: la
-            misma puede estar en una sede como abierta y en otra como privada,
-            con otro aforo, otro precio y otra anticipacion. */}
-        {(experienceType === 'presential' || experienceType === 'hybrid') && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
-              Condiciones por sede
-            </h2>
-            <CondicionesPorSede experienceId={experienceId} sedesElegidas={selectedLocations} />
-          </div>
-        )}
 
         {/* Disponibilidad Personalizada */}
         {(showCustomSchedule && selectedLocations.length > 0) && (

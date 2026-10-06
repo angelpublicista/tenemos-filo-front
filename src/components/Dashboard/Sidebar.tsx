@@ -182,6 +182,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       },
       {
+        // Las experiencias son piezas; aquí se ponen en uso. La misma puede
+        // ofrecerse en una sede como abierta y en otra como privada, con otro
+        // horario y otro precio, y eso no cabía en el panel de la pieza.
+        name: 'Publicaciones',
+        href: '/dashboard/publicaciones',
+        icon: AiOutlineShareAlt,
+        current: pathname === '/dashboard/publicaciones',
+        enabled: true
+      },
+      {
         name: 'Reservas',
         href: '/dashboard/reservations',
         icon: AiOutlineTeam,

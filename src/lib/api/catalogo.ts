@@ -1,0 +1,112 @@
+// El catálogo: las experiencias puestas en uso.
+//
+// Una experiencia es una PIEZA —qué se hace, cuánto dura, qué incluye— y se
+// crea en su propio panel. Publicarla es otra cosa: la misma pieza puede ir al
+// local del centro como abierta, con cupos sueltos los sábados, y a la finca
+// como privada, por encargo y a otro precio.
+//
+// Esa pareja experiencia–sede es la PUBLICACIÓN, y es la unidad con la que se
+// arma el catálogo público.
+import { api } from './client';
+
+export interface Publicacion {
+  experienceId: string;
+  title: string;
+  slug: string;
+  status: string;
+  experienceType: 'VIRTUAL' | 'PRESENTIAL' | 'HYBRID';
+  isVirtual: boolean;
+  featuredImage: string | null;
+  duration: number | null;
+  /** Si la pieza tiene lo mínimo para poder venderse (TR-23). */
+  completa: boolean;
+  /** Lo que le falta, en palabras que se pueden enseñar tal cual. */
+  falta: string[];
+  /** null = la pieza todavía no se está usando en ningún escenario. */
+  locationId: string | null;
+  locationName: string | null;
+  sedeActiva: boolean | null;
+  /**
+   * Lo que esta sede declara COMO SUYO. `null` cuando no declara nada y va
+   * igual que la pieza; dentro, cada campo nulo también se hereda.
+   *
+   * Separado de `condiciones` —que son las que acaban rigiendo— porque
+   * mezclarlas enseñaba lo heredado como propio, y al editar lo convertía en
+   * propio de verdad al guardar.
+   */
+  propias: {
+    kind: 'ABIERTA' | 'PRIVADA' | null;
+    capacity: number | null;
+    minCapacity: number | null;
+    basePrice: number | string | null;
+    prepTime: number | null;
+    cleanupTime: number | null;
+    minimumNotice: number | null;
+    isPublished: boolean;
+    notes: string | null;
+  } | null;
+  condiciones: {
+    locationId: string | null;
+    kind: 'ABIERTA' | 'PRIVADA' | null;
+    capacity: number | null;
+    minCapacity: number | null;
+    basePrice: number | string | null;
+    prepTime: number | null;
+    cleanupTime: number | null;
+    minimumNotice: number | null;
+    isPublished: boolean;
+  };
+  /** Las iniciales de los días que abre: L M X J V S D. */
+  diasQueAbre: string[];
+  /** Cuántas franjas tiene puestas. 0 = publicada pero sin horario. */
+  franjas: number;
+  horarios: number;
+}
+
+export interface CondicionesDePublicacion {
+  kind?: 'ABIERTA' | 'PRIVADA' | null;
+  capacity?: number | null;
+  minCapacity?: number | null;
+  basePrice?: number | null;
+  prepTime?: number | null;
+  cleanupTime?: number | null;
+  minimumNotice?: number | null;
+  isPublished?: boolean;
+  notes?: string | null;
+}
+
+export async function getPublicaciones(): Promise<Publicacion[]> {
+  // `api.get` ya se queda con el `data` del sobre; leerlo otra vez devolvía
+  // undefined y la pantalla salía vacía con el catálogo lleno.
+  return (await api.get<Publicacion[]>('/catalogo/publicaciones')) ?? [];
+}
+
+/** Pone la experiencia en esa sede. Si no estaba, publicar la ata. */
+export async function publicar(
+  experienceId: string,
+  locationId: string,
+  condiciones: CondicionesDePublicacion,
+): Promise<Publicacion[]> {
+  return (
+    (await api.put<Publicacion[]>(
+      `/catalogo/publicaciones/${experienceId}/${locationId}`,
+      condiciones,
+    )) ?? []
+  );
+}
+
+/**
+ * Quita la experiencia de esa sede.
+ *
+ * No cancela lo ya vendido allí: cierra la venta futura. Devuelve cuántas
+ * reservas quedan en pie para poder avisarlo.
+ */
+export async function quitarPublicacion(
+  experienceId: string,
+  locationId: string,
+): Promise<{ publicaciones: Publicacion[]; reservasPorVenir: number }> {
+  const r = await api.delete<{ publicaciones: Publicacion[]; reservasPorVenir: number }>(
+    `/catalogo/publicaciones/${experienceId}/${locationId}`,
+  );
+  return { publicaciones: r?.publicaciones ?? [], reservasPorVenir: r?.reservasPorVenir ?? 0 };
+}

@@ -14,6 +14,7 @@ import {
 import {
   getAvailabilitySchedulesByLocation,
   getAvailabilitySchedulesByExperience,
+  getHorariosDeLaPublicacion,
   getAgendaDelAnfitrion,
   createAvailabilitySchedule,
   updateAvailabilitySchedule,
@@ -38,6 +39,17 @@ import Loader from '@/components/Loader';
 type AvailabilityManagerProps =
   | { mode: 'location'; location: Location; companyId: string }
   | { mode: 'experience'; experience: Experience; companyId: string }
+  // El horario de una experiencia EN una sede: la misma pieza puede abrir los
+  // sábados en el local del centro y los viernes en la finca, así que su
+  // horario no es uno, es uno por escenario.
+  | {
+      mode: 'publicacion';
+      experienceId: string;
+      experienceTitle: string;
+      locationId: string;
+      locationName: string;
+      companyId: string;
+    }
   // TR-21. La agenda propia del anfitrión: ni sede ni experiencia. Es la de
   // quien va a casa del cliente y no tiene dónde colgar su calendario.
   | { mode: 'company'; companyId: string };
@@ -66,13 +78,20 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
       ? props.location._id
       : props.mode === 'experience'
         ? props.experience._id
-        : props.companyId;
+        : props.mode === 'publicacion'
+          ? props.experienceId
+          : props.companyId;
   const contextLabel =
     props.mode === 'location'
       ? props.location.name
       : props.mode === 'experience'
         ? props.experience.title
-        : 'tu agenda';
+        : props.mode === 'publicacion'
+          ? `${props.experienceTitle} en ${props.locationName}`
+          : 'tu agenda';
+  // La sede con la que se ata el horario, cuando el contexto es una
+  // publicación. En los demás modos no hay pareja que atar.
+  const sedeDeLaPublicacion = props.mode === 'publicacion' ? props.locationId : undefined;
 
   useEffect(() => {
     loadSchedules();
@@ -86,7 +105,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
           ? await getAvailabilitySchedulesByLocation(props.location._id)
           : props.mode === 'experience'
             ? await getAvailabilitySchedulesByExperience(props.experience._id)
-            : await getAgendaDelAnfitrion();
+            : props.mode === 'publicacion'
+              ? await getHorariosDeLaPublicacion(props.experienceId, props.locationId)
+              : await getAgendaDelAnfitrion();
       setSchedules(data);
     } catch (error) {
       showError('Error al cargar los calendarios de disponibilidad');
@@ -135,7 +156,13 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
     if (props.mode === 'company') return;
     try {
       showLoading('Estableciendo como principal...');
-      await setPrimarySchedule(scheduleId, contextId, props.mode);
+      // En una publicación el contexto que manda es la experiencia: el
+      // `contextId` ya es el suyo, y «principal» se decide entre sus horarios.
+      await setPrimarySchedule(
+        scheduleId,
+        contextId,
+        props.mode === 'publicacion' ? 'experience' : props.mode,
+      );
       hideLoading();
       await loadSchedules();
       showSuccess('Calendario establecido como principal');
@@ -234,6 +261,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
           schedule={editingSchedule}
           contextId={contextId}
           contextType={props.mode}
+          locationId={sedeDeLaPublicacion}
           companyId={props.companyId}
           onClose={() => {
             setShowCreateModal(false);
@@ -390,7 +418,12 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
 interface ScheduleModalProps {
   schedule: AvailabilitySchedule | null;
   contextId: string;
-  contextType: 'location' | 'experience' | 'company';
+  contextType: 'location' | 'experience' | 'company' | 'publicacion';
+  /**
+   * La sede con la que se ata el horario cuando el contexto es una
+   * publicación: el horario es de la experiencia EN ese escenario.
+   */
+  locationId?: string;
   companyId: string;
   onClose: () => void;
   onSave: () => void;
@@ -400,6 +433,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   schedule,
   contextId,
   contextType,
+  locationId,
   onClose,
   onSave,
 }) => {
@@ -486,11 +520,15 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           // TR-21. Sin sede y sin experiencia, el horario ES la agenda del
           // anfitrión: el API le pone de dueño a su empresa y vale para todo
           // lo que no tenga el suyo.
+          // Una publicación ata las DOS cosas: el horario es de esa
+          // experiencia en esa sede, y no vale para las demás.
           ...(contextType === 'location'
             ? { location: contextId }
             : contextType === 'experience'
               ? { experience: contextId }
-              : {}),
+              : contextType === 'publicacion'
+                ? { experience: contextId, location: locationId }
+                : {}),
           description,
           weeklySchedule,
           blockedDates,

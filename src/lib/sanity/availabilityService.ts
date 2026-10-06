@@ -135,6 +135,21 @@ export const getAvailabilitySchedulesByExperience = async (
   return items.map(toSchedule);
 };
 
+/**
+ * Los horarios de una experiencia EN una sede concreta.
+ *
+ * La misma pieza puede abrir los sábados en el local del centro y los viernes
+ * en la finca, así que su horario no es uno: es uno por escenario. Esto es lo
+ * que lee el panel de publicaciones.
+ */
+export const getHorariosDeLaPublicacion = async (
+  experienceId: string,
+  locationId: string,
+): Promise<AvailabilitySchedule[]> => {
+  const items = await api.get<ApiAvailability[]>('/availabilities', { experienceId, locationId });
+  return items.map(toSchedule);
+};
+
 export const updateAvailabilitySchedule = async (
   data: UpdateAvailabilityScheduleData,
 ): Promise<AvailabilitySchedule> => {

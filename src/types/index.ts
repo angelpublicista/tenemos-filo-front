@@ -454,29 +454,6 @@ export interface LocationListing {
   notes?: string | null;
 }
 
-/** Una sede con las condiciones que de verdad rigen alli, ya resueltas. */
-export interface SedeDeExperiencia {
-  id: string;
-  name: string;
-  isMain?: boolean;
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;
-  } | null;
-  condiciones: {
-    locationId: string | null;
-    kind: 'ABIERTA' | 'PRIVADA' | null;
-    capacity: number | null;
-    minCapacity: number | null;
-    basePrice: number | null;
-    prepTime: number | null;
-    cleanupTime: number | null;
-    minimumNotice: number | null;
-    isPublished: boolean;
-  };
-}
-
 export interface Experience {
   _id: string;
   _type: 'experience';

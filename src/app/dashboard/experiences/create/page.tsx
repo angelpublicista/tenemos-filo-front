@@ -380,10 +380,10 @@ function CreateExperiencePageContenido() {
 
     // Validar lugar para experiencias presenciales/híbridas
     if (isPresentialOrHybrid) {
-      if (locationMode === 'sede' && selectedLocations.length === 0) {
-        showError('Por favor selecciona al menos una sede');
-        return;
-      }
+      // No se exige sede: crear la pieza y ponerla en un sitio son dos
+      // decisiones, y la segunda vive en Publicaciones. Hasta que se publique,
+      // la experiencia queda como borrador y alli se ve que falta.
+
       if (locationMode === 'custom') {
         if (!data.location?.trim()) {
           showError('Indica el nombre del lugar personalizado');
@@ -407,11 +407,9 @@ function CreateExperiencePageContenido() {
       }
     }
 
-    // Validar que se haya seleccionado al menos un calendario o configurado uno personalizado
-    if (locationMode === 'sede' && selectedLocations.length > 0 && selectedSchedules.length === 0 && !showCustomSchedule) {
-      showError('Por favor selecciona al menos un calendario o configura uno personalizado');
-      return;
-    }
+    // El horario tampoco se pide aqui: es de la experiencia EN una sede, y la
+    // misma pieza puede abrir los sabados en un sitio y los viernes en otro.
+    // Se define en Publicaciones, escenario por escenario.
 
     try {
       setIsLoading(true);
@@ -442,8 +440,6 @@ function CreateExperiencePageContenido() {
         }
       }
 
-      const useCustom = locationMode === 'custom' && isPresentialOrHybrid;
-
       const experienceData: CreateExperienceData = {
         ...data,
         categories: selectedCategories as ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[],
@@ -451,7 +447,8 @@ function CreateExperiencePageContenido() {
         requirements: requirements.filter(req => req.trim() !== ''),
         includes: includes.filter(inc => inc.trim() !== ''),
         addons: addons.filter(addon => addon.name.trim() !== ''),
-        locations: !useCustom && selectedLocations.length > 0 ? selectedLocations : undefined,
+        // Las sedes las escribe Publicaciones, que es donde se decide en que
+        // escenarios se usa la pieza.
       menus: selectedMenus.length > 0 ? selectedMenus : undefined,
         availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
         presentialLocation: data.location,
@@ -1009,53 +1006,23 @@ function CreateExperiencePageContenido() {
                   </div>
                 )}
 
+                {/* En qué sedes se ofrece NO se decide aquí.
+                    Este panel crea la PIEZA; ponerla en un sitio es usarla, y
+                    la misma pieza puede ir a una sede como abierta y a otra
+                    como privada, con otro horario y otro precio. Eso no cabe
+                    en una casilla, y vive en Publicaciones. */}
                 {locationMode === 'sede' && (
-                <div>
-                  <Label>Sedes * (Selecciona una o más)</Label>
-                  <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
-                    {locations.length > 0 ? (
-                      locations.map((loc) => (
-                        <div key={loc._id} className="flex items-center">
-                          <Checkbox
-                            id={`location-${loc._id}`}
-                            checked={selectedLocations.includes(loc._id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedLocations(prev => [...prev, loc._id]);
-                              } else {
-                                setSelectedLocations(prev => prev.filter(id => id !== loc._id));
-                              }
-                            }}
-                            className="text-[#F26726] focus:ring-[#F26726]"
-                          />
-                          <Label htmlFor={`location-${loc._id}`} className="ml-2 cursor-pointer">
-                            {loc.name}
-                            {loc.isMain && ' (Principal)'}
-                            <span className="text-gray-500 text-sm ml-2">
-                              - {loc.address.city}
-                            </span>
-                          </Label>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        No tienes sedes registradas.{' '}
-                        <button
-                          type="button"
-                          onClick={() => setShowLocationModal(true)}
-                          className="text-[#F26726] hover:underline font-medium"
-                        >
-                          Crear una sede
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                  {selectedLocations.length > 0 && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      {selectedLocations.length} sede{selectedLocations.length > 1 ? 's' : ''} seleccionada{selectedLocations.length > 1 ? 's' : ''}
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <Label>Dónde y cuándo se ofrece</Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Se decide después, en <span className="font-medium">Publicaciones</span>: ahí
+                      pones esta experiencia en una o varias sedes, y cada una lleva su modalidad
+                      —abierta o privada—, su horario y su precio.
                     </p>
-                  )}
-                </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Hasta entonces queda como borrador y no se ofrece en el catálogo.
+                    </p>
+                  </div>
                 )}
 
                 {/* Visibilidad de la dirección */}

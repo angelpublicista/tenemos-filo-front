@@ -6,6 +6,7 @@ import TimePicker from '@/components/TimePicker';
 import { HiArrowLeft, HiArrowRight, HiUsers } from 'react-icons/hi';
 import type { BookingExperience, BookingLocationAddress, SelectedAddon } from '@/components/BookingEngine/MotorReservas';
 import type { AvailabilitySchedule } from '@/types';
+import { condicionesDeSede, horariosDeSede } from '@/lib/experiencias/condicionesDeSede';
 
 function formatPrice(price: number, currency: string) {
   return price.toLocaleString('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 });
@@ -125,7 +126,7 @@ interface Props {
 export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   const [date, setDate] = useState<Date | null>(null);
   const [time, setTime] = useState('');
-  const [participants, setParticipants] = useState(experience.minCapacity ?? 1);
+  const [personasElegidas, setParticipants] = useState(experience.minCapacity ?? 1);
   const [locationId, setLocationId] = useState<string | undefined>(undefined);
   const [slots, setSlots] = useState<string[]>([]);
   // Por posicion, no por `_key`: ese campo venia de Sanity y hoy nadie lo
@@ -138,9 +139,26 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
     [experience.addons]
   );
 
-  const schedules = useMemo(
+  /**
+   * Las condiciones de la sede elegida. La misma experiencia puede estar en el
+   * local del centro como abierta y en la finca como privada, con otro aforo,
+   * otro precio y otra anticipación; sin esto se ofrecían en las dos las de la
+   * experiencia, y el API acababa rechazando la reserva.
+   */
+  const condiciones = useMemo(
+    () => condicionesDeSede(experience, locationId),
+    [experience, locationId],
+  );
+
+  const todosLosHorarios = useMemo(
     () => (experience.availabilitySchedules ?? []) as AvailabilitySchedule[],
     [experience.availabilitySchedules]
+  );
+  // Los de la sede elegida: los sábados que solo abre la finca no tienen por
+  // qué aparecer en el local del centro.
+  const schedules = useMemo(
+    () => horariosDeSede(todosLosHorarios, locationId),
+    [todosLosHorarios, locationId],
   );
   /**
    * TR-35. El último día que algún horario sigue ofreciendo (si todos tienen
@@ -177,14 +195,28 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
       date,
       schedules,
       experience.duration ?? 60,
-      experience.cleanupTime ?? 0,
-      experience.minimumNotice ?? 0,
+      condiciones.cleanupTime,
+      condiciones.minimumNotice,
     );
     setSlots(newSlots);
     setTime('');
-  }, [date, schedules, experience.duration, experience.cleanupTime, experience.minimumNotice]);
+  }, [date, schedules, experience.duration, condiciones.cleanupTime, condiciones.minimumNotice]);
 
-  const canContinue = !!date && !!time && participants >= (experience.minCapacity ?? 1) &&
+  /**
+   * Las personas que de verdad caben en la sede elegida.
+   *
+   * Cambiar de sede puede cambiar el aforo: si en la finca caben 8 y se venía
+   * del local del centro, donde caben 20, el número se recorta aquí en vez de
+   * dejar que el API rechace la reserva al final. Se recorta al leerlo y no
+   * guardando otro valor: volver a la sede grande devuelve el número que la
+   * persona había elegido, en vez de dejarle el recorte puesto.
+   */
+  const participants = Math.min(
+    Math.max(personasElegidas, condiciones.minCapacity),
+    condiciones.capacity || personasElegidas,
+  );
+
+  const canContinue = !!date && !!time && participants >= condiciones.minCapacity &&
     (!isPresential || !hasLocations || !!locationId);
 
   const buildSelectedAddons = (): SelectedAddon[] => {
@@ -199,7 +231,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   };
 
   const currentAddons = buildSelectedAddons();
-  const baseSubtotal = (experience.basePrice ?? 0) * participants;
+  const baseSubtotal = condiciones.basePrice * participants;
   const addonsSubtotal = currentAddons.reduce((sum, a) => sum + a.price * a.quantity, 0);
   const runningTotal = baseSubtotal + addonsSubtotal;
   const currency = experience.currency ?? 'COP';
@@ -222,6 +254,65 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
       </div>
 
       <div className="space-y-6">
+        {/* Sede. Va ANTES de la fecha: la sede decide qué horas hay, qué aforo
+            y qué precio, así que elegirla después dejaría la pantalla
+            enseñando las condiciones de otra. */}
+        {isPresential && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2.5">Sede</label>
+            {hasMultipleLocations ? (
+              <div className="space-y-2">
+                {locations.map(loc => {
+                  const cityOnly = typeof loc.address === 'object' && loc.address ? loc.address.city : '';
+                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(loc.address);
+                  return (
+                    <button
+                      key={loc._id}
+                      type="button"
+                      onClick={() => setLocationId(loc._id)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
+                        locationId === loc._id
+                          ? 'border-marca bg-marca-tenue text-marca font-medium'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      <span className="font-medium">{loc.name}</span>
+                      {display && <span className="text-gray-400 ml-2">— {display}</span>}
+                      {(() => {
+                        // Solo lo que cambia aquí: repetir el precio de la
+                        // experiencia en cada sede alargaría la lista sin
+                        // decir nada.
+                        const f = (experience.locationListings ?? []).find(x => x.locationId === loc._id);
+                        const propio = [
+                          f?.kind === 'PRIVADA' ? 'solo para grupo completo' : '',
+                          f?.basePrice != null ? `${formatPrice(f.basePrice, experience.currency ?? 'COP')} por persona` : '',
+                          f?.capacity != null ? `hasta ${f.capacity} personas` : '',
+                        ].filter(Boolean);
+                        return propio.length ? (
+                          <span className="block text-xs text-gray-500 mt-0.5">{propio.join(' · ')}</span>
+                        ) : null;
+                      })()}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : singleLocation ? (
+              <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-600 border border-gray-200">
+                <span className="font-medium">{singleLocation.name}</span>
+                {(() => {
+                  const cityOnly = typeof singleLocation.address === 'object' && singleLocation.address ? singleLocation.address.city : '';
+                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(singleLocation.address);
+                  return display ? <span className="text-gray-400 ml-1">— {display}</span> : null;
+                })()}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                Esta experiencia aún no tiene sedes configuradas. Podrás coordinar el lugar con el anfitrión.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Fecha */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2.5">Fecha</label>
@@ -260,8 +351,8 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => setParticipants(p => Math.max(experience.minCapacity ?? 1, p - 1))}
-                disabled={participants <= (experience.minCapacity ?? 1)}
+                onClick={() => setParticipants(Math.max(condiciones.minCapacity, participants - 1))}
+                disabled={participants <= condiciones.minCapacity}
                 className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-marca hover:text-marca disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
               >
                 −
@@ -269,17 +360,17 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
               <span className="min-w-8 text-center text-lg font-bold text-gray-900">{participants}</span>
               <button
                 type="button"
-                onClick={() => setParticipants(p => Math.min(experience.capacity, p + 1))}
-                disabled={participants >= experience.capacity}
+                onClick={() => setParticipants(Math.min(condiciones.capacity, participants + 1))}
+                disabled={participants >= condiciones.capacity}
                 className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-marca hover:text-marca disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
               >
                 +
               </button>
             </div>
             <span className="text-xs text-gray-400 text-right">
-              {experience.minCapacity ? `Mín. ${experience.minCapacity}` : ''}
-              {experience.minCapacity ? <br /> : ''}
-              Máx. {experience.capacity}
+              {condiciones.minCapacity > 1 ? `Mín. ${condiciones.minCapacity}` : ''}
+              {condiciones.minCapacity > 1 ? <br /> : ''}
+              Máx. {condiciones.capacity}
             </span>
           </div>
         </div>
@@ -350,48 +441,6 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
           </div>
         )}
 
-        {/* Sede */}
-        {isPresential && (
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2.5">Sede</label>
-            {hasMultipleLocations ? (
-              <div className="space-y-2">
-                {locations.map(loc => {
-                  const cityOnly = typeof loc.address === 'object' && loc.address ? loc.address.city : '';
-                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(loc.address);
-                  return (
-                    <button
-                      key={loc._id}
-                      type="button"
-                      onClick={() => setLocationId(loc._id)}
-                      className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
-                        locationId === loc._id
-                          ? 'border-marca bg-marca-tenue text-marca font-medium'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                      }`}
-                    >
-                      <span className="font-medium">{loc.name}</span>
-                      {display && <span className="text-gray-400 ml-2">— {display}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : singleLocation ? (
-              <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-600 border border-gray-200">
-                <span className="font-medium">{singleLocation.name}</span>
-                {(() => {
-                  const cityOnly = typeof singleLocation.address === 'object' && singleLocation.address ? singleLocation.address.city : '';
-                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(singleLocation.address);
-                  return display ? <span className="text-gray-400 ml-1">— {display}</span> : null;
-                })()}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
-                Esta experiencia aún no tiene sedes configuradas. Podrás coordinar el lugar con el anfitrión.
-              </p>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="mt-7 pt-6 border-t border-gray-100 space-y-4">

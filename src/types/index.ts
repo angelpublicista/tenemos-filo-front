@@ -432,6 +432,51 @@ export interface HostStep3Data {
 }
 
 // Tipos para experiencias
+/**
+ * Lo que una sede cambia respecto a la experiencia.
+ *
+ * Cada campo en null significa «aqui vale lo que diga la experiencia», que es
+ * la respuesta mas comun: lo normal es que una sede cambie una cosa.
+ */
+export interface LocationListing {
+  locationId: string;
+  /** Cupos sueltos (abierta) o el sitio completo para un grupo (privada). */
+  kind?: 'ABIERTA' | 'PRIVADA' | null;
+  capacity?: number | null;
+  minCapacity?: number | null;
+  basePrice?: number | null;
+  prepTime?: number | null;
+  cleanupTime?: number | null;
+  /** Horas. */
+  minimumNotice?: number | null;
+  isPublished?: boolean;
+  /** Apuntes internos del anfitrion. No sale en el catalogo publico. */
+  notes?: string | null;
+}
+
+/** Una sede con las condiciones que de verdad rigen alli, ya resueltas. */
+export interface SedeDeExperiencia {
+  id: string;
+  name: string;
+  isMain?: boolean;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+  } | null;
+  condiciones: {
+    locationId: string | null;
+    kind: 'ABIERTA' | 'PRIVADA' | null;
+    capacity: number | null;
+    minCapacity: number | null;
+    basePrice: number | null;
+    prepTime: number | null;
+    cleanupTime: number | null;
+    minimumNotice: number | null;
+    isPublished: boolean;
+  };
+}
+
 export interface Experience {
   _id: string;
   _type: 'experience';
@@ -520,6 +565,16 @@ export interface Experience {
     description?: string;
     sections?: MenuSection[];
   }>;
+  /**
+   * Las condiciones con que se ofrece en cada sede.
+   *
+   * Una experiencia es una pieza con la que se arma el catalogo: la misma
+   * puede estar en el local del centro como abierta —cupos que se compran
+   * sueltos— y en la finca como privada, con otro aforo, otro precio y otra
+   * anticipacion. Solo aparece la sede que tiene condiciones PROPIAS; las
+   * demas van con las de la experiencia.
+   */
+  locationListings?: LocationListing[];
   availabilities?: Array<{
     _ref: string;
     _type: 'reference';

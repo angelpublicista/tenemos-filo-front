@@ -7,6 +7,7 @@ import { getAvailabilityScheduleById } from '@/lib/sanity/availabilityService';
 import { createReservationManually } from '@/lib/sanity/reservationService';
 import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
 import { searchExperiencesForQuote } from '@/lib/sanity/quoteService';
+import { condicionesDeSede, horariosDeSede } from '@/lib/experiencias/condicionesDeSede';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose, AiOutlineUser, AiOutlineUserAdd } from 'react-icons/ai';
 import { BiTime, BiMap } from 'react-icons/bi';
@@ -176,8 +177,9 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
       const dayOfWeek = daysOfWeek[date.getDay()];
       const experienceDuration = selectedExp?.duration || 60;
 
-      // Procesar cada calendario y combinar los slots disponibles
-      availableSchedules.forEach(schedule => {
+      // Solo los calendarios de la sede elegida: los sábados que únicamente
+      // abre la finca no tienen por qué ofrecerse en el local del centro.
+      horariosDeSede(availableSchedules, selectedLocation).forEach(schedule => {
         if (!schedule.weeklySchedule) return;
         
         const daySchedule = schedule.weeklySchedule[dayOfWeek];
@@ -210,7 +212,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     };
 
     getAvailableSlots();
-  }, [selectedExperience, selectedDate, availableSchedules, searchResults, experiences]);
+  }, [selectedExperience, selectedDate, selectedLocation, availableSchedules, searchResults, experiences]);
 
   // Función para buscar experiencias disponibles
   const handleSearch = async (e: React.FormEvent) => {
@@ -264,6 +266,16 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   };
 
   const selectedExp = searchResults.find(exp => exp._id === selectedExperience) || experiences.find(exp => exp._id === selectedExperience);
+  /**
+   * Las condiciones de la sede elegida: la misma experiencia puede tener otro
+   * aforo y otro precio en cada sede. Sin esto se cargaba con el aforo de la
+   * experiencia y el API rechazaba la reserva al final, o se cobraba un precio
+   * distinto del que se acababa de enseñar.
+   */
+  const condiciones = condicionesDeSede(
+    selectedExp ?? { capacity: 0, minCapacity: 1, basePrice: 0, cleanupTime: 0, minimumNotice: 0 },
+    selectedLocation,
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -753,13 +765,13 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                         value={participants}
                         onChange={(e) => setParticipants(parseInt(e.target.value) || 1)}
                         min="1"
-                        max={selectedExp?.capacity || 100}
+                        max={condiciones.capacity || 100}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
                         required
                       />
                       {selectedExp && (
                         <p className="text-xs text-gray-500 mt-1">
-                          Capacidad: {selectedExp.minCapacity || 1}–{selectedExp.capacity} personas
+                          Capacidad: {condiciones.minCapacity}–{condiciones.capacity} personas
                         </p>
                       )}
                     </div>
@@ -1020,7 +1032,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                       <div className="border-t border-gray-300 pt-2 mt-2 space-y-1">
                         <div className="flex justify-between text-gray-600">
                           <span>Subtotal ({participants} {participants === 1 ? 'persona' : 'personas'}):</span>
-                          <span>${(selectedExp.basePrice * participants).toLocaleString()} {selectedExp.currency}</span>
+                          <span>${(condiciones.basePrice * participants).toLocaleString()} {selectedExp.currency}</span>
                         </div>
                         
                         {selectedAddons.length > 0 && (
@@ -1038,7 +1050,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                           <span className="text-gray-700 font-bold">Total:</span>
                           <span className="font-bold text-[#F26726] text-lg">
                             ${(
-                              (selectedExp.basePrice * participants) + 
+                              (condiciones.basePrice * participants) + 
                               selectedAddons.reduce((sum, addon) => sum + (addon.price * addon.quantity), 0)
                             ).toLocaleString()} {selectedExp.currency}
                           </span>

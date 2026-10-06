@@ -6,6 +6,7 @@ import type { BookingExperience, BookingLocationAddress } from '@/components/Boo
 import MapaUbicacion from '@/components/MapaUbicacion';
 import MediosDeSede from '@/components/BookingEngine/MediosDeSede';
 import { urlDeImagen } from '@/lib/images';
+import { precioDesde } from '@/lib/experiencias/condicionesDeSede';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -312,6 +313,27 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                   return (
                     <div key={loc._id} className="bg-gray-50 rounded-xl px-4 py-3">
                       <p className="text-sm font-medium text-gray-900">{loc.name}</p>
+                      {(() => {
+                        // Lo que cambia en esta sede, y solo eso: la misma
+                        // experiencia puede valer otra cosa aquí, o venderse
+                        // solo para grupo completo. Repetir el precio de la
+                        // experiencia en cada sede no diría nada.
+                        const f = (experience.locationListings ?? []).find(
+                          (x) => x.locationId === loc._id,
+                        );
+                        const propio = [
+                          f?.kind === 'PRIVADA' ? 'Solo para grupo completo' : '',
+                          f?.basePrice != null
+                            ? `${formatPrice(f.basePrice, experience.currency ?? 'COP')} por persona`
+                            : '',
+                          f?.capacity != null ? `Hasta ${f.capacity} personas` : '',
+                        ].filter(Boolean);
+                        return propio.length ? (
+                          <p className="text-xs text-marca font-medium mt-0.5">
+                            {propio.join(' · ')}
+                          </p>
+                        ) : null;
+                      })()}
                       {experience.hideAddress ? (
                         cityOnly && (
                           <p className="text-xs text-gray-500 mt-0.5">{cityOnly}</p>
@@ -360,10 +382,19 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
         {/* Footer sticky */}
         <div className="border-t border-gray-100 bg-white px-6 sm:px-8 py-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs text-gray-400">Precio por persona</p>
-            <p className="text-xl font-bold text-[#334C5D]">
-              {experience.basePrice != null && experience.currency ? formatPrice(experience.basePrice, experience.currency) : 'Consultar'}
-            </p>
+            {(() => {
+              const { precio, varía } = precioDesde(experience);
+              return (
+                <>
+                  <p className="text-xs text-gray-400">
+                    {varía ? 'Desde, por persona' : 'Precio por persona'}
+                  </p>
+                  <p className="text-xl font-bold text-[#334C5D]">
+                    {precio != null && experience.currency ? formatPrice(precio, experience.currency) : 'Consultar'}
+                  </p>
+                </>
+              );
+            })()}
           </div>
           <button
             onClick={() => onBook(experience)}

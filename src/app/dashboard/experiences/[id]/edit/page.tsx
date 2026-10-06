@@ -17,6 +17,7 @@ import {
 import { UpdateExperienceData, Company, Location, AvailabilitySchedule, Experience, Menu } from '@/types';
 import LocationModal from '@/components/LocationModal';
 import MenuSelector from '@/components/MenuSelector';
+import CondicionesPorSede from '@/components/Experiences/CondicionesPorSede';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
 import {
   HiArrowLeft,
@@ -1033,6 +1034,19 @@ function EditExperiencePageContenido() {
             )}
           </div>
         </div>
+
+        {/* Condiciones por sede.
+            Una experiencia es una pieza con la que se arma el catalogo: la
+            misma puede estar en una sede como abierta y en otra como privada,
+            con otro aforo, otro precio y otra anticipacion. */}
+        {(experienceType === 'presential' || experienceType === 'hybrid') && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
+              Condiciones por sede
+            </h2>
+            <CondicionesPorSede experienceId={experienceId} sedesElegidas={selectedLocations} />
+          </div>
+        )}
 
         {/* Disponibilidad Personalizada */}
         {(showCustomSchedule && selectedLocations.length > 0) && (

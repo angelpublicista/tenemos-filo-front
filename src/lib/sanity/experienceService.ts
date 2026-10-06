@@ -66,6 +66,19 @@ export interface ApiExperience {
     videoUrl?: string | null;
   }>;
   menus?: ApiMenu[];
+  // Las condiciones propias de cada sede, cuando las tiene.
+  locationListings?: Array<{
+    locationId: string;
+    kind: 'ABIERTA' | 'PRIVADA' | null;
+    capacity: number | null;
+    minCapacity: number | null;
+    basePrice: string | number | null;
+    prepTime: number | null;
+    cleanupTime: number | null;
+    minimumNotice: number | null;
+    isPublished?: boolean;
+    notes?: string | null;
+  }>;
   availabilities?: Array<{
     id: string;
     name: string;
@@ -147,6 +160,11 @@ export function toExperience(e: ApiExperience): Experience {
       longitude: l.longitude ?? null,
       photos: l.photos ?? [],
       videoUrl: l.videoUrl ?? null,
+    })),
+    // Lo que cambia en cada sede. El precio llega como string del Decimal.
+    locationListings: e.locationListings?.map((f) => ({
+      ...f,
+      basePrice: f.basePrice === null || f.basePrice === undefined ? null : Number(f.basePrice),
     })),
     menus: e.menus?.map((m) => ({
       _ref: m.id,

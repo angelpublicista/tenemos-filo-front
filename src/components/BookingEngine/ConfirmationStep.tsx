@@ -3,6 +3,7 @@
 import React from 'react';
 import { HiArrowLeft, HiCalendar, HiUsers, HiLocationMarker, HiMail, HiPhone, HiVideoCamera } from 'react-icons/hi';
 import type { BookingData } from '@/components/BookingEngine/MotorReservas';
+import { condicionesDeSede } from '@/lib/experiencias/condicionesDeSede';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
 
@@ -20,8 +21,12 @@ interface Props {
 }
 
 export default function ConfirmationStep({ booking, cobraEnLinea, submitting, onConfirm, onBack }: Props) {
-  const { experience, date, time, participants, locationName, selectedAddons, guestInfo } = booking;
-  const subtotal = experience.basePrice * participants;
+  const { experience, date, time, participants, locationId, locationName, selectedAddons, guestInfo } = booking;
+  // El precio es el de la sede elegida: la misma experiencia puede valer una
+  // cosa en el local del centro y otra en la finca. El API cobra ese, asi que
+  // enseñar aqui el de la experiencia seria prometer un total que no es.
+  const { basePrice } = condicionesDeSede(experience, locationId);
+  const subtotal = basePrice * participants;
   const addonsTotal = selectedAddons?.reduce((sum, a) => sum + a.price * a.quantity, 0) ?? 0;
   const total = subtotal + addonsTotal;
   const formattedDate = format(date, "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
@@ -91,7 +96,7 @@ export default function ConfirmationStep({ booking, cobraEnLinea, submitting, on
       <div className="bg-gray-50 rounded-xl px-4 py-4 border border-gray-200 mb-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-gray-500">
-            {formatPrice(experience.basePrice, experience.currency)} × {participants} persona{participants > 1 ? 's' : ''}
+            {formatPrice(basePrice, experience.currency)} × {participants} persona{participants > 1 ? 's' : ''}
           </span>
           <span className="text-sm text-gray-700">{formatPrice(subtotal, experience.currency)}</span>
         </div>

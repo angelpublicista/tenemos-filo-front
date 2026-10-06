@@ -5,6 +5,7 @@ import { HiClock, HiUsers, HiLocationMarker, HiVideoCamera } from 'react-icons/h
 import type { BookingExperience } from '@/components/BookingEngine/MotorReservas';
 import ExperienceDetailModal from './ExperienceDetailModal';
 import { urlDeImagen } from '@/lib/images';
+import { precioDesde } from '@/lib/experiencias/condicionesDeSede';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -131,10 +132,21 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
 
                 <div className="mt-5 pt-4 border-t border-gray-100 space-y-3">
                   <div>
-                    <p className="text-xs text-gray-400 mb-0.5">Precio por persona</p>
-                    <p className="text-xl font-bold text-[#334C5D]">
-                      {exp.basePrice != null && exp.currency ? formatPrice(exp.basePrice, exp.currency) : 'Consultar'}
-                    </p>
+                    {(() => {
+                      // Con sedes a precios distintos no hay «el precio»: se
+                      // anuncia el mas bajo y se dice que depende de la sede.
+                      const { precio, varía } = precioDesde(exp);
+                      return (
+                        <>
+                          <p className="text-xs text-gray-400 mb-0.5">
+                            {varía ? 'Desde, por persona' : 'Precio por persona'}
+                          </p>
+                          <p className="text-xl font-bold text-[#334C5D]">
+                            {precio != null && exp.currency ? formatPrice(precio, exp.currency) : 'Consultar'}
+                          </p>
+                        </>
+                      );
+                    })()}
                   </div>
                   <div className="flex gap-2">
                     <button

@@ -435,13 +435,20 @@ interface ApiExperienceLite {
   currency: string;
   duration: number | null;
   companyId: string;
+  /** Lo que cambia en cada sede; solo las que tienen condiciones propias. */
+  locationListings?: Array<{ locationId: string; basePrice: number | string | null }>;
 }
 
 export const createReservationManually = async (data: CreateManualReservationData) => {
   const exp = await api.get<ApiExperienceLite>(`/experiences/${encodeURIComponent(data.experience)}`);
   if (!exp) throw new Error('Experiencia no encontrada');
 
-  const basePrice = typeof exp.basePrice === 'string' ? Number(exp.basePrice) : (exp.basePrice ?? 0);
+  // El precio es el de LA SEDE donde se carga la reserva: la misma
+  // experiencia puede valer una cosa en el local del centro y otra en la
+  // finca. Sin esto se cobraba el de la experiencia en las dos.
+  const deLaSede = (exp.locationListings ?? []).find((f) => f.locationId === data.location);
+  const precioCrudo = deLaSede?.basePrice ?? exp.basePrice;
+  const basePrice = typeof precioCrudo === 'string' ? Number(precioCrudo) : (precioCrudo ?? 0);
   const subtotal = basePrice * data.participants;
   const addonsTotal =
     data.selectedAddons?.reduce((sum, a) => sum + a.price * a.quantity, 0) ?? 0;

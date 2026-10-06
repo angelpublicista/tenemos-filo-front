@@ -63,9 +63,11 @@ export default function CompanyProgress({
             {urge ? 'Falta información de tu empresa' : 'Completa tu perfil'}
           </h3>
           <p className="text-sm text-gray-600 mt-0.5">
+            {/* TR-32. Lo que falta no bloquea nada: ya puedes vender. Se dice
+                para qué sirve cada cosa, no que estés en falta. */}
             {urge
               ? 'Hay datos necesarios sin rellenar. Complétalos para que tu empresa quede en orden.'
-              : 'Solo quedan datos opcionales, pero ayudan a que tu catálogo se vea mejor.'}
+              : 'Nada de esto te frena: ya puedes crear experiencias y vender. Lo que queda sirve para facturar y para que tu catálogo se vea completo.'}
           </p>
         </div>
       </div>

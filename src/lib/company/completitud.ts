@@ -13,10 +13,14 @@ const tieneContacto = (empresa: Company | null, tipo: TipoDeContacto) =>
  * empresa y el formulario de alta. Tenerlo en un sitio evita que una diga
  * "completado" mientras la otra sigue pidiendo datos.
  *
- * El criterio de "obligatorio" es el mismo de los esquemas de CompanySetupForm:
- * sin esos campos el formulario no deja pasar de paso. Los demas no bloquean,
- * pero cuentan igual para el progreso — son los que hacen que el catalogo
- * publico se vea bien, que es de lo que se trata.
+ * TR-32. "Obligatorio" aqui significa lo que el plan gratuito pide de verdad
+ * para empezar: empresa o persona, nombre, tipo de negocio y el correo con el
+ * que se le escribe. Nada mas bloquea.
+ *
+ * Lo demas sigue contando para el progreso y se sigue pidiendo —el NIT hace
+ * falta para facturar, la direccion para que el comensal sepa donde ir— pero
+ * como recomendado: la diferencia es si la puerta esta cerrada o si hay una
+ * lista de pendientes.
  */
 
 export interface CampoEmpresa {
@@ -31,7 +35,10 @@ export interface CampoEmpresa {
 export interface Completitud {
   campos: CampoEmpresa[];
   faltantes: CampoEmpresa[];
-  /** Solo los que ademas bloquean: sin ellos la empresa esta a medias. */
+  /**
+   * Solo los del minimo del plan gratuito (TR-32). Si falta alguno, la empresa
+   * no deberia existir todavia; el resto son pendientes, no bloqueos.
+   */
   faltantesObligatorios: CampoEmpresa[];
   total: number;
   rellenos: number;
@@ -54,14 +61,19 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
     { etiqueta: 'Tipo de persona', relleno: tiene(empresa?.personType), obligatorio: true, paso: 1 },
     { etiqueta: 'Tipo de empresa', relleno: tiene(empresa?.companyType), obligatorio: true, paso: 1 },
     { etiqueta: 'Correo de contacto', relleno: tiene(empresa?.companyEmail), obligatorio: true, paso: 1 },
-    { etiqueta: 'Teléfono', relleno: tiene(empresa?.companyPhone), obligatorio: true, paso: 1 },
+    { etiqueta: 'Teléfono', relleno: tiene(empresa?.companyPhone), obligatorio: false, paso: 1 },
     { etiqueta: 'Logo', relleno: tiene(empresa?.logo?.asset?._ref), obligatorio: false, paso: 1 },
     { etiqueta: 'Descripción', relleno: tiene(empresa?.description), obligatorio: false, paso: 1 },
 
     // ─── Paso 2: informacion fiscal y direccion ───
-    { etiqueta: 'Tipo de documento', relleno: tiene(empresa?.documentType), obligatorio: true, paso: 2 },
-    { etiqueta: 'Número de documento', relleno: tiene(empresa?.documentNumber), obligatorio: true, paso: 2 },
-    { etiqueta: 'Razón social', relleno: tiene(empresa?.businessName), obligatorio: true, paso: 2 },
+    //
+    // TR-32. Nada de aqui bloquea. Hace falta para facturar y para que el
+    // comensal sepa donde ir, asi que se pide; pero quien se registra a las
+    // once de la noche no tiene el RUT a mano, y cerrarle la puerta por eso
+    // es perderlo.
+    { etiqueta: 'Tipo de documento', relleno: tiene(empresa?.documentType), obligatorio: false, paso: 2 },
+    { etiqueta: 'Número de documento', relleno: tiene(empresa?.documentNumber), obligatorio: false, paso: 2 },
+    { etiqueta: 'Razón social', relleno: tiene(empresa?.businessName), obligatorio: false, paso: 2 },
     { etiqueta: 'Actividad económica (CIIU)', relleno: tiene(empresa?.ciiuCode), obligatorio: false, paso: 2 },
     // Una persona natural firma por si misma: no tiene representante que
     // registrar, y contarlo le dejaria el perfil incompleto para siempre.
@@ -75,10 +87,10 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
             paso: 2 as const,
           },
         ]),
-    { etiqueta: 'Dirección', relleno: tiene(dir?.street), obligatorio: true, paso: 2 },
-    { etiqueta: 'Ciudad', relleno: tiene(dir?.city), obligatorio: true, paso: 2 },
-    { etiqueta: 'Departamento', relleno: tiene(dir?.state), obligatorio: true, paso: 2 },
-    { etiqueta: 'País', relleno: tiene(dir?.country), obligatorio: true, paso: 2 },
+    { etiqueta: 'Dirección', relleno: tiene(dir?.street), obligatorio: false, paso: 2 },
+    { etiqueta: 'Ciudad', relleno: tiene(dir?.city), obligatorio: false, paso: 2 },
+    { etiqueta: 'Departamento', relleno: tiene(dir?.state), obligatorio: false, paso: 2 },
+    { etiqueta: 'País', relleno: tiene(dir?.country), obligatorio: false, paso: 2 },
     { etiqueta: 'Sitio web', relleno: tiene(empresa?.website), obligatorio: false, paso: 2 },
     { etiqueta: 'Código postal', relleno: tiene(dir?.postalCode), obligatorio: false, paso: 2 },
     { etiqueta: 'RUT', relleno: tiene(empresa?.rutKey), obligatorio: false, paso: 2 },
@@ -100,18 +112,18 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
     {
       etiqueta: 'Contacto de reservas',
       relleno: tieneContacto(empresa, 'reservas'),
-      obligatorio: true,
+      obligatorio: false,
       paso: 3,
     },
     {
       etiqueta: 'Contacto de contabilidad',
       relleno: tieneContacto(empresa, 'contabilidad'),
-      obligatorio: true,
+      obligatorio: false,
       paso: 3,
     },
 
     // ─── Paso 4: tamaño del negocio ───
-    { etiqueta: 'Número de empleados', relleno: tiene(empresa?.employeeCount), obligatorio: true, paso: 4 },
+    { etiqueta: 'Número de empleados', relleno: tiene(empresa?.employeeCount), obligatorio: false, paso: 4 },
     { etiqueta: 'Ingresos anuales', relleno: tiene(empresa?.annualRevenue), obligatorio: false, paso: 4 },
     { etiqueta: 'Años de operación', relleno: tiene(empresa?.businessYears), obligatorio: false, paso: 4 },
   ];

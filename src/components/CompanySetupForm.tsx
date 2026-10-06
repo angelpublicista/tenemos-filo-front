@@ -83,14 +83,27 @@ const formatUrl = (url: string): string => {
   return `https://${trimmedUrl}`;
 };
 
+/**
+ * TR-32. Lo fiscal no bloquea el registro.
+ *
+ * El plan gratuito arranca con empresa o persona, nombre, tipo de negocio y el
+ * usuario que se acaba de registrar. El NIT, la razón social y la dirección se
+ * piden —hacen falta para facturar— pero no son la puerta: quien se registra a
+ * las once de la noche no tiene el RUT a mano, y obligarle a buscarlo es
+ * perderlo.
+ *
+ * Lo que sí se valida es el FORMATO de lo que escriba: un NIT con letras no se
+ * guarda a medias para "arreglarlo después".
+ */
 const fiscalInfoSchema = z.object({
-  documentType: z.enum(['nit', 'cedula', 'pasaporte', 'other'], {
-    message: 'Selecciona un tipo de documento válido'
-  }),
-  documentNumber: z.string()
+  documentType: z.enum(['nit', 'cedula', 'pasaporte', 'other']).optional(),
+  documentNumber: z
+    .string()
     .min(6, 'El número de documento debe tener al menos 6 caracteres')
     .max(20, 'El número de documento no puede exceder 20 caracteres')
-    .regex(/^[0-9]+$/, 'El número de documento solo puede contener números'),
+    .regex(/^[0-9]+$/, 'El número de documento solo puede contener números')
+    .optional()
+    .or(z.literal('')),
   ciiuCode: z
     .string()
     .regex(/^[0-9]{4}$/, 'El código CIIU son cuatro dígitos')
@@ -104,9 +117,12 @@ const fiscalInfoSchema = z.object({
     .max(20)
     .optional()
     .or(z.literal('')),
-  businessName: z.string()
+  businessName: z
+    .string()
     .min(2, 'La razón social debe tener al menos 2 caracteres')
-    .max(200, 'La razón social no puede exceder 200 caracteres'),
+    .max(200, 'La razón social no puede exceder 200 caracteres')
+    .optional()
+    .or(z.literal('')),
   website: z.preprocess(
     (val) => {
       if (!val || val === '') return '';
@@ -114,29 +130,20 @@ const fiscalInfoSchema = z.object({
     },
     z.string().url('Ingresa una URL válida').optional().or(z.literal(''))
   ),
-  address: z.object({
-    street: z.string()
-      .min(5, 'La dirección debe tener al menos 5 caracteres')
-      .max(200, 'La dirección no puede exceder 200 caracteres'),
-    city: z.string()
-      .min(2, 'La ciudad debe tener al menos 2 caracteres')
-      .max(100, 'La ciudad no puede exceder 100 caracteres'),
-    state: z.string()
-      .min(2, 'Selecciona un departamento')
-      .max(100, 'El departamento no puede exceder 100 caracteres'),
-    postalCode: z.string()
-      .max(20, 'El código postal no puede exceder 20 caracteres')
-      .optional(),
-    country: z.string()
-      .min(2, 'El país debe tener al menos 2 caracteres')
-      .max(100, 'El país no puede exceder 100 caracteres'),
-  }),
+  address: z
+    .object({
+      street: z.string().max(200, 'La dirección no puede exceder 200 caracteres').optional(),
+      city: z.string().max(100, 'La ciudad no puede exceder 100 caracteres').optional(),
+      state: z.string().max(100, 'El departamento no puede exceder 100 caracteres').optional(),
+      postalCode: z.string().max(20, 'El código postal no puede exceder 20 caracteres').optional(),
+      country: z.string().max(100, 'El país no puede exceder 100 caracteres').optional(),
+    })
+    .optional(),
 });
 
+/** TR-32. El tamaño del negocio tampoco bloquea: se pregunta, no se exige. */
 const sizeInfoSchema = z.object({
-  employeeCount: z.enum(['1-10', '11-50', '51-200', '201-500', '500+'], {
-    message: 'Selecciona un rango de empleados válido'
-  }),
+  employeeCount: z.enum(['1-10', '11-50', '51-200', '201-500', '500+']).optional(),
   annualRevenue: z.enum(['0-100k', '100k-500k', '500k-1M', '1M-5M', '5M+'], {
     message: 'Selecciona un rango de ingresos válido'
   }).optional(),
@@ -179,6 +186,11 @@ const businessYears = [
 ];
 
 const steps = ['Información Básica', 'Información Fiscal', 'Contactos', 'Tamaño de Empresa'];
+
+/** Si un objeto de dirección tiene algo escrito. */
+function tieneAlgo(dir?: Record<string, string | undefined>): boolean {
+  return !!dir && Object.values(dir).some((v) => (v ?? '').trim() !== '');
+}
 
 export default function CompanySetupForm() {
   const router = useRouter();
@@ -431,25 +443,28 @@ export default function CompanySetupForm() {
 
     try {
       if (currentStep === 1) {
-        // Validar datos básicos + teléfono de empresa
-        if (!companyPhone) {
-          await showError('Campo requerido', 'El teléfono de la empresa es requerido');
-          return;
-        }
+        // TR-32. El minimo del plan gratuito: empresa o persona, nombre, tipo
+        // de negocio y el correo con el que se le escribe. El telefono se pide
+        // en el formulario pero no cierra la puerta: quien no lo pone, lo pone
+        // despues, y el catalogo funciona igual.
         basicInfoSchema.parse(currentData);
         isValid = true;
       } else if (currentStep === 2) {
         fiscalInfoSchema.parse(currentData);
         isValid = true;
       } else if (currentStep === 3) {
-        // Contactos: se validan aqui y no con zod porque el mensaje util es
-        // cual de los bloques esta mal, y eso el esquema no lo señala.
-        const fallos = erroresDeContactos(contactos);
+        // TR-32. Los contactos tampoco bloquean el registro: un anfitrion que
+        // empieza es el contacto de todo, y pedirle dos correos distintos
+        // antes de dejarle entrar es inventarle una estructura que no tiene.
+        //
+        // Lo que si se valida es lo que haya escrito a medias: un contacto con
+        // nombre y sin correo no sirve para nada y se le dice.
+        const fallos = erroresDeContactos(contactos, { exigirObligatorios: false });
         if (fallos.size > 0) {
           setErroresContactos(true);
           await showError(
-            'Faltan datos de contacto',
-            'Revisa los contactos marcados en rojo. Reservas y contabilidad son obligatorios.',
+            'Revisa los contactos',
+            'Los que empezaste a llenar necesitan nombre y correo. Puedes dejarlos vacíos y completarlos después.',
           );
           return;
         }
@@ -476,6 +491,57 @@ export default function CompanySetupForm() {
 
   const prevStep = () => {
     setCurrentStep(prev => prev - 1);
+  };
+
+  /**
+   * TR-32. Terminar con el mínimo y entrar a trabajar.
+   *
+   * El plan gratuito pide empresa o persona, nombre, tipo de negocio y el
+   * usuario que se acaba de registrar. El resto —NIT, razón social,
+   * dirección, contactos, tamaño— se guarda si está, y si no se completa
+   * después desde el perfil: el panel ya dice qué falta y para qué sirve.
+   *
+   * Se valida igual lo que haya escrito a medias: guardar un NIT con letras
+   * para "arreglarlo luego" es dejar una factura mal hecha esperando.
+   */
+  const guardarYEmpezar = async () => {
+    const datos = getValues();
+    try {
+      basicInfoSchema.parse(datos);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        await showError(
+          'Falta lo mínimo',
+          'Para empezar hacen falta el nombre, si eres empresa o persona, el tipo de negocio y un correo de contacto.',
+        );
+      }
+      return;
+    }
+
+    try {
+      fiscalInfoSchema.parse(datos);
+      sizeInfoSchema.parse(datos);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        await showError(
+          'Revisa lo que escribiste',
+          'Algo de lo que llenaste no tiene el formato correcto. Puedes borrarlo y completarlo después.',
+        );
+      }
+      return;
+    }
+
+    const fallos = erroresDeContactos(contactos, { exigirObligatorios: false });
+    if (fallos.size > 0) {
+      setErroresContactos(true);
+      await showError(
+        'Revisa los contactos',
+        'Los que empezaste a llenar necesitan nombre y correo. Puedes dejarlos vacíos y completarlos después.',
+      );
+      return;
+    }
+
+    await onSubmit(datos);
   };
 
   const onSubmit = async (data: CompleteCompanyData) => {
@@ -510,11 +576,15 @@ export default function CompanySetupForm() {
           legalRepName: esJuridica ? data.legalRepName || undefined : undefined,
           legalRepDocType: esJuridica ? data.legalRepDocType : undefined,
           legalRepDocNumber: esJuridica ? data.legalRepDocNumber || undefined : undefined,
-          contacts: contactosParaGuardar(contactos),
+          // TR-32. Solo los que tienen algo: un contacto vacio no se guarda,
+          // y mandarlo en blanco crearia fichas sin nombre ni correo.
+          contacts: contactosParaGuardar(contactos.filter((c) => c.name.trim() || c.email.trim())),
           documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
-          address: data.address,
+          // Si no se llenó, no se manda: un objeto con cinco cadenas vacías
+          // es peor que no tener dirección, porque parece una dirección.
+          address: tieneAlgo(data.address) ? data.address : undefined,
           employeeCount: data.employeeCount,
           annualRevenue: data.annualRevenue,
           businessYears: data.businessYears,
@@ -554,11 +624,15 @@ export default function CompanySetupForm() {
           legalRepName: esJuridica ? data.legalRepName || undefined : undefined,
           legalRepDocType: esJuridica ? data.legalRepDocType : undefined,
           legalRepDocNumber: esJuridica ? data.legalRepDocNumber || undefined : undefined,
-          contacts: contactosParaGuardar(contactos),
+          // TR-32. Solo los que tienen algo: un contacto vacio no se guarda,
+          // y mandarlo en blanco crearia fichas sin nombre ni correo.
+          contacts: contactosParaGuardar(contactos.filter((c) => c.name.trim() || c.email.trim())),
           documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
-          address: data.address,
+          // Si no se llenó, no se manda: un objeto con cinco cadenas vacías
+          // es peor que no tener dirección, porque parece una dirección.
+          address: tieneAlgo(data.address) ? data.address : undefined,
           employeeCount: data.employeeCount,
           annualRevenue: data.annualRevenue,
           businessYears: data.businessYears,
@@ -606,10 +680,14 @@ export default function CompanySetupForm() {
     }
 
     // Mostrar confirmación elegante antes de proceder
-    const warningTitle = '¿Saltar configuración de empresa?';
-    const warningText = sanityUser.role === 'host' 
-      ? 'Recuerda que no podrás crear experiencias hasta completar esta información.'
-      : 'Recuerda que no podrás cotizar experiencias hasta completar esta información.';
+    // TR-32. Saltar del todo significa quedarse sin empresa, y sin empresa no
+    // hay nada que vender. El punto medio es "Guardar y empezar": con el paso
+    // 1 ya hay empresa, y el resto se completa despues.
+    const warningTitle = '¿Saltar la configuración?';
+    const warningText =
+      sanityUser.role === 'host'
+        ? 'Sin empresa no podrás crear experiencias. Si prefieres empezar ya, llena el primer paso y usa "Guardar y empezar": lo demás lo completas después.'
+        : 'Sin empresa no podrás cotizar experiencias. Si prefieres empezar ya, llena el primer paso y usa "Guardar y empezar": lo demás lo completas después.';
 
     const confirmed = await showConfirmation(
       warningTitle,
@@ -1343,14 +1421,27 @@ export default function CompanySetupForm() {
           </div>
 
           {currentStep < steps.length ? (
-            <Button
-              type="button"
-              color="primary"
-              onClick={nextStep}
-              className="px-8 py-3"
-            >
-              Siguiente →
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* TR-32. Con el paso 1 hecho ya hay empresa y se puede
+                  trabajar: nombre, empresa o persona, tipo de negocio y el
+                  usuario que se acaba de registrar. Lo demás se completa
+                  después desde el perfil, y el panel dice qué falta. */}
+              <button
+                type="button"
+                onClick={guardarYEmpezar}
+                className="text-sm font-medium text-[#F26726] underline transition-colors hover:text-[#d9571f]"
+              >
+                Guardar y empezar
+              </button>
+              <Button
+                type="button"
+                color="primary"
+                onClick={nextStep}
+                className="px-8 py-3"
+              >
+                Siguiente →
+              </Button>
+            </div>
           ) : (
             <Button
               type="button"

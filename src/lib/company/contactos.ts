@@ -73,10 +73,31 @@ export function errorDeContacto(c: ContactoDeEmpresa): string | null {
   return null;
 }
 
-/** Los que hay que arreglar antes de continuar, con su posicion. */
-export function erroresDeContactos(lista: ContactoDeEmpresa[]): Map<number, string> {
+/** Si un contacto está del todo vacío: ni nombre, ni correo, ni teléfono. */
+function estaVacio(c: ContactoDeEmpresa): boolean {
+  return !c.name.trim() && !c.email.trim() && !(c.phone ?? '').trim();
+}
+
+/**
+ * Los que hay que arreglar antes de continuar, con su posición.
+ *
+ * TR-32. `exigirObligatorios: false` deja pasar los que están del todo
+ * vacíos: un anfitrión que empieza es el contacto de todo, y pedirle dos
+ * correos distintos antes de dejarle entrar es inventarle una estructura que
+ * no tiene. Lo que sí se señala es lo empezado a medias: un contacto con
+ * nombre y sin correo no sirve para nada.
+ *
+ * Los avisos no se pierden por no tenerlos: el API los SUMA al correo de la
+ * empresa, al del titular y a los del equipo, no los sustituye.
+ */
+export function erroresDeContactos(
+  lista: ContactoDeEmpresa[],
+  opts: { exigirObligatorios?: boolean } = {},
+): Map<number, string> {
+  const exigir = opts.exigirObligatorios !== false;
   const errores = new Map<number, string>();
   lista.forEach((c, i) => {
+    if (!exigir && estaVacio(c)) return;
     const e = errorDeContacto(c);
     if (e) errores.set(i, e);
   });

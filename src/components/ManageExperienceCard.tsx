@@ -139,9 +139,9 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
             </div>
           </div>
 
-          {/* Estadísticas */}
+          {/* La nota del comensal. Las reservas no van aquí: son de Reservas,
+              y el dinero de Ingresos, que lo desglosa por experiencia. */}
           <div className="flex items-center justify-between text-xs text-gray-500 mb-3 pt-3 border-t border-gray-200">
-            <span>{experience.totalBookings || 0} reservas</span>
             <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
           </div>
 
@@ -233,7 +233,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
             </div>
 
             <div className="flex items-center gap-4 text-xs text-gray-500">
-              <span>{experience.totalBookings || 0} reservas</span>
               <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
             </div>
           </div>

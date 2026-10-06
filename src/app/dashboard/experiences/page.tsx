@@ -16,8 +16,6 @@ interface ExperienceStats {
   pending: number;
   paused: number;
   inactive: number;
-  totalBookings: number;
-  totalRevenue: number;
   averageRating: number;
 }
 import { Button, Select } from 'flowbite-react';

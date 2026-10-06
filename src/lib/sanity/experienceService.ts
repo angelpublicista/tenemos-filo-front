@@ -49,8 +49,7 @@ export interface ApiExperience {
   status: ApiExperienceStatus;
   isFeatured: boolean;
   rating: number | null;
-  totalBookings: number;
-  totalRevenue: string | number;
+
   createdAt: string;
   updatedAt: string;
   company?: { id: string; companyName: string; companyEmail?: string; companyPhone?: string };
@@ -188,8 +187,6 @@ export function toExperience(e: ApiExperience): Experience {
     status: STATUS_FROM_API[e.status],
     isFeatured: e.isFeatured,
     rating: e.rating ?? undefined,
-    totalBookings: e.totalBookings,
-    totalRevenue: typeof e.totalRevenue === 'string' ? Number(e.totalRevenue) : e.totalRevenue,
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
   };
@@ -380,8 +377,6 @@ export const getExperienceStatsByCompany = async (companyId: string) => {
     pending: number;
     paused: number;
     inactive: number;
-    totalBookings: number;
-    totalRevenue: number;
     averageRating: number;
   }>(`/experiences/stats/by-company/${encodeURIComponent(companyId)}`);
 };

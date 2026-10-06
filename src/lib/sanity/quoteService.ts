@@ -91,8 +91,6 @@ function toExperienceLite(e: ApiExperienceForQuote): Experience & { companyName?
     addons: (e.addons as Experience['addons']) ?? undefined,
     status: 'active',
     isFeatured: false,
-    totalBookings: 0,
-    totalRevenue: 0,
     createdAt: '',
     updatedAt: '',
     locations: e.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),

@@ -1,13 +1,18 @@
 "use client";
 
 import React from 'react';
-import {
-  HiStar,
-  HiCheckCircle,
-  HiUsers,
-  HiCurrencyDollar
-} from 'react-icons/hi';
+import { HiStar, HiCheckCircle, HiPencilAlt, HiPause } from 'react-icons/hi';
 
+/**
+ * Las cifras del catálogo: cuántas experiencias hay y en qué estado.
+ *
+ * Reservas e ingresos no salen aquí a propósito. Son otra cosa y tienen su
+ * sitio: las reservas en Reservas, el dinero en Ingresos —que además lo
+ * desglosa por experiencia—. Tenerlos también aquí significaba mantener dos
+ * cifras de lo mismo, y las que había llevaban en cero desde siempre porque
+ * nadie las escribía: la pantalla prometía «0 reservas» y «$0» a quien sí
+ * había vendido.
+ */
 interface ExperienceStatsProps {
   stats: {
     total: number;
@@ -16,8 +21,6 @@ interface ExperienceStatsProps {
     pending: number;
     paused: number;
     inactive: number;
-    totalBookings: number;
-    totalRevenue: number;
     averageRating: number;
   };
   className?: string;
@@ -55,29 +58,29 @@ export default function ExperienceStats({ stats, className = "" }: ExperienceSta
         </div>
       </div>
 
-      {/* Total Reservas */}
+      {/* Borradores: lo que está a medias y nadie puede comprar todavía. */}
       <div className={cardClass}>
         <div className="flex items-center">
-          <div className="p-2 bg-blue-500 rounded-lg shrink-0">
-            <HiUsers className="w-5 h-5 text-white" />
+          <div className="p-2 bg-gray-400 rounded-lg shrink-0">
+            <HiPencilAlt className="w-5 h-5 text-white" />
           </div>
           <div className="ml-3 min-w-0">
-            <p className="text-xs font-medium text-gray-600 truncate">Reservas</p>
-            <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{stats.totalBookings}</p>
+            <p className="text-xs font-medium text-gray-600 truncate">Borradores</p>
+            <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">{stats.draft}</p>
           </div>
         </div>
       </div>
 
-      {/* Ingresos Totales */}
+      {/* Pausadas e inactivas juntas: las dos significan "no se vende ahora". */}
       <div className={cardClass}>
         <div className="flex items-center">
-          <div className="p-2 bg-[#19A3A2] rounded-lg shrink-0">
-            <HiCurrencyDollar className="w-5 h-5 text-white" />
+          <div className="p-2 bg-amber-500 rounded-lg shrink-0">
+            <HiPause className="w-5 h-5 text-white" />
           </div>
           <div className="ml-3 min-w-0">
-            <p className="text-xs font-medium text-gray-600 truncate">Ingresos</p>
+            <p className="text-xs font-medium text-gray-600 truncate">Sin vender</p>
             <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">
-              ${stats.totalRevenue.toLocaleString('es-CO')}
+              {stats.paused + stats.inactive}
             </p>
           </div>
         </div>

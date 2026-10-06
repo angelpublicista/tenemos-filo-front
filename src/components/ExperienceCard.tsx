@@ -149,18 +149,16 @@ export default function ExperienceCard({
           </div>
         </div>
 
-        {/* Estadísticas */}
-        {experience.totalBookings > 0 && (
-          <div className="flex items-center justify-between text-sm text-gray-500 mb-4 pt-4 border-t border-gray-200">
-            <span>{experience.totalBookings} reservas</span>
-            {experience.rating && (
-              <span className="flex items-center">
-                <HiStar className="w-4 h-4 mr-1 text-yellow-500" />
-                {experience.rating.toFixed(1)}
-              </span>
-            )}
+        {/* La nota del comensal, si ya la hay. Cuántas reservas lleva no es
+            asunto de esta tarjeta: eso vive en Reservas. */}
+        {experience.rating ? (
+          <div className="flex items-center text-sm text-gray-500 mb-4 pt-4 border-t border-gray-200">
+            <span className="flex items-center">
+              <HiStar className="w-4 h-4 mr-1 text-yellow-500" />
+              {experience.rating.toFixed(1)}
+            </span>
           </div>
-        )}
+        ) : null}
 
         {/* Precio y Acciones */}
         <div className="flex items-center justify-between">

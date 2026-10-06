@@ -539,8 +539,10 @@ export interface Experience {
   status: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
   isFeatured: boolean;
   rating?: number;
-  totalBookings: number;
-  totalRevenue: number;
+  // Sin `totalBookings` ni `totalRevenue`: una experiencia no lleva cifras de
+  // reservas ni de dinero. Las reservas viven en Reservas y el dinero en
+  // Ingresos, que además lo desglosa por experiencia. Tenerlo en los dos
+  // sitios significaba mantener dos cifras de lo mismo.
   reservations?: Array<{
     _ref: string;
     _type: 'reference';
@@ -615,7 +617,7 @@ export interface ExperienceFilters {
 export interface ExperienceSearchParams {
   query?: string;
   filters?: ExperienceFilters;
-  sortBy?: 'title' | 'price' | 'rating' | 'createdAt' | 'totalBookings';
+  sortBy?: 'title' | 'price' | 'rating' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;

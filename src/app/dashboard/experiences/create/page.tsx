@@ -10,11 +10,10 @@ import { getCompanyById, getCompanyByUserId } from '@/lib/sanity/companyService'
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { getMenusByCompany } from '@/lib/sanity/menuService';
 import { 
-  getAvailabilitySchedulesByLocation, 
   createAvailabilitySchedule, vigenciaPorDefecto,
   generateDefaultSchedule 
 } from '@/lib/sanity/availabilityService';
-import { CreateExperienceData, Company, Location, AvailabilitySchedule, Menu } from '@/types';
+import { CreateExperienceData, Company, Location, Menu } from '@/types';
 import LocationModal from '@/components/LocationModal';
 import MenuSelector from '@/components/MenuSelector';
 import DepartamentoCiudad from '@/components/DepartamentoCiudad';
@@ -79,15 +78,10 @@ function CreateExperiencePageContenido() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [locations, setLocations] = useState<Location[]>([]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [selectedMenus, setSelectedMenus] = useState<string[]>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [availableSchedules, setAvailableSchedules] = useState<AvailabilitySchedule[]>([]);
-  const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
-  const [showCustomSchedule, setShowCustomSchedule] = useState(false);
   const [customScheduleName, setCustomScheduleName] = useState('');
-  const [availabilityMode, setAvailabilityMode] = useState<'location' | 'experience'>('location');
   const [locationMode, setLocationMode] = useState<'sede' | 'custom'>('sede');
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
@@ -183,50 +177,6 @@ function CreateExperiencePageContenido() {
 
     loadCompanyData();
   }, [user, sanityUser?.companyId, router, showError]);
-
-  // Cargar calendarios de todas las sedes seleccionadas
-  useEffect(() => {
-    const loadSchedules = async () => {
-      if (selectedLocations.length === 0) {
-        setAvailableSchedules([]);
-        setSelectedSchedules([]);
-        setShowCustomSchedule(false);
-        return;
-      }
-
-      try {
-        // Cargar calendarios de todas las sedes seleccionadas
-        const allSchedules: AvailabilitySchedule[] = [];
-        
-        for (const locationId of selectedLocations) {
-          const schedules = await getAvailabilitySchedulesByLocation(locationId);
-          if (schedules && schedules.length > 0) {
-            allSchedules.push(...schedules);
-          }
-        }
-        
-        setAvailableSchedules(allSchedules);
-        
-        // Filtrar calendarios seleccionados que ya no están disponibles
-        setSelectedSchedules(prev => 
-          prev.filter(scheduleId => allSchedules.some(s => s._id === scheduleId))
-        );
-        
-        // Si no hay calendarios, mostrar opción de crear uno personalizado
-        if (allSchedules.length === 0) {
-          setShowCustomSchedule(true);
-        } else {
-          setShowCustomSchedule(false);
-        }
-      } catch (error) {
-        console.error('Error loading schedules:', error);
-        setAvailableSchedules([]);
-        setShowCustomSchedule(true);
-      }
-    };
-
-    loadSchedules();
-  }, [selectedLocations]);
 
   // Validar capacidad mínima
   useEffect(() => {
@@ -414,32 +364,6 @@ function CreateExperiencePageContenido() {
     try {
       setIsLoading(true);
 
-      // Calendarios a vincular (modo sede: se crean antes de la experiencia)
-      const finalScheduleIds: string[] = [...selectedSchedules];
-
-      // Modo sede: crear calendarios personalizados vinculados a la sede
-      if (availabilityMode === 'location' && showCustomSchedule && selectedLocations.length > 0 && finalScheduleIds.length === 0) {
-        try {
-          const scheduleName = customScheduleName || `Calendario - ${data.title}`;
-          for (const locationId of selectedLocations) {
-            const newSchedule = await createAvailabilitySchedule({
-              name: `${scheduleName} - ${locations.find(l => l._id === locationId)?.name || 'Sede'}`,
-              location: locationId,
-              description: `Calendario personalizado para la experiencia: ${data.title}`,
-              weeklySchedule: generateDefaultSchedule(),
-              // TR-35. Un horario generado solo tampoco se repite para siempre.
-              ...vigenciaPorDefecto(),
-              blockedDates: [],
-              notes: 'Calendario generado automáticamente. Personaliza los horarios según tus necesidades.',
-            });
-            finalScheduleIds.push(newSchedule._id);
-          }
-        } catch (error) {
-          console.error('Error creating location schedules:', error);
-          showError('Error al crear los calendarios. La experiencia se creará sin calendarios asociados.');
-        }
-      }
-
       const experienceData: CreateExperienceData = {
         ...data,
         categories: selectedCategories as ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[],
@@ -450,7 +374,10 @@ function CreateExperiencePageContenido() {
         // Las sedes las escribe Publicaciones, que es donde se decide en que
         // escenarios se usa la pieza.
       menus: selectedMenus.length > 0 ? selectedMenus : undefined,
-        availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
+        // Los calendarios se atan en Publicaciones, escenario por escenario.
+        // La excepción es el lugar personalizado, que no es una sede y por eso
+        // lleva el suyo propio: se crea justo debajo, con la experiencia ya
+        // creada para poder colgarlo de ella.
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
@@ -466,8 +393,11 @@ function CreateExperiencePageContenido() {
 
       const newExperience = await createExperienceInSanity(experienceData);
 
-      // Modo experiencia: crear calendario vinculado a la experiencia recién creada
-      if (availabilityMode === 'experience' && newExperience?._id) {
+      // Un lugar personalizado no es una sede registrada, asi que no se puede
+      // publicar en Publicaciones: su calendario cuelga de la experiencia. Sin
+      // esto la pieza nacia sin horario y el catalogo ofrecia las horas por
+      // defecto —de ocho a ocho, todos los dias—, que no son las de nadie.
+      if (locationMode === 'custom' && isPresentialOrHybrid && newExperience?._id) {
         try {
           const scheduleName = customScheduleName || `Calendario - ${data.title}`;
           const newSchedule = await createAvailabilitySchedule({
@@ -912,11 +842,7 @@ function CreateExperiencePageContenido() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => {
-                        setLocationMode('sede');
-                        setAvailabilityMode('location');
-                        setShowCustomSchedule(false);
-                      }}
+                      onClick={() => setLocationMode('sede')}
                       className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
                         locationMode === 'sede'
                           ? 'border-[#F26726] bg-orange-50'
@@ -933,19 +859,13 @@ function CreateExperiencePageContenido() {
                       <div>
                         <p className="font-medium text-gray-900 text-sm">Sede registrada</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          Usa una de las sedes de tu empresa con su calendario configurado.
+                          Después la publicas en una o varias, cada una con su horario.
                         </p>
                       </div>
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setLocationMode('custom');
-                        setSelectedLocations([]);
-                        setSelectedSchedules([]);
-                        setAvailabilityMode('experience');
-                        setShowCustomSchedule(true);
-                      }}
+                      onClick={() => setLocationMode('custom')}
                       className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
                         locationMode === 'custom'
                           ? 'border-[#F26726] bg-orange-50'
@@ -1044,151 +964,18 @@ function CreateExperiencePageContenido() {
                   </div>
                 </div>
 
-                {locationMode === 'sede' && selectedLocations.length > 0 && (
-                  <div className="space-y-4">
-                    {/* Selector de modo de disponibilidad */}
-                    <div>
-                      <Label>Disponibilidad *</Label>
-                      <p className="text-sm text-gray-500 mb-3">
-                        ¿Cómo quieres definir los horarios de esta experiencia?
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => { setAvailabilityMode('location'); setShowCustomSchedule(false); }}
-                          className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
-                            availabilityMode === 'location'
-                              ? 'border-[#F26726] bg-orange-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-                            availabilityMode === 'location' ? 'border-[#F26726]' : 'border-gray-400'
-                          }`}>
-                            {availabilityMode === 'location' && (
-                              <div className="w-2 h-2 rounded-full bg-[#F26726]" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 text-sm">Usar calendario de sede</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Esta experiencia comparte la disponibilidad configurada en la sede
-                            </p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setAvailabilityMode('experience'); setSelectedSchedules([]); setShowCustomSchedule(true); }}
-                          className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
-                            availabilityMode === 'experience'
-                              ? 'border-[#F26726] bg-orange-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-                            availabilityMode === 'experience' ? 'border-[#F26726]' : 'border-gray-400'
-                          }`}>
-                            {availabilityMode === 'experience' && (
-                              <div className="w-2 h-2 rounded-full bg-[#F26726]" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 text-sm">Disponibilidad propia</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Esta experiencia tiene sus propios horarios, independientes de la sede
-                            </p>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Modo sede: selector de calendarios */}
-                    {availabilityMode === 'location' && (
-                      <div>
-                        {availableSchedules.length > 0 ? (
-                          <div className="space-y-2">
-                            <div className="space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
-                              {availableSchedules.map((schedule) => {
-                                const locationName = locations.find(l => {
-                                  const schedLocation = schedule.location as { _ref: string };
-                                  return l._id === schedLocation?._ref;
-                                })?.name || 'Sede';
-                                return (
-                                  <div key={schedule._id} className="flex items-center">
-                                    <Checkbox
-                                      id={`schedule-${schedule._id}`}
-                                      checked={selectedSchedules.includes(schedule._id)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedSchedules(prev => [...prev, schedule._id]);
-                                        } else {
-                                          setSelectedSchedules(prev => prev.filter(id => id !== schedule._id));
-                                        }
-                                      }}
-                                      disabled={!schedule.isActive}
-                                      className="text-[#F26726] focus:ring-[#F26726]"
-                                    />
-                                    <Label htmlFor={`schedule-${schedule._id}`} className="ml-2 cursor-pointer">
-                                      {schedule.name}
-                                      {schedule.isMain && ' (Principal)'}
-                                      {!schedule.isActive && ' (Inactivo)'}
-                                      <span className="text-gray-500 text-sm ml-2">- {locationName}</span>
-                                    </Label>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                            {selectedSchedules.length > 0 && (
-                              <p className="text-sm text-gray-600">
-                                {selectedSchedules.length} calendario{selectedSchedules.length > 1 ? 's' : ''} seleccionado{selectedSchedules.length > 1 ? 's' : ''}
-                              </p>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => setShowCustomSchedule(!showCustomSchedule)}
-                              className="text-sm text-[#F26726] hover:underline font-medium"
-                            >
-                              {showCustomSchedule ? 'Ocultar' : 'Crear nuevo'} calendario para la sede
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="text-sm text-yellow-800 mb-2">
-                              Las sedes seleccionadas no tienen calendarios configurados.
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => setShowCustomSchedule(!showCustomSchedule)}
-                              className="text-sm text-[#F26726] hover:underline font-medium"
-                            >
-                              {showCustomSchedule ? 'Ocultar' : 'Configurar'} calendario para la sede
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Modo experiencia: mensaje informativo */}
-                    {availabilityMode === 'experience' && (
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                          Se creará un calendario de disponibilidad propio para esta experiencia con horario estándar (lun–vie 9:00–17:00).
-                          Podrás personalizarlo desde <strong>Disponibilidad → Por Experiencia</strong> después de guardar.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             )}
           </div>
         </div>
 
-        {/* Configuración básica del calendario (modo sede custom o modo experiencia) */}
-        {(showCustomSchedule && (selectedLocations.length > 0 || locationMode === 'custom')) && (
+        {/* El calendario propio del lugar personalizado. Las sedes registradas
+            no pasan por aquí: su horario es por escenario y se define en
+            Publicaciones. */}
+        {locationMode === 'custom' && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-4">
-              {availabilityMode === 'experience' ? 'Disponibilidad de la Experiencia' : 'Nuevo Calendario para la Sede'}
+              Disponibilidad de la experiencia
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>

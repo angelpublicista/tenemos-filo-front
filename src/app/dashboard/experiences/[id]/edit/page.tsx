@@ -9,12 +9,7 @@ import { getExperienceById, updateExperienceInSanity } from '@/lib/sanity/experi
 import { getCompanyById, getCompanyByUserId } from '@/lib/sanity/companyService';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { getMenusByCompany } from '@/lib/sanity/menuService';
-import { 
-  getAvailabilitySchedulesByLocation, 
-  createAvailabilitySchedule, vigenciaPorDefecto,
-  generateDefaultSchedule 
-} from '@/lib/sanity/availabilityService';
-import { UpdateExperienceData, Company, Location, AvailabilitySchedule, Experience, Menu } from '@/types';
+import { UpdateExperienceData, Company, Location, Experience, Menu } from '@/types';
 import LocationModal from '@/components/LocationModal';
 import MenuSelector from '@/components/MenuSelector';
 import Link from 'next/link';
@@ -81,13 +76,8 @@ function EditExperiencePageContenido() {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [selectedMenus, setSelectedMenus] = useState<string[]>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [availableSchedules, setAvailableSchedules] = useState<AvailabilitySchedule[]>([]);
-  const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
-  const [showCustomSchedule, setShowCustomSchedule] = useState(false);
-  const [customScheduleName, setCustomScheduleName] = useState('');
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
@@ -257,32 +247,7 @@ function EditExperiencePageContenido() {
           }
         }
 
-        // Seleccionar calendarios actuales si existen (compatibilidad con campo antiguo 'availabilitySchedule')
-        // La query retorna "availabilitySchedules" (expandido)
-        if (expData.availabilitySchedules && Array.isArray(expData.availabilitySchedules)) {
-          // Calendarios expandidos desde la query
-          const scheduleIds = expData.availabilitySchedules.map((schedule: { _id: string }) => schedule._id);
-          setSelectedSchedules(scheduleIds);
-        } else if (experienceData.availabilities && Array.isArray(experienceData.availabilities)) {
-          // Nuevo formato: múltiples calendarios como referencias
-          const scheduleIds: string[] = experienceData.availabilities.map(avail => {
-            if (typeof avail === 'object' && '_id' in avail) {
-              return (avail as { _id: string })._id;
-            } else if (typeof avail === 'object' && '_ref' in avail) {
-              return (avail as { _ref: string })._ref;
-            }
-            return avail as string;
-          });
-          setSelectedSchedules(scheduleIds);
-        } else if (expData.availabilitySchedule) {
-          // Formato antiguo: un solo calendario
-          const scheduleId = typeof expData.availabilitySchedule === 'object' && '_ref' in expData.availabilitySchedule
-            ? expData.availabilitySchedule._ref
-            : expData.availabilitySchedule;
-          setSelectedSchedules([scheduleId]);
-        }
-
-      } catch (error) {
+            } catch (error) {
         console.error('Error loading data:', error);
         showError('Error al cargar los datos');
       } finally {
@@ -294,58 +259,6 @@ function EditExperiencePageContenido() {
 
     loadData();
   }, [user, sanityUser?.companyId, experienceId, router, showError, reset]);
-
-  // Cargar calendarios de todas las sedes seleccionadas
-  useEffect(() => {
-    const loadSchedules = async () => {
-      if (selectedLocations.length === 0) {
-        setAvailableSchedules([]);
-        if (!isInitialLoad) {
-          setSelectedSchedules([]);
-        }
-        return;
-      }
-
-      try {
-        // Cargar calendarios de todas las sedes seleccionadas
-        const allSchedules: AvailabilitySchedule[] = [];
-        
-        for (const locationId of selectedLocations) {
-          const schedules = await getAvailabilitySchedulesByLocation(locationId);
-          if (schedules && schedules.length > 0) {
-            allSchedules.push(...schedules);
-          }
-        }
-        
-        setAvailableSchedules(allSchedules);
-        
-        // Solo filtrar calendarios seleccionados si NO es la carga inicial
-        // Durante la carga inicial, los calendarios ya se establecieron desde la base de datos
-        if (!isInitialLoad) {
-          setSelectedSchedules(prev => 
-            prev.filter(scheduleId => allSchedules.some(s => s._id === scheduleId))
-          );
-        }
-        
-        if (allSchedules.length === 0) {
-          setShowCustomSchedule(true);
-        }
-        
-        // Marcar que terminó la carga inicial de calendarios
-        if (isInitialLoad) {
-          setIsInitialLoad(false);
-        }
-      } catch (error) {
-        console.error('Error loading schedules:', error);
-        setAvailableSchedules([]);
-        if (isInitialLoad) {
-          setIsInitialLoad(false);
-        }
-      }
-    };
-
-    loadSchedules();
-  }, [selectedLocations, isInitialLoad]);
 
   // Validar capacidad mínima
   useEffect(() => {
@@ -495,41 +408,12 @@ function EditExperiencePageContenido() {
       return;
     }
 
-    // Validar que se haya seleccionado al menos una sede para experiencias presenciales/híbridas
-    if ((data.experienceType === 'presential' || data.experienceType === 'hybrid') && selectedLocations.length === 0) {
-      showError('Por favor selecciona al menos una sede');
-      return;
-    }
+    // No se exige sede: dónde se ofrece la pieza se decide en Publicaciones, y
+    // exigirlo aquí dejaría sin poder guardar un cambio de título a quien
+    // todavía no la ha publicado.
 
     try {
       setIsLoading(true);
-
-      // eslint-disable-next-line prefer-const
-      let finalScheduleIds: string[] = [...selectedSchedules];
-
-      // Si necesita crear calendarios personalizados para las sedes sin calendario
-      if (showCustomSchedule && selectedLocations.length > 0 && finalScheduleIds.length === 0) {
-        try {
-          const scheduleName = customScheduleName || `Calendario - ${data.title}`;
-          // Crear un calendario para cada sede seleccionada
-          for (const locationId of selectedLocations) {
-            const newSchedule = await createAvailabilitySchedule({
-              name: `${scheduleName} - ${locations.find(l => l._id === locationId)?.name || 'Sede'}`,
-              location: locationId,
-              description: `Calendario personalizado para la experiencia: ${data.title}`,
-              weeklySchedule: generateDefaultSchedule(),
-              // TR-35. Un horario generado solo tampoco se repite para siempre.
-              ...vigenciaPorDefecto(),
-              blockedDates: [],
-              notes: 'Calendario generado automáticamente. Personaliza los horarios según tus necesidades.',
-            });
-            finalScheduleIds.push(newSchedule._id);
-          }
-        } catch (error) {
-          console.error('Error creating custom schedules:', error);
-          showError('Error al crear los calendarios personalizados.');
-        }
-      }
 
       // Preparar datos de actualización
       const updateData: UpdateExperienceData = {
@@ -564,7 +448,8 @@ function EditExperiencePageContenido() {
         // donde se decide en qué escenarios se usa la pieza. Mandarlas también
         // desde este formulario pisaría lo publicado allí.
         menus: selectedMenus,
-        availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
+        // Los horarios tampoco se mandan desde aquí: son de la experiencia EN
+        // una sede y se gestionan en Publicaciones, escenario por escenario.
         featuredImage: featuredImageAssetId || undefined,
         gallery: galleryImages.length > 0 ? galleryImages : undefined,
       };
@@ -948,107 +833,10 @@ function EditExperiencePageContenido() {
                   )}
                 </div>
 
-                {selectedLocations.length > 0 && (
-                  <div>
-                    <Label>Calendarios de Disponibilidad * (Selecciona uno o más)</Label>
-                    <p className="text-sm text-gray-600 mb-2">
-                      Selecciona los calendarios que definirán la disponibilidad de esta experiencia
-                    </p>
-                    {availableSchedules.length > 0 ? (
-                      <div className="space-y-2">
-                        <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
-                          {availableSchedules.map((schedule) => {
-                            const locationName = locations.find(l => {
-                              const schedLocation = schedule.location as { _ref: string };
-                              return l._id === schedLocation?._ref;
-                            })?.name || 'Sede';
-                            
-                            return (
-                              <div key={schedule._id} className="flex items-center">
-                                <Checkbox
-                                  id={`schedule-${schedule._id}`}
-                                  checked={selectedSchedules.includes(schedule._id)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedSchedules(prev => [...prev, schedule._id]);
-                                    } else {
-                                      setSelectedSchedules(prev => prev.filter(id => id !== schedule._id));
-                                    }
-                                  }}
-                                  disabled={!schedule.isActive}
-                                  className="text-[#F26726] focus:ring-[#F26726]"
-                                />
-                                <Label htmlFor={`schedule-${schedule._id}`} className="ml-2 cursor-pointer">
-                                  {schedule.name}
-                                  {schedule.isMain && ' (Principal)'}
-                                  {!schedule.isActive && ' (Inactivo)'}
-                                  <span className="text-gray-500 text-sm ml-2">
-                                    - {locationName}
-                                  </span>
-                                </Label>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {selectedSchedules.length > 0 && (
-                          <p className="text-sm text-gray-600 mt-2">
-                            {selectedSchedules.length} calendario{selectedSchedules.length > 1 ? 's' : ''} seleccionado{selectedSchedules.length > 1 ? 's' : ''}
-                          </p>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setShowCustomSchedule(!showCustomSchedule)}
-                          className="text-sm text-[#F26726] hover:underline font-medium mt-2"
-                        >
-                          {showCustomSchedule ? 'Ocultar' : 'Crear nuevo'} calendario personalizado
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800 mb-2">
-                          Las sedes seleccionadas no tienen calendarios de disponibilidad configurados.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setShowCustomSchedule(!showCustomSchedule)}
-                          className="text-sm text-[#F26726] hover:underline font-medium"
-                        >
-                          {showCustomSchedule ? 'Ocultar' : 'Configurar'} disponibilidad personalizada
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             )}
           </div>
         </div>
-
-        {/* Disponibilidad Personalizada */}
-        {(showCustomSchedule && selectedLocations.length > 0) && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
-              Configurar Disponibilidad Personalizada
-            </h2>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <p className="text-sm text-blue-800">
-                <strong>Nota:</strong> Se creará un calendario de disponibilidad específico para esta experiencia. 
-                Puedes configurar los horarios detallados después de actualizar la experiencia desde la sección de Disponibilidad.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Nombre del Calendario</Label>
-                <TextInput
-                  placeholder="Ej: Calendario de Clases de Cocina"
-                  value={customScheduleName || `Calendario - ${watch('title') || 'Experiencia'}`}
-                  onChange={(e) => setCustomScheduleName(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Requisitos */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">

@@ -100,6 +100,22 @@ export default function AvailabilityPage() {
           </p>
         </div>
 
+        {/* Cuál manda.
+            Hay cuatro niveles y gana el más específico. Sin decirlo, el
+            anfitrión pone un horario aquí, ve otro en el catálogo y no
+            entiende por qué: el de la publicación le estaba ganando. */}
+        <div className="mb-4 sm:mb-6 rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900 mb-1">Cuál manda</p>
+          <p className="text-sm text-gray-600">
+            Gana el más específico de estos cuatro, en este orden:{' '}
+            <Link href="/dashboard/publicaciones" className="text-[#F26726] underline">
+              el de la experiencia en una sede
+            </Link>{' '}
+            (se define en Publicaciones) → el de la experiencia, que vale para todas sus sedes →
+            el de la sede → tu agenda.
+          </p>
+        </div>
+
         {/* Mode Tabs */}
         <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 border-b border-gray-200 overflow-x-auto">
           <button
@@ -154,12 +170,24 @@ export default function AvailabilityPage() {
         ) : isLoadingCurrent ? (
           <Loader message={viewMode === 'experience' ? 'Cargando experiencias...' : 'Cargando sedes...'} />
         ) : viewMode === 'experience' ? (
-          <ExperienceAvailabilityView
+          <>
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm text-amber-900">
+                Lo que pongas aquí vale para <strong>todas</strong> las sedes de esa experiencia. Si
+                abre días distintos en cada sitio, el horario va por publicación:{' '}
+                <Link href="/dashboard/publicaciones" className="underline font-medium">
+                  Publicaciones → Horario
+                </Link>
+                , y ese le gana a este.
+              </p>
+            </div>
+            <ExperienceAvailabilityView
             experiences={experiences}
             selectedExperience={selectedExperience}
             onSelectExperience={setSelectedExperience}
             companyId={sanityUser.companyId || ''}
           />
+          </>
         ) : (
           <LocationAvailabilityView
             locations={locations}

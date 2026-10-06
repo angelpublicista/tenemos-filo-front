@@ -227,7 +227,6 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
           minCapacity: c.minCapacity ?? 1,
           basePrice: c.basePrice ?? 0,
           currency: 'COP',
-          experienceType: 'presential',
           featuredImage: portada,
           locations: c.sedeId ? [c.sedeId] : [],
           requirements: c.requirements ? [c.requirements] : undefined,

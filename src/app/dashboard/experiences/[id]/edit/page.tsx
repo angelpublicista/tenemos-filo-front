@@ -45,8 +45,9 @@ const experienceSchema = z.object({
   minCapacity: z.number().min(1).optional(),
   basePrice: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
   currency: z.enum(['COP', 'USD']),
-  experienceType: z.enum(['virtual', 'presential', 'hybrid']),
-  virtualPlatform: z.enum(['zoom', 'google_meet', 'teams', 'other']).optional(),
+  // Todo es presencial; lo que cambia es si el anfitrión va a casa de quien
+  // reserva.
+  atHome: z.boolean().optional(),
   location: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -92,7 +93,7 @@ function EditExperiencePageContenido() {
     mode: 'onChange',
   });
 
-  const experienceType = watch('experienceType');
+  const atHome = watch('atHome');
   const minCapacity = watch('minCapacity');
   const capacity = watch('capacity');
   const basePrice = watch('basePrice');
@@ -158,8 +159,7 @@ function EditExperiencePageContenido() {
           minCapacity: experienceData.minCapacity,
           basePrice: experienceData.basePrice,
           currency: experienceData.currency,
-          experienceType: experienceData.experienceType,
-          virtualPlatform: experienceData.virtualPlatform,
+          atHome: experienceData.atHome ?? false,
           location: experienceData.presentialLocation || '',
           address: experienceData.presentialAddress || '',
           city: experienceData.presentialCity || '',
@@ -291,9 +291,7 @@ function EditExperiencePageContenido() {
       if (!values.duration) missing.push('Duración');
       if (!values.capacity) missing.push('Cupos por sesión');
       if (!values.basePrice) missing.push('Precio base');
-      if ((values.experienceType === 'presential' || values.experienceType === 'hybrid') && !values.city?.trim()) {
-        missing.push('Ciudad');
-      }
+      if (!values.city?.trim()) missing.push('Ciudad');
       if (includes.filter((i) => i.trim()).length === 0) missing.push('Qué incluye');
       if (requirements.filter((r) => r.trim()).length === 0) missing.push('Requisitos');
 
@@ -321,7 +319,6 @@ function EditExperiencePageContenido() {
           minCapacity: values.minCapacity,
           basePrice: values.basePrice,
           currency: values.currency,
-          experienceType: values.experienceType,
           city: values.city,
           includes: includes.filter((i) => i.trim()),
           requirements: requirements.filter((r) => r.trim()),
@@ -431,8 +428,7 @@ function EditExperiencePageContenido() {
         minCapacity: data.minCapacity,
         basePrice: data.basePrice,
         currency: data.currency,
-        experienceType: data.experienceType,
-        virtualPlatform: data.virtualPlatform,
+        atHome: data.atHome ?? false,
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
@@ -773,31 +769,29 @@ function EditExperiencePageContenido() {
           </h2>
           
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="experienceType">Tipo de Experiencia *</Label>
-              <Select {...register('experienceType')} className="mt-1">
-                <option value="presential">Presencial</option>
-                <option value="virtual">Virtual</option>
-                <option value="hybrid">Híbrida (Presencial + Virtual)</option>
-              </Select>
-              {errors.experienceType && (
-                <p className="text-red-500 text-sm mt-1">{errors.experienceType.message}</p>
-              )}
+            {/* Todo es presencial. Lo único que hay que decidir es si el
+                anfitrión va a casa de quien reserva: entonces no hay sede que
+                publicar y la dirección la pone el comensal en cada reserva. */}
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="atHome"
+                  {...register('atHome')}
+                  className="mt-1 text-[#F26726] focus:ring-[#F26726]"
+                />
+                <div>
+                  <Label htmlFor="atHome" className="cursor-pointer font-medium">
+                    Se hace a domicilio
+                  </Label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    El anfitrión va a donde diga quien reserva: un chef que cocina en casa del
+                    cliente. No se publica en sedes y la dirección se pide al reservar.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {(experienceType === 'virtual' || experienceType === 'hybrid') && (
-              <div>
-                <Label htmlFor="virtualPlatform">Plataforma Virtual</Label>
-                <Select {...register('virtualPlatform')} className="mt-1">
-                  <option value="zoom">Zoom</option>
-                  <option value="google_meet">Google Meet</option>
-                  <option value="teams">Microsoft Teams</option>
-                  <option value="other">Otra</option>
-                </Select>
-              </div>
-            )}
-
-            {(experienceType === 'presential' || experienceType === 'hybrid') && (
+            {!atHome && (
               <div className="space-y-4">
                 {/* Dónde se ofrece ya NO se decide aquí.
                     Este panel es para la PIEZA —qué se hace, cuánto dura, qué

@@ -43,9 +43,7 @@ interface ApiExperienceForQuote {
   minCapacity: number | null;
   basePrice: string | number | null;
   currency: string;
-  experienceType: 'VIRTUAL' | 'PRESENTIAL' | 'HYBRID';
-  isVirtual: boolean;
-  virtualPlatform: string | null;
+  atHome: boolean;
   presentialCity: string | null;
   presentialAddress: string | null;
   presentialLocation: string | null;
@@ -58,12 +56,6 @@ interface ApiExperienceForQuote {
   locations?: Array<{ id: string; name: string; address: unknown }>;
   availabilities?: Array<{ id: string; name: string; weeklySchedule: unknown; locationId: string | null }>;
 }
-
-const TYPE_FROM_API: Record<'VIRTUAL' | 'PRESENTIAL' | 'HYBRID', Experience['experienceType']> = {
-  VIRTUAL: 'virtual',
-  PRESENTIAL: 'presential',
-  HYBRID: 'hybrid',
-};
 
 function toExperienceLite(e: ApiExperienceForQuote): Experience & { companyName?: string; availabilitySchedules?: unknown[] } {
   return {
@@ -80,9 +72,7 @@ function toExperienceLite(e: ApiExperienceForQuote): Experience & { companyName?
     basePrice: typeof e.basePrice === 'string' ? Number(e.basePrice) : (e.basePrice ?? 0),
     currency: e.currency as Experience['currency'],
     featuredImage: e.featuredImage ?? undefined,
-    experienceType: TYPE_FROM_API[e.experienceType],
-    isVirtual: e.isVirtual,
-    virtualPlatform: (e.virtualPlatform ?? undefined) as Experience['virtualPlatform'],
+    atHome: e.atHome ?? false,
     presentialCity: e.presentialCity ?? undefined,
     presentialAddress: e.presentialAddress ?? undefined,
     presentialLocation: e.presentialLocation ?? undefined,

@@ -558,9 +558,14 @@ export interface Experience {
   }>;
   // Expansion de availabilities con datos completos (heredado del GROQ original).
   availabilitySchedules?: AvailabilitySchedule[];
-  experienceType: 'virtual' | 'presential' | 'hybrid';
-  isVirtual?: boolean;
-  virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  /**
+   * Si va a casa de quien reserva.
+   *
+   * Un chef que va a casa del cliente no tiene sede donde publicarse: la
+   * dirección la pone quien reserva y cambia en cada reserva. Todo lo demás es
+   * presencial en un sitio del anfitrión; lo virtual se fue porque no se usaba.
+   */
+  atHome?: boolean;
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
@@ -619,9 +624,14 @@ export interface CreateExperienceData {
   locations?: string[]; // Array de location IDs (múltiples sedes)
   menus?: string[]; // Array de menu IDs (la experiencia puede ofrecer varias cartas)
   availabilities?: string[]; // Array de IDs de calendarios de disponibilidad (múltiples calendarios)
-  experienceType: 'virtual' | 'presential' | 'hybrid';
-  isVirtual?: boolean;
-  virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  /**
+   * Si va a casa de quien reserva.
+   *
+   * Un chef que va a casa del cliente no tiene sede donde publicarse: la
+   * dirección la pone quien reserva y cambia en cada reserva. Todo lo demás es
+   * presencial en un sitio del anfitrión; lo virtual se fue porque no se usaba.
+   */
+  atHome?: boolean;
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
@@ -654,7 +664,7 @@ export interface ExperienceFilters {
   minPrice?: number;
   maxPrice?: number;
   duration?: number;
-  experienceType?: 'virtual' | 'presential' | 'hybrid';
+  atHome?: boolean;
   isFeatured?: boolean;
 }
 
@@ -740,13 +750,6 @@ export interface ReservationPaymentDetails {
   paymentReference?: string;
 }
 
-export interface ReservationVirtualDetails {
-  platform?: 'zoom' | 'google_meet' | 'teams' | 'other';
-  meetingLink?: string;
-  meetingId?: string;
-  password?: string;
-}
-
 export interface ReservationCancellation {
   cancelledAt?: string;
   cancelledBy?: 'client' | 'host' | 'system';
@@ -824,8 +827,8 @@ export interface Reservation {
       country?: string;
     };
   };
-  isVirtual?: boolean;
-  virtualDetails?: ReservationVirtualDetails;
+  /** Dónde se presta, cuando la experiencia es a domicilio. */
+  serviceAddress?: string;
   specialRequirements?: string;
   cancellation?: ReservationCancellation;
   rescheduling?: ReservationRescheduling;
@@ -848,8 +851,8 @@ export interface CreateReservationData {
   paymentMethod?: Reservation['paymentMethod'];
   paymentDetails?: ReservationPaymentDetails;
   location?: string;
-  isVirtual?: boolean;
-  virtualDetails?: ReservationVirtualDetails;
+  /** Dónde se presta, cuando la experiencia es a domicilio. */
+  serviceAddress?: string;
   specialRequirements?: string;
   notes?: string;
 }
@@ -864,7 +867,6 @@ export interface ReservationFilters {
   dateFrom?: string;
   dateTo?: string;
   experience?: string;
-  isVirtual?: boolean;
 }
 
 export interface ReservationSearchParams {

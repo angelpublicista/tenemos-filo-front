@@ -56,6 +56,8 @@ export interface BookingData {
   locationId?: string;
   locationName?: string;
   selectedAddons?: SelectedAddon[];
+  /** Dónde hay que ir, cuando la experiencia es a domicilio. */
+  serviceAddress?: string;
   guestInfo: {
     name: string;
     email: string;
@@ -209,8 +211,11 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
     locationId?: string,
     locationName?: string,
     selectedAddons?: SelectedAddon[],
+    serviceAddress?: string,
   ) => {
-    setBooking(prev => ({ ...prev, date, time, participants, locationId, locationName, selectedAddons }));
+    setBooking(prev => ({
+      ...prev, date, time, participants, locationId, locationName, selectedAddons, serviceAddress,
+    }));
     setStep('contact');
   };
 
@@ -254,6 +259,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
             booking.participants,
             booking.guestInfo.email,
             booking.locationId ?? '',
+            booking.serviceAddress ?? '',
             (booking.selectedAddons ?? []).map((a) => `${a.name}x${a.quantity}`).join(','),
           ].join('|'),
         ),
@@ -268,6 +274,8 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
         participants: booking.participants,
         specialRequests: booking.guestInfo.notes,
         selectedAddons: booking.selectedAddons?.map(a => ({ name: a.name, price: a.price, quantity: a.quantity })),
+        // A domicilio, sin esto el anfitrión no sabe a dónde ir.
+        serviceAddress: booking.serviceAddress,
         guestInfo: {
           name: booking.guestInfo.name,
           email: booking.guestInfo.email,

@@ -64,8 +64,7 @@ interface ApiReservation {
   paymentMethod: string | null;
   paymentDetails: Record<string, unknown> | null;
   locationId: string | null;
-  isVirtual: boolean;
-  virtualDetails: string | null;
+  serviceAddress: string | null;
   specialRequirements: string | null;
   cancellation: Reservation['cancellation'] | null;
   rescheduling: Reservation['rescheduling'] | null;
@@ -137,18 +136,7 @@ function toReservation(r: ApiReservation): Reservation {
             : never) ?? { street: '', city: '' },
         }
       : undefined,
-    isVirtual: r.isVirtual,
-    virtualDetails: r.virtualDetails
-      ? typeof r.virtualDetails === 'string'
-        ? (() => {
-            try {
-              return JSON.parse(r.virtualDetails) as Reservation['virtualDetails'];
-            } catch {
-              return undefined;
-            }
-          })()
-        : (r.virtualDetails as Reservation['virtualDetails'])
-      : undefined,
+    serviceAddress: r.serviceAddress ?? undefined,
     specialRequirements: r.specialRequirements ?? undefined,
     cancellation: r.cancellation ?? undefined,
     rescheduling: r.rescheduling ?? undefined,
@@ -175,8 +163,7 @@ export const createReservationInSanity = async (data: CreateReservationData) => 
     paymentMethod: data.paymentMethod,
     paymentDetails: data.paymentDetails,
     location: data.location,
-    isVirtual: data.isVirtual,
-    virtualDetails: data.virtualDetails,
+    serviceAddress: data.serviceAddress,
     specialRequirements: data.specialRequirements,
     notes: data.notes,
   });
@@ -194,7 +181,6 @@ export const getReservations = async (
       ? PAY_TO_API[filters.paymentStatus as Reservation['paymentStatus']]
       : undefined,
     experienceId: filters.experience,
-    isVirtual: filters.isVirtual,
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
     sortBy,
@@ -235,8 +221,7 @@ export const updateReservationInSanity = async (data: UpdateReservationData) => 
   if (rest.paymentMethod !== undefined) body.paymentMethod = rest.paymentMethod;
   if (rest.paymentDetails !== undefined) body.paymentDetails = rest.paymentDetails;
   if (rest.location !== undefined) body.location = rest.location;
-  if (rest.isVirtual !== undefined) body.isVirtual = rest.isVirtual;
-  if (rest.virtualDetails !== undefined) body.virtualDetails = rest.virtualDetails;
+  if (rest.serviceAddress !== undefined) body.serviceAddress = rest.serviceAddress;
   if (rest.specialRequirements !== undefined) body.specialRequirements = rest.specialRequirements;
   if (rest.notes !== undefined) body.notes = rest.notes;
 
@@ -492,6 +477,8 @@ export interface CreatePublicReservationData {
   /** Slug del revendedor, si la reserva entra por su catálogo. */
   reseller?: string;
   location?: string;
+  /** Dónde hay que ir, cuando la experiencia es a domicilio. */
+  serviceAddress?: string;
   reservationDate: string;
   participants: number;
   specialRequests?: string;
@@ -542,6 +529,7 @@ export const createPublicReservation = async (
       ...(data.reseller ? { reseller: data.reseller } : {}),
       ...(data.solicitudToken ? { solicitudToken: data.solicitudToken } : {}),
       location: data.location,
+      ...(data.serviceAddress ? { serviceAddress: data.serviceAddress } : {}),
       client: data.guestInfo,
       reservationDate: data.reservationDate,
       participants: data.participants,

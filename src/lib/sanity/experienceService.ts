@@ -12,7 +12,6 @@ import {
 
 // ─── Tipos del API (Postgres) ──────────────────────────────────────────────
 
-type ApiExperienceType = 'VIRTUAL' | 'PRESENTIAL' | 'HYBRID';
 type ApiExperienceStatus = 'DRAFT' | 'PENDING' | 'ACTIVE' | 'PAUSED' | 'INACTIVE';
 
 export interface ApiExperience {
@@ -32,9 +31,7 @@ export interface ApiExperience {
   currency: string;
   featuredImage: string | null;
   gallery: Array<{ assetId: string; alt?: string; caption?: string }> | null;
-  experienceType: ApiExperienceType;
-  isVirtual: boolean;
-  virtualPlatform: string | null;
+  atHome: boolean;
   presentialLocation: string | null;
   presentialAddress: string | null;
   presentialCity: string | null;
@@ -107,16 +104,6 @@ const STATUS_FROM_API: Record<ApiExperienceStatus, Experience['status']> = {
   INACTIVE: 'inactive',
 };
 
-const TYPE_TO_API: Record<NonNullable<Experience['experienceType']>, ApiExperienceType> = {
-  virtual: 'VIRTUAL',
-  presential: 'PRESENTIAL',
-  hybrid: 'HYBRID',
-};
-const TYPE_FROM_API: Record<ApiExperienceType, Experience['experienceType']> = {
-  VIRTUAL: 'virtual',
-  PRESENTIAL: 'presential',
-  HYBRID: 'hybrid',
-};
 
 // ─── Mapper API → Experience (Sanity-like) ─────────────────────────────────
 
@@ -189,9 +176,7 @@ export function toExperience(e: ApiExperience): Experience {
       createdAt: '',
       updatedAt: '',
     })),
-    experienceType: TYPE_FROM_API[e.experienceType],
-    isVirtual: e.isVirtual,
-    virtualPlatform: (e.virtualPlatform ?? undefined) as Experience['virtualPlatform'],
+    atHome: e.atHome ?? false,
     presentialLocation: e.presentialLocation ?? undefined,
     presentialAddress: e.presentialAddress ?? undefined,
     presentialCity: e.presentialCity ?? undefined,
@@ -233,9 +218,7 @@ function buildCreatePayload(data: CreateExperienceData): Record<string, unknown>
     locations: data.locations ?? [],
     menus: data.menus ?? [],
     availabilities: data.availabilities ?? [],
-    experienceType: TYPE_TO_API[data.experienceType],
-    isVirtual: data.isVirtual,
-    virtualPlatform: data.virtualPlatform,
+    atHome: data.atHome ?? false,
     presentialLocation: data.presentialLocation,
     presentialAddress: data.presentialAddress,
     presentialCity: data.presentialCity,
@@ -271,9 +254,7 @@ function buildUpdatePayload(data: UpdateExperienceData): Record<string, unknown>
   if (data.locations !== undefined) out.locations = data.locations;
   if (data.menus !== undefined) out.menus = data.menus;
   if (data.availabilities !== undefined) out.availabilities = data.availabilities;
-  if (data.experienceType !== undefined) out.experienceType = TYPE_TO_API[data.experienceType];
-  if (data.isVirtual !== undefined) out.isVirtual = data.isVirtual;
-  if (data.virtualPlatform !== undefined) out.virtualPlatform = data.virtualPlatform;
+  if (data.atHome !== undefined) out.atHome = data.atHome;
   if (data.presentialLocation !== undefined) out.presentialLocation = data.presentialLocation;
   if (data.presentialAddress !== undefined) out.presentialAddress = data.presentialAddress;
   if (data.presentialCity !== undefined) out.presentialCity = data.presentialCity;
@@ -312,7 +293,7 @@ export const getExperiences = async (
     status: filters.status ? STATUS_TO_API[filters.status as Experience['status']] : undefined,
     minPrice: filters.minPrice,
     maxPrice: filters.maxPrice,
-    experienceType: filters.experienceType ? TYPE_TO_API[filters.experienceType] : undefined,
+    atHome: filters.atHome,
     isFeatured: filters.isFeatured,
     sortBy,
     sortOrder,

@@ -31,12 +31,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Otros',
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  presential: 'presencial',
-  virtual: 'virtual',
-  hybrid: 'híbrida (presencial + virtual)',
-};
-
 interface RequestBody {
   title?: string;
   categories?: string[];
@@ -45,7 +39,8 @@ interface RequestBody {
   minCapacity?: number;
   basePrice?: number;
   currency?: string;
-  experienceType?: string;
+  /** Si el anfitrión va a casa de quien reserva. */
+  atHome?: boolean;
   city?: string;
   includes?: string[];
   requirements?: string[];
@@ -72,9 +67,9 @@ const buildUserPrompt = (data: RequestBody): string => {
     const labels = data.categories.map((c) => CATEGORY_LABELS[c] || c).join(', ');
     lines.push(`Categorías: ${labels}`);
   }
-  if (data.experienceType) {
-    lines.push(`Modalidad: ${TYPE_LABELS[data.experienceType] || data.experienceType}`);
-  }
+  // Que vaya a casa del cliente cambia cómo se describe: no es lo mismo
+  // invitar a un sitio que ofrecer ir al suyo.
+  if (data.atHome) lines.push('Modalidad: a domicilio, en casa de quien reserva');
   if (data.city) lines.push(`Ciudad: ${data.city}`);
   if (data.duration) lines.push(`Duración: ${data.duration} minutos`);
   if (data.capacity) {

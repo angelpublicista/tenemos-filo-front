@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { HiArrowLeft, HiCalendar, HiUsers, HiLocationMarker, HiMail, HiPhone, HiVideoCamera } from 'react-icons/hi';
+import { HiArrowLeft, HiCalendar, HiUsers, HiLocationMarker, HiMail, HiPhone } from 'react-icons/hi';
 import type { BookingData } from '@/components/BookingEngine/MotorReservas';
 import { condicionesDeSede } from '@/lib/experiencias/condicionesDeSede';
 import { format } from 'date-fns';
@@ -21,7 +21,7 @@ interface Props {
 }
 
 export default function ConfirmationStep({ booking, cobraEnLinea, submitting, onConfirm, onBack }: Props) {
-  const { experience, date, time, participants, locationId, locationName, selectedAddons, guestInfo } = booking;
+  const { experience, date, time, participants, locationId, locationName, serviceAddress, selectedAddons, guestInfo } = booking;
   // El precio es el de la sede elegida: la misma experiencia puede valer una
   // cosa en el local del centro y otra en la finca. El API cobra ese, asi que
   // enseñar aqui el de la experiencia seria prometer un total que no es.
@@ -42,15 +42,16 @@ export default function ConfirmationStep({ booking, cobraEnLinea, submitting, on
       label: 'Personas',
       value: `${participants} persona${participants > 1 ? 's' : ''}`,
     },
-    ...(experience.experienceType !== 'virtual' && locationName ? [{
+    // A domicilio lo que importa es la dirección a la que va el anfitrión; en
+    // sede, cuál de ellas.
+    ...(experience.atHome && serviceAddress ? [{
+      icon: <HiLocationMarker className="w-4 h-4 text-marca" />,
+      label: 'Dónde',
+      value: serviceAddress,
+    }] : locationName ? [{
       icon: <HiLocationMarker className="w-4 h-4 text-marca" />,
       label: 'Sede',
       value: locationName,
-    }] : []),
-    ...(experience.experienceType === 'virtual' ? [{
-      icon: <HiVideoCamera className="w-4 h-4 text-marca" />,
-      label: 'Modalidad',
-      value: 'Virtual',
     }] : []),
     {
       icon: <HiMail className="w-4 h-4 text-marca" />,

@@ -21,7 +21,6 @@ import {
   HiPhone,
   HiMail,
   HiLocationMarker,
-  HiVideoCamera,
   HiChevronLeft,
   HiChevronRight,
   HiPlus,
@@ -292,10 +291,16 @@ function ReservationsPageContenido() {
     return reservation.clientInfo?.phone || reservation.client?.phone || '—';
   };
 
-  // Helper para obtener tipo de experiencia (maneja diferencias entre mock y datos reales)
-  const getExperienceType = (reservation: Partial<Reservation>): 'virtual' | 'presential' | 'hybrid' | undefined => {
-    const exp = reservation.experience as { experienceType?: 'virtual' | 'presential' | 'hybrid' };
-    return exp?.experienceType;
+  /**
+   * Si el anfitrión va a casa de quien reserva.
+   *
+   * Todo es presencial; lo que hay que distinguir es dónde ocurre. Cuando es a
+   * domicilio lo que importa no es una sede sino la dirección que dio el
+   * comensal, y esa viaja en la reserva.
+   */
+  const esADomicilio = (reservation: Partial<Reservation>): boolean => {
+    const exp = reservation.experience as { atHome?: boolean } | undefined;
+    return exp?.atHome === true || !!reservation.serviceAddress;
   };
 
   // Funciones para vista de semana
@@ -988,13 +993,15 @@ function ReservationsPageContenido() {
                           <h4 className="font-medium text-gray-900 mb-2">Experiencia</h4>
                           <div className="space-y-2 text-sm text-gray-600">
                             <div className="flex items-center gap-2">
-                              {getExperienceType(reservation) === 'virtual' ? (
-                                <HiVideoCamera className="w-4 h-4 text-blue-500" />
-                              ) : (
-                                <HiLocationMarker className="w-4 h-4 text-green-500" />
-                              )}
+                              <HiLocationMarker className="w-4 h-4 text-green-500" />
                               <span>{reservation.experience?.title}</span>
                             </div>
+                            {reservation.serviceAddress && (
+                              <div className="flex items-center gap-2">
+                                <HiLocationMarker className="w-4 h-4 text-amber-500" />
+                                <span>A domicilio: {reservation.serviceAddress}</span>
+                              </div>
+                            )}
                             <div className="flex items-center gap-2">
                               <HiClock className="w-4 h-4" />
                               {reservation.duration && formatDuration(reservation.duration)}
@@ -1300,16 +1307,16 @@ function ReservationsPageContenido() {
                           </div>
                         </div>
 
-                        {/* Tipo de experiencia */}
+                        {/* Dónde ocurre: en un sitio del anfitrión o en casa
+                            de quien reserva. */}
                         <div className="flex items-center mb-2">
-                          {getExperienceType(reservation) === 'virtual' ? (
-                            <HiVideoCamera className="w-4 h-4 mr-1 text-blue-500" />
-                          ) : (
-                            <HiLocationMarker className="w-4 h-4 mr-1 text-green-500" />
-                          )}
+                          <HiLocationMarker
+                            className={`w-4 h-4 mr-1 ${esADomicilio(reservation) ? 'text-amber-500' : 'text-green-500'}`}
+                          />
                           <span className="text-sm text-gray-600">
-                            {getExperienceType(reservation) === 'virtual' ? 'Virtual' : 
-                             getExperienceType(reservation) === 'hybrid' ? 'Híbrida' : 'Presencial'}
+                            {esADomicilio(reservation)
+                              ? reservation.serviceAddress || 'A domicilio'
+                              : 'En sede'}
                           </span>
                         </div>
 
@@ -1758,8 +1765,7 @@ function ReservationsPageContenido() {
                         pricing: editingReservation.pricing,
                         paymentMethod: editingReservation.paymentMethod,
                         paymentDetails: editingReservation.paymentDetails,
-                        isVirtual: editingReservation.isVirtual,
-                        virtualDetails: editingReservation.virtualDetails,
+                        serviceAddress: editingReservation.serviceAddress,
                         location: editingReservation.location?._id,
                       });
 

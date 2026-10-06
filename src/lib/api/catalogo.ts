@@ -14,8 +14,8 @@ export interface Publicacion {
   title: string;
   slug: string;
   status: string;
-  experienceType: 'VIRTUAL' | 'PRESENTIAL' | 'HYBRID';
-  isVirtual: boolean;
+  /** Si va a casa de quien reserva. Entonces no se publica en sedes. */
+  atHome: boolean;
   featuredImage: string | null;
   duration: number | null;
   /** Si la pieza tiene lo mínimo para poder venderse (TR-23). */

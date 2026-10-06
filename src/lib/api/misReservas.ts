@@ -16,7 +16,8 @@ export type MiReserva = {
   status: EstadoReserva;
   paymentStatus: EstadoPago;
   pricing: { total?: number } | null;
-  isVirtual: boolean;
+  /** Dónde se presta, cuando la experiencia es a domicilio. */
+  serviceAddress: string | null;
   specialRequirements: string | null;
   experience: {
     id: string;

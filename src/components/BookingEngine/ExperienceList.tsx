@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { HiClock, HiUsers, HiLocationMarker, HiVideoCamera } from 'react-icons/hi';
+import { HiClock, HiUsers, HiLocationMarker } from 'react-icons/hi';
 import type { BookingExperience } from '@/components/BookingEngine/MotorReservas';
 import ExperienceDetailModal from './ExperienceDetailModal';
 import { urlDeImagen } from '@/lib/images';
@@ -84,13 +84,12 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-2.5">
                     <h3 className="text-lg font-bold text-gray-900 leading-tight">{exp.title}</h3>
+                    {/* Todo es presencial; lo que hay que distinguir es si el
+                        anfitrión va a casa de quien reserva. */}
                     <span className={`text-xs px-3 py-1 rounded-full font-medium shrink-0 ${
-                      exp.experienceType === 'virtual' ? 'bg-blue-100 text-blue-700' :
-                      exp.experienceType === 'hybrid' ? 'bg-purple-100 text-purple-700' :
-                      'bg-green-100 text-green-700'
+                      exp.atHome ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
                     }`}>
-                      {exp.experienceType === 'virtual' ? 'Virtual' :
-                       exp.experienceType === 'hybrid' ? 'Híbrida' : 'Presencial'}
+                      {exp.atHome ? 'A domicilio' : 'En sede'}
                     </span>
                   </div>
 
@@ -115,16 +114,12 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
                       <HiUsers className="w-4 h-4 text-gray-400" />
                       {exp.minCapacity ? `${exp.minCapacity}–` : ''}{exp.capacity} personas
                     </span>
-                    {exp.experienceType !== 'virtual' && exp.presentialCity && (
+                    {exp.presentialCity && (
                       <span className="inline-flex items-center gap-1.5 mr-4 mb-2">
                         <HiLocationMarker className="w-4 h-4 text-gray-400" />
-                        {exp.presentialCity}
-                      </span>
-                    )}
-                    {exp.experienceType === 'virtual' && (
-                      <span className="inline-flex items-center gap-1.5 mr-4 mb-2">
-                        <HiVideoCamera className="w-4 h-4 text-gray-400" />
-                        {exp.virtualPlatform ?? 'En línea'}
+                        {/* A domicilio la ciudad es el área que cubre, no un
+                            sitio al que ir. */}
+                        {exp.atHome ? `${exp.presentialCity} y alrededores` : exp.presentialCity}
                       </span>
                     )}
                   </div>

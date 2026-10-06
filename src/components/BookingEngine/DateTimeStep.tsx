@@ -119,7 +119,7 @@ function isDateBlocked(date: Date, schedules: AvailabilitySchedule[]): boolean {
 
 interface Props {
   experience: BookingExperience;
-  onNext: (date: Date, time: string, participants: number, locationId?: string, locationName?: string, selectedAddons?: SelectedAddon[]) => void;
+  onNext: (date: Date, time: string, participants: number, locationId?: string, locationName?: string, selectedAddons?: SelectedAddon[], serviceAddress?: string) => void;
   onBack: () => void;
 }
 
@@ -128,6 +128,8 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   const [time, setTime] = useState('');
   const [personasElegidas, setParticipants] = useState(experience.minCapacity ?? 1);
   const [locationId, setLocationId] = useState<string | undefined>(undefined);
+  /** Dónde hay que ir, cuando la experiencia es a domicilio. */
+  const [serviceAddress, setServiceAddress] = useState('');
   const [slots, setSlots] = useState<string[]>([]);
   // Por posicion, no por `_key`: ese campo venia de Sanity y hoy nadie lo
   // escribe, asi que todos los addons compartian la misma clave `undefined`
@@ -177,8 +179,10 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   }, [schedules]);
 
   const locations = useMemo(() => experience.locations ?? [], [experience.locations]);
-  const isVirtual = experience.experienceType === 'virtual' || experience.isVirtual === true;
-  const isPresential = !isVirtual;
+  // A domicilio no se elige sede: se va a donde diga quien reserva, y lo que
+  // hace falta es su dirección.
+  const aDomicilio = experience.atHome === true;
+  const isPresential = !aDomicilio;
   const hasLocations = locations.length > 0;
   const hasMultipleLocations = isPresential && locations.length > 1;
   const singleLocation = isPresential && locations.length === 1 ? locations[0] : null;
@@ -217,7 +221,9 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   );
 
   const canContinue = !!date && !!time && participants >= condiciones.minCapacity &&
-    (!isPresential || !hasLocations || !!locationId);
+    (!isPresential || !hasLocations || !!locationId) &&
+    // Sin dirección no se puede ir: es el equivalente a no haber elegido sede.
+    (!aDomicilio || serviceAddress.trim().length > 0);
 
   const buildSelectedAddons = (): SelectedAddon[] => {
     return availableAddons
@@ -239,7 +245,15 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   const handleNext = () => {
     if (!date || !time) return;
     const loc = locations.find(l => l._id === locationId);
-    onNext(date, time, participants, locationId, loc?.name, buildSelectedAddons());
+    onNext(
+      date,
+      time,
+      participants,
+      locationId,
+      loc?.name,
+      buildSelectedAddons(),
+      aDomicilio ? serviceAddress.trim() : undefined,
+    );
   };
 
   return (
@@ -254,6 +268,28 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
       </div>
 
       <div className="space-y-6">
+        {/* A domicilio: la dirección de quien reserva. Va donde iría la sede,
+            y antes de la fecha, por el mismo motivo: es parte de decidir
+            dónde ocurre. */}
+        {aDomicilio && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2.5" htmlFor="direccion">
+              Dirección donde quieres la experiencia
+            </label>
+            <input
+              id="direccion"
+              type="text"
+              value={serviceAddress}
+              onChange={(e) => setServiceAddress(e.target.value)}
+              placeholder="Calle 93 # 13-24, apto 502"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-marca focus:ring-1 focus:ring-marca outline-none"
+            />
+            <p className="text-xs text-gray-400 mt-1.5">
+              El anfitrión va hasta allí. La compartimos solo con él.
+            </p>
+          </div>
+        )}
+
         {/* Sede. Va ANTES de la fecha: la sede decide qué horas hay, qué aforo
             y qué precio, así que elegirla después dejaría la pantalla
             enseñando las condiciones de otra. */}

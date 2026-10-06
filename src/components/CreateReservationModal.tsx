@@ -544,8 +544,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <BiMap className="w-3 h-3" />
-                                    {exp.experienceType === 'presential' ? 'Presencial' : 
-                                     exp.experienceType === 'virtual' ? 'Virtual' : 'Híbrida'}
+                                    {exp.atHome ? 'A domicilio' : 'En sede'}
                                   </div>
                                   <div>Cupos: {exp.minCapacity || 1}-{exp.capacity} personas</div>
                                   {exp.presentialCity && <div>📍 {exp.presentialCity}</div>}
@@ -620,8 +619,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                               </span>
                               <span className="flex items-center gap-1">
                                 <BiMap className="w-3 h-3" />
-                                {exp.experienceType === 'presential' ? 'Presencial' :
-                                 exp.experienceType === 'virtual' ? 'Virtual' : 'Híbrida'}
+                                {exp.atHome ? 'A domicilio' : 'En sede'}
                               </span>
                               <span>Cupos: {exp.minCapacity || 1}–{exp.capacity}</span>
                             </div>
@@ -676,8 +674,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                           <div className="flex items-center gap-2">
                             <BiMap className="text-gray-500" />
                             <span className="text-gray-700">
-                              {selectedExp.experienceType === 'presential' ? 'Presencial' : 
-                               selectedExp.experienceType === 'virtual' ? 'Virtual' : 'Híbrida'}
+                              {selectedExp.atHome ? 'A domicilio' : 'En sede'}
                             </span>
                           </div>
                           <div className="text-right">

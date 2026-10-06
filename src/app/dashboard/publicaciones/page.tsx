@@ -92,8 +92,9 @@ export default function PublicacionesPage() {
       setPublicaciones(filas);
       setPiezas(
         (exps ?? [])
-          // Una virtual no se publica en una sede: se da donde sea.
-          .filter((e) => e.experienceType !== 'virtual' && e.isVirtual !== true)
+          // A domicilio no se publica en una sede: se va donde diga quien
+          // reserva, así que no hay escenario que elegir.
+          .filter((e) => e.atHome !== true)
           .map((e) => ({
             id: e._id,
             title: e.title,
@@ -294,8 +295,8 @@ export default function PublicacionesPage() {
                   {publicada.length === 0 ? (
                     <div className="px-5 py-4">
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {pieza.isVirtual || pieza.experienceType === 'VIRTUAL'
-                          ? 'Es virtual: no se publica en una sede, se da donde sea.'
+                        {pieza.atHome
+                          ? 'Es a domicilio: no se publica en una sede, se va donde diga quien reserva.'
                           : 'Esta pieza no se está ofreciendo en ningún sitio todavía.'}
                       </p>
                     </div>

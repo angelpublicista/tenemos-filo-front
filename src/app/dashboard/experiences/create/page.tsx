@@ -49,8 +49,9 @@ const experienceSchema = z.object({
   minCapacity: z.number().min(1).optional(),
   basePrice: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
   currency: z.enum(['COP', 'USD']),
-  experienceType: z.enum(['virtual', 'presential', 'hybrid']),
-  virtualPlatform: z.enum(['zoom', 'google_meet', 'teams', 'other']).optional(),
+  // Todo es presencial; lo que cambia es si el anfitrión va a casa de quien
+  // reserva.
+  atHome: z.boolean().optional(),
   location: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -105,8 +106,7 @@ function CreateExperiencePageContenido() {
       minCapacity: 1,
       basePrice: 0,
       currency: 'COP',
-      experienceType: 'presential',
-      virtualPlatform: 'zoom',
+      atHome: false,
       location: '',
       address: '',
       city: '',
@@ -116,7 +116,7 @@ function CreateExperiencePageContenido() {
     }
   });
 
-  const experienceType = watch('experienceType');
+  const atHome = watch('atHome');
   const minCapacity = watch('minCapacity');
   const capacity = watch('capacity');
   const basePrice = watch('basePrice');
@@ -198,9 +198,7 @@ function CreateExperiencePageContenido() {
       if (!values.duration) missing.push('Duración');
       if (!values.capacity) missing.push('Cupos por sesión');
       if (!values.basePrice) missing.push('Precio base');
-      if ((values.experienceType === 'presential' || values.experienceType === 'hybrid') && !values.city?.trim()) {
-        missing.push('Ciudad');
-      }
+      if (!values.city?.trim()) missing.push('Ciudad');
       if (includes.filter((i) => i.trim()).length === 0) missing.push('Qué incluye');
       if (requirements.filter((r) => r.trim()).length === 0) missing.push('Requisitos');
 
@@ -228,7 +226,6 @@ function CreateExperiencePageContenido() {
           minCapacity: values.minCapacity,
           basePrice: values.basePrice,
           currency: values.currency,
-          experienceType: values.experienceType,
           city: values.city,
           includes: includes.filter((i) => i.trim()),
           requirements: requirements.filter((r) => r.trim()),
@@ -326,10 +323,12 @@ function CreateExperiencePageContenido() {
       return;
     }
 
-    const isPresentialOrHybrid = data.experienceType === 'presential' || data.experienceType === 'hybrid';
+    // A domicilio no hay sitio fijo que declarar: la dirección la pone quien
+    // reserva, en cada reserva.
+    const enUnSitio = !data.atHome;
 
     // Validar lugar para experiencias presenciales/híbridas
-    if (isPresentialOrHybrid) {
+    if (enUnSitio) {
       // No se exige sede: crear la pieza y ponerla en un sitio son dos
       // decisiones, y la segunda vive en Publicaciones. Hasta que se publique,
       // la experiencia queda como borrador y alli se ve que falta.
@@ -397,7 +396,7 @@ function CreateExperiencePageContenido() {
       // publicar en Publicaciones: su calendario cuelga de la experiencia. Sin
       // esto la pieza nacia sin horario y el catalogo ofrecia las horas por
       // defecto —de ocho a ocho, todos los dias—, que no son las de nadie.
-      if (locationMode === 'custom' && isPresentialOrHybrid && newExperience?._id) {
+      if (locationMode === 'custom' && enUnSitio && newExperience?._id) {
         try {
           const scheduleName = customScheduleName || `Calendario - ${data.title}`;
           const newSchedule = await createAvailabilitySchedule({
@@ -808,31 +807,29 @@ function CreateExperiencePageContenido() {
           </h2>
           
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="experienceType">Tipo de Experiencia *</Label>
-              <Select {...register('experienceType')} className="mt-1">
-                <option value="presential">Presencial</option>
-                <option value="virtual">Virtual</option>
-                <option value="hybrid">Híbrida (Presencial + Virtual)</option>
-              </Select>
-              {errors.experienceType && (
-                <p className="text-red-500 text-sm mt-1">{errors.experienceType.message}</p>
-              )}
+            {/* Todo es presencial. Lo único que hay que decidir es si el
+                anfitrión va a casa de quien reserva: entonces no hay sitio que
+                declarar y la dirección la pone el comensal en cada reserva. */}
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="atHome"
+                  {...register('atHome')}
+                  className="mt-1 text-[#F26726] focus:ring-[#F26726]"
+                />
+                <div>
+                  <Label htmlFor="atHome" className="cursor-pointer font-medium">
+                    Se hace a domicilio
+                  </Label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    El anfitrión va a donde diga quien reserva: un chef que cocina en casa del
+                    cliente. No se publica en sedes y la dirección se pide al reservar.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {(experienceType === 'virtual' || experienceType === 'hybrid') && (
-              <div>
-                <Label htmlFor="virtualPlatform">Plataforma Virtual</Label>
-                <Select {...register('virtualPlatform')} className="mt-1">
-                  <option value="zoom">Zoom</option>
-                  <option value="google_meet">Google Meet</option>
-                  <option value="teams">Microsoft Teams</option>
-                  <option value="other">Otra</option>
-                </Select>
-              </div>
-            )}
-
-            {(experienceType === 'presential' || experienceType === 'hybrid') && (
+            {!atHome && (
               <div className="space-y-4">
                 <div>
                   <Label>¿Dónde se realizará? *</Label>

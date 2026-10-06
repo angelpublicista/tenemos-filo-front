@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { HiX, HiClock, HiUsers, HiLocationMarker, HiVideoCamera, HiCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
+import { HiX, HiClock, HiUsers, HiLocationMarker, HiCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 import type { BookingExperience, BookingLocationAddress } from '@/components/BookingEngine/MotorReservas';
 import MapaUbicacion from '@/components/MapaUbicacion';
 import MediosDeSede from '@/components/BookingEngine/MediosDeSede';
@@ -76,7 +76,9 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
   }, [handleKey]);
 
   const locations = experience.locations ?? [];
-  const isVirtual = experience.experienceType === 'virtual' || experience.isVirtual === true;
+  // A domicilio no hay sede que enseñar ni mapa que pintar: se va donde diga
+  // quien reserva.
+  const aDomicilio = experience.atHome === true;
 
   return (
     <div
@@ -147,11 +149,9 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
           <div className="flex items-start justify-between gap-4 mb-3">
             <h2 className="text-2xl font-bold text-gray-900 leading-tight">{experience.title}</h2>
             <span className={`text-xs px-3 py-1 rounded-full font-medium shrink-0 ${
-              isVirtual ? 'bg-blue-100 text-blue-700' :
-              experience.experienceType === 'hybrid' ? 'bg-purple-100 text-purple-700' :
-              'bg-green-100 text-green-700'
+              aDomicilio ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
             }`}>
-              {isVirtual ? 'Virtual' : experience.experienceType === 'hybrid' ? 'Híbrida' : 'Presencial'}
+              {aDomicilio ? 'A domicilio' : 'En sede'}
             </span>
           </div>
 
@@ -187,12 +187,14 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                 {experience.minCapacity ? `${experience.minCapacity}–` : ''}{experience.capacity} personas
               </p>
             </div>
-            {isVirtual ? (
+            {aDomicilio ? (
               <div className="bg-gray-50 rounded-xl px-4 py-3">
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
-                  <HiVideoCamera className="w-3.5 h-3.5" /> Plataforma
+                  <HiLocationMarker className="w-3.5 h-3.5" /> Dónde
                 </div>
-                <p className="text-sm font-semibold text-gray-900 capitalize">{experience.virtualPlatform ?? 'En línea'}</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  A domicilio{experience.presentialCity ? ` · ${experience.presentialCity}` : ''}
+                </p>
               </div>
             ) : experience.presentialCity ? (
               <div className="bg-gray-50 rounded-xl px-4 py-3">
@@ -302,7 +304,7 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
           )}
 
           {/* Sedes */}
-          {!isVirtual && locations.length > 0 && (
+          {!aDomicilio && locations.length > 0 && (
             <div className="mb-2">
               <h3 className="text-sm font-semibold text-gray-900 mb-2">
                 {locations.length === 1 ? 'Sede' : 'Sedes disponibles'}

@@ -8,7 +8,6 @@ import {
   HiClock, 
   HiUsers, 
   HiLocationMarker,
-  HiVideoCamera,
   HiEye,
   HiPencilAlt
 } from 'react-icons/hi';
@@ -139,13 +138,10 @@ export default function ExperienceCard({
             {experience.capacity} personas
           </div>
           <div className="flex items-center">
-            {experience.experienceType === 'virtual' ? (
-              <HiVideoCamera className="w-4 h-4 mr-1" />
-            ) : (
-              <HiLocationMarker className="w-4 h-4 mr-1" />
-            )}
-            {experience.experienceType === 'virtual' ? 'Virtual' : 
-             experience.experienceType === 'hybrid' ? 'Híbrida' : 'Presencial'}
+            <HiLocationMarker className="w-4 h-4 mr-1" />
+            {/* Todo es presencial; lo que distingue es si el anfitrión va a
+                casa de quien reserva. */}
+            {experience.atHome ? 'A domicilio' : 'En sede'}
           </div>
         </div>
 

@@ -6,7 +6,7 @@ import type { BookingExperience, BookingLocationAddress } from '@/components/Boo
 import MapaUbicacion from '@/components/MapaUbicacion';
 import MediosDeSede from '@/components/BookingEngine/MediosDeSede';
 import { urlDeImagen } from '@/lib/images';
-import { precioDesde } from '@/lib/experiencias/condicionesDeSede';
+import { cuposMaximos, precioDesde } from '@/lib/experiencias/condicionesDeSede';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -184,7 +184,11 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                 <HiUsers className="w-3.5 h-3.5" /> Capacidad
               </div>
               <p className="text-sm font-semibold text-gray-900">
-                {experience.minCapacity ? `${experience.minCapacity}–` : ''}{experience.capacity} personas
+                {(() => {
+                  const tope = cuposMaximos(experience.availabilitySchedules ?? []);
+                  if (tope) return `${experience.minCapacity ? `${experience.minCapacity}–` : ''}${tope} personas`;
+                  return experience.minCapacity ? `Desde ${experience.minCapacity} personas` : '—';
+                })()}
               </p>
             </div>
             {aDomicilio ? (
@@ -328,7 +332,6 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                           f?.basePrice != null
                             ? `${formatPrice(f.basePrice, experience.currency ?? 'COP')} por persona`
                             : '',
-                          f?.capacity != null ? `Hasta ${f.capacity} personas` : '',
                         ].filter(Boolean);
                         return propio.length ? (
                           <p className="text-xs text-marca font-medium mt-0.5">

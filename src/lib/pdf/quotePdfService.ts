@@ -265,7 +265,7 @@ export const generateQuotePDF = async (data: QuotePdfData): Promise<void> => {
       head: [['Detalle', 'Información']],
       body: [
         ['Duración', `${exp.duration} minutos`],
-        ['Capacidad', `${exp.minCapacity || 1} - ${exp.capacity} personas`],
+        ['Mínimo', `${exp.minCapacity || 1} personas`],
         ['Precio por persona', `$${exp.basePrice.toLocaleString('es-CO')} ${exp.currency}`],
         ['Precio total', `$${(exp.basePrice * guests).toLocaleString('es-CO')} ${exp.currency}`],
       ],

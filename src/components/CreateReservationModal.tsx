@@ -7,7 +7,12 @@ import { getAvailabilityScheduleById } from '@/lib/sanity/availabilityService';
 import { createReservationManually } from '@/lib/sanity/reservationService';
 import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
 import { searchExperiencesForQuote } from '@/lib/sanity/quoteService';
-import { condicionesDeSede, horariosDeSede } from '@/lib/experiencias/condicionesDeSede';
+import {
+  condicionesDeSede,
+  cuposDelDia,
+  cuposDeLaHora,
+  horariosDeSede,
+} from '@/lib/experiencias/condicionesDeSede';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose, AiOutlineUser, AiOutlineUserAdd } from 'react-icons/ai';
 import { BiTime, BiMap } from 'react-icons/bi';
@@ -268,14 +273,26 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   const selectedExp = searchResults.find(exp => exp._id === selectedExperience) || experiences.find(exp => exp._id === selectedExperience);
   /**
    * Las condiciones de la sede elegida: la misma experiencia puede tener otro
-   * aforo y otro precio en cada sede. Sin esto se cargaba con el aforo de la
-   * experiencia y el API rechazaba la reserva al final, o se cobraba un precio
+   * precio y otra anticipación en cada sede. Sin esto se cobraba un precio
    * distinto del que se acababa de enseñar.
    */
   const condiciones = condicionesDeSede(
-    selectedExp ?? { capacity: 0, minCapacity: 1, basePrice: 0, cleanupTime: 0, minimumNotice: 0 },
+    selectedExp ?? { minCapacity: 1, basePrice: 0, cleanupTime: 0, minimumNotice: 0 },
     selectedLocation,
   );
+
+  /**
+   * Cuánta gente cabe a la hora elegida. Los cupos son de la franja, así que
+   * el tope no se sabe hasta que hay hora; antes de eso, el mayor del día.
+   */
+  const tope = (() => {
+    if (!selectedDate) return null;
+    const fecha = new Date(`${selectedDate}T12:00:00`);
+    const horarios = horariosDeSede(availableSchedules, selectedLocation);
+    return selectedTime
+      ? cuposDeLaHora(horarios, new Date(`${selectedDate}T${selectedTime}:00`), selectedTime)
+      : cuposDelDia(horarios, fecha);
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -546,7 +563,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                     <BiMap className="w-3 h-3" />
                                     {exp.atHome ? 'A domicilio' : 'En sede'}
                                   </div>
-                                  <div>Cupos: {exp.minCapacity || 1}-{exp.capacity} personas</div>
+                                  <div>Mínimo {exp.minCapacity || 1} personas</div>
                                   {exp.presentialCity && <div>📍 {exp.presentialCity}</div>}
                                 </div>
 
@@ -621,7 +638,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                 <BiMap className="w-3 h-3" />
                                 {exp.atHome ? 'A domicilio' : 'En sede'}
                               </span>
-                              <span>Cupos: {exp.minCapacity || 1}–{exp.capacity}</span>
+                              <span>Mínimo {exp.minCapacity || 1}</span>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
@@ -762,13 +779,15 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                         value={participants}
                         onChange={(e) => setParticipants(parseInt(e.target.value) || 1)}
                         min="1"
-                        max={condiciones.capacity || 100}
+                        max={tope || 100}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
                         required
                       />
                       {selectedExp && (
                         <p className="text-xs text-gray-500 mt-1">
-                          Capacidad: {condiciones.minCapacity}–{condiciones.capacity} personas
+                          {tope
+                            ? `Caben ${condiciones.minCapacity}–${tope} a esa hora`
+                            : `Mínimo ${condiciones.minCapacity} personas`}
                         </p>
                       )}
                     </div>

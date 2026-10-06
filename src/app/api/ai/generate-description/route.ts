@@ -35,7 +35,6 @@ interface RequestBody {
   title?: string;
   categories?: string[];
   duration?: number;
-  capacity?: number;
   minCapacity?: number;
   basePrice?: number;
   currency?: string;
@@ -72,10 +71,9 @@ const buildUserPrompt = (data: RequestBody): string => {
   if (data.atHome) lines.push('Modalidad: a domicilio, en casa de quien reserva');
   if (data.city) lines.push(`Ciudad: ${data.city}`);
   if (data.duration) lines.push(`Duración: ${data.duration} minutos`);
-  if (data.capacity) {
-    const min = data.minCapacity && data.minCapacity !== data.capacity ? `${data.minCapacity}–` : '';
-    lines.push(`Capacidad: ${min}${data.capacity} personas`);
-  }
+  // Los cupos son del horario, así que aquí solo cabe el mínimo: el tamaño de
+  // grupo por debajo del cual la experiencia no se hace.
+  if (data.minCapacity) lines.push(`Mínimo de personas: ${data.minCapacity}`);
   if (data.basePrice && data.currency) {
     lines.push(`Precio por persona: ${data.basePrice.toLocaleString('es-CO')} ${data.currency}`);
   }

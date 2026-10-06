@@ -264,7 +264,7 @@ function ExperienceAvailabilityView({
                 <div className={`text-xs mt-1 ${
                   selectedExperience?._id === experience._id ? 'text-white/80' : 'text-gray-500'
                 }`}>
-                  {experience.duration} min • {experience.capacity} personas
+                  {experience.duration} min
                 </div>
               </button>
             ))}
@@ -281,7 +281,7 @@ function ExperienceAvailabilityView({
                 {selectedExperience.title}
               </h2>
               <p className="text-sm text-gray-600">
-                {selectedExperience.duration} min · capacidad {selectedExperience.capacity} personas
+                {selectedExperience.duration} min · los cupos van en cada franja
               </p>
             </div>
             <AvailabilityManager

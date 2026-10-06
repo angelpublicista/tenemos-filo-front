@@ -5,7 +5,7 @@ import { HiClock, HiUsers, HiLocationMarker } from 'react-icons/hi';
 import type { BookingExperience } from '@/components/BookingEngine/MotorReservas';
 import ExperienceDetailModal from './ExperienceDetailModal';
 import { urlDeImagen } from '@/lib/images';
-import { precioDesde } from '@/lib/experiencias/condicionesDeSede';
+import { cuposMaximos, precioDesde } from '@/lib/experiencias/condicionesDeSede';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -112,7 +112,12 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
                     </span>
                     <span className="inline-flex items-center gap-1.5 mr-4 mb-2">
                       <HiUsers className="w-4 h-4 text-gray-400" />
-                      {exp.minCapacity ? `${exp.minCapacity}–` : ''}{exp.capacity} personas
+                      {/* El máximo sale de las franjas: los cupos son del horario. */}
+                      {(() => {
+                        const tope = cuposMaximos(exp.availabilitySchedules ?? []);
+                        if (tope) return `${exp.minCapacity ? `${exp.minCapacity}–` : ''}${tope} personas`;
+                        return exp.minCapacity ? `Desde ${exp.minCapacity} personas` : '';
+                      })()}
                     </span>
                     {exp.presentialCity && (
                       <span className="inline-flex items-center gap-1.5 mr-4 mb-2">

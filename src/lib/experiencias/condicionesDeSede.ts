@@ -14,7 +14,11 @@ import type { AvailabilitySchedule, Experience, LocationListing } from '@/types'
  */
 export interface Condiciones {
   kind: 'ABIERTA' | 'PRIVADA' | null;
-  capacity: number;
+  /**
+   * El mínimo para que la experiencia se haga. NO es inventario: los cupos
+   * que se venden son de la franja, y este es el tamaño de grupo por debajo
+   * del cual la cena no sale.
+   */
   minCapacity: number;
   basePrice: number;
   cleanupTime: number;
@@ -24,7 +28,7 @@ export interface Condiciones {
 
 type ConLasCondiciones = Pick<
   Experience,
-  'capacity' | 'minCapacity' | 'basePrice' | 'cleanupTime' | 'minimumNotice'
+  'minCapacity' | 'basePrice' | 'cleanupTime' | 'minimumNotice'
 > & { locationListings?: LocationListing[] };
 
 export function condicionesDeSede(
@@ -37,7 +41,6 @@ export function condicionesDeSede(
 
   return {
     kind: f?.kind ?? null,
-    capacity: f?.capacity ?? experience.capacity ?? 0,
     minCapacity: f?.minCapacity ?? experience.minCapacity ?? 1,
     basePrice: f?.basePrice ?? experience.basePrice ?? 0,
     cleanupTime: f?.cleanupTime ?? experience.cleanupTime ?? 0,
@@ -84,4 +87,86 @@ export function precioDesde(experience: ConLasCondiciones): {
   const todos = base == null ? propios : [base, ...propios];
   const min = Math.min(...todos);
   return { precio: min, varía: Math.max(...todos) !== min };
+}
+
+const DIAS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+
+const enMinutos = (hhmm: string): number => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+};
+
+/** Las franjas de un día, con el nombre nuevo o con el viejo. */
+function franjasDelDia(schedule: AvailabilitySchedule, date: Date) {
+  const dia = schedule.weeklySchedule?.[DIAS[date.getDay()]!];
+  if (!dia?.isActive) return [];
+  return (dia.franjas ?? dia.timeSlots ?? []) as Array<{
+    startTime: string;
+    endTime: string;
+    cupos?: number | null;
+  }>;
+}
+
+/**
+ * Cuánta gente cabe a esa hora.
+ *
+ * Los cupos son de la FRANJA: el almuerzo y la cena de un sábado son dos
+ * inventarios distintos, así que «cuántos caben» no se puede saber hasta que
+ * se elige la hora. Si dos horarios cubren la misma, manda el menor: es el
+ * único que no promete sitio que el otro no tiene.
+ *
+ * `null` cuando ninguna franja de esa hora declara cupos: entonces no hay
+ * máximo que imponer.
+ */
+export function cuposDeLaHora(
+  schedules: AvailabilitySchedule[],
+  date: Date,
+  time: string,
+): number | null {
+  const minuto = enMinutos(time);
+  let menor: number | null = null;
+  for (const s of schedules) {
+    for (const f of franjasDelDia(s, date)) {
+      if (f.cupos === null || f.cupos === undefined) continue;
+      if (minuto < enMinutos(f.startTime) || minuto >= enMinutos(f.endTime)) continue;
+      if (menor === null || f.cupos < menor) menor = f.cupos;
+    }
+  }
+  return menor;
+}
+
+/**
+ * El grupo más grande que cabe en alguna franja de ese día.
+ *
+ * Sirve mientras no se ha elegido hora: es el tope que tiene sentido ofrecer
+ * en el contador de personas, porque alguna franja lo admite.
+ */
+export function cuposDelDia(schedules: AvailabilitySchedule[], date: Date): number | null {
+  let mayor: number | null = null;
+  for (const s of schedules) {
+    for (const f of franjasDelDia(s, date)) {
+      if (f.cupos === null || f.cupos === undefined) continue;
+      if (mayor === null || f.cupos > mayor) mayor = f.cupos;
+    }
+  }
+  return mayor;
+}
+
+/**
+ * El grupo más grande que cabe en alguna franja de estos horarios.
+ *
+ * «Cuánta gente cabe» ya no es un número de la experiencia: es el mayor de sus
+ * franjas. Sirve para las fichas del catálogo, que tienen que decir un máximo
+ * antes de que nadie haya elegido hora.
+ */
+export function cuposMaximos(schedules: AvailabilitySchedule[]): number | null {
+  let mayor: number | null = null;
+  const hoy = new Date();
+  for (let i = 0; i < 7; i += 1) {
+    const d = new Date(hoy);
+    d.setDate(d.getDate() + i);
+    const delDia = cuposDelDia(schedules, d);
+    if (delDia !== null && (mayor === null || delDia > mayor)) mayor = delDia;
+  }
+  return mayor;
 }

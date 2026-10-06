@@ -30,6 +30,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useRouter } from 'next/navigation';
 import Loader from '@/components/Loader';
 import { ImageUpload, GalleryUpload } from '@/components/ImageUpload';
+import Link from 'next/link';
 
 // Esquema de validación
 const experienceSchema = z.object({
@@ -45,7 +46,6 @@ const experienceSchema = z.object({
   // calendario sirve a una cata que se reserva el mismo día y a una cena de
   // quince que hay que comprar con dos días.
   minimumNotice: z.number().int().min(0).max(8760).optional(),
-  capacity: z.number().min(1, 'La capacidad debe ser al menos 1').max(100, 'La capacidad máxima es 100'),
   minCapacity: z.number().min(1).optional(),
   basePrice: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
   currency: z.enum(['COP', 'USD']),
@@ -102,7 +102,6 @@ function CreateExperiencePageContenido() {
       description: '',
       categories: [],
       duration: 60,
-      capacity: 10,
       minCapacity: 1,
       basePrice: 0,
       currency: 'COP',
@@ -117,8 +116,6 @@ function CreateExperiencePageContenido() {
   });
 
   const atHome = watch('atHome');
-  const minCapacity = watch('minCapacity');
-  const capacity = watch('capacity');
   const basePrice = watch('basePrice');
   const currency = watch('currency');
 
@@ -179,11 +176,6 @@ function CreateExperiencePageContenido() {
   }, [user, sanityUser?.companyId, router, showError]);
 
   // Validar capacidad mínima
-  useEffect(() => {
-    if (minCapacity && capacity && minCapacity > capacity) {
-      setValue('minCapacity', capacity);
-    }
-  }, [capacity, minCapacity, setValue]);
 
   const handleGenerateDescription = async (mode: 'generate' | 'improve') => {
     const values = watch();
@@ -196,7 +188,6 @@ function CreateExperiencePageContenido() {
       const missing: string[] = [];
       if (selectedCategories.length === 0) missing.push('Categorías');
       if (!values.duration) missing.push('Duración');
-      if (!values.capacity) missing.push('Cupos por sesión');
       if (!values.basePrice) missing.push('Precio base');
       if (!values.city?.trim()) missing.push('Ciudad');
       if (includes.filter((i) => i.trim()).length === 0) missing.push('Qué incluye');
@@ -222,7 +213,6 @@ function CreateExperiencePageContenido() {
           title: values.title,
           categories: selectedCategories,
           duration: values.duration,
-          capacity: values.capacity,
           minCapacity: values.minCapacity,
           basePrice: values.basePrice,
           currency: values.currency,
@@ -739,18 +729,20 @@ function CreateExperiencePageContenido() {
           </h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="capacity">Cupos por sesión *</Label>
-              <TextInput
-                {...register('capacity', { valueAsNumber: true })}
-                type="number"
-                min="1"
-                max="100"
-                className="mt-1"
-              />
-              {errors.capacity && (
-                <p className="text-red-500 text-sm mt-1">{errors.capacity.message}</p>
-              )}
+            {/* Los cupos NO se piden aquí: son del horario, no de la pieza.
+                El almuerzo y la cena de un sábado son dos inventarios
+                distintos, y la misma experiencia puede admitir ocho en el
+                local y veinte en la terraza; un número único aquí no podía
+                decir eso. */}
+            <div className="sm:col-span-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-4">
+              <Label>Cupos por sesión</Label>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                Se ponen en cada franja del horario, en{' '}
+                <Link href="/dashboard/publicaciones" className="text-[#F26726] hover:underline font-medium">
+                  Publicaciones → Horario
+                </Link>
+                : el almuerzo y la cena pueden admitir distinta gente.
+              </p>
             </div>
 
             <div>
@@ -759,7 +751,7 @@ function CreateExperiencePageContenido() {
                 {...register('minCapacity', { valueAsNumber: true })}
                 type="number"
                 min="1"
-                max={capacity || 100}
+                max="100"
                 className="mt-1"
               />
               {errors.minCapacity && (

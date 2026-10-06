@@ -19,7 +19,6 @@ import type { CondicionesDePublicacion, Publicacion } from '@/lib/api/catalogo';
 export interface PiezaPublicable {
   id: string;
   title: string;
-  capacity: number | null;
   minCapacity: number | null;
   basePrice: number | null;
   minimumNotice: number | null;
@@ -76,7 +75,6 @@ export default function PublicarModal({
   // y la sede dejaría de seguir a la pieza cuando la pieza cambie.
   const propias = publicacion?.propias;
   const [kind, setKind] = useState<'' | 'ABIERTA' | 'PRIVADA'>(propias?.kind ?? '');
-  const [capacity, setCapacity] = useState(texto(propias?.capacity));
   const [minCapacity, setMinCapacity] = useState(texto(propias?.minCapacity));
   const [basePrice, setBasePrice] = useState(texto(propias?.basePrice));
   const [minimumNotice, setMinimumNotice] = useState(texto(propias?.minimumNotice));
@@ -91,7 +89,6 @@ export default function PublicarModal({
     if (!experienceId || !locationId) return;
     onGuardar(experienceId, locationId, {
       kind: kind === '' ? null : kind,
-      capacity: numero(capacity),
       minCapacity: numero(minCapacity),
       basePrice: numero(basePrice),
       prepTime: numero(prepTime),
@@ -179,18 +176,6 @@ export default function PublicarModal({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="cap">Cupos por sesión</Label>
-              <TextInput
-                id="cap"
-                type="number"
-                min={1}
-                value={capacity}
-                placeholder={pieza?.capacity ? `${pieza.capacity} (de la experiencia)` : 'Los de la experiencia'}
-                onChange={(e) => setCapacity(e.target.value)}
-                className="mt-1"
-              />
-            </div>
             <div>
               <Label htmlFor="minCap">Cupos mínimos</Label>
               <TextInput

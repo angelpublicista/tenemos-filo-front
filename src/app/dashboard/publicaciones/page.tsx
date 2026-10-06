@@ -60,7 +60,6 @@ function queCambia(p: Publicacion): string[] {
   return [
     c.kind === 'PRIVADA' ? 'Privada: el sitio completo' : '',
     c.kind === 'ABIERTA' ? 'Abierta: cupos sueltos' : '',
-    c.capacity !== null ? `${c.capacity} cupos` : '',
     c.basePrice !== null ? `${pesos(Number(c.basePrice))} por persona` : '',
     c.minimumNotice ? `${c.minimumNotice} h de anticipación` : '',
   ].filter(Boolean);
@@ -98,7 +97,6 @@ export default function PublicacionesPage() {
           .map((e) => ({
             id: e._id,
             title: e.title,
-            capacity: e.capacity ?? null,
             minCapacity: e.minCapacity ?? null,
             basePrice: e.basePrice ?? null,
             minimumNotice: e.minimumNotice ?? null,

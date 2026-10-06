@@ -223,7 +223,6 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
           description: c.description || '',
           categories: categoriasValidas(c.categories),
           duration: c.duration ?? 120,
-          capacity: c.capacity ?? 10,
           minCapacity: c.minCapacity ?? 1,
           basePrice: c.basePrice ?? 0,
           currency: 'COP',
@@ -450,21 +449,8 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
                         }
                       />
                     </div>
-                    <div>
-                      <Label htmlFor={`c-${i}`} className="text-xs">Capacidad</Label>
-                      <TextInput
-                        id={`c-${i}`}
-                        type="number"
-                        sizing="sm"
-                        value={c.capacity ?? ''}
-                        placeholder="10"
-                        onChange={(e) =>
-                          cambiar(i, {
-                            capacity: e.target.value === '' ? null : Number(e.target.value),
-                          })
-                        }
-                      />
-                    </div>
+                    {/* Sin columna de capacidad: los cupos son del horario,
+                        y se ponen por franja al programar la experiencia. */}
                     <div>
                       <Label htmlFor={`s-${i}`} className="text-xs">Sede</Label>
                       <select

@@ -135,7 +135,7 @@ export default function ExperienceCard({
           </div>
           <div className="flex items-center">
             <HiUsers className="w-4 h-4 mr-1" />
-            {experience.capacity} personas
+            {experience.minCapacity ? `Mínimo ${experience.minCapacity}` : 'Sin mínimo'}
           </div>
           <div className="flex items-center">
             <HiLocationMarker className="w-4 h-4 mr-1" />

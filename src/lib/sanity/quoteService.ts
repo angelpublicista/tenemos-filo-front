@@ -39,7 +39,6 @@ interface ApiExperienceForQuote {
   description: string | null;
   categories: string[];
   duration: number | null;
-  capacity: number | null;
   minCapacity: number | null;
   basePrice: string | number | null;
   currency: string;
@@ -67,7 +66,6 @@ function toExperienceLite(e: ApiExperienceForQuote): Experience & { companyName?
     description: e.description ?? '',
     categories: (e.categories ?? []) as Experience['categories'],
     duration: e.duration ?? 0,
-    capacity: e.capacity ?? 0,
     minCapacity: e.minCapacity ?? undefined,
     basePrice: typeof e.basePrice === 'string' ? Number(e.basePrice) : (e.basePrice ?? 0),
     currency: e.currency as Experience['currency'],

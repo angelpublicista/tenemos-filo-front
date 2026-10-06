@@ -25,7 +25,6 @@ export interface ApiExperience {
   prepTime?: number | null;
   cleanupTime?: number | null;
   minimumNotice?: number | null;
-  capacity: number | null;
   minCapacity: number | null;
   basePrice: string | number | null;
   currency: string;
@@ -127,7 +126,6 @@ export function toExperience(e: ApiExperience): Experience {
     prepTime: e.prepTime ?? null,
     cleanupTime: e.cleanupTime ?? null,
     minimumNotice: e.minimumNotice ?? null,
-    capacity: e.capacity ?? 0,
     minCapacity: e.minCapacity ?? undefined,
     basePrice: typeof e.basePrice === 'string' ? Number(e.basePrice) : (e.basePrice ?? 0),
     currency: e.currency as Experience['currency'],
@@ -209,7 +207,6 @@ function buildCreatePayload(data: CreateExperienceData): Record<string, unknown>
     prepTime: data.prepTime ?? null,
     cleanupTime: data.cleanupTime ?? null,
     minimumNotice: data.minimumNotice ?? null,
-    capacity: data.capacity,
     minCapacity: data.minCapacity,
     basePrice: data.basePrice,
     currency: data.currency,
@@ -245,7 +242,6 @@ function buildUpdatePayload(data: UpdateExperienceData): Record<string, unknown>
   if (data.prepTime !== undefined) out.prepTime = data.prepTime;
   if (data.cleanupTime !== undefined) out.cleanupTime = data.cleanupTime;
   if (data.minimumNotice !== undefined) out.minimumNotice = data.minimumNotice;
-  if (data.capacity !== undefined) out.capacity = data.capacity;
   if (data.minCapacity !== undefined) out.minCapacity = data.minCapacity;
   if (data.basePrice !== undefined) out.basePrice = data.basePrice;
   if (data.currency !== undefined) out.currency = data.currency;

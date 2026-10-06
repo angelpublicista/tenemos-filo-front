@@ -442,7 +442,6 @@ export interface LocationListing {
   locationId: string;
   /** Cupos sueltos (abierta) o el sitio completo para un grupo (privada). */
   kind?: 'ABIERTA' | 'PRIVADA' | null;
-  capacity?: number | null;
   minCapacity?: number | null;
   basePrice?: number | null;
   prepTime?: number | null;
@@ -486,7 +485,7 @@ export interface Experience {
    * comprar con dos días de antelación.
    */
   minimumNotice?: number | null;
-  capacity: number;
+  /** El mínimo para que la experiencia se haga. Los cupos son del horario. */
   minCapacity?: number;
   basePrice: number;
   currency: 'COP' | 'USD';
@@ -610,7 +609,7 @@ export interface CreateExperienceData {
   prepTime?: number | null;
   cleanupTime?: number | null;
   minimumNotice?: number | null;
-  capacity: number;
+  /** El mínimo para que la experiencia se haga. Los cupos son del horario. */
   minCapacity?: number;
   basePrice: number;
   currency: 'COP' | 'USD';
@@ -780,7 +779,6 @@ export interface Reservation {
     title: string;
     category: string;
     duration: number;
-    capacity: number;
   };
   company: {
     _id: string;
@@ -951,9 +949,12 @@ export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'frida
 /**
  * Una franja horaria: el rango del día en que pueden empezar sesiones.
  *
- * `cupos` es el inventario de ESA franja. El almuerzo y la cena de un sábado
- * son dos cosas distintas y se llenan por separado; sin `cupos`, manda el
- * aforo de la experiencia.
+ * `cupos` es el inventario de ESA franja, y es lo único que dice cuánta gente
+ * cabe: el almuerzo y la cena de un sábado son dos cosas distintas y se llenan
+ * por separado. La experiencia ya no lleva aforo.
+ *
+ * Opcional en el tipo solo por los horarios anteriores a la regla; al guardar
+ * es obligatorio.
  */
 export interface Franja {
   startTime: string; // formato HH:mm (24h)

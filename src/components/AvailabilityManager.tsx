@@ -488,6 +488,16 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
       showError('Indica desde cuándo se aplica este horario');
       return;
     }
+
+    // Los cupos son de la franja: sin ellos no se sabe cuánta gente cabe a esa
+    // hora, y el día se vendería sin límite.
+    const sinCupos = Object.entries(weeklySchedule).find(
+      ([, d]) => d.isActive && (d.franjas ?? []).some((f: Franja) => !f.cupos || f.cupos < 1),
+    );
+    if (sinCupos) {
+      showError(`Ponle cupos a todas las franjas: falta en ${dayNames[sinCupos[0] as DayOfWeek]}`);
+      return;
+    }
     if (!schedule && !validUntil) {
       showError('Indica hasta cuándo se repite este horario');
       return;
@@ -567,8 +577,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
         endTime: ultima ? '18:00' : '13:00',
         // Los cupos se heredan de la franja anterior: quien pone 20 en el
         // almuerzo casi siempre pone 20 en la cena, y es un número menos que
-        // teclear. Si no, se deja vacío y manda el aforo de la experiencia.
-        cupos: ultima?.cupos ?? null,
+        // teclear.
+        cupos: ultima?.cupos ?? 10,
       };
 
       return {
@@ -780,16 +790,18 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                             className="flex-1 min-w-[110px] px-3 py-2 border border-gray-300 rounded-lg"
                           />
                           {/* Los cupos de ESTA franja: el almuerzo y la cena de
-                              un sábado se llenan por separado. Vacío = manda el
-                              aforo de la experiencia. */}
+                              un sábado se llenan por separado. Son obligatorios:
+                              sin ellos no se sabe cuánta gente cabe. */}
                           <input
                             type="number"
                             min="1"
                             aria-label="Cupos de esta franja"
                             value={franja.cupos ?? ''}
                             onChange={(e) => cambiarFranja(dayKey as DayOfWeek, i, 'cupos', e.target.value)}
-                            placeholder="Cupos"
-                            className="w-[92px] px-3 py-2 border border-gray-300 rounded-lg"
+                            placeholder="Cupos *"
+                            className={`w-[92px] px-3 py-2 border rounded-lg ${
+                              franja.cupos ? 'border-gray-300' : 'border-red-400 bg-red-50'
+                            }`}
                           />
                           {day.franjas.length > 1 && (
                             <button
@@ -804,8 +816,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                         </div>
                       ))}
                       <p className="text-xs text-gray-500">
-                        Los cupos son de cada franja. Si lo dejas vacío, manda el
-                        aforo de la experiencia.
+                        Los cupos son de cada franja: cuánta gente cabe a esa hora. El almuerzo y
+                        la cena de un sábado se llenan por separado.
                       </p>
                     </div>
                   )}

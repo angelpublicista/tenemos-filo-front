@@ -72,7 +72,7 @@ interface ApiReservation {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
-  experience?: { id: string; title: string; duration: number | null; capacity: number | null };
+  experience?: { id: string; title: string; duration: number | null };
   company?: { id: string; companyName: string; companyEmail: string | null; companyPhone: string | null };
   user?: { id: string; name: string | null; email: string; phone: string | null };
   location?: { id: string; name: string; address: unknown };
@@ -94,9 +94,8 @@ function toReservation(r: ApiReservation): Reservation {
           title: r.experience.title,
           category: '',
           duration: r.experience.duration ?? 0,
-          capacity: r.experience.capacity ?? 0,
         }
-      : { _id: r.experienceId, title: '', category: '', duration: 0, capacity: 0 },
+      : { _id: r.experienceId, title: '', category: '', duration: 0 },
     company: r.company
       ? {
           _id: r.company.id,

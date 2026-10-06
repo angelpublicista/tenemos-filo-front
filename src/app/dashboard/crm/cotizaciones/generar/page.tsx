@@ -386,7 +386,7 @@ export default function GenerarCotizacionPage() {
                           {exp.title}
                         </p>
                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                          {exp.duration} min • {exp.capacity} personas máx
+                          {exp.duration} min
                         </p>
                         <div className="flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-600">
                           <span className="text-gray-600 dark:text-gray-400 text-xs">

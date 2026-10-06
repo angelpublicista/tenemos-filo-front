@@ -130,8 +130,8 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
             </div>
             <div className="flex items-center text-sm text-gray-600">
               <HiUsers className="w-4 h-4 mr-2" />
-              {experience.capacity} personas máximo
-              {experience.minCapacity && ` (${experience.minCapacity} mínimo)`}
+              {/* Los cupos son del horario; aquí solo cabe el mínimo. */}
+              {experience.minCapacity ? `Mínimo ${experience.minCapacity} personas` : 'Sin mínimo'}
             </div>
             <div className="flex items-center text-sm text-gray-600">
               <HiCurrencyDollar className="w-4 h-4 mr-2" />
@@ -223,8 +223,7 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
               </div>
               <div className="flex items-center gap-1">
                 <HiUsers className="w-3 h-3" />
-                {experience.capacity} max
-                {experience.minCapacity && ` (${experience.minCapacity} min)`}
+                {experience.minCapacity ? `mín. ${experience.minCapacity}` : 'sin mínimo'}
               </div>
               <div className="flex items-center gap-1">
                 <HiCurrencyDollar className="w-3 h-3" />

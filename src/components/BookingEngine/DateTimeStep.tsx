@@ -6,7 +6,12 @@ import TimePicker from '@/components/TimePicker';
 import { HiArrowLeft, HiArrowRight, HiUsers } from 'react-icons/hi';
 import type { BookingExperience, BookingLocationAddress, SelectedAddon } from '@/components/BookingEngine/MotorReservas';
 import type { AvailabilitySchedule } from '@/types';
-import { condicionesDeSede, horariosDeSede } from '@/lib/experiencias/condicionesDeSede';
+import {
+  condicionesDeSede,
+  cuposDelDia,
+  cuposDeLaHora,
+  horariosDeSede,
+} from '@/lib/experiencias/condicionesDeSede';
 
 function formatPrice(price: number, currency: string) {
   return price.toLocaleString('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 });
@@ -207,17 +212,27 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   }, [date, schedules, experience.duration, condiciones.cleanupTime, condiciones.minimumNotice]);
 
   /**
-   * Las personas que de verdad caben en la sede elegida.
+   * Cuánta gente cabe: lo dice la FRANJA, no la experiencia.
    *
-   * Cambiar de sede puede cambiar el aforo: si en la finca caben 8 y se venía
-   * del local del centro, donde caben 20, el número se recorta aquí en vez de
-   * dejar que el API rechace la reserva al final. Se recorta al leerlo y no
-   * guardando otro valor: volver a la sede grande devuelve el número que la
-   * persona había elegido, en vez de dejarle el recorte puesto.
+   * El almuerzo y la cena de un sábado son dos inventarios distintos, así que
+   * el tope depende de la hora elegida. Mientras no hay hora, se ofrece el
+   * mayor del día: alguna franja lo admite.
+   */
+  const tope = useMemo(() => {
+    if (!date) return null;
+    return time ? cuposDeLaHora(schedules, date, time) : cuposDelDia(schedules, date);
+  }, [schedules, date, time]);
+
+  /**
+   * Las personas que de verdad caben.
+   *
+   * Se recorta al leerlo y no guardando otro valor: cambiar a una franja más
+   * grande devuelve el número que la persona había elegido, en vez de dejarle
+   * el recorte puesto.
    */
   const participants = Math.min(
     Math.max(personasElegidas, condiciones.minCapacity),
-    condiciones.capacity || personasElegidas,
+    tope || personasElegidas,
   );
 
   const canContinue = !!date && !!time && participants >= condiciones.minCapacity &&
@@ -322,7 +337,6 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
                         const propio = [
                           f?.kind === 'PRIVADA' ? 'solo para grupo completo' : '',
                           f?.basePrice != null ? `${formatPrice(f.basePrice, experience.currency ?? 'COP')} por persona` : '',
-                          f?.capacity != null ? `hasta ${f.capacity} personas` : '',
                         ].filter(Boolean);
                         return propio.length ? (
                           <span className="block text-xs text-gray-500 mt-0.5">{propio.join(' · ')}</span>
@@ -396,8 +410,8 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
               <span className="min-w-8 text-center text-lg font-bold text-gray-900">{participants}</span>
               <button
                 type="button"
-                onClick={() => setParticipants(Math.min(condiciones.capacity, participants + 1))}
-                disabled={participants >= condiciones.capacity}
+                onClick={() => setParticipants(tope ? Math.min(tope, participants + 1) : participants + 1)}
+                disabled={!!tope && participants >= tope}
                 className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-marca hover:text-marca disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
               >
                 +
@@ -406,7 +420,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
             <span className="text-xs text-gray-400 text-right">
               {condiciones.minCapacity > 1 ? `Mín. ${condiciones.minCapacity}` : ''}
               {condiciones.minCapacity > 1 ? <br /> : ''}
-              Máx. {condiciones.capacity}
+              {tope ? `Máx. ${tope}` : ''}
             </span>
           </div>
         </div>

@@ -38,11 +38,21 @@ function rigeEseDia(schedule: AvailabilitySchedule, date: Date): boolean {
   return true;
 }
 
-function getAvailableSlots(
+/**
+ * Las horas en que se puede empezar ese día.
+ *
+ * Tres cosas las recortan: que la franja tenga sitio para la duración más la
+ * limpieza, que la fecha caiga dentro de la vigencia del horario (TR-35), y
+ * la anticipación mínima de la experiencia, que ahora es suya y no del
+ * horario: un mismo calendario sirve a una cata que se reserva el mismo día y
+ * a una cena de quince que hay que comprar con dos días.
+ */
+function franjasDisponibles(
   date: Date,
   schedules: AvailabilitySchedule[],
   duration: number,
   limpieza = 0,
+  horasDeAviso = 0,
 ): string[] {
   if (!schedules || schedules.length === 0) {
     const defaults: string[] = [];
@@ -65,14 +75,17 @@ function getAvailableSlots(
    * tiempo a quien está reservando.
    */
   const ahora = Date.now();
+  const avisoMs = horasDeAviso * 3_600_000;
 
   schedules.forEach(schedule => {
     if (!rigeEseDia(schedule, date)) return;
-    const avisoMs = (schedule.minimumNotice ?? 0) * 3_600_000;
     const daySchedule = schedule.weeklySchedule?.[dayKey];
-    if (!daySchedule?.isActive || !daySchedule.timeSlots) return;
+    if (!daySchedule?.isActive) return;
 
-    daySchedule.timeSlots.forEach((slot: { startTime: string; endTime: string }) => {
+    // `franjas` es el nombre de ahora; `timeSlots` son los horarios guardados
+    // antes del renombre, que se siguen leyendo.
+    const franjas = daySchedule.franjas ?? daySchedule.timeSlots ?? [];
+    franjas.forEach((slot: { startTime: string; endTime: string }) => {
       const [sh, sm] = slot.startTime.split(':').map(Number);
       const [eh, em] = slot.endTime.split(':').map(Number);
       const startMin = sh * 60 + sm;
@@ -160,15 +173,16 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
 
   useEffect(() => {
     if (!date) { setSlots([]); setTime(''); return; }
-    const newSlots = getAvailableSlots(
+    const newSlots = franjasDisponibles(
       date,
       schedules,
       experience.duration ?? 60,
       experience.cleanupTime ?? 0,
+      experience.minimumNotice ?? 0,
     );
     setSlots(newSlots);
     setTime('');
-  }, [date, schedules, experience.duration, experience.cleanupTime]);
+  }, [date, schedules, experience.duration, experience.cleanupTime, experience.minimumNotice]);
 
   const canContinue = !!date && !!time && participants >= (experience.minCapacity ?? 1) &&
     (!isPresential || !hasLocations || !!locationId);

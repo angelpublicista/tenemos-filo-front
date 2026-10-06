@@ -41,6 +41,10 @@ const experienceSchema = z.object({
   // falta montaje que no haberlo pensado todavía.
   prepTime: z.number().int().min(0).max(1440).optional(),
   cleanupTime: z.number().int().min(0).max(1440).optional(),
+  // La anticipación mínima, en horas. Es de la experiencia: un mismo
+  // calendario sirve a una cata que se reserva el mismo día y a una cena de
+  // quince que hay que comprar con dos días.
+  minimumNotice: z.number().int().min(0).max(8760).optional(),
   capacity: z.number().min(1, 'La capacidad debe ser al menos 1').max(100, 'La capacidad máxima es 100'),
   minCapacity: z.number().min(1).optional(),
   basePrice: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
@@ -80,7 +84,6 @@ function EditExperiencePageContenido() {
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
   const [showCustomSchedule, setShowCustomSchedule] = useState(false);
   const [customScheduleName, setCustomScheduleName] = useState('');
-  const [customMinimumNotice, setCustomMinimumNotice] = useState(24);
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -159,6 +162,7 @@ function EditExperiencePageContenido() {
           duration: experienceData.duration,
           prepTime: experienceData.prepTime ?? undefined,
           cleanupTime: experienceData.cleanupTime ?? undefined,
+          minimumNotice: experienceData.minimumNotice ?? undefined,
           capacity: experienceData.capacity,
           minCapacity: experienceData.minCapacity,
           basePrice: experienceData.basePrice,
@@ -517,8 +521,6 @@ function EditExperiencePageContenido() {
               ...vigenciaPorDefecto(),
               blockedDates: [],
               notes: 'Calendario generado automáticamente. Personaliza los horarios según tus necesidades.',
-              bufferTime: 0,
-              minimumNotice: customMinimumNotice,
             });
             finalScheduleIds.push(newSchedule._id);
           }
@@ -539,6 +541,7 @@ function EditExperiencePageContenido() {
         // dejarlo sin mandar conservaría el valor viejo para siempre.
         prepTime: data.prepTime ?? null,
         cleanupTime: data.cleanupTime ?? null,
+        minimumNotice: data.minimumNotice ?? null,
         capacity: data.capacity,
         minCapacity: data.minCapacity,
         basePrice: data.basePrice,
@@ -731,7 +734,7 @@ function EditExperiencePageContenido() {
             {/* TR-19. Lo que ocupa además de sí misma. La agenda lo cuenta:
                 una cena de tres horas no deja el sitio libre a las tres. */}
             <div>
-              <Label htmlFor="prepTime">Montaje antes (minutos)</Label>
+              <Label htmlFor="prepTime">Preparación (minutos)</Label>
               <TextInput
                 {...register('prepTime', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
                 type="number"
@@ -741,7 +744,8 @@ function EditExperiencePageContenido() {
                 placeholder="0"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Lo que tardas en preparar el sitio. Queda ocupado en tu agenda.
+                Lo que tardas en montar antes de empezar. Queda ocupado en tu
+                agenda, así que no se te cruza otra cosa.
               </p>
             </div>
 
@@ -757,6 +761,25 @@ function EditExperiencePageContenido() {
               />
               <p className="text-xs text-gray-500 mt-1">
                 Lo que tardas en recoger. Tampoco cabe otra cosa en ese rato.
+              </p>
+            </div>
+
+            {/* La anticipación es de la experiencia, no del horario: un mismo
+                calendario sirve a una cata que se reserva el mismo día y a una
+                cena de quince que hay que comprar con dos días. */}
+            <div>
+              <Label htmlFor="minimumNotice">Anticipación mínima (horas)</Label>
+              <TextInput
+                {...register('minimumNotice', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
+                type="number"
+                min="0"
+                max="8760"
+                className="mt-1"
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                No se aceptan reservas con menos, ni siquiera si se libera un
+                cupo a última hora.
               </p>
             </div>
           </div>
@@ -1032,20 +1055,6 @@ function EditExperiencePageContenido() {
                   onChange={(e) => setCustomScheduleName(e.target.value)}
                   className="mt-1"
                 />
-              </div>
-              <div>
-                <Label>Aviso Mínimo (horas)</Label>
-                <TextInput
-                  type="number"
-                  placeholder="24"
-                  value={customMinimumNotice}
-                  onChange={(e) => setCustomMinimumNotice(parseInt(e.target.value) || 24)}
-                  min="1"
-                  className="mt-1"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Anticipación mínima para reservas
-                </p>
               </div>
             </div>
           </div>

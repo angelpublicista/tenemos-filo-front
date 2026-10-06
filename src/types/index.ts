@@ -448,11 +448,22 @@ export interface Experience {
   categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
   duration: number; // minutos
   /**
-   * TR-19. Lo que ocupa además de sí misma: montar antes y recoger después.
+   * TR-19. Lo que ocupa además de sí misma: preparar antes y recoger después.
    * En ese rato no cabe otra cosa, y la agenda del anfitrión lo cuenta.
+   *
+   * `prepTime` absorbió el viejo «buffer» del horario, que era lo mismo visto
+   * desde el otro lado —tiempo entre reservas— y vivía en el sitio equivocado.
    */
   prepTime?: number | null;
   cleanupTime?: number | null;
+  /**
+   * Anticipación mínima para reservarla, en horas.
+   *
+   * Es de la experiencia y no del horario: un mismo calendario sirve a una
+   * cata que se reserva el mismo día y a una cena de quince que hay que
+   * comprar con dos días de antelación.
+   */
+  minimumNotice?: number | null;
   capacity: number;
   minCapacity?: number;
   basePrice: number;
@@ -558,9 +569,10 @@ export interface CreateExperienceData {
   description: string;
   categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
   duration: number;
-  /** TR-19. Montaje y limpieza, en minutos. */
+  /** Preparación y limpieza, en minutos; anticipación mínima, en horas. */
   prepTime?: number | null;
   cleanupTime?: number | null;
+  minimumNotice?: number | null;
   capacity: number;
   minCapacity?: number;
   basePrice: number;
@@ -902,14 +914,24 @@ export interface IntegrationSyncJob {
 // Tipos para disponibilidad
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
-export interface TimeSlot {
+/**
+ * Una franja horaria: el rango del día en que pueden empezar sesiones.
+ *
+ * `cupos` es el inventario de ESA franja. El almuerzo y la cena de un sábado
+ * son dos cosas distintas y se llenan por separado; sin `cupos`, manda el
+ * aforo de la experiencia.
+ */
+export interface Franja {
   startTime: string; // formato HH:mm (24h)
   endTime: string; // formato HH:mm (24h)
+  cupos?: number | null;
 }
 
 export interface DaySchedule {
   isActive: boolean; // Si el día está activo o no
-  timeSlots: TimeSlot[];
+  franjas: Franja[];
+  /** Horarios guardados antes del renombre. Se leen, no se escriben. */
+  timeSlots?: Franja[];
 }
 
 export interface WeeklySchedule {
@@ -944,8 +966,9 @@ export interface AvailabilitySchedule {
   isActive: boolean; // Si este calendario está activo
   description?: string;
   weeklySchedule: WeeklySchedule;
-  bufferTime: number; // Tiempo de buffer entre reservas (minutos)
-  minimumNotice: number; // Aviso mínimo para reservas (horas)
+  // La preparación y el aviso mínimo ya no viven aquí: son de la experiencia.
+  // Un mismo horario sirve a experiencias que necesitan preparaciones y
+  // anticipaciones muy distintas, y tenerlos aquí obligaba a elegir una.
   /**
    * TR-35. Desde y hasta cuándo se repite este horario, en "YYYY-MM-DD".
    *
@@ -969,8 +992,7 @@ export interface CreateAvailabilityScheduleData {
   isActive?: boolean;
   description?: string;
   weeklySchedule: WeeklySchedule;
-  bufferTime?: number;
-  minimumNotice?: number;
+
   /** TR-35. Obligatorias al crear: un horario sin corte no caduca nunca. */
   validFrom: string;
   validUntil: string;

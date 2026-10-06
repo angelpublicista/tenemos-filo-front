@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import {
   AvailabilitySchedule,
-  TimeSlot,
+  Franja,
   BlockedDate,
   DayOfWeek,
   Location,
@@ -24,6 +25,7 @@ import {
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
   AiOutlinePlus,
+  AiOutlineCopy,
   AiOutlineEdit,
   AiOutlineDelete,
   AiOutlineStar,
@@ -356,11 +358,11 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                   <span className="sm:hidden">{dayNames[dayKey].substring(0, 1)}</span>
                   <span className="hidden sm:inline">{dayNames[dayKey].substring(0, 3)}</span>
                 </div>
-                {day.isActive && day.timeSlots.length > 0 && (
+                {day.isActive && day.franjas.length > 0 && (
                   <div className="text-[10px] sm:text-xs text-gray-600 mt-0.5 sm:mt-1">
-                    <span className="sm:hidden">{day.timeSlots.length}</span>
+                    <span className="sm:hidden">{day.franjas.length}</span>
                     <span className="hidden sm:inline">
-                      {day.timeSlots.length} slot{day.timeSlots.length > 1 ? 's' : ''}
+                      {day.franjas.length} franja{day.franjas.length > 1 ? 's' : ''}
                     </span>
                   </div>
                 )}
@@ -417,8 +419,10 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   // cursor quedaba detras, asi que teclear "45" daba "045" y teclear "4"
   // dejaba "04". En la practica el campo no se dejaba cambiar. El numero se
   // resuelve al guardar, que es cuando hace falta que sea un numero.
-  const [bufferTime, setBufferTime] = useState(String(schedule?.bufferTime ?? 0));
-  const [minimumNotice, setMinimumNotice] = useState(String(schedule?.minimumNotice ?? 24));
+  //
+  // La preparación y el aviso mínimo ya no están aquí: son de la experiencia.
+  // Un mismo horario sirve a experiencias que necesitan preparaciones y
+  // anticipaciones muy distintas, y tenerlos aquí obligaba a elegir una.
   // TR-35. Desde y hasta cuándo se repite. Un horario nuevo arranca hoy y
   // dura un año: suficiente para no chocar con el corte mientras se monta el
   // catálogo, y poco para que no quede una agenda abierta por décadas.
@@ -439,19 +443,12 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
    * Un campo vacio no es un error: significa "lo normal". Fallar ahi obligaria
    * a escribir un cero para decir que no hay buffer.
    */
-  const aNumero = (valor: string, porDefecto: number, minimo: number) => {
-    const n = Number.parseInt(valor, 10);
-    return Number.isFinite(n) && n >= minimo ? n : porDefecto;
-  };
 
   const handleSave = async () => {
     if (!name.trim()) {
       showError('Por favor ingresa un nombre para el calendario');
       return;
     }
-
-    const buffer = aNumero(bufferTime, 0, 0);
-    const aviso = aNumero(minimumNotice, 24, 1);
 
     if (!validFrom) {
       showError('Indica desde cuándo se aplica este horario');
@@ -477,8 +474,6 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           weeklySchedule,
           blockedDates,
           notes,
-          bufferTime: buffer,
-          minimumNotice: aviso,
           validFrom,
           // Vacío vuelve a «sin fecha final», que es lo que hacían los
           // horarios creados antes de esta regla.
@@ -500,8 +495,6 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           weeklySchedule,
           blockedDates,
           notes,
-          bufferTime: buffer,
-          minimumNotice: aviso,
           validFrom,
           validUntil,
         });
@@ -527,50 +520,117 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
     }));
   };
 
-  const handleAddTimeSlot = (day: DayOfWeek) => {
+  const agregarFranja = (day: DayOfWeek) => {
     setWeeklySchedule(prev => {
       const daySchedule = prev[day];
-      const lastSlot = daySchedule.timeSlots[daySchedule.timeSlots.length - 1];
-      const newSlot: TimeSlot = {
-        startTime: lastSlot ? lastSlot.endTime : '09:00',
-        endTime: lastSlot ? '18:00' : '13:00',
+      const ultima = daySchedule.franjas[daySchedule.franjas.length - 1];
+      const nueva: Franja = {
+        startTime: ultima ? ultima.endTime : '09:00',
+        endTime: ultima ? '18:00' : '13:00',
+        // Los cupos se heredan de la franja anterior: quien pone 20 en el
+        // almuerzo casi siempre pone 20 en la cena, y es un número menos que
+        // teclear. Si no, se deja vacío y manda el aforo de la experiencia.
+        cupos: ultima?.cupos ?? null,
       };
 
       return {
         ...prev,
-        [day]: {
-          ...daySchedule,
-          timeSlots: [...daySchedule.timeSlots, newSlot],
-        },
+        [day]: { ...daySchedule, franjas: [...daySchedule.franjas, nueva] },
       };
     });
   };
 
-  const handleRemoveTimeSlot = (day: DayOfWeek, slotIndex: number) => {
+  const quitarFranja = (day: DayOfWeek, i: number) => {
     setWeeklySchedule(prev => ({
       ...prev,
       [day]: {
         ...prev[day],
-        timeSlots: prev[day].timeSlots.filter((_, index) => index !== slotIndex),
+        franjas: prev[day].franjas.filter((_, index) => index !== i),
       },
     }));
   };
 
-  const handleTimeSlotChange = (
+  const cambiarFranja = (
     day: DayOfWeek,
-    slotIndex: number,
-    field: 'startTime' | 'endTime',
-    value: string
+    i: number,
+    campo: 'startTime' | 'endTime' | 'cupos',
+    valor: string,
   ) => {
     setWeeklySchedule(prev => ({
       ...prev,
       [day]: {
         ...prev[day],
-        timeSlots: prev[day].timeSlots.map((slot, index) =>
-          index === slotIndex ? { ...slot, [field]: value } : slot
+        franjas: prev[day].franjas.map((f, index) =>
+          index === i
+            ? {
+                ...f,
+                // Vacío significa "sin cupos propios": manda el aforo de la
+                // experiencia. Guardar 0 sería decir que no cabe nadie.
+                [campo]: campo === 'cupos' ? (valor === '' ? null : Number(valor)) : valor,
+              }
+            : f,
         ),
       },
     }));
+  };
+
+  /**
+   * Copia las franjas de un día a otros.
+   *
+   * Un horario de restaurante es el mismo de martes a domingo: teclear siete
+   * veces lo mismo es la forma de que nadie lo configure. Se copian las
+   * franjas con sus cupos, y los días que reciben quedan activos.
+   */
+  const replicarDia = async (origen: DayOfWeek) => {
+    const franjas = weeklySchedule[origen].franjas;
+    if (franjas.length === 0) {
+      showError('Ese día no tiene franjas', 'Agrega al menos una antes de replicarla.');
+      return;
+    }
+
+    const otros = daysOrder.filter((d) => d !== origen);
+    const { value, isConfirmed } = await Swal.fire({
+      title: `Replicar ${dayNames[origen]}`,
+      html: `
+        <p style="font-size:13px;color:#6b7280;margin:0 0 10px;text-align:left">
+          Se copian sus ${franjas.length === 1 ? 'franja' : `${franjas.length} franjas`} con
+          sus cupos. Lo que esos días tengan ahora se reemplaza.
+        </p>
+        <div style="text-align:left;font-size:14px">
+          ${otros
+            .map(
+              (d) => `
+            <label style="display:flex;align-items:center;gap:8px;margin:6px 0">
+              <input type="checkbox" id="dia-${d}" checked style="width:16px;height:16px">
+              ${dayNames[d]}
+            </label>`,
+            )
+            .join('')}
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: 'Replicar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#F26726',
+      preConfirm: () =>
+        otros.filter(
+          (d) => (document.getElementById(`dia-${d}`) as HTMLInputElement | null)?.checked,
+        ),
+    });
+    if (!isConfirmed || !Array.isArray(value) || value.length === 0) return;
+
+    setWeeklySchedule(prev => {
+      const siguiente = { ...prev };
+      for (const d of value as DayOfWeek[]) {
+        siguiente[d] = {
+          isActive: true,
+          // Copia, no referencia: si se comparte el array, editar un día
+          // edita todos y nadie entiende por qué.
+          franjas: franjas.map((f) => ({ ...f })),
+        };
+      }
+      return siguiente;
+    });
+    showSuccess('Franjas replicadas', `Se copiaron a ${value.length} día(s).`);
   };
 
   return (
@@ -636,43 +696,79 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                       </span>
                     </div>
                     {day.isActive && (
-                      <button
-                        onClick={() => handleAddTimeSlot(dayKey as DayOfWeek)}
-                        className="text-sm text-[#F26726] hover:text-[#d9571f] flex items-center"
-                      >
-                        <AiOutlinePlus className="mr-1" />
-                        Agregar franja horaria
-                      </button>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* Replicar: un horario de restaurante es el mismo de
+                            martes a domingo, y teclear siete veces lo mismo es
+                            la forma de que nadie lo configure. */}
+                        {day.franjas.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => void replicarDia(dayKey as DayOfWeek)}
+                            className="flex items-center text-sm text-gray-600 hover:text-[#F26726]"
+                          >
+                            <AiOutlineCopy className="mr-1" />
+                            Replicar a otros días
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => agregarFranja(dayKey as DayOfWeek)}
+                          className="text-sm text-[#F26726] hover:text-[#d9571f] flex items-center"
+                        >
+                          <AiOutlinePlus className="mr-1" />
+                          Agregar franja horaria
+                        </button>
+                      </div>
                     )}
                   </div>
 
                   {day.isActive && (
                     <div className="space-y-2 ml-0 sm:ml-8">
-                      {day.timeSlots.map((slot: TimeSlot, slotIndex: number) => (
-                        <div key={slotIndex} className="flex flex-wrap items-center gap-2">
+                      {day.franjas.map((franja: Franja, i: number) => (
+                        <div key={i} className="flex flex-wrap items-center gap-2">
                           <input
                             type="time"
-                            value={slot.startTime}
-                            onChange={(e) => handleTimeSlotChange(dayKey as DayOfWeek, slotIndex, 'startTime', e.target.value)}
-                            className="flex-1 min-w-[120px] px-3 py-2 border border-gray-300 rounded-lg"
+                            aria-label="Desde"
+                            value={franja.startTime}
+                            onChange={(e) => cambiarFranja(dayKey as DayOfWeek, i, 'startTime', e.target.value)}
+                            className="flex-1 min-w-[110px] px-3 py-2 border border-gray-300 rounded-lg"
                           />
                           <span className="text-gray-500">-</span>
                           <input
                             type="time"
-                            value={slot.endTime}
-                            onChange={(e) => handleTimeSlotChange(dayKey as DayOfWeek, slotIndex, 'endTime', e.target.value)}
-                            className="flex-1 min-w-[120px] px-3 py-2 border border-gray-300 rounded-lg"
+                            aria-label="Hasta"
+                            value={franja.endTime}
+                            onChange={(e) => cambiarFranja(dayKey as DayOfWeek, i, 'endTime', e.target.value)}
+                            className="flex-1 min-w-[110px] px-3 py-2 border border-gray-300 rounded-lg"
                           />
-                          {day.timeSlots.length > 1 && (
+                          {/* Los cupos de ESTA franja: el almuerzo y la cena de
+                              un sábado se llenan por separado. Vacío = manda el
+                              aforo de la experiencia. */}
+                          <input
+                            type="number"
+                            min="1"
+                            aria-label="Cupos de esta franja"
+                            value={franja.cupos ?? ''}
+                            onChange={(e) => cambiarFranja(dayKey as DayOfWeek, i, 'cupos', e.target.value)}
+                            placeholder="Cupos"
+                            className="w-[92px] px-3 py-2 border border-gray-300 rounded-lg"
+                          />
+                          {day.franjas.length > 1 && (
                             <button
-                              onClick={() => handleRemoveTimeSlot(dayKey as DayOfWeek, slotIndex)}
+                              type="button"
+                              onClick={() => quitarFranja(dayKey as DayOfWeek, i)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg shrink-0"
+                              aria-label="Quitar esta franja"
                             >
                               <AiOutlineDelete />
                             </button>
                           )}
                         </div>
                       ))}
+                      <p className="text-xs text-gray-500">
+                        Los cupos son de cada franja. Si lo dejas vacío, manda el
+                        aforo de la experiencia.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -681,43 +777,15 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
             </div>
           </div>
 
-          {/* Additional Settings */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tiempo de buffer (minutos)
-              </label>
-              <input
-                type="number"
-                value={bufferTime}
-                onChange={(e) => setBufferTime(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                placeholder="0"
-                min="0"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Tiempo entre reservas consecutivas
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Aviso mínimo (horas)
-              </label>
-              <input
-                type="number"
-                value={minimumNotice}
-                onChange={(e) => setMinimumNotice(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                placeholder="24"
-                min="1"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {/* TR-06. Decir qué hace de verdad: no es un consejo, es un
-                    corte, y vale también cuando alguien cancela a última hora. */}
-                No se aceptan reservas con menos anticipación, ni siquiera si
-                se libera un cupo
-              </p>
-            </div>
+          {/* La preparación y el aviso mínimo se piden en la experiencia, no
+              aquí: un mismo horario sirve a una cata que se monta en diez
+              minutos y a un taller que necesita una hora, y guardarlos aquí
+              obligaba a elegir una de las dos. */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <p className="text-xs text-gray-600">
+              La preparación y la anticipación mínima se configuran en cada
+              experiencia, porque dependen de lo que se vende y no del día.
+            </p>
           </div>
 
           {/* TR-35. Hasta cuándo se repite. Sin fecha final, el calendario

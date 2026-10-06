@@ -133,7 +133,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   // Nota: Las cantidades de addons "por persona" ahora se pueden seleccionar manualmente
   // No se auto-ajustan cuando cambian los participantes para permitir flexibilidad al usuario
 
-  // Obtener slots disponibles según la experiencia y el día seleccionado
+  // Las horas en que se puede empezar, según las franjas del día
   useEffect(() => {
     const getAvailableSlots = () => {
       if (!selectedExperience || !selectedDate) {
@@ -182,17 +182,19 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         
         const daySchedule = schedule.weeklySchedule[dayOfWeek];
         
-        if (!daySchedule || !daySchedule.isActive || !daySchedule.timeSlots) return;
+        if (!daySchedule || !daySchedule.isActive) return;
 
-        // Generar slots de tiempo basados en los timeSlots del día
-        daySchedule.timeSlots.forEach((timeSlot: { startTime: string; endTime: string }) => {
-          const [startHour, startMin] = timeSlot.startTime.split(':').map(Number);
-          const [endHour, endMin] = timeSlot.endTime.split(':').map(Number);
+        // `franjas` es el nombre de ahora; `timeSlots` son los horarios
+        // guardados antes del renombre, que se siguen leyendo.
+        const franjas = daySchedule.franjas ?? daySchedule.timeSlots ?? [];
+        franjas.forEach((franja: { startTime: string; endTime: string }) => {
+          const [startHour, startMin] = franja.startTime.split(':').map(Number);
+          const [endHour, endMin] = franja.endTime.split(':').map(Number);
           
           const startMinutes = startHour * 60 + startMin;
           const endMinutes = endHour * 60 + endMin;
           
-          // Generar slots cada 30 minutos dentro del rango
+          // Una hora de inicio cada 30 minutos dentro de la franja
           for (let minutes = startMinutes; minutes + experienceDuration <= endMinutes; minutes += 30) {
             const hours = Math.floor(minutes / 60);
             const mins = minutes % 60;

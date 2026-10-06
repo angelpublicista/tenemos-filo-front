@@ -18,8 +18,6 @@ type ApiAvailabilityCruda = {
   id: string;
   name: string;
   weeklySchedule: unknown;
-  bufferTime: number;
-  minimumNotice: number;
   blockedDates: string[];
   validFrom?: string | null;
   validUntil?: string | null;
@@ -55,8 +53,6 @@ function aHorario(a: ApiAvailabilityCruda): AvailabilitySchedule {
     isMain: false,
     isActive: true,
     weeklySchedule: a.weeklySchedule as AvailabilitySchedule['weeklySchedule'],
-    bufferTime: a.bufferTime,
-    minimumNotice: a.minimumNotice,
     validFrom: a.validFrom ? a.validFrom.slice(0, 10) : undefined,
     validUntil: a.validUntil ? a.validUntil.slice(0, 10) : null,
     blockedDates: (a.blockedDates ?? []).map((d) => ({ date: d })),

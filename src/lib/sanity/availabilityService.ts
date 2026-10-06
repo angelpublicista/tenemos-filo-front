@@ -17,8 +17,6 @@ interface ApiAvailability {
   isMain: boolean;
   isActive: boolean;
   weeklySchedule: WeeklySchedule;
-  bufferTime: number;
-  minimumNotice: number;
   notes: string | null;
   blockedDates: string[];
   validFrom?: string | null;
@@ -37,9 +35,10 @@ function toSchedule(a: ApiAvailability): AvailabilitySchedule {
     isMain: a.isMain,
     isActive: a.isActive,
     description: a.description ?? undefined,
-    weeklySchedule: a.weeklySchedule,
-    bufferTime: a.bufferTime,
-    minimumNotice: a.minimumNotice,
+    // Lo que llega puede traer `franjas` o, si es un horario de antes del
+    // renombre, `timeSlots`. Se normaliza aquí para que el resto del front
+    // tenga una sola forma que mirar.
+    weeklySchedule: aFranjas(a.weeklySchedule),
     // Solo el día: la vigencia se piensa y se escribe en días, y la hora que
     // trae el ISO no significa nada aquí.
     validFrom: a.validFrom ? a.validFrom.slice(0, 10) : undefined,
@@ -79,8 +78,6 @@ export const createAvailabilitySchedule = async (
     isMain: data.isMain,
     isActive: data.isActive,
     weeklySchedule: data.weeklySchedule,
-    bufferTime: data.bufferTime,
-    minimumNotice: data.minimumNotice,
     validFrom: data.validFrom,
     validUntil: data.validUntil,
     notes: data.notes,
@@ -150,8 +147,6 @@ export const updateAvailabilitySchedule = async (
       isMain: rest.isMain,
       isActive: rest.isActive,
       weeklySchedule: rest.weeklySchedule,
-      bufferTime: rest.bufferTime,
-      minimumNotice: rest.minimumNotice,
       validFrom: rest.validFrom,
       validUntil: rest.validUntil,
       notes: rest.notes,
@@ -186,42 +181,55 @@ export const getPrimaryScheduleByLocation = async (
   return items[0] ? toSchedule(items[0]) : null;
 };
 
+/** Normaliza un horario a `franjas`, venga como venga. */
+function aFranjas(semana: WeeklySchedule): WeeklySchedule {
+  const salida = {} as WeeklySchedule;
+  for (const [dia, valor] of Object.entries(semana ?? {})) {
+    const d = valor as { isActive?: boolean; franjas?: unknown[]; timeSlots?: unknown[] };
+    salida[dia as keyof WeeklySchedule] = {
+      isActive: d?.isActive ?? false,
+      franjas: (d?.franjas ?? d?.timeSlots ?? []) as WeeklySchedule['monday']['franjas'],
+    };
+  }
+  return salida;
+}
+
 export const generateDefaultSchedule = (): WeeklySchedule => ({
   monday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
   tuesday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
   wednesday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
   thursday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
   friday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
-  saturday: { isActive: false, timeSlots: [] },
-  sunday: { isActive: false, timeSlots: [] },
+  saturday: { isActive: false, franjas: [] },
+  sunday: { isActive: false, franjas: [] },
 });

@@ -467,6 +467,11 @@ export interface Experience {
   };
   description: string;
   categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
+  /**
+   * En qué idiomas se da. Códigos ISO 639-1; vacío es «no se declaró», no
+   * «solo español»: nadie lo ha dicho.
+   */
+  languages?: string[];
   duration: number; // minutos
   /**
    * TR-19. Lo que ocupa además de sí misma: preparar antes y recoger después.
@@ -605,6 +610,11 @@ export interface CreateExperienceData {
   company: string; // company ID
   description: string;
   categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
+  /**
+   * En qué idiomas se da. Códigos ISO 639-1; vacío es «no se declaró», no
+   * «solo español»: nadie lo ha dicho.
+   */
+  languages?: string[];
   duration: number;
   /** Preparación y limpieza, en minutos; anticipación mínima, en horas. */
   prepTime?: number | null;
@@ -828,6 +838,8 @@ export interface Reservation {
   };
   /** Dónde se presta, cuando la experiencia es a domicilio. */
   serviceAddress?: string;
+  /** El idioma que pidió, de los que la experiencia ofrece. */
+  language?: string;
   specialRequirements?: string;
   cancellation?: ReservationCancellation;
   rescheduling?: ReservationRescheduling;
@@ -852,6 +864,8 @@ export interface CreateReservationData {
   location?: string;
   /** Dónde se presta, cuando la experiencia es a domicilio. */
   serviceAddress?: string;
+  /** El idioma que pidió, de los que la experiencia ofrece. */
+  language?: string;
   specialRequirements?: string;
   notes?: string;
 }

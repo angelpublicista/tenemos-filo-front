@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { HiX, HiClock, HiUsers, HiLocationMarker, HiCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
+import { HiX, HiClock, HiUsers, HiLocationMarker, HiCheck, HiChevronLeft, HiChevronRight, HiTranslate } from 'react-icons/hi';
+import { listaDeIdiomas } from '@/lib/idiomas';
 import type { BookingExperience, BookingLocationAddress } from '@/components/BookingEngine/MotorReservas';
 import MapaUbicacion from '@/components/MapaUbicacion';
 import MediosDeSede from '@/components/BookingEngine/MediosDeSede';
@@ -208,6 +209,18 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                 <p className="text-sm font-semibold text-gray-900">{experience.presentialCity}</p>
               </div>
             ) : null}
+            {/* Solo si se declararon. Vacío no es "en español": nadie lo
+                dijo, y afirmarlo aquí sería prometer por el anfitrión. */}
+            {(experience.languages?.length ?? 0) > 0 && (
+              <div className="bg-gray-50 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+                  <HiTranslate className="w-3.5 h-3.5" /> Idiomas
+                </div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {listaDeIdiomas(experience.languages ?? [])}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Incluye */}

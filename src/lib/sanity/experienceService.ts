@@ -21,6 +21,7 @@ export interface ApiExperience {
   slug: string;
   description: string | null;
   categories: string[];
+  languages: string[];
   duration: number | null;
   prepTime?: number | null;
   cleanupTime?: number | null;
@@ -119,6 +120,7 @@ export function toExperience(e: ApiExperience): Experience {
     company: { _ref: e.companyId, _type: 'reference' },
     description: e.description ?? '',
     categories: (e.categories ?? []) as Experience['categories'],
+    languages: e.languages ?? [],
     duration: e.duration ?? 0,
     prepTime: e.prepTime ?? null,
     cleanupTime: e.cleanupTime ?? null,
@@ -200,6 +202,7 @@ function buildCreatePayload(data: CreateExperienceData): Record<string, unknown>
     company: data.company,
     description: data.description,
     categories: data.categories,
+    languages: data.languages ?? [],
     duration: data.duration,
     prepTime: data.prepTime ?? null,
     cleanupTime: data.cleanupTime ?? null,
@@ -235,6 +238,7 @@ function buildUpdatePayload(data: UpdateExperienceData): Record<string, unknown>
   if (data.title !== undefined) out.title = data.title;
   if (data.description !== undefined) out.description = data.description;
   if (data.categories !== undefined) out.categories = data.categories;
+  if (data.languages !== undefined) out.languages = data.languages;
   if (data.duration !== undefined) out.duration = data.duration;
   if (data.prepTime !== undefined) out.prepTime = data.prepTime;
   if (data.cleanupTime !== undefined) out.cleanupTime = data.cleanupTime;

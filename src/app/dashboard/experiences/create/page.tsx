@@ -32,6 +32,7 @@ import Loader from '@/components/Loader';
 import { ImageUpload, GalleryUpload } from '@/components/ImageUpload';
 import Link from 'next/link';
 import PrecioInput from '@/components/PrecioInput';
+import IdiomasInput from '@/components/IdiomasInput';
 
 // Esquema de validación
 const experienceSchema = z.object({
@@ -89,6 +90,9 @@ function CreateExperiencePageContenido() {
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  // En qué idiomas la da. Opcional: lo que ya existe no los tiene declarados
+  // y se sigue vendiendo igual.
+  const [idiomas, setIdiomas] = useState<string[]>([]);
 
   const {
     register,
@@ -357,6 +361,7 @@ function CreateExperiencePageContenido() {
       const experienceData: CreateExperienceData = {
         ...data,
         categories: selectedCategories as ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[],
+        languages: idiomas,
         company: company._id,
         requirements: requirements.filter(req => req.trim() !== ''),
         includes: includes.filter(inc => inc.trim() !== ''),
@@ -562,6 +567,10 @@ function CreateExperiencePageContenido() {
               {selectedCategories.length === 0 && (
                 <p className="text-red-500 text-sm mt-1">Selecciona al menos una categoría</p>
               )}
+            </div>
+
+            <div className="lg:col-span-2">
+              <IdiomasInput valor={idiomas} onChange={setIdiomas} />
             </div>
 
             <div>

@@ -65,6 +65,7 @@ interface ApiReservation {
   paymentDetails: Record<string, unknown> | null;
   locationId: string | null;
   serviceAddress: string | null;
+  language: string | null;
   specialRequirements: string | null;
   cancellation: Reservation['cancellation'] | null;
   rescheduling: Reservation['rescheduling'] | null;
@@ -136,6 +137,7 @@ function toReservation(r: ApiReservation): Reservation {
         }
       : undefined,
     serviceAddress: r.serviceAddress ?? undefined,
+    language: r.language ?? undefined,
     specialRequirements: r.specialRequirements ?? undefined,
     cancellation: r.cancellation ?? undefined,
     rescheduling: r.rescheduling ?? undefined,
@@ -163,6 +165,7 @@ export const createReservationInSanity = async (data: CreateReservationData) => 
     paymentDetails: data.paymentDetails,
     location: data.location,
     serviceAddress: data.serviceAddress,
+    language: data.language,
     specialRequirements: data.specialRequirements,
     notes: data.notes,
   });
@@ -221,6 +224,7 @@ export const updateReservationInSanity = async (data: UpdateReservationData) => 
   if (rest.paymentDetails !== undefined) body.paymentDetails = rest.paymentDetails;
   if (rest.location !== undefined) body.location = rest.location;
   if (rest.serviceAddress !== undefined) body.serviceAddress = rest.serviceAddress;
+  if (rest.language !== undefined) body.language = rest.language;
   if (rest.specialRequirements !== undefined) body.specialRequirements = rest.specialRequirements;
   if (rest.notes !== undefined) body.notes = rest.notes;
 
@@ -478,6 +482,8 @@ export interface CreatePublicReservationData {
   location?: string;
   /** Dónde hay que ir, cuando la experiencia es a domicilio. */
   serviceAddress?: string;
+  /** El idioma que pidió, de los que la experiencia declara. */
+  language?: string;
   reservationDate: string;
   participants: number;
   specialRequests?: string;
@@ -529,6 +535,7 @@ export const createPublicReservation = async (
       ...(data.solicitudToken ? { solicitudToken: data.solicitudToken } : {}),
       location: data.location,
       ...(data.serviceAddress ? { serviceAddress: data.serviceAddress } : {}),
+      ...(data.language ? { language: data.language } : {}),
       client: data.guestInfo,
       reservationDate: data.reservationDate,
       participants: data.participants,

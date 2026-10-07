@@ -24,6 +24,7 @@ import {
   HiChevronLeft,
   HiChevronRight,
   HiPlus,
+  HiTranslate,
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -39,6 +40,7 @@ import CreateReservationModal from '@/components/CreateReservationModal';
 import OportunidadesDelDia from '@/components/CRM/OportunidadesDelDia';
 import { getAgenda, oportunidadesDelDia, type OportunidadEnAgenda } from '@/lib/crm/agenda';
 import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
+import { nombreDeIdioma } from '@/lib/idiomas';
 
 interface ReservationStats {
   total: number;
@@ -1002,6 +1004,14 @@ function ReservationsPageContenido() {
                                 <span>A domicilio: {reservation.serviceAddress}</span>
                               </div>
                             )}
+                            {/* Solo si pidió uno: es lo que el anfitrión
+                                tiene que preparar antes de llegar. */}
+                            {reservation.language && (
+                              <div className="flex items-center gap-2">
+                                <HiTranslate className="w-4 h-4 text-blue-500" />
+                                <span>En {nombreDeIdioma(reservation.language)}</span>
+                              </div>
+                            )}
                             <div className="flex items-center gap-2">
                               <HiClock className="w-4 h-4" />
                               {reservation.duration && formatDuration(reservation.duration)}
@@ -1319,6 +1329,15 @@ function ReservationsPageContenido() {
                               : 'En sede'}
                           </span>
                         </div>
+
+                        {reservation.language && (
+                          <div className="flex items-center mb-2">
+                            <HiTranslate className="w-4 h-4 mr-1 text-blue-500" />
+                            <span className="text-sm text-gray-600">
+                              En {nombreDeIdioma(reservation.language)}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Cliente */}
                         <div className="mb-3">

@@ -1,7 +1,8 @@
 "use client";
 
 import React from 'react';
-import { HiArrowLeft, HiCalendar, HiUsers, HiLocationMarker, HiMail, HiPhone } from 'react-icons/hi';
+import { HiArrowLeft, HiCalendar, HiUsers, HiLocationMarker, HiMail, HiPhone, HiTranslate } from 'react-icons/hi';
+import { nombreDeIdioma } from '@/lib/idiomas';
 import type { BookingData } from '@/components/BookingEngine/MotorReservas';
 import { condicionesDeSede } from '@/lib/experiencias/condicionesDeSede';
 import { format } from 'date-fns';
@@ -21,7 +22,7 @@ interface Props {
 }
 
 export default function ConfirmationStep({ booking, cobraEnLinea, submitting, onConfirm, onBack }: Props) {
-  const { experience, date, time, participants, locationId, locationName, serviceAddress, selectedAddons, guestInfo } = booking;
+  const { experience, date, time, participants, locationId, locationName, serviceAddress, idioma, selectedAddons, guestInfo } = booking;
   // El precio es el de la sede elegida: la misma experiencia puede valer una
   // cosa en el local del centro y otra en la finca. El API cobra ese, asi que
   // enseñar aqui el de la experiencia seria prometer un total que no es.
@@ -52,6 +53,12 @@ export default function ConfirmationStep({ booking, cobraEnLinea, submitting, on
       icon: <HiLocationMarker className="w-4 h-4 text-marca" />,
       label: 'Sede',
       value: locationName,
+    }] : []),
+    // Solo si pidió uno: "cualquiera" no es un dato que confirmar.
+    ...(idioma ? [{
+      icon: <HiTranslate className="w-4 h-4 text-marca" />,
+      label: 'Idioma',
+      value: nombreDeIdioma(idioma),
     }] : []),
     {
       icon: <HiMail className="w-4 h-4 text-marca" />,

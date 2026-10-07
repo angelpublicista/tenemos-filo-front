@@ -18,6 +18,8 @@ export type MiReserva = {
   pricing: { total?: number } | null;
   /** Dónde se presta, cuando la experiencia es a domicilio. */
   serviceAddress: string | null;
+  /** El idioma que pidió, si pidió uno. */
+  language: string | null;
   specialRequirements: string | null;
   experience: {
     id: string;

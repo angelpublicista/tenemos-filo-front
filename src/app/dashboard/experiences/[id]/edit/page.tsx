@@ -27,6 +27,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Loader from '@/components/Loader';
 import { ImageUpload, GalleryUpload } from '@/components/ImageUpload';
 import PrecioInput from '@/components/PrecioInput';
+import IdiomasInput from '@/components/IdiomasInput';
 
 // Esquema de validación
 const experienceSchema = z.object({
@@ -80,6 +81,7 @@ function EditExperiencePageContenido() {
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [idiomas, setIdiomas] = useState<string[]>([]);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const {
@@ -195,6 +197,8 @@ function EditExperiencePageContenido() {
         } else {
           setSelectedCategories([]);
         }
+
+        setIdiomas(experienceData.languages ?? []);
 
         // Cargar imágenes
         if (experienceData.featuredImage) {
@@ -408,6 +412,7 @@ function EditExperiencePageContenido() {
         title: data.title,
         description: data.description,
         categories: selectedCategories as ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[],
+        languages: idiomas,
         duration: data.duration,
         // TR-19. Nulo cuando se deja vacío: "no aplica" es una respuesta, y
         // dejarlo sin mandar conservaría el valor viejo para siempre.
@@ -588,6 +593,10 @@ function EditExperiencePageContenido() {
               {selectedCategories.length === 0 && (
                 <p className="text-red-500 text-sm mt-1">Selecciona al menos una categoría</p>
               )}
+            </div>
+
+            <div className="lg:col-span-2">
+              <IdiomasInput valor={idiomas} onChange={setIdiomas} />
             </div>
 
             <div>

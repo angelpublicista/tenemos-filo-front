@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Badge, Card } from 'flowbite-react';
-import { HiCalendar, HiClock, HiLocationMarker, HiUsers } from 'react-icons/hi';
+import { HiCalendar, HiClock, HiLocationMarker, HiTranslate, HiUsers } from 'react-icons/hi';
+import { nombreDeIdioma } from '@/lib/idiomas';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
@@ -142,6 +143,12 @@ export default function MisReservasPage() {
             <HiLocationMarker className="w-4 h-4 text-gray-400 shrink-0" />
             {r.location.name}
             {direccion(r.location.address) ? ` — ${direccion(r.location.address)}` : ''}
+          </p>
+        )}
+        {r.language && (
+          <p className="flex items-center gap-2">
+            <HiTranslate className="w-4 h-4 text-gray-400 shrink-0" />
+            En {nombreDeIdioma(r.language)}
           </p>
         )}
       </div>

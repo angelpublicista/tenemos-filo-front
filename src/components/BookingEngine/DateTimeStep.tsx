@@ -12,6 +12,7 @@ import {
   cuposDeLaHora,
   horariosDeSede,
 } from '@/lib/experiencias/condicionesDeSede';
+import { listaDeIdiomas, nombreDeIdioma } from '@/lib/idiomas';
 
 function formatPrice(price: number, currency: string) {
   return price.toLocaleString('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 });
@@ -135,7 +136,7 @@ function isDateBlocked(date: Date, schedules: AvailabilitySchedule[]): boolean {
 
 interface Props {
   experience: BookingExperience;
-  onNext: (date: Date, time: string, participants: number, locationId?: string, locationName?: string, selectedAddons?: SelectedAddon[], serviceAddress?: string) => void;
+  onNext: (date: Date, time: string, participants: number, locationId?: string, locationName?: string, selectedAddons?: SelectedAddon[], serviceAddress?: string, idioma?: string) => void;
   onBack: () => void;
 }
 
@@ -146,6 +147,15 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   const [locationId, setLocationId] = useState<string | undefined>(undefined);
   /** Dónde hay que ir, cuando la experiencia es a domicilio. */
   const [serviceAddress, setServiceAddress] = useState('');
+  /**
+   * El idioma que pide, de los que el anfitrión declaró.
+   *
+   * Vacío es "cualquiera de los que ofrece": no todo el mundo tiene
+   * preferencia, y obligar a elegir una convertiría un dato útil en un
+   * trámite. Si solo ofrece uno no hay nada que elegir y se manda ese.
+   */
+  const idiomas = experience.languages ?? [];
+  const [idioma, setIdioma] = useState(idiomas.length === 1 ? idiomas[0] : '');
   const [slots, setSlots] = useState<string[]>([]);
   // Por posicion, no por `_key`: ese campo venia de Sanity y hoy nadie lo
   // escribe, asi que todos los addons compartian la misma clave `undefined`
@@ -279,6 +289,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
       loc?.name,
       buildSelectedAddons(),
       aDomicilio ? serviceAddress.trim() : undefined,
+      idioma || undefined,
     );
   };
 
@@ -315,6 +326,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
             </p>
           </div>
         )}
+
 
         {/* Sede. Va ANTES de la fecha: la sede decide qué horas hay, qué aforo
             y qué precio, así que elegirla después dejaría la pantalla
@@ -435,6 +447,36 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
             </span>
           </div>
         </div>
+
+        {/* Idioma. Solo si el anfitrión declaró en cuáles la da: sin eso no
+            hay nada que ofrecer, y un desplegable vacío sobra. Con uno solo
+            tampoco se pregunta —se dice— porque no hay elección que hacer. */}
+        {idiomas.length === 1 && (
+          <p className="text-sm text-gray-500">
+            Esta experiencia se da en <span className="font-semibold text-gray-700">{nombreDeIdioma(idiomas[0])}</span>.
+          </p>
+        )}
+        {idiomas.length > 1 && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2.5" htmlFor="idioma">
+              Idioma
+            </label>
+            <select
+              id="idioma"
+              value={idioma}
+              onChange={(e) => setIdioma(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-marca focus:ring-1 focus:ring-marca outline-none"
+            >
+              <option value="">Cualquiera de los que ofrece</option>
+              {idiomas.map((c) => (
+                <option key={c} value={c}>{nombreDeIdioma(c)}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1.5">
+              El anfitrión la da en {listaDeIdiomas(idiomas)}.
+            </p>
+          </div>
+        )}
 
         {/* Adiciones */}
         {availableAddons.length > 0 && (

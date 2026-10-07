@@ -280,7 +280,8 @@ export default function AgentePage() {
         <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-[#334C5D]">Pruébalo</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Escríbele como lo haría un cliente. Esto no usa WhatsApp y no le llega a nadie.
+            Escríbele como lo haría un cliente. Esto no usa WhatsApp, no le llega a nadie y no
+            guarda nada en tu CRM: el enlace de reserva que te pase es de muestra.
           </p>
 
           {!activo && (

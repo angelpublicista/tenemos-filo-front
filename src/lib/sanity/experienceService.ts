@@ -66,7 +66,6 @@ export interface ApiExperience {
   locationListings?: Array<{
     locationId: string;
     kind: 'ABIERTA' | 'PRIVADA' | null;
-    capacity: number | null;
     minCapacity: number | null;
     basePrice: string | number | null;
     prepTime: number | null;

@@ -36,7 +36,6 @@ export interface Publicacion {
    */
   propias: {
     kind: 'ABIERTA' | 'PRIVADA' | null;
-    capacity: number | null;
     minCapacity: number | null;
     basePrice: number | string | null;
     prepTime: number | null;
@@ -48,7 +47,6 @@ export interface Publicacion {
   condiciones: {
     locationId: string | null;
     kind: 'ABIERTA' | 'PRIVADA' | null;
-    capacity: number | null;
     minCapacity: number | null;
     basePrice: number | string | null;
     prepTime: number | null;
@@ -65,7 +63,6 @@ export interface Publicacion {
 
 export interface CondicionesDePublicacion {
   kind?: 'ABIERTA' | 'PRIVADA' | null;
-  capacity?: number | null;
   minCapacity?: number | null;
   basePrice?: number | null;
   prepTime?: number | null;

@@ -243,9 +243,12 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
 
     if (creadas > 0) onImportado();
     if (fallidas.length === 0) {
+      // Lo que falta se dice aquí y no se descubre después: una pieza recién
+      // importada no tiene horario, y sin horario no tiene cupos ni se puede
+      // reservar. Es el paso que de verdad queda.
       showSuccess(
         `${creadas} ${creadas === 1 ? 'experiencia creada' : 'experiencias creadas'}`,
-        'Quedaron como borrador. Revísalas y publícalas cuando estén listas.',
+        'Quedaron como borrador. En Publicaciones las pones en una sede y les das horario y cupos.',
       );
       cerrar();
     } else {

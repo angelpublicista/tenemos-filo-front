@@ -15,7 +15,7 @@ export interface ExperienciaLeida {
   description: string;
   categories: string[];
   duration: number | null;
-  capacity: number | null;
+  /** El mínimo para que se haga. Los cupos son del horario, no de la pieza. */
   minCapacity: number | null;
   basePrice: number | null;
   includes: string[];

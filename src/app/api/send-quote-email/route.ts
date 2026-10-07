@@ -13,7 +13,6 @@ interface ExperienceForEmail {
   description: string;
   duration: number;
   minCapacity?: number;
-  capacity: number;
   basePrice: number;
   currency: string;
   includes?: string[];
@@ -144,7 +143,7 @@ export async function POST(request: NextRequest) {
                 <strong style="color: #334C5D;">⏱️ Duración:</strong> ${esc(exp.duration)} minutos
               </p>
               <p style="margin: 5px 0; color: #6b7280;">
-                <strong style="color: #334C5D;">👥 Capacidad:</strong> ${esc(exp.minCapacity || 1)} - ${esc(exp.capacity)} personas
+                <strong style="color: #334C5D;">👥 Mínimo:</strong> ${esc(exp.minCapacity || 1)} personas
               </p>
             </td>
             <td style="padding: 15px; text-align: right; vertical-align: top;">

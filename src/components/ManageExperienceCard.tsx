@@ -70,7 +70,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
       case 'active': return 'success';
       case 'draft': return 'gray';
       case 'pending': return 'warning';
-      case 'paused': return 'info';
       case 'inactive': return 'failure';
       default: return 'gray';
     }
@@ -82,7 +81,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
       case 'active': return 'Activa';
       case 'draft': return 'Borrador';
       case 'pending': return 'Pendiente';
-      case 'paused': return 'Pausada';
       case 'inactive': return 'Inactiva';
       default: return status;
     }
@@ -179,7 +177,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
               <option value="draft">Borrador</option>
               <option value="pending">Pendiente</option>
               <option value="active">Activa</option>
-              <option value="paused">Pausada</option>
               <option value="inactive">Inactiva</option>
             </Select>
           </div>
@@ -247,7 +244,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
               <option value="draft">Borrador</option>
               <option value="pending">Pendiente</option>
               <option value="active">Activa</option>
-              <option value="paused">Pausada</option>
               <option value="inactive">Inactiva</option>
             </Select>
             

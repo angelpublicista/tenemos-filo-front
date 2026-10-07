@@ -14,7 +14,8 @@ interface ExperienceStats {
   active: number;
   draft: number;
   pending: number;
-  paused: number;
+  /** Cuántas tienen alguna publicación en pausa. Pausar es de la publicación. */
+  pausadas: number;
   inactive: number;
   averageRating: number;
 }
@@ -290,7 +291,6 @@ function ExperiencesPageContenido() {
               <option value="active">Activas</option>
               <option value="draft">Borradores</option>
               <option value="pending">Pendientes</option>
-              <option value="paused">Pausadas</option>
               <option value="inactive">Inactivas</option>
             </Select>
 

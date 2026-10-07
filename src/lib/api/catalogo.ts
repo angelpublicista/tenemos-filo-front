@@ -81,15 +81,36 @@ export async function getPublicaciones(): Promise<Publicacion[]> {
 /** Pone la experiencia en esa sede. Si no estaba, publicar la ata. */
 export async function publicar(
   experienceId: string,
-  locationId: string,
+  locationId: string | null,
   condiciones: CondicionesDePublicacion,
 ): Promise<Publicacion[]> {
-  return (
-    (await api.put<Publicacion[]>(
-      `/catalogo/publicaciones/${experienceId}/${locationId}`,
-      condiciones,
-    )) ?? []
-  );
+  // Sin sede es la publicación de una experiencia a domicilio: la dirección la
+  // pone quien reserva, pero lo que está a la venta sigue siendo una
+  // publicación, con sus condiciones y su pausa.
+  const ruta = locationId
+    ? `/catalogo/publicaciones/${experienceId}/${locationId}`
+    : `/catalogo/publicaciones/${experienceId}`;
+  return (await api.put<Publicacion[]>(ruta, condiciones)) ?? [];
+}
+
+/** Deja de venderla ahí sin perder sus condiciones ni su horario. */
+export async function pausar(
+  p: Publicacion,
+  enPausa: boolean,
+): Promise<Publicacion[]> {
+  // Se mandan las condiciones que la publicación ya tenía: el PUT reemplaza la
+  // ficha entera, y mandar solo la pausa borraría el precio y la modalidad.
+  const suyas = p.propias;
+  return publicar(p.experienceId, p.locationId, {
+    kind: suyas?.kind ?? null,
+    minCapacity: suyas?.minCapacity ?? null,
+    basePrice: suyas?.basePrice == null ? null : Number(suyas.basePrice),
+    prepTime: suyas?.prepTime ?? null,
+    cleanupTime: suyas?.cleanupTime ?? null,
+    minimumNotice: suyas?.minimumNotice ?? null,
+    notes: suyas?.notes ?? null,
+    isPublished: !enPausa,
+  });
 }
 
 /**
@@ -100,10 +121,11 @@ export async function publicar(
  */
 export async function quitarPublicacion(
   experienceId: string,
-  locationId: string,
+  locationId: string | null,
 ): Promise<{ publicaciones: Publicacion[]; reservasPorVenir: number }> {
-  const r = await api.delete<{ publicaciones: Publicacion[]; reservasPorVenir: number }>(
-    `/catalogo/publicaciones/${experienceId}/${locationId}`,
-  );
+  const ruta = locationId
+    ? `/catalogo/publicaciones/${experienceId}/${locationId}`
+    : `/catalogo/publicaciones/${experienceId}`;
+  const r = await api.delete<{ publicaciones: Publicacion[]; reservasPorVenir: number }>(ruta);
   return { publicaciones: r?.publicaciones ?? [], reservasPorVenir: r?.reservasPorVenir ?? 0 };
 }

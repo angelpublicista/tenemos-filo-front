@@ -583,7 +583,8 @@ export interface Experience {
   endDate?: string;     // ISO date string (YYYY-MM-DD), opcional
   startTime?: string;   // HH:mm, opcional
   endTime?: string;     // HH:mm, opcional
-  status: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
+  /** Sin 'paused': pausar es de la publicación, no de la pieza. */
+  status: 'draft' | 'pending' | 'active' | 'inactive';
   isFeatured: boolean;
   rating?: number;
   // Sin `totalBookings` ni `totalRevenue`: una experiencia no lleva cifras de
@@ -648,7 +649,7 @@ export interface CreateExperienceData {
   endDate?: string;
   startTime?: string;
   endTime?: string;
-  status?: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
+  status?: 'draft' | 'pending' | 'active' | 'inactive';
   isFeatured?: boolean;
 }
 

@@ -56,7 +56,7 @@ const experienceSchema = z.object({
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  status: z.enum(['draft', 'pending', 'active', 'paused', 'inactive']),
+  status: z.enum(['draft', 'pending', 'active', 'inactive']),
   isFeatured: z.boolean(),
   hideAddress: z.boolean().optional(),
 });
@@ -1152,7 +1152,6 @@ function CreateExperiencePageContenido() {
                 <option value="draft">Borrador</option>
                 <option value="pending">Pendiente de Aprobación</option>
                 <option value="active">Activa</option>
-                <option value="paused">Pausada</option>
                 <option value="inactive">Inactiva</option>
               </Select>
               {errors.status && (

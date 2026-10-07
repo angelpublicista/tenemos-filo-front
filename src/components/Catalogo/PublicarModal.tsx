@@ -39,7 +39,7 @@ interface Props {
   guardando: boolean;
   onGuardar: (
     experienceId: string,
-    locationId: string,
+    locationId: string | null,
     condiciones: CondicionesDePublicacion,
   ) => void;
   onCerrar: () => void;
@@ -67,7 +67,12 @@ export default function PublicarModal({
   const [experienceId, setExperienceId] = useState(
     publicacion?.experienceId ?? piezas[0]?.id ?? '',
   );
-  const [locationId, setLocationId] = useState(publicacion?.locationId ?? sedes[0]?.id ?? '');
+  // Al editar se respeta la sede de esa publicación, y la falta de sede
+  // también: una experiencia a domicilio tiene publicación sin sede, y
+  // caer al primer local la mandaría a un sitio que nadie eligió.
+  const [locationId, setLocationId] = useState(
+    editando ? (publicacion?.locationId ?? '') : (sedes[0]?.id ?? ''),
+  );
 
   // Al editar se cargan SOLO las condiciones propias; lo heredado queda en
   // blanco para que se vea de un golpe qué cambia en este escenario y qué no.
@@ -86,8 +91,10 @@ export default function PublicarModal({
   const pieza = piezas.find((p) => p.id === experienceId);
 
   const guardar = () => {
-    if (!experienceId || !locationId) return;
-    onGuardar(experienceId, locationId, {
+    // Sin sede solo vale al editar una publicación que ya no la tenía: la de
+    // una experiencia a domicilio.
+    if (!experienceId || (!locationId && !editando)) return;
+    onGuardar(experienceId, locationId || null, {
       kind: kind === '' ? null : kind,
       minCapacity: numero(minCapacity),
       basePrice: numero(basePrice),
@@ -105,7 +112,7 @@ export default function PublicarModal({
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-[#334C5D] dark:text-gray-100">
             {editando
-              ? `Condiciones en ${publicacion?.locationName}`
+              ? `Condiciones ${publicacion?.locationName ? `en ${publicacion.locationName}` : 'a domicilio'}`
               : 'Publicar una experiencia'}
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -270,7 +277,7 @@ export default function PublicarModal({
             Cancelar
           </Button>
           <Button
-            disabled={guardando || !experienceId || !locationId}
+            disabled={guardando || !experienceId || (!locationId && !editando)}
             onClick={guardar}
             className="bg-[#F26726] hover:bg-[#d9551c]"
           >

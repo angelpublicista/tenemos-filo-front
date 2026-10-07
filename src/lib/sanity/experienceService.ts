@@ -12,7 +12,7 @@ import {
 
 // ─── Tipos del API (Postgres) ──────────────────────────────────────────────
 
-type ApiExperienceStatus = 'DRAFT' | 'PENDING' | 'ACTIVE' | 'PAUSED' | 'INACTIVE';
+type ApiExperienceStatus = 'DRAFT' | 'PENDING' | 'ACTIVE' | 'INACTIVE';
 
 export interface ApiExperience {
   id: string;
@@ -91,14 +91,12 @@ const STATUS_TO_API: Record<NonNullable<Experience['status']>, ApiExperienceStat
   draft: 'DRAFT',
   pending: 'PENDING',
   active: 'ACTIVE',
-  paused: 'PAUSED',
   inactive: 'INACTIVE',
 };
 const STATUS_FROM_API: Record<ApiExperienceStatus, Experience['status']> = {
   DRAFT: 'draft',
   PENDING: 'pending',
   ACTIVE: 'active',
-  PAUSED: 'paused',
   INACTIVE: 'inactive',
 };
 
@@ -373,7 +371,8 @@ export const getExperienceStatsByCompany = async (companyId: string) => {
     active: number;
     draft: number;
     pending: number;
-    paused: number;
+    /** Cuántas tienen alguna publicación en pausa. */
+    pausadas: number;
     inactive: number;
     averageRating: number;
   }>(`/experiences/stats/by-company/${encodeURIComponent(companyId)}`);

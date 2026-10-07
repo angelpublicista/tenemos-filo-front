@@ -19,7 +19,8 @@ interface ExperienceStatsProps {
     active: number;
     draft: number;
     pending: number;
-    paused: number;
+    /** Cuántas tienen alguna publicación en pausa. */
+    pausadas: number;
     inactive: number;
     averageRating: number;
   };
@@ -71,7 +72,10 @@ export default function ExperienceStats({ stats, className = "" }: ExperienceSta
         </div>
       </div>
 
-      {/* Pausadas e inactivas juntas: las dos significan "no se vende ahora". */}
+      {/* Retiradas y con alguna publicación en pausa: las dos significan que
+          hay algo que ahora mismo no se está vendiendo. Pausar es de la
+          publicación, así que una misma pieza puede estar vendiéndose en una
+          sede y en pausa en otra. */}
       <div className={cardClass}>
         <div className="flex items-center">
           <div className="p-2 bg-amber-500 rounded-lg shrink-0">
@@ -80,7 +84,7 @@ export default function ExperienceStats({ stats, className = "" }: ExperienceSta
           <div className="ml-3 min-w-0">
             <p className="text-xs font-medium text-gray-600 truncate">Sin vender</p>
             <p className="text-xl font-bold text-[#334C5D] leading-tight truncate">
-              {stats.paused + stats.inactive}
+              {stats.pausadas + stats.inactive}
             </p>
           </div>
         </div>

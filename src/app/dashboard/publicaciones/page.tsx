@@ -17,7 +17,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Badge, Button, Card } from 'flowbite-react';
-import { AiOutlinePlus, AiOutlineClockCircle, AiOutlineDelete, AiOutlineEdit } from 'react-icons/ai';
+import {
+  AiOutlineClockCircle,
+  AiOutlineDelete,
+  AiOutlineEdit,
+  AiOutlinePauseCircle,
+  AiOutlinePlayCircle,
+  AiOutlinePlus,
+} from 'react-icons/ai';
 import { BiMap } from 'react-icons/bi';
 import { HiOutlineExclamationCircle } from 'react-icons/hi';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -30,6 +37,7 @@ import { mensajeDeError } from '@/lib/api/client';
 import {
   getPublicaciones,
   publicar,
+  pausar,
   quitarPublicacion,
   type CondicionesDePublicacion,
   type Publicacion,
@@ -118,7 +126,7 @@ export default function PublicacionesPage() {
 
   const guardar = async (
     experienceId: string,
-    locationId: string,
+    locationId: string | null,
     condiciones: CondicionesDePublicacion,
   ) => {
     setGuardando(true);
@@ -134,10 +142,29 @@ export default function PublicacionesPage() {
     }
   };
 
+  /**
+   * Pausar o reanudar una publicación.
+   *
+   * Pausar deja de venderla ahí sin perder sus condiciones ni su horario: se
+   * reanuda y sigue donde estaba. Para dejar de ofrecerla del todo se quita.
+   */
+  const alternarPausa = async (p: Publicacion) => {
+    const enPausa = p.propias?.isPublished === false;
+    try {
+      setPublicaciones(await pausar(p, !enPausa));
+      showSuccess(
+        enPausa
+          ? `${p.title} vuelve a venderse${p.locationName ? ` en ${p.locationName}` : ''}`
+          : `${p.title} queda en pausa${p.locationName ? ` en ${p.locationName}` : ''}`,
+      );
+    } catch (e) {
+      showError(mensajeDeError(e));
+    }
+  };
+
   const quitar = async (p: Publicacion) => {
-    if (!p.locationId) return;
     const confirmado = await showConfirmation(
-      `¿Quitar «${p.title}» de ${p.locationName}?`,
+      `¿Quitar «${p.title}» de ${p.locationName ?? 'tu catálogo'}?`,
       'Deja de ofrecerse ahí y se borran sus condiciones. Lo que ya está vendido en esa sede no se cancela.',
       'Sí, quitar',
     );
@@ -249,7 +276,9 @@ export default function PublicacionesPage() {
           <div className="space-y-4">
             {porPieza.map((filas) => {
               const pieza = filas[0];
-              const publicada = filas.filter((f) => f.locationId !== null);
+              // A domicilio su fila no tiene sede, pero ES la publicación: lo
+              // que está a la venta, con sus condiciones y su pausa.
+              const publicada = pieza.atHome ? filas : filas.filter((f) => f.locationId !== null);
 
               return (
                 <div
@@ -309,10 +338,11 @@ export default function PublicacionesPage() {
                           >
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-                                <BiMap className="text-[#F26726] shrink-0" /> {p.locationName}
+                                <BiMap className="text-[#F26726] shrink-0" />{' '}
+                                {p.locationName ?? 'A domicilio'}
                                 {p.propias?.isPublished === false && (
-                                  <Badge color="gray" className="ml-1">
-                                    Oculta
+                                  <Badge color="warning" className="ml-1">
+                                    En pausa
                                   </Badge>
                                 )}
                                 {p.sedeActiva === false && (
@@ -356,6 +386,24 @@ export default function PublicacionesPage() {
                             <div className="flex items-center gap-2 shrink-0">
                               <Button size="xs" color="light" onClick={() => setHorarioDe(p)}>
                                 <AiOutlineClockCircle className="mr-1" /> Horario
+                              </Button>
+                              {/* Pausar es dejar de venderla ahí sin perder sus
+                                  condiciones ni su horario: se reanuda y sigue
+                                  donde estaba. */}
+                              <Button
+                                size="xs"
+                                color="light"
+                                onClick={() => void alternarPausa(p)}
+                              >
+                                {p.propias?.isPublished === false ? (
+                                  <>
+                                    <AiOutlinePlayCircle className="mr-1" /> Reanudar
+                                  </>
+                                ) : (
+                                  <>
+                                    <AiOutlinePauseCircle className="mr-1" /> Pausar
+                                  </>
+                                )}
                               </Button>
                               <Button size="xs" color="light" onClick={() => setEditando(p)}>
                                 <AiOutlineEdit className="mr-1" /> Condiciones

@@ -16,13 +16,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable, { AdminHeader } from '@/components/Admin/AdminTable';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { listBalances, createPayout, listPayouts, type Payout, type Saldo } from '@/lib/api/admin';
-
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(n);
+import PrecioInput from '@/components/PrecioInput';
+import { pesos, soloElNumero } from '@/lib/dinero';
 
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -203,12 +198,11 @@ export default function AdminDispersionesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Importe *</label>
-                <TextInput
-                  type="number"
-                  min={0}
-                  max={pagando.pending}
-                  value={importe}
-                  onChange={(e) => setImporte(e.target.value)}
+                <PrecioInput
+                  value={soloElNumero(importe)}
+                  onChange={(v) => setImporte(v === null ? '' : String(v))}
+                  placeholder="0"
+                  aria-label="Importe de la dispersión"
                 />
                 {Number(importe) > pagando.pending && (
                   <p className="text-xs text-red-600 mt-1">

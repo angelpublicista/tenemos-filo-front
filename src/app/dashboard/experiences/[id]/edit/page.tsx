@@ -26,6 +26,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useRouter, useParams } from 'next/navigation';
 import Loader from '@/components/Loader';
 import { ImageUpload, GalleryUpload } from '@/components/ImageUpload';
+import PrecioInput from '@/components/PrecioInput';
 
 // Esquema de validación
 const experienceSchema = z.object({
@@ -721,14 +722,16 @@ function EditExperiencePageContenido() {
 
             <div>
               <Label htmlFor="basePrice">Precio Base por Persona *</Label>
-              <TextInput
-                {...register('basePrice', { valueAsNumber: true })}
-                type="number"
-                min="0"
-                step="1000"
-                className="mt-1"
-                placeholder="0"
-              />
+              <div className="mt-1">
+                <PrecioInput
+                  id="basePrice"
+                  value={watch('basePrice')}
+                  onChange={(v) =>
+                    setValue('basePrice', v ?? 0, { shouldValidate: true, shouldDirty: true })
+                  }
+                  placeholder="0"
+                />
+              </div>
               {basePrice > 0 && (
                 <p className="text-[#F26726] text-sm mt-1 font-semibold">
                   {formatCurrency(basePrice, currency)}
@@ -948,11 +951,11 @@ function EditExperiencePageContenido() {
                     placeholder="Nombre del servicio"
                   />
                   <div>
-                    <TextInput
-                      type="number"
+                    <PrecioInput
                       value={addon.price}
-                      onChange={(e) => updateAddon(index, 'price', Number(e.target.value))}
+                      onChange={(v) => updateAddon(index, 'price', v ?? 0)}
                       placeholder="Precio"
+                      aria-label="Precio del servicio adicional"
                     />
                     {addon.price > 0 && (
                       <p className="text-[#F26726] text-xs mt-1 font-semibold">

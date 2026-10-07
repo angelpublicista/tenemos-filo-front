@@ -15,9 +15,8 @@ import {
   type Indicadores,
   type Pendientes,
 } from '@/lib/crm/panel';
+import { pesos } from '@/lib/dinero';
 
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 const dia = (iso: string) =>
   new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });

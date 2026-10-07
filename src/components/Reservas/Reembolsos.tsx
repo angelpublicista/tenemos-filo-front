@@ -11,6 +11,7 @@ import {
   registrarReembolso,
   type ReembolsosDeReserva,
 } from '@/lib/sanity/reservationService';
+import { formatearMientrasEscribe, pesos, soloElNumero } from '@/lib/dinero';
 
 /**
  * Lo devuelto de una reserva, y la forma de devolver más (TR-30).
@@ -20,9 +21,6 @@ import {
  * que se le dispersa al anfitrión. Si el dinero del período ya salió, el
  * saldo queda en negativo y se descuenta de la siguiente transferencia.
  */
-
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 const cuando = (iso: string) =>
   new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -74,9 +72,9 @@ export default function Reembolsos({
           <p style="margin:0 0 12px;color:#4b5563">
             Cobrado ${pesos(maximo)} · vendido ${pesos(datos?.vendido ?? 0)}
           </p>
-          <label style="display:block;margin:8px 0 4px">Cuánto devuelves</label>
-          <input id="importe" type="number" min="1" max="${maximo}" class="swal2-input"
-                 style="width:100%;margin:0">
+          <label style="display:block;margin:8px 0 4px">Cuánto devuelves (COP)</label>
+          <input id="importe" type="text" inputmode="numeric" class="swal2-input"
+                 style="width:100%;margin:0" placeholder="0">
           <label style="display:block;margin:12px 0 4px">Motivo</label>
           <input id="motivo" type="text" class="swal2-input" style="width:100%;margin:0"
                  placeholder="Por qué se devuelve">
@@ -89,12 +87,18 @@ export default function Reembolsos({
       confirmButtonText: 'Registrar',
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#F26726',
+      // El importe se escribe con separadores de miles, como cualquier precio:
+      // un campo de dinero donde «150000» no se lee obliga a contar ceros.
+      didOpen: () => {
+        const campo = document.getElementById('importe') as HTMLInputElement | null;
+        if (campo) formatearMientrasEscribe(campo);
+      },
       preConfirm: () => {
         const g = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value ?? '';
-        const importe = Number(g('importe'));
+        const importe = soloElNumero(g('importe')) ?? 0;
         const motivo = g('motivo').trim();
         if (!importe || importe <= 0 || importe > maximo) {
-          Swal.showValidationMessage(`Entre 1 y ${maximo}.`);
+          Swal.showValidationMessage(`Entre ${pesos(1)} y ${pesos(maximo)}.`);
           return false;
         }
         if (!motivo) {

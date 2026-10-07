@@ -10,6 +10,7 @@ import {
   type FilaDeDesglose,
   type PayoutRole,
 } from '@/lib/api/earnings';
+import { pesos } from '@/lib/dinero';
 
 /**
  * Los ingresos del periodo, cortados por donde hay que decidir algo (TR-28).
@@ -23,8 +24,6 @@ import {
  * puede leer y no responde a ninguna pregunta real.
  */
 
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 const dia = (f: Date) =>
   `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;

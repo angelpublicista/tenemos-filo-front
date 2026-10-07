@@ -15,6 +15,8 @@
 import React, { useState } from 'react';
 import { Button, Checkbox, Label, Select, TextInput, Textarea } from 'flowbite-react';
 import type { CondicionesDePublicacion, Publicacion } from '@/lib/api/catalogo';
+import PrecioInput from '@/components/PrecioInput';
+import { conSeparadores } from '@/lib/dinero';
 
 export interface PiezaPublicable {
   id: string;
@@ -197,15 +199,18 @@ export default function PublicarModal({
             </div>
             <div>
               <Label htmlFor="precio">Precio por persona</Label>
-              <TextInput
-                id="precio"
-                type="number"
-                min={0}
-                value={basePrice}
-                placeholder={pieza?.basePrice ? `${pieza.basePrice} (de la experiencia)` : 'El de la experiencia'}
-                onChange={(e) => setBasePrice(e.target.value)}
-                className="mt-1"
-              />
+              <div className="mt-1">
+                <PrecioInput
+                  id="precio"
+                  value={numero(basePrice)}
+                  onChange={(v) => setBasePrice(v === null ? '' : String(v))}
+                  placeholder={
+                    pieza?.basePrice
+                      ? `${conSeparadores(pieza.basePrice)} (de la experiencia)`
+                      : 'El de la experiencia'
+                  }
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="aviso">Anticipación mínima (horas)</Label>

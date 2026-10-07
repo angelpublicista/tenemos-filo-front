@@ -3,6 +3,7 @@
 import React from 'react';
 import { Select, TextInput } from 'flowbite-react';
 import type { CommissionType } from '@/lib/api/admin';
+import PrecioInput from '@/components/PrecioInput';
 
 type Props = {
   etiqueta: string;
@@ -50,20 +51,33 @@ export default function CommissionInput({
           <option value="PERCENT">Porcentaje</option>
           <option value="FIXED">Monto fijo</option>
         </Select>
+        {/* Un monto fijo es dinero y se escribe como tal; un porcentaje es un
+            número suelto y no lleva separadores de miles. */}
         <div className="relative flex-1">
-          <TextInput
-            type="number"
-            min={0}
-            max={tipo === 'PERCENT' ? 100 : undefined}
-            value={hereda ? '' : String(valor ?? 0)}
-            disabled={hereda}
-            onChange={(e) => onChange(tipo, e.target.value === '' ? 0 : Number(e.target.value))}
-            placeholder={hereda ? heredable?.texto : '0'}
-          />
-          {!hereda && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
-              {tipo === 'PERCENT' ? '%' : 'COP'}
-            </span>
+          {tipo === 'FIXED' && !hereda ? (
+            <PrecioInput
+              value={valor ?? 0}
+              onChange={(v) => onChange(tipo, v ?? 0)}
+              placeholder="0"
+              aria-label={etiqueta}
+            />
+          ) : (
+            <>
+              <TextInput
+                type="number"
+                min={0}
+                max={tipo === 'PERCENT' ? 100 : undefined}
+                value={hereda ? '' : String(valor ?? 0)}
+                disabled={hereda}
+                onChange={(e) => onChange(tipo, e.target.value === '' ? 0 : Number(e.target.value))}
+                placeholder={hereda ? heredable?.texto : '0'}
+              />
+              {!hereda && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+                  %
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -18,6 +18,7 @@ import {
   type ReservaDeOportunidad,
 } from '@/lib/crm/venta';
 import type { Experience } from '@/types';
+import { formatearMientrasEscribe, pesos, soloElNumero } from '@/lib/dinero';
 
 interface Props {
   opportunityId: string;
@@ -41,8 +42,6 @@ interface Props {
   onCambio: () => void;
 }
 
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 /**
  * El tramo final: apartar el espacio, cobrar y cerrar.
@@ -122,17 +121,25 @@ export default function GestionDeVenta({
           <label style="display:block;margin:8px 0 4px">Personas</label>
           <input id="pax" type="number" min="1" value="10" class="swal2-input" style="width:100%;margin:0">
           <label style="display:block;margin:8px 0 4px">Valor acordado (COP)</label>
-          <input id="total" type="number" min="0" class="swal2-input" style="width:100%;margin:0">
+          <input id="total" type="text" inputmode="numeric" class="swal2-input"
+                 style="width:100%;margin:0" placeholder="0">
         </div>`,
       showCancelButton: true,
       confirmButtonText: boton,
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#F26726',
+      // El valor acordado se escribe con separadores de miles, como cualquier
+      // precio: sin ellos hay que contar ceros para saber si son cien mil o un
+      // millón.
+      didOpen: () => {
+        const campo = document.getElementById('total') as HTMLInputElement | null;
+        if (campo) formatearMientrasEscribe(campo);
+      },
       preConfirm: () => {
         const g = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value ?? '';
         const fecha = g('fecha');
         const pax = Number(g('pax'));
-        const tot = Number(g('total'));
+        const tot = soloElNumero(g('total')) ?? 0;
         if (!fecha) return Swal.showValidationMessage('Indica la fecha');
         if (!pax || pax < 1) return Swal.showValidationMessage('Indica cuántas personas');
         if (!tot || tot <= 0) return Swal.showValidationMessage('Indica el valor acordado');

@@ -9,6 +9,7 @@ import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { createExperienceInSanity, getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import type { CreateExperienceData, Location } from '@/types';
 import { esHojaDeCalculo, leerLibro, libroATexto } from '@/lib/hojas-de-calculo';
+import PrecioInput from '@/components/PrecioInput';
 import {
   ETIQUETA_CONFIANZA,
   copiarImagen,
@@ -19,6 +20,7 @@ import {
   type ExperienciaLeida,
   type Fuente,
 } from '@/lib/catalogo/importar';
+import { pesos } from '@/lib/dinero';
 
 type Via = 'texto' | 'enlace' | 'archivo';
 type Paso = 'entrada' | 'leyendo' | 'revision';
@@ -52,10 +54,6 @@ const COLOR_CONFIANZA: Record<string, string> = {
   media: 'bg-amber-100 text-amber-800',
   baja: 'bg-red-100 text-red-800',
 };
-
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })
-    .format(n);
 
 interface Props {
   abierto: boolean;
@@ -421,17 +419,11 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
                   <div className="grid gap-3 sm:grid-cols-4">
                     <div>
                       <Label htmlFor={`p-${i}`} className="text-xs">Precio por persona</Label>
-                      <TextInput
+                      <PrecioInput
                         id={`p-${i}`}
-                        type="number"
-                        sizing="sm"
-                        value={c.basePrice ?? ''}
+                        value={c.basePrice}
                         placeholder="Sin precio"
-                        onChange={(e) =>
-                          cambiar(i, {
-                            basePrice: e.target.value === '' ? null : Number(e.target.value),
-                          })
-                        }
+                        onChange={(v) => cambiar(i, { basePrice: v })}
                       />
                       {c.basePrice ? (
                         <p className="mt-0.5 text-[11px] text-gray-400">{pesos(c.basePrice)}</p>

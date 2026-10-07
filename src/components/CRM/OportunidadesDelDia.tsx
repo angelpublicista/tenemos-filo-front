@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Modal, ModalBody, ModalHeader } from 'flowbite-react';
 import type { OportunidadEnAgenda } from '@/lib/crm/agenda';
+import { pesos } from '@/lib/dinero';
 
 interface Props {
   dia: Date;
@@ -12,8 +13,6 @@ interface Props {
   compacto?: boolean;
 }
 
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 // Con la hora, no solo el dia: varias solicitudes del mismo dia son justo el
 // caso en que hace falta saber cual llego antes.

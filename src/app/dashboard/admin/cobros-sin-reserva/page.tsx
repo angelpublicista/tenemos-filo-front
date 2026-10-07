@@ -12,6 +12,7 @@ import {
   marcarCobroResuelto,
   type CobroSinReserva,
 } from '@/lib/api/cobrosSinReserva';
+import { pesos } from '@/lib/dinero';
 
 /**
  * Cobros que llegaron sin reserva (TR-44).
@@ -25,8 +26,6 @@ import {
  * el dinero, encontrar a quien pagó— se hace desde la pasarela.
  */
 
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 const cuando = (iso: string) =>
   new Date(iso).toLocaleString('es-CO', {

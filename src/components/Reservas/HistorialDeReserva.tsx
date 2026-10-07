@@ -10,6 +10,7 @@ import {
   registrarCargoAdicional,
   type HistorialDeReserva as Historial,
 } from '@/lib/sanity/reservationService';
+import { formatearMientrasEscribe, pesos, soloElNumero } from '@/lib/dinero';
 
 /**
  * Qué le fue pasando a esta reserva (TR-39) y los cargos de más (TR-12).
@@ -23,8 +24,6 @@ import {
  * mueve el dinero por su cuenta.
  */
 
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 const cuando = (iso: string) =>
   new Date(iso).toLocaleString('es-CO', {
@@ -125,8 +124,9 @@ export default function HistorialDeReserva({
       title: 'Cobrar algo más',
       html: `
         <div style="text-align:left;font-size:14px">
-          <label style="display:block;margin:8px 0 4px">Cuánto</label>
-          <input id="importe" type="number" min="1" class="swal2-input" style="width:100%;margin:0">
+          <label style="display:block;margin:8px 0 4px">Cuánto (COP)</label>
+          <input id="importe" type="text" inputmode="numeric" class="swal2-input"
+                 style="width:100%;margin:0" placeholder="0">
           <label style="display:block;margin:12px 0 4px">Concepto</label>
           <input id="concepto" type="text" class="swal2-input" style="width:100%;margin:0"
                  placeholder="Ej: dos botellas de vino de más">
@@ -139,9 +139,14 @@ export default function HistorialDeReserva({
       confirmButtonText: 'Registrar',
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#F26726',
+      // Con separadores de miles, como cualquier precio.
+      didOpen: () => {
+        const campo = document.getElementById('importe') as HTMLInputElement | null;
+        if (campo) formatearMientrasEscribe(campo);
+      },
       preConfirm: () => {
         const g = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value ?? '';
-        const importe = Number(g('importe'));
+        const importe = soloElNumero(g('importe')) ?? 0;
         const concepto = g('concepto').trim();
         if (!importe || importe <= 0) {
           Swal.showValidationMessage('Indica cuánto se cobra de más.');

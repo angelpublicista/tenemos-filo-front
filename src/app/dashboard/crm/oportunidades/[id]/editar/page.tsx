@@ -15,6 +15,8 @@ import Loader from '@/components/Loader';
 import { getCRMCompaniesByHost } from '@/lib/sanity/crmCompanyService';
 import { getContactsByHost } from '@/lib/sanity/contactService';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
+import PrecioInput from '@/components/PrecioInput';
+import { pesos } from '@/lib/dinero';
 
 // Esquema de validación
 const opportunitySchema = z.object({
@@ -113,6 +115,7 @@ export default function EditarOportunidadPage() {
     formState: { errors },
     reset,
     watch,
+    setValue,
   } = useForm<OpportunityFormData>();
 
   const status = watch('status');
@@ -521,15 +524,16 @@ export default function EditarOportunidadPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="value">Valor de la Oportunidad</Label>
-                <TextInput
-                  id="value"
-                  type="number"
-                  min="0"
-                  step="1"
-                  {...register('value', { valueAsNumber: true })}
-                  placeholder="0"
-                  className="mt-1"
-                />
+                <div className="mt-1">
+                  <PrecioInput
+                    id="value"
+                    value={watch('value')}
+                    onChange={(v) =>
+                      setValue('value', v ?? 0, { shouldValidate: true, shouldDirty: true })
+                    }
+                    placeholder="0"
+                  />
+                </div>
               </div>
 
               <div>
@@ -700,16 +704,14 @@ export default function EditarOportunidadPage() {
 
                         <div>
                           <Label htmlFor={`exp-${index}-customPrice`}>Precio Personalizado (opcional)</Label>
-                          <TextInput
-                            id={`exp-${index}-customPrice`}
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={expItem.customPrice || ''}
-                            onChange={(e) => updateExperience(index, 'customPrice', e.target.value ? parseFloat(e.target.value) : undefined)}
-                            placeholder={selectedExp ? formatCurrency(selectedExp.basePrice, selectedExp.currency) : 'Precio base'}
-                            className="mt-1"
-                          />
+                          <div className="mt-1">
+                            <PrecioInput
+                              id={`exp-${index}-customPrice`}
+                              value={expItem.customPrice ?? null}
+                              onChange={(v) => updateExperience(index, 'customPrice', v ?? undefined)}
+                              placeholder={selectedExp ? pesos(selectedExp.basePrice) : 'Precio base'}
+                            />
+                          </div>
                         </div>
                       </div>
 

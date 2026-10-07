@@ -14,6 +14,7 @@ import {
   type CotizacionDeOportunidad,
   type OpcionDeCotizacion,
 } from '@/lib/sanity/quoteService';
+import { pesos } from '@/lib/dinero';
 
 interface Props {
   opportunityId: string;
@@ -25,8 +26,6 @@ interface Props {
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 /** Lo que hay que escribir de una opción, en el orden en que se piensa. */
 const CAMPOS = [

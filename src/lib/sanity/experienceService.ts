@@ -80,7 +80,7 @@ export interface ApiExperience {
     weeklySchedule: unknown;
     bufferTime: number;
     minimumNotice: number;
-    blockedDates: string[];
+    dateOverrides: Record<string, unknown> | null;
     locationId: string | null;
   }>;
 }
@@ -164,7 +164,7 @@ export function toExperience(e: ApiExperience): Experience {
       weeklySchedule: a.weeklySchedule as import('@/types').WeeklySchedule,
       bufferTime: a.bufferTime,
       minimumNotice: a.minimumNotice,
-      blockedDates: (a.blockedDates ?? []).map((d) => ({ date: d })),
+      dateOverrides: (a.dateOverrides ?? undefined) as import('@/types').AvailabilitySchedule['dateOverrides'],
       isMain: false,
       isActive: true,
       location: a.locationId ? { _ref: a.locationId, _type: 'reference' as const } : undefined,

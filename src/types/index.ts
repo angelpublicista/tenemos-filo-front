@@ -1015,7 +1015,15 @@ export interface AvailabilitySchedule {
   validFrom?: string;
   validUntil?: string | null;
   notes?: string;
-  blockedDates: BlockedDate[];
+  /**
+   * Lo que pasa en una FECHA concreta, por encima del patrón semanal.
+   *
+   * `{ "2026-12-24": { isActive: false }, "2026-12-31": { isActive: true, franjas: [...] } }`
+   *
+   * Un día suelto se cierra —el 24 no se abre aunque sea jueves— o se abre con
+   * otras franjas. Misma forma que un día de la semana, a propósito.
+   */
+  dateOverrides?: Record<string, DaySchedule>;
   createdAt: string;
   updatedAt: string;
 }
@@ -1033,7 +1041,7 @@ export interface CreateAvailabilityScheduleData {
   validFrom: string;
   validUntil: string;
   notes?: string;
-  blockedDates?: BlockedDate[];
+  dateOverrides?: Record<string, DaySchedule>;
 }
 
 export interface UpdateAvailabilityScheduleData

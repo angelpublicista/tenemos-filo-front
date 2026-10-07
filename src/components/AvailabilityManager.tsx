@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import {
   AvailabilitySchedule,
+  DaySchedule,
   Franja,
-  BlockedDate,
   DayOfWeek,
   Location,
   Experience,
@@ -35,6 +35,8 @@ import {
 } from 'react-icons/ai';
 import { BiCalendar, BiTime } from 'react-icons/bi';
 import Loader from '@/components/Loader';
+import CalendarioDelHorario from '@/components/Disponibilidad/CalendarioDelHorario';
+import { mensajeDeError } from '@/lib/api/client';
 
 type AvailabilityManagerProps =
   | { mode: 'location'; location: Location; companyId: string }
@@ -173,6 +175,26 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
     }
   };
 
+  /**
+   * Guarda las fechas sueltas de un horario.
+   *
+   * Se manda solo eso: el patron semanal no se toca desde el calendario, y
+   * mandarlo entero arriesgaria pisar lo que otra pestaña acabe de cambiar.
+   */
+  const handleGuardarFechas = async (
+    schedule: AvailabilitySchedule,
+    dateOverrides: Record<string, DaySchedule>,
+  ) => {
+    try {
+      await updateAvailabilitySchedule({ _id: schedule._id, dateOverrides });
+      await loadSchedules();
+      showSuccess('Fechas actualizadas');
+    } catch (error) {
+      showError(mensajeDeError(error));
+      throw error;
+    }
+  };
+
   const handleToggleActive = async (schedule: AvailabilitySchedule) => {
     try {
       showLoading(schedule.isActive ? 'Desactivando...' : 'Activando...');
@@ -250,6 +272,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
               // anfitrión y no hay más de uno entre los que elegir.
               puedeSerPrincipal={props.mode !== 'company'}
               onToggleActive={() => handleToggleActive(schedule)}
+              onGuardarFechas={(fechas) => handleGuardarFechas(schedule, fechas)}
             />
           ))}
         </div>
@@ -285,6 +308,8 @@ interface ScheduleCardProps {
   onSetPrimary: () => void;
   puedeSerPrincipal?: boolean;
   onToggleActive: () => void;
+  /** Guarda las fechas sueltas que se tocan en el calendario. */
+  onGuardarFechas: (dateOverrides: Record<string, DaySchedule>) => Promise<void>;
 }
 
 const ScheduleCard: React.FC<ScheduleCardProps> = ({
@@ -294,7 +319,9 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   onSetPrimary,
   puedeSerPrincipal = true,
   onToggleActive,
+  onGuardarFechas,
 }) => {
+  const [vista, setVista] = useState<'semana' | 'calendario'>('semana');
   const activeDays = Object.values(schedule.weeklySchedule).filter(day => day.isActive);
 
   return (
@@ -321,7 +348,19 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
               </span>
             </div>
             <p className="text-sm text-gray-600">
-              {activeDays.length} días activos • {schedule.blockedDates?.length || 0} fechas bloqueadas
+              {activeDays.length} días activos
+              {(() => {
+                // Las fechas sueltas que se salen del patrón: las que se
+                // cerraron y las que se abrieron a mano.
+                const sueltas = Object.values(schedule.dateOverrides ?? {});
+                if (sueltas.length === 0) return null;
+                const cerradas = sueltas.filter((d) => !d.isActive).length;
+                const abiertas = sueltas.length - cerradas;
+                return ` • ${[
+                  cerradas ? `${cerradas} ${cerradas === 1 ? 'fecha cerrada' : 'fechas cerradas'}` : '',
+                  abiertas ? `${abiertas} ${abiertas === 1 ? 'fecha abierta aparte' : 'fechas abiertas aparte'}` : '',
+                ].filter(Boolean).join(' • ')}`;
+              })()}
             </p>
           </div>
           <div className="flex gap-2">
@@ -362,7 +401,37 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           </div>
         </div>
 
-        {/* Week Schedule Preview */}
+        {/* Dos vistas del mismo horario: la semana dice la regla —lo que pasa
+            todos los jueves— y el calendario la excepcion —que el 24 no se
+            abre—. La semana sola es ciega a los dias que se salen. */}
+        <div className="flex gap-1 mb-3 border-b border-gray-200">
+          <button
+            type="button"
+            onClick={() => setVista('semana')}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              vista === 'semana'
+                ? 'border-[#F26726] text-[#F26726]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Semana
+          </button>
+          <button
+            type="button"
+            onClick={() => setVista('calendario')}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              vista === 'calendario'
+                ? 'border-[#F26726] text-[#F26726]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Calendario
+          </button>
+        </div>
+
+        {vista === 'calendario' ? (
+          <CalendarioDelHorario schedule={schedule} onGuardar={onGuardarFechas} />
+        ) : (
         <div className="space-y-2">
           <h5 className="text-sm font-medium text-gray-700 flex items-center">
             <BiTime className="mr-2" />
@@ -399,6 +468,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
             })}
           </div>
         </div>
+        )}
 
         {(schedule.description || schedule.notes) && (
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
@@ -442,9 +512,9 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(
     schedule?.weeklySchedule || generateDefaultSchedule()
   );
-  // Sin setter: hoy las fechas bloqueadas solo se leen del calendario que
-  // llega por props; no hay forma de editarlas desde aqui.
-  const [blockedDates] = useState<BlockedDate[]>(schedule?.blockedDates || []);
+  // Las fechas sueltas se tocan desde el calendario, no desde este formulario:
+  // aqui se arrastran tal cual para no perderlas al guardar el patrón.
+  const [dateOverrides] = useState(schedule?.dateOverrides);
   const [notes, setNotes] = useState(schedule?.notes || '');
   // Los dos numericos se guardan como TEXTO mientras se escriben.
   //
@@ -516,7 +586,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           name,
           description,
           weeklySchedule,
-          blockedDates,
+          dateOverrides,
           notes,
           validFrom,
           // Vacío vuelve a «sin fecha final», que es lo que hacían los
@@ -541,7 +611,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                 : {}),
           description,
           weeklySchedule,
-          blockedDates,
+          dateOverrides,
           notes,
           validFrom,
           validUntil,

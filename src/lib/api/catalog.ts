@@ -18,7 +18,7 @@ type ApiAvailabilityCruda = {
   id: string;
   name: string;
   weeklySchedule: unknown;
-  blockedDates: string[];
+  dateOverrides: Record<string, unknown> | null;
   validFrom?: string | null;
   validUntil?: string | null;
 };
@@ -55,7 +55,7 @@ function aHorario(a: ApiAvailabilityCruda): AvailabilitySchedule {
     weeklySchedule: a.weeklySchedule as AvailabilitySchedule['weeklySchedule'],
     validFrom: a.validFrom ? a.validFrom.slice(0, 10) : undefined,
     validUntil: a.validUntil ? a.validUntil.slice(0, 10) : null,
-    blockedDates: (a.blockedDates ?? []).map((d) => ({ date: d })),
+    dateOverrides: (a.dateOverrides ?? undefined) as AvailabilitySchedule['dateOverrides'],
     createdAt: '',
     updatedAt: '',
   };

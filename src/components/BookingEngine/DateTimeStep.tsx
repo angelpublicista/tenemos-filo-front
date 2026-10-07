@@ -85,7 +85,11 @@ function franjasDisponibles(
 
   schedules.forEach(schedule => {
     if (!rigeEseDia(schedule, date)) return;
-    const daySchedule = schedule.weeklySchedule?.[dayKey];
+
+    // Lo que se dijo de ESA fecha manda sobre el patron semanal: el 24 no se
+    // abre aunque sea jueves, y el 31 puede abrir solo la cena.
+    const suelta = schedule.dateOverrides?.[soloElDia(date)];
+    const daySchedule = suelta ?? schedule.weeklySchedule?.[dayKey];
     if (!daySchedule?.isActive) return;
 
     // `franjas` es el nombre de ahora; `timeSlots` son los horarios guardados
@@ -117,9 +121,16 @@ function franjasDisponibles(
   return Array.from(slots).sort();
 }
 
+/**
+ * Si todos los horarios que aplican cierran ese dia a proposito.
+ *
+ * Con uno que lo abra hay donde reservar, asi que solo se bloquea cuando lo
+ * cierran todos.
+ */
 function isDateBlocked(date: Date, schedules: AvailabilitySchedule[]): boolean {
-  const dateStr = date.toISOString().split('T')[0];
-  return schedules?.some(s => s.blockedDates?.some(b => b.date === dateStr)) ?? false;
+  if (!schedules || schedules.length === 0) return false;
+  const clave = soloElDia(date);
+  return schedules.every((s) => s.dateOverrides?.[clave]?.isActive === false);
 }
 
 interface Props {

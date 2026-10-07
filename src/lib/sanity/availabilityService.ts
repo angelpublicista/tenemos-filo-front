@@ -18,7 +18,7 @@ interface ApiAvailability {
   isActive: boolean;
   weeklySchedule: WeeklySchedule;
   notes: string | null;
-  blockedDates: string[];
+  dateOverrides: Record<string, { isActive?: boolean; franjas?: unknown[]; timeSlots?: unknown[] }> | null;
   validFrom?: string | null;
   validUntil?: string | null;
   createdAt: string;
@@ -44,7 +44,7 @@ function toSchedule(a: ApiAvailability): AvailabilitySchedule {
     validFrom: a.validFrom ? a.validFrom.slice(0, 10) : undefined,
     validUntil: a.validUntil ? a.validUntil.slice(0, 10) : null,
     notes: a.notes ?? undefined,
-    blockedDates: (a.blockedDates ?? []).map((d) => ({ date: d })),
+    dateOverrides: (a.dateOverrides ?? undefined) as AvailabilitySchedule['dateOverrides'],
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
   };
@@ -82,7 +82,7 @@ export const createAvailabilitySchedule = async (
     validUntil: data.validUntil,
     notes: data.notes,
     // El API acepta tanto strings ISO como objetos { date }
-    blockedDates: data.blockedDates,
+    dateOverrides: data.dateOverrides,
   });
   return toSchedule(created);
 };
@@ -165,7 +165,7 @@ export const updateAvailabilitySchedule = async (
       validFrom: rest.validFrom,
       validUntil: rest.validUntil,
       notes: rest.notes,
-      blockedDates: rest.blockedDates,
+      dateOverrides: rest.dateOverrides,
     },
   );
   return toSchedule(updated);

@@ -396,7 +396,6 @@ function CreateExperiencePageContenido() {
             description: `Disponibilidad propia de la experiencia: ${data.title}`,
             weeklySchedule: generateDefaultSchedule(),
             ...vigenciaPorDefecto(),
-            blockedDates: [],
             notes: 'Calendario generado automáticamente. Personaliza los horarios en la sección de Disponibilidad.',
           });
           await updateExperienceInSanity({

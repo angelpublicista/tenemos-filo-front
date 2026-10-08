@@ -7,6 +7,7 @@ import {
   updateLocationInSanity
 } from '@/lib/sanity/locationService';
 import { getCompanyById } from '@/lib/sanity/companyService';
+import { mensajeDeError } from '@/lib/api/client';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose } from 'react-icons/ai';
 import DepartamentoCiudad from './DepartamentoCiudad';
@@ -353,7 +354,9 @@ const LocationModal: React.FC<LocationModalProps> = ({
 
       onSave(updatedLocations);
     } catch (error) {
-      showError('Error al guardar la sede');
+      // El API dice que campo falla y por que; sin esto se veia solo "Error al
+      // guardar la sede" y no habia forma de saber que corregir.
+      showError('Error al guardar la sede', mensajeDeError(error));
       console.error(error);
     } finally {
       setSaving(false);

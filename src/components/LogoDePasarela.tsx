@@ -22,7 +22,7 @@ export type Pasarela = 'WOMPI' | 'MERCADO_PAGO' | 'BOLD';
  */
 const MARCAS: Record<
   Pasarela,
-  { archivo: string | null; nombre: string; lineaDeTexto: number; proporcion: number }
+  { archivo: string; nombre: string; lineaDeTexto: number; proporcion: number }
 > = {
   WOMPI: {
     archivo: '/pasarelas/wompi.svg',
@@ -36,14 +36,14 @@ const MARCAS: Record<
     lineaDeTexto: 0.214,
     proporcion: 1048.82 / 425.2,
   },
-  // Todavía sin archivo: el logo oficial de Bold hay que bajarlo de sus
-  // recursos gráficos y dejarlo en /pasarelas/bold.svg. Mientras tanto va el
-  // nombre escrito, que es preferible a un logo redibujado a ojo.
+  // Bold lo entrega en PNG. Sus letras ocupan casi todo el lienzo —una sola
+  // línea, sin aire—, así que la fracción es la altura de la «o» sobre el alto
+  // del archivo.
   BOLD: {
-    archivo: null,
+    archivo: '/pasarelas/bold.png',
     nombre: 'Bold',
-    lineaDeTexto: 1,
-    proporcion: 1,
+    lineaDeTexto: 0.58,
+    proporcion: 3226 / 1306,
   },
 };
 
@@ -68,19 +68,8 @@ export default function LogoDePasarela({ pasarela, alto = 14, className = '' }: 
   const marca = MARCAS[pasarela];
   const altoDeCaja = Math.round(alto / marca.lineaDeTexto);
 
-  if (!marca.archivo) {
-    return (
-      <span
-        className={`inline-block font-extrabold leading-none tracking-tight text-[#121E6C] ${className}`}
-        style={{ fontSize: Math.round(alto * 1.4) }}
-      >
-        {marca.nombre}
-      </span>
-    );
-  }
-
   return (
-    // SVG estático de marca: no hay nada que optimizar y next/image no procesa
+    // Imagen estática de marca: no hay nada que optimizar y next/image no procesa
     // SVG sin abrir la puerta a servir SVG de terceros.
     // eslint-disable-next-line @next/next/no-img-element
     <img

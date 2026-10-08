@@ -56,7 +56,7 @@ type ApiUser = {
   id: string;
   email: string;
   name: string | null;
-  role: "HOST" | "GUEST" | "ADMIN";
+  role: "HOST" | "GUEST" | "ADMIN" | "RESELLER";
   image: string | null;
   phone: string | null;
   companyId: string | null;
@@ -73,6 +73,60 @@ async function callApi<T>(path: string, body: unknown): Promise<T | null> {
     if (!res.ok) return null;
     const json = (await res.json()) as { data: T };
     return json.data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cada cuanto se vuelven a preguntar `role` y `companyId` al API.
+ *
+ * El problema que resuelve: estos dos viajaban dentro del JWT y solo se
+ * escribian al iniciar sesion. Quien entraba antes de tener empresa —el caso
+ * normal: primero te registras, despues creas la empresa— se quedaba con un
+ * token que decia `companyId: null` para siempre. El front lo disimulaba,
+ * porque el suyo lo lee de /users/me y era correcto, pero el API autoriza con
+ * el del token: el panel se veia bien y cada llamada con alcance de empresa
+ * respondia 403.
+ *
+ * Cinco minutos es el compromiso: quien acaba de crear su empresa espera como
+ * mucho eso, y es una llamada por persona cada cinco minutos, no una por
+ * peticion. Para que sea inmediato existe `trigger: "update"`, que lo fuerza
+ * desde la aplicacion con useSession().update().
+ */
+const REFRESCO_MS = 5 * 60 * 1000;
+
+/**
+ * Relee del API el rol y la empresa del usuario del token.
+ *
+ * Firma un bearer corto con el mismo secreto que el API verifica — no hay otra
+ * forma de llamarle desde aqui, donde no existe la cookie de sesion todavia.
+ * Solo necesita el `sub`, asi que un token con companyId rancio sirve
+ * igualmente para preguntar cual es el bueno.
+ *
+ * Devuelve null si algo falla, y el caller deja el token como estaba: que el
+ * API no conteste no es motivo para degradar una sesion valida.
+ */
+async function releerUsuario(token: JWT): Promise<Pick<ApiUser, "role" | "companyId"> | null> {
+  const sub = typeof token.sub === "string" ? token.sub : token.id;
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!sub || !secret) return null;
+
+  try {
+    const bearer = await new SignJWT({ email: token.email, role: token.role })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setSubject(sub)
+      .setExpirationTime("1m")
+      .sign(secretBytes(secret));
+
+    const res = await fetch(`${API_URL}/users/me`, {
+      headers: { Authorization: `Bearer ${bearer}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { data: ApiUser };
+    return { role: json.data.role, companyId: json.data.companyId };
   } catch {
     return null;
   }
@@ -129,11 +183,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Al iniciar sesion viene `user` con los datos recien traidos del API.
       if (user) {
         token.id = user.id;
         token.role = user.role ?? "GUEST";
         token.companyId = user.companyId ?? null;
+        token.refrescadoEn = Date.now();
+        return token;
+      }
+
+      // Despues, cada tanto: ver REFRESCO_MS.
+      const vencido = Date.now() - (token.refrescadoEn ?? 0) > REFRESCO_MS;
+      if (trigger === "update" || vencido) {
+        const frescos = await releerUsuario(token);
+        if (frescos) {
+          token.role = frescos.role;
+          token.companyId = frescos.companyId;
+        }
+        // La marca se pone aunque falle, o un API caido convertiria cada
+        // peticion en un reintento.
+        token.refrescadoEn = Date.now();
       }
       return token;
     },

@@ -3,6 +3,10 @@
 import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CompanySetupAlert from "@/components/CompanySetupAlert";
+import CompanyProgress from "@/components/CompanyProgress";
+import { calcularCompletitud } from "@/lib/company/completitud";
+import { getCompanyById } from "@/lib/sanity/companyService";
+import type { Company } from "@/types";
 import ThemeToggleButton from "@/components/ThemeToggleButton";
 import { useCompanySetup } from "@/hooks/useCompanySetup";
 import { 
@@ -19,6 +23,7 @@ import { SkeletonStatCard, SkeletonActivityItem } from '@/components/Skeleton';
 import { getResumenIngresos, type ResumenIngresos } from '@/lib/api/earnings';
 import { listarMisReservas, ETIQUETA_ESTADO, type MiReserva } from '@/lib/api/misReservas';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const pesos = (n: number) =>
   new Intl.NumberFormat('es-CO', {
@@ -54,6 +59,10 @@ export default function Dashboard() {
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // La empresa entera, solo para saber que le falta. El dashboard ya tenia el
+  // id, pero no los campos, y sin ellos no se puede decir que queda pendiente.
+  const [empresa, setEmpresa] = useState<Company | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -123,6 +132,31 @@ export default function Dashboard() {
 
     loadDashboardData();
   }, [sanityUser?.companyId, sanityUser?.role, esReseller]);
+
+  // Que le falta a la empresa por rellenar.
+  //
+  // Se trae aqui y no se reaprovecha de otra pantalla porque el dashboard es
+  // donde se entra cada dia: el aviso que vivia solo en Informacion de la
+  // Empresa no lo veia quien no entraba a esa pantalla, que es justo quien
+  // tiene la ficha a medias.
+  //
+  // Un administrador no entra: no tiene empresa propia, gestiona las de otros
+  // con el selector. Un comensal tampoco.
+  useEffect(() => {
+    const companyId = sanityUser?.companyId;
+    const aplica = !!companyId && sanityUser?.role !== 'admin' && sanityUser?.role !== 'guest';
+    if (!aplica) {
+      setEmpresa(null);
+      return;
+    }
+    let vigente = true;
+    getCompanyById(companyId)
+      .then((c) => { if (vigente) setEmpresa(c); })
+      // Si no se puede traer, no se dice nada: es un aviso de apoyo, no vale
+      // ensuciar el dashboard con un error por algo que no bloquea nada.
+      .catch(() => { if (vigente) setEmpresa(null); });
+    return () => { vigente = false; };
+  }, [sanityUser?.companyId, sanityUser?.role]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -288,6 +322,16 @@ export default function Dashboard() {
           hasCompletedSetup={isSetupCompleted()}
           hasCompanyId={!!sanityUser?.companyId}
         />
+
+        {/* Que falta de la empresa. Solo cuando falta algo: con la ficha
+            completa, un recuadro verde fijo en el dashboard seria ruido. */}
+        {empresa && !calcularCompletitud(empresa).completa && (
+          <CompanyProgress
+            company={empresa}
+            onCompletar={() => router.push('/company-setup')}
+            className="mb-6"
+          />
+        )}
 
         {/* Panel del comensal: lo que ha reservado. */}
         {esComensal ? (

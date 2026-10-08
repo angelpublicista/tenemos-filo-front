@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { useSession } from 'next-auth/react';
 import { createCompanyInSanity, getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
 import { associateUserWithCompany, markCompanySetupCompleted } from '@/lib/sanity/userService';
 import { Button, Label, TextInput, Select, Textarea } from 'flowbite-react';
@@ -195,6 +196,11 @@ function tieneAlgo(dir?: Record<string, string | undefined>): boolean {
 export default function CompanySetupForm() {
   const router = useRouter();
   const { user, sanityUser, markSetupCompleted, isSetupCompleted, hasCompany } = useAuth();
+  // `update()` fuerza el callback jwt con trigger "update", que relee el
+  // usuario del API y reescribe el token. Sin esto, el companyId recien
+  // creado tardaba hasta cinco minutos en entrar en el token, y mientras
+  // tanto el API respondia 403 a todo lo que tuviera alcance de empresa.
+  const { update: refrescarSesion } = useSession();
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -653,11 +659,27 @@ export default function CompanySetupForm() {
       
       // Marcar el setup como completado en localStorage
       markSetupCompleted(company._id);
-      
-      hideLoading();
 
-      // Esperar un momento para asegurar que Sanity procese los cambios
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // El token lleva dentro el companyId y es con el que autoriza el API.
+      // Se reescribe aqui, antes de salir de la pantalla: si se deja para
+      // despues, el dashboard carga con un token que todavia dice que esta
+      // persona no tiene empresa.
+      //
+      // Sustituye a una espera de un segundo "para que Sanity procese los
+      // cambios": Sanity ya no existe, y esto si espera a algo real — la
+      // vuelta del API con el usuario actualizado.
+      //
+      // El objeto vacio no es decorativo: `update()` sin argumentos hace un GET
+      // normal y no dispara `trigger: "update"` (next-auth/react.js, update()).
+      // Solo pasandole algo manda el POST que relee el usuario.
+      try {
+        await refrescarSesion({});
+      } catch {
+        // Si falla, el token se arregla solo en el siguiente refresco
+        // periodico. No vale perder la empresa recien creada por esto.
+      }
+
+      hideLoading();
 
       // Forzar recarga completa de la página para actualizar el AuthContext
       // Esto asegura que sanityUser tenga el companyId actualizado

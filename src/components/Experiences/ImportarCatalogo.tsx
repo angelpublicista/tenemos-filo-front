@@ -49,6 +49,18 @@ function categoriasValidas(cs: string[]): Categoria[] {
   return buenas.length > 0 ? buenas : ['other'];
 }
 
+/**
+ * Cuántas experiencias se importan a la vez.
+ *
+ * El coste de importar no está en crear la experiencia —12 ms medidos— sino en
+ * copiar la portada desde la web del anfitrión: entre 1,3 y 2,3 segundos cada
+ * una. En serie, un catálogo de veinte tarda cerca de un minuto esperando
+ * descargas. De cuatro en cuatro baja a la cuarta parte sin convertir la
+ * importación en una ráfaga contra el sitio de origen, que es de donde salen
+ * las fotos y que suele ser un hosting modesto.
+ */
+const A_LA_VEZ = 4;
+
 const COLOR_CONFIANZA: Record<string, string> = {
   alta: 'bg-green-100 text-green-800',
   media: 'bg-amber-100 text-amber-800',
@@ -198,7 +210,7 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
     let creadas = 0;
     const fallidas: string[] = [];
 
-    for (const c of elegidas) {
+    const importarUna = async (c: Candidata) => {
       try {
         // La portada se copia a nuestro almacenamiento, no se enlaza: si su web
         // cambia o desaparece, su catálogo aquí se quedaría con huecos.
@@ -235,7 +247,16 @@ export default function ImportarCatalogo({ abierto, onCerrar, onImportado }: Pro
       } catch {
         fallidas.push(c.title);
       }
-    }
+    };
+
+    // Varias a la vez, pero no todas: ver A_LA_VEZ. Cada hilo va tomando de la
+    // cola hasta que se acaba, así una portada lenta no detiene al resto.
+    const cola = [...elegidas];
+    await Promise.all(
+      Array.from({ length: Math.min(A_LA_VEZ, cola.length) }, async () => {
+        for (let c = cola.shift(); c; c = cola.shift()) await importarUna(c);
+      }),
+    );
 
     setCreando(false);
 

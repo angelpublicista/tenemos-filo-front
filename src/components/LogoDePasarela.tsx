@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type Pasarela = 'WOMPI' | 'MERCADO_PAGO';
+export type Pasarela = 'WOMPI' | 'MERCADO_PAGO' | 'BOLD';
 
 /**
  * Los logos oficiales de cada pasarela, tal cual los entregan.
@@ -22,7 +22,7 @@ export type Pasarela = 'WOMPI' | 'MERCADO_PAGO';
  */
 const MARCAS: Record<
   Pasarela,
-  { archivo: string; nombre: string; lineaDeTexto: number; proporcion: number }
+  { archivo: string | null; nombre: string; lineaDeTexto: number; proporcion: number }
 > = {
   WOMPI: {
     archivo: '/pasarelas/wompi.svg',
@@ -35,6 +35,15 @@ const MARCAS: Record<
     nombre: 'Mercado Pago',
     lineaDeTexto: 0.214,
     proporcion: 1048.82 / 425.2,
+  },
+  // Todavía sin archivo: el logo oficial de Bold hay que bajarlo de sus
+  // recursos gráficos y dejarlo en /pasarelas/bold.svg. Mientras tanto va el
+  // nombre escrito, que es preferible a un logo redibujado a ojo.
+  BOLD: {
+    archivo: null,
+    nombre: 'Bold',
+    lineaDeTexto: 1,
+    proporcion: 1,
   },
 };
 
@@ -58,6 +67,17 @@ interface Props {
 export default function LogoDePasarela({ pasarela, alto = 14, className = '' }: Props) {
   const marca = MARCAS[pasarela];
   const altoDeCaja = Math.round(alto / marca.lineaDeTexto);
+
+  if (!marca.archivo) {
+    return (
+      <span
+        className={`inline-block font-extrabold leading-none tracking-tight text-[#121E6C] ${className}`}
+        style={{ fontSize: Math.round(alto * 1.4) }}
+      >
+        {marca.nombre}
+      </span>
+    );
+  }
 
   return (
     // SVG estático de marca: no hay nada que optimizar y next/image no procesa

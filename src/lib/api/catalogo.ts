@@ -22,7 +22,11 @@ export interface Publicacion {
   completa: boolean;
   /** Lo que le falta, en palabras que se pueden enseñar tal cual. */
   falta: string[];
-  /** null = la pieza todavía no se está usando en ningún escenario. */
+  /**
+   * La sede donde se ofrece. Nulo en dos casos distintos: a domicilio —que sí
+   * es una publicación, solo que sin sede— y una pieza que nadie ha publicado
+   * todavía. `atHome` es lo que los separa.
+   */
   locationId: string | null;
   locationName: string | null;
   sedeActiva: boolean | null;

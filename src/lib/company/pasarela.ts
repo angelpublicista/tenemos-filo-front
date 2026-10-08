@@ -9,7 +9,7 @@ import { api } from '@/lib/api/client';
  * Los secretos nunca vuelven del API, ni para su dueño. Solo se sabe si están
  * puestos, y para cambiar uno hay que escribirlo entero de nuevo.
  */
-export type ProveedorDePago = 'WOMPI' | 'MERCADO_PAGO';
+export type ProveedorDePago = 'WOMPI' | 'MERCADO_PAGO' | 'BOLD';
 
 export interface PasarelaDeCobro {
   provider: ProveedorDePago | null;

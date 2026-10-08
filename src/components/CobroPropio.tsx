@@ -85,6 +85,7 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
   const cobrando = estado?.listaParaCobrar === true;
   const faltan = estado?.faltan ?? [];
   const esMercadoPago = proveedor === 'MERCADO_PAGO';
+  const esBold = proveedor === 'BOLD';
 
   const enviar = async (cambios: Parameters<typeof guardarPasarela>[1]) => {
     setGuardando(true);
@@ -241,8 +242,8 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
           <span className="mb-2 block text-sm font-medium text-gray-900 dark:text-gray-300">
             Pasarela
           </span>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(['WOMPI', 'MERCADO_PAGO'] as const).map((p) => (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {(['WOMPI', 'MERCADO_PAGO', 'BOLD'] as const).map((p) => (
               <button
                 key={p}
                 type="button"
@@ -290,7 +291,13 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
             ))}
           </div>
           <p className="mt-2 text-xs text-gray-500">
-            {esMercadoPago ? (
+            {esBold ? (
+              <>
+                Bold te da un par de llaves para pruebas y otro para producción, y no se
+                distinguen a simple vista: si no coinciden con el entorno, los pagos no entran y
+                cuesta darse cuenta.
+              </>
+            ) : esMercadoPago ? (
               <>
                 Las credenciales de prueba de Mercado Pago empiezan por <code>TEST-</code>; si no
                 coinciden con el entorno, los pagos no entran y cuesta darse cuenta.
@@ -309,7 +316,40 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
             firma en el navegador y necesita llave pública y secreto de
             integridad. Enseñar los cuatro campos siempre haría que la mitad
             pareciera obligatoria sin serlo. */}
-        {esMercadoPago ? (
+{esBold ? (
+          <>
+            <div className="md:col-span-2">
+              <Label htmlFor="pas-publica">Llave de identidad</Label>
+              <TextInput
+                id="pas-publica"
+                value={secretos.publicKey}
+                onChange={(e) => setSecretos((s) => ({ ...s, publicKey: e.target.value }))}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Está en tu panel de Bold, en Integraciones → Llaves de integración → Botón de
+                pagos. Con ella se crean tus links de pago.
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <Label htmlFor="pas-privada">
+                Llave secreta {estado?.privateKeyConfigured && '· guardada'}
+              </Label>
+              <TextInput
+                id="pas-privada"
+                type="password"
+                autoComplete="off"
+                value={secretos.privateKey}
+                placeholder={estado?.privateKeyConfigured ? 'Déjala en blanco para no cambiarla' : ''}
+                onChange={(e) => setSecretos((s) => ({ ...s, privateKey: e.target.value }))}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Sin ella no sabremos cuándo te pagan: es con la que Bold firma sus avisos, y la
+                reserva se quedaría sin confirmar aunque el cliente haya pagado.
+              </p>
+            </div>
+          </>
+        ) : esMercadoPago ? (
           <>
             <div className="md:col-span-2">
               <Label htmlFor="pas-privada">
@@ -412,7 +452,16 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
       </div>
 
       <p className="mt-4 text-xs text-gray-500">
-        {esMercadoPago ? (
+        {esBold ? (
+          <>
+            En tu panel de Bold, en Integraciones → Webhooks, registra esta URL:{' '}
+            <code className="break-all rounded bg-gray-100 px-1">
+              {process.env.NEXT_PUBLIC_API_URL ?? ''}/payments/bold/webhook/{companyId}
+            </code>
+            . En modo pruebas Bold no avisa de los pagos por su cuenta: usa el botón «Probar el
+            webhook» al terminar la compra.{' '}
+          </>
+        ) : esMercadoPago ? (
           <>
             No tienes que configurar ninguna URL: se la indicamos a Mercado Pago en cada cobro.{' '}
           </>

@@ -45,13 +45,7 @@ import {
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import type { Location } from '@/types';
-
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(n);
+import { pesos } from '@/lib/dinero';
 
 const DIAS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
@@ -197,8 +191,21 @@ export default function PublicacionesPage() {
     return [...mapa.values()];
   }, [publicaciones]);
 
-  const enUso = publicaciones.filter((p) => p.locationId !== null).length;
-  const sinUsar = publicaciones.filter((p) => p.locationId === null).length;
+  // Una fila sin sede es dos cosas distintas: la publicación de algo a
+  // domicilio —que sí está a la venta, solo que sin sede— y una pieza que
+  // nadie ha publicado todavía. Contar «sin sede» como «sin publicar» decía
+  // que las de a domicilio no estaban en el catálogo, y están.
+  const esPublicacion = (p: Publicacion) => p.atHome || p.locationId !== null;
+
+  // En el catálogo están las que no se han pausado: pausar es justamente
+  // sacarla de ahí sin perder sus condiciones.
+  const enUso = publicaciones.filter(
+    (p) => esPublicacion(p) && p.propias?.isPublished !== false,
+  ).length;
+
+  // Piezas, no publicaciones: lo que cuenta aquí es el trabajo que queda por
+  // hacer, y una pieza en dos sedes no son dos pendientes.
+  const sinUsar = porPieza.filter((filas) => !filas.some(esPublicacion)).length;
 
   if (cargando) {
     return (

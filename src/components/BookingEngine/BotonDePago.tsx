@@ -33,7 +33,17 @@ export type CheckoutMercadoPago = {
   environment: string;
 };
 
-export type DatosCheckout = CheckoutWompi | CheckoutMercadoPago;
+/** Igual que Mercado Pago: el servidor ya creó el link y esto es ir a él. */
+export type CheckoutBold = {
+  proveedor: 'BOLD';
+  checkoutUrl: string;
+  reference: string;
+  currency: string;
+  amount: number;
+  environment: string;
+};
+
+export type DatosCheckout = CheckoutWompi | CheckoutMercadoPago | CheckoutBold;
 
 const pesos = (monto: number, moneda: string) =>
   monto.toLocaleString('es-CO', { style: 'currency', currency: moneda, maximumFractionDigits: 0 });
@@ -69,13 +79,13 @@ const CLASES =
  * En Wompi los campos van en un formulario con los nombres exactos que
  * documenta (`public-key`, `amount-in-cents`, `signature:integrity`), y la
  * firma viene calculada del servidor: aquí no hay ningún secreto. En Mercado
- * Pago la preferencia ya está creada y esto es un enlace.
+ * Pago y en Bold el cobro ya está creado y esto es un enlace.
  */
 export default function BotonDePago({ datos }: { datos: DatosCheckout }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [enviando, setEnviando] = useState(false);
 
-  if (datos.proveedor === 'MERCADO_PAGO') {
+  if (datos.proveedor === 'MERCADO_PAGO' || datos.proveedor === 'BOLD') {
     return (
       <div className="space-y-3">
         <a

@@ -7,7 +7,7 @@ import { api, apiEnvelope } from './client';
 
 export interface CobroSinReserva {
   id: string;
-  gateway: 'WOMPI' | 'MERCADO_PAGO' | string;
+  gateway: 'WOMPI' | 'MERCADO_PAGO' | 'BOLD' | string;
   reference: string;
   transactionId: string | null;
   amount: string | number | null;

@@ -13,6 +13,21 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   trailingSlash: false,
+  // La pantalla en la que se aprueba la conexión de un asistente no se puede
+  // meter en un iframe: una web ajena podría taparla y hacer que el anfitrión
+  // pulsara «Conectar» sin saberlo. Solo esa ruta: el motor de reservas sí
+  // está pensado para incrustarse.
+  async headers() {
+    return [
+      {
+        source: '/oauth/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+        ],
+      },
+    ];
+  },
   // Configuración de imágenes externas
   images: {
     remotePatterns: [

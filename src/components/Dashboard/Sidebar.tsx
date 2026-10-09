@@ -23,7 +23,7 @@ import {
   BiChevronRight,
   BiX
 } from 'react-icons/bi';
-import { HiOutlineCash, HiOutlineClipboardList, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
+import { HiOutlineCash, HiOutlineChip, HiOutlineClipboardList, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -100,6 +100,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             href: '/dashboard/integraciones/agente',
             icon: HiOutlineSparkles,
             current: pathname === '/dashboard/integraciones/agente',
+            enabled: true,
+          },
+          // Conectar un asistente de IA propio (Claude, ChatGPT) a la cuenta.
+          {
+            name: 'MCP',
+            href: '/dashboard/integraciones/mcp',
+            icon: HiOutlineChip,
+            current: pathname === '/dashboard/integraciones/mcp',
             enabled: true,
           },
         ]

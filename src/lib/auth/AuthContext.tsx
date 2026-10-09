@@ -8,6 +8,7 @@
 //   conservamos el nombre por compatibilidad con los 44+ callers).
 "use client";
 
+import { CLAVE_DE_VUELTA } from "@/lib/api/mcp";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -280,6 +281,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (mapped.role === "host" && !hasSetup) {
         router.push("/company-setup");
+        return;
+      }
+      // Quien venía a aprobar la conexión de un asistente vuelve a eso. Solo
+      // se acepta esa ruta nuestra: lo guardado no puede mandar a otro sitio.
+      let volverA: string | null = null;
+      try {
+        volverA = window.sessionStorage.getItem(CLAVE_DE_VUELTA);
+        window.sessionStorage.removeItem(CLAVE_DE_VUELTA);
+      } catch {
+        // Sin almacenamiento, al panel como siempre.
+      }
+      if (volverA?.startsWith("/oauth/autorizar?")) {
+        router.push(volverA);
         return;
       }
       router.push("/dashboard");

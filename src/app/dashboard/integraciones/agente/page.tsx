@@ -5,6 +5,15 @@ import { Button, Label, Textarea, TextInput, ToggleSwitch } from 'flowbite-react
 import { HiOutlineChatAlt2, HiPaperAirplane } from 'react-icons/hi';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import { mensajeDeError } from '@/lib/api/client';
+
+/**
+ * Los mismos topes que valida el API (configSchema en agente.routes.ts).
+ * Repetirlos aquí no es duplicar por gusto: sin ellos el campo deja escribir
+ * de más y el fallo solo aparece al guardar, cuando ya se perdió el texto.
+ */
+const MAXIMO_TONO = 300;
+const MAXIMO_INSTRUCCIONES = 4000;
 import ConversacionesDelAgente from '@/components/Agente/ConversacionesDelAgente';
 import {
   getAgente,
@@ -107,8 +116,10 @@ export default function AgentePage() {
         showSuccess('Guardado', a.enabled ? '' : 'Lo usará en cuanto lo enciendas.');
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      showError('No se pudo guardar', msg || 'Inténtalo de nuevo.');
+      // mensajeDeError añade el detalle por campo que manda el API. Sin él, un
+      // rechazo de validación se veía como «No se pudo guardar» a secas y no
+      // había forma de saber qué corregir.
+      showError('No se pudo guardar', mensajeDeError(err));
     } finally {
       setGuardando(false);
     }
@@ -219,7 +230,17 @@ export default function AgentePage() {
                 value={tono}
                 onChange={(e) => setTono(e.target.value)}
                 placeholder="cercano y breve, de tú"
+                maxLength={MAXIMO_TONO}
               />
+              {/* El límite se enseña además de aplicarse: el campo lo cortaba
+                  en silencio y quien escribía de más no entendía por qué el
+                  guardado fallaba. */}
+              {/* En rojo al pasarse: un contador gris que dice 400/300 se lee
+                  igual que uno que va bien. */}
+              <p className={`mt-1 text-xs ${tono.length > MAXIMO_TONO ? 'text-red-600' : 'text-gray-500'}`}>
+                Dos o tres palabras bastan. {tono.length}/{MAXIMO_TONO}
+                {tono.length > MAXIMO_TONO && ' — recórtalo para poder guardar'}
+              </p>
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="ag-instrucciones">Lo que tiene que saber</Label>
@@ -228,6 +249,7 @@ export default function AgentePage() {
                 rows={5}
                 value={instrucciones}
                 onChange={(e) => setInstrucciones(e.target.value)}
+                maxLength={MAXIMO_INSTRUCCIONES}
                 placeholder={
                   'Lo que no está en tus experiencias y te preguntan todo el tiempo.\n' +
                   'Ej: hay parqueadero en la calle; no manejamos menú infantil; los sábados cerramos a las 11.'

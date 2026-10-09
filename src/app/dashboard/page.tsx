@@ -292,11 +292,18 @@ export default function Dashboard() {
         <div className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0 flex-1">
+              {/* Entrando en una empresa ajena, saludar al administrador por su
+                  nombre despistaba: lo que se esta mirando es la empresa, y el
+                  resumen de abajo es el de ella, no el de quien mira. */}
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                ¡Hola, {sanityUser?.name?.split(' ')[0] || 'Usuario'}! 👋
+                {actuandoComoOtra
+                  ? <>Estás viendo {empresa?.companyName || 'esta empresa'}</>
+                  : <>¡Hola, {sanityUser?.name?.split(' ')[0] || 'Usuario'}! 👋</>}
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Bienvenido de vuelta. Aquí tienes un resumen de tu actividad.
+                {actuandoComoOtra
+                  ? 'Esto es lo que ve su anfitrión. Lo que hagas aquí queda a nombre de esta empresa.'
+                  : 'Bienvenido de vuelta. Aquí tienes un resumen de tu actividad.'}
               </p>
             </div>
             <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">

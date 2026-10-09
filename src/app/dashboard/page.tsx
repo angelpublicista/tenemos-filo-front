@@ -297,7 +297,7 @@ export default function Dashboard() {
                   resumen de abajo es el de ella, no el de quien mira. */}
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {actuandoComoOtra
-                  ? <>Estás viendo {empresa?.companyName || 'esta empresa'}</>
+                  ? <>Estás viendo a {empresa?.ownerName || empresa?.companyName || 'esta empresa'}</>
                   : <>¡Hola, {sanityUser?.name?.split(' ')[0] || 'Usuario'}! 👋</>}
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">

@@ -136,8 +136,8 @@ export interface ApiCompany {
   createdAt: string;
   updatedAt: string;
   locations?: Array<{ id: string; name: string; isMain: boolean }>;
-  /** Titular. Solo su rol: el id ya viaja en ownerId. */
-  owner?: { id: string; role: 'HOST' | 'GUEST' | 'ADMIN' | 'RESELLER' } | null;
+  /** Titular: su rol y su nombre. El id ya viaja en ownerId. */
+  owner?: { id: string; name: string | null; role: 'HOST' | 'GUEST' | 'ADMIN' | 'RESELLER' } | null;
 }
 
 // ─── Mapeos enum (lower<->upper) ───────────────────────────────────────────
@@ -173,6 +173,7 @@ export function toCompany(c: ApiCompany): Company {
     ownerRole: c.owner
       ? (c.owner.role.toLowerCase() as NonNullable<Company['ownerRole']>)
       : undefined,
+    ownerName: c.owner?.name ?? undefined,
     companyName: c.companyName,
     slug: { _type: 'slug', current: c.slug },
     businessName: c.businessName ?? undefined,

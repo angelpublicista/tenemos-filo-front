@@ -187,6 +187,12 @@ export interface Company {
    * que vende las de otros. El panel se pinta distinto según cuál sea.
    */
   ownerRole?: SanityUser['role'];
+  /**
+   * Nombre del titular, para poder decir de quién es la empresa cuando se
+   * mira desde fuera. Puede no estar: el API lo devuelve en la ficha de la
+   * empresa, pero no en todos los listados.
+   */
+  ownerName?: string;
   companyName: string;
   slug: {
     current: string;

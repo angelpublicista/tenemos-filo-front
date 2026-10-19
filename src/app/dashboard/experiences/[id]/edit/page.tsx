@@ -27,6 +27,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Loader from '@/components/Loader';
 import { ImageUpload, GalleryUpload } from '@/components/ImageUpload';
 import PrecioInput from '@/components/PrecioInput';
+import DepartamentoCiudad from '@/components/DepartamentoCiudad';
 import IdiomasInput from '@/components/IdiomasInput';
 
 // Esquema de validación
@@ -829,6 +830,32 @@ function EditExperiencePageContenido() {
                   )}
                 </div>
 
+              </div>
+            )}
+            {/* A domicilio no hay sede, pero sí hace falta saber DÓNDE se presta: un
+                chef que va a casa del cliente no cruza el país, y sin la ciudad el
+                catálogo se le ofrece a gente a la que no puede atender. */}
+            {atHome && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900 space-y-3">
+                <div>
+                  <Label>Ciudad donde lo prestas *</Label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    La dirección exacta la pone quien reserva; aquí va la ciudad desde la que atiendes.
+                  </p>
+                </div>
+                <DepartamentoCiudad
+                  departamento={watch('state') || ''}
+                  ciudad={watch('city') || ''}
+                  onDepartamentoChange={(v) =>
+                    setValue('state', v, { shouldValidate: true, shouldDirty: true })
+                  }
+                  onCiudadChange={(v) =>
+                    setValue('city', v, { shouldValidate: true, shouldDirty: true })
+                  }
+                  idDepartamento="experiencia-state"
+                  idCiudad="experiencia-city"
+                  requerido
+                />
               </div>
             )}
           </div>

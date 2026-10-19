@@ -322,6 +322,12 @@ function CreateExperiencePageContenido() {
     // reserva, en cada reserva.
     const enUnSitio = !data.atHome;
 
+    // Sin la ciudad no hay catálogo que le toque: la ficha no podría venderse.
+    if (data.atHome && !data.city?.trim()) {
+      showError('Indica la ciudad donde prestas la experiencia a domicilio');
+      return;
+    }
+
     // Validar lugar para experiencias presenciales/híbridas
     if (enUnSitio) {
       // No se exige sede: crear la pieza y ponerla en un sitio son dos
@@ -964,6 +970,32 @@ function CreateExperiencePageContenido() {
                   </div>
                 </div>
 
+              </div>
+            )}
+            {/* A domicilio no hay sede, pero sí hace falta saber DÓNDE se presta: un
+                chef que va a casa del cliente no cruza el país, y sin la ciudad el
+                catálogo se le ofrece a gente a la que no puede atender. */}
+            {atHome && (
+              <div className="rounded-lg border border-gray-200 p-4 bg-gray-50 space-y-3">
+                <div>
+                  <Label>Ciudad donde lo prestas *</Label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    La dirección exacta la pone quien reserva; aquí va la ciudad desde la que atiendes.
+                  </p>
+                </div>
+                <DepartamentoCiudad
+                  departamento={watch('state') || ''}
+                  ciudad={watch('city') || ''}
+                  onDepartamentoChange={(v) =>
+                    setValue('state', v, { shouldValidate: true, shouldDirty: true })
+                  }
+                  onCiudadChange={(v) =>
+                    setValue('city', v, { shouldValidate: true, shouldDirty: true })
+                  }
+                  idDepartamento="experiencia-state"
+                  idCiudad="experiencia-city"
+                  requerido
+                />
               </div>
             )}
           </div>

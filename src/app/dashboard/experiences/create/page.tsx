@@ -190,11 +190,14 @@ function CreateExperiencePageContenido() {
     }
 
     if (mode === 'generate') {
+      const needsCity = Boolean(values.atHome) || locationMode === 'custom';
       const missing: string[] = [];
       if (selectedCategories.length === 0) missing.push('Categorías');
       if (!values.duration) missing.push('Duración');
       if (!values.basePrice) missing.push('Precio base');
-      if (!values.city?.trim()) missing.push('Ciudad');
+      // La ciudad solo se pide donde hay un campo para ponerla: a domicilio o en
+      // un lugar personalizado. En una sede la ciudad es la de la sede.
+      if (needsCity && !values.city?.trim()) missing.push('Ciudad');
       if (includes.filter((i) => i.trim()).length === 0) missing.push('Qué incluye');
       if (requirements.filter((r) => r.trim()).length === 0) missing.push('Requisitos');
 

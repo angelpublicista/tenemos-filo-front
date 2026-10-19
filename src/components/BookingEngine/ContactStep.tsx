@@ -25,9 +25,11 @@ interface Props {
    * se bloquea: es su información y puede corregirla.
    */
   conocido?: { name: string; email: string; phone: string } | null;
+  /** Lo que ya escribió, al volver desde la confirmación. Manda sobre `conocido`. */
+  inicial?: BookingData['guestInfo'];
 }
 
-export default function ContactStep({ onNext, onBack, conocido }: Props) {
+export default function ContactStep({ onNext, onBack, conocido, inicial }: Props) {
   const {
     register,
     handleSubmit,
@@ -36,9 +38,11 @@ export default function ContactStep({ onNext, onBack, conocido }: Props) {
     formState: { errors, isSubmitted },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: conocido
-      ? { name: conocido.name, email: conocido.email, phone: conocido.phone }
-      : undefined,
+    defaultValues: inicial
+      ? { name: inicial.name, email: inicial.email, phone: inicial.phone, notes: inicial.notes }
+      : conocido
+        ? { name: conocido.name, email: conocido.email, phone: conocido.phone }
+        : undefined,
   });
 
   const onSubmit = (values: FormValues) => {

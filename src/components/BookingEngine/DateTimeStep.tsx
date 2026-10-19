@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import CalendarPicker from '@/components/CalendarPicker';
 import TimePicker from '@/components/TimePicker';
 import { HiArrowLeft, HiArrowRight, HiUsers } from 'react-icons/hi';
@@ -138,15 +138,33 @@ interface Props {
   experience: BookingExperience;
   onNext: (date: Date, time: string, participants: number, locationId?: string, locationName?: string, selectedAddons?: SelectedAddon[], serviceAddress?: string, idioma?: string) => void;
   onBack: () => void;
+  /**
+   * Lo que ya había elegido, al volver desde un paso posterior: retroceder a
+   * corregir un dato no debe obligar a repetir los demás.
+   */
+  inicial?: {
+    date?: Date;
+    time?: string;
+    participants?: number;
+    locationId?: string;
+    selectedAddons?: SelectedAddon[];
+    serviceAddress?: string;
+    idioma?: string;
+  };
 }
 
-export default function DateTimeStep({ experience, onNext, onBack }: Props) {
-  const [date, setDate] = useState<Date | null>(null);
-  const [time, setTime] = useState('');
-  const [personasElegidas, setParticipants] = useState(experience.minCapacity ?? 1);
-  const [locationId, setLocationId] = useState<string | undefined>(undefined);
+export default function DateTimeStep({ experience, onNext, onBack, inicial }: Props) {
+  const [date, setDate] = useState<Date | null>(inicial?.date ?? null);
+  const [time, setTime] = useState(inicial?.time ?? '');
+  // Al cambiar la fecha se vacía la hora; la de partida se aplica una sola vez,
+  // cuando ya están calculadas las franjas de esa fecha.
+  const horaPendiente = useRef<string | undefined>(inicial?.time);
+  const [personasElegidas, setParticipants] = useState(
+    inicial?.participants ?? experience.minCapacity ?? 1,
+  );
+  const [locationId, setLocationId] = useState<string | undefined>(inicial?.locationId);
   /** Dónde hay que ir, cuando la experiencia es a domicilio. */
-  const [serviceAddress, setServiceAddress] = useState('');
+  const [serviceAddress, setServiceAddress] = useState(inicial?.serviceAddress ?? '');
   /**
    * El idioma que pide, de los que el anfitrión declaró.
    *
@@ -155,17 +173,21 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
    * trámite. Si solo ofrece uno no hay nada que elegir y se manda ese.
    */
   const idiomas = experience.languages ?? [];
-  const [idioma, setIdioma] = useState(idiomas.length === 1 ? idiomas[0] : '');
+  const [idioma, setIdioma] = useState(
+    inicial?.idioma ?? (idiomas.length === 1 ? idiomas[0] : ''),
+  );
   const [slots, setSlots] = useState<string[]>([]);
   // Por posicion, no por `_key`: ese campo venia de Sanity y hoy nadie lo
   // escribe, asi que todos los addons compartian la misma clave `undefined`
   // y marcar uno los marcaba todos.
-  const [addonsElegidos, setAddonsElegidos] = useState<Set<number>>(new Set());
-
   const availableAddons = useMemo(
     () => (experience.addons ?? []).filter(a => a.name && typeof a.price === 'number'),
     [experience.addons]
   );
+  const [addonsElegidos, setAddonsElegidos] = useState<Set<number>>(() => {
+    const previos = new Set((inicial?.selectedAddons ?? []).map((a) => a.name));
+    return new Set(availableAddons.flatMap((a, i) => (previos.has(a.name) ? [i] : [])));
+  });
 
   /**
    * Las condiciones de la sede elegida. La misma experiencia puede estar en el
@@ -229,7 +251,9 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
       condiciones.minimumNotice,
     );
     setSlots(newSlots);
-    setTime('');
+    const previa = horaPendiente.current;
+    horaPendiente.current = undefined;
+    setTime(previa && newSlots.includes(previa) ? previa : '');
   }, [date, schedules, experience.duration, condiciones.cleanupTime, condiciones.minimumNotice]);
 
   /**

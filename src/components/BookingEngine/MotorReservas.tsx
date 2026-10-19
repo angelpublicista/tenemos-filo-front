@@ -303,6 +303,24 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
 
   const currentStepIndex = STEP_ORDER.indexOf(step);
 
+  // Solo se retrocede: avanzar saltándose un paso dejaría la reserva sin datos.
+  // Lo ya elegido se conserva en `booking`, así corregir uno no obliga a
+  // repetir el resto.
+  const irAPaso = (destino: Step) => {
+    if (STEP_ORDER.indexOf(destino) < currentStepIndex) setStep(destino);
+  };
+
+  // Salir en cualquier paso, volviendo al catálogo y sin reserva a medias. Si
+  // ya había algo elegido se pregunta: un clic suelto no debe tirar el trabajo.
+  const cancelarReserva = () => {
+    const hayAvance = !!booking.date || !!booking.guestInfo;
+    if (hayAvance && !window.confirm('¿Cancelar la reserva? Se perderán los datos que llevas.')) {
+      return;
+    }
+    setBooking({});
+    setStep('experiences');
+  };
+
   const companyLogoUrl = urlDeImagen(company?.logo?.asset?._ref);
   // "NONE" o sin medios significa que no se pinta banner, y entonces el
   // logo no debe subir a montarse sobre nada.
@@ -513,10 +531,15 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
         <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-1">
           {STEP_ORDER.map((s, i) => (
             <React.Fragment key={s}>
-              <div className={`flex items-center gap-2 text-xs font-medium whitespace-nowrap ${
+              <button
+                type="button"
+                disabled={i >= currentStepIndex}
+                onClick={() => irAPaso(s)}
+                aria-current={i === currentStepIndex ? 'step' : undefined}
+                className={`flex items-center gap-2 text-xs font-medium whitespace-nowrap ${
                 i === currentStepIndex ? 'text-marca' :
-                i < currentStepIndex ? 'text-green-600' : 'text-gray-400'
-              }`}>
+                i < currentStepIndex ? 'text-green-600 hover:underline cursor-pointer' : 'text-gray-400'
+              } disabled:cursor-default`}>
                 <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                   i < currentStepIndex ? 'bg-green-500 text-white' :
                   i === currentStepIndex ? 'bg-marca text-marca-contraste' : 'bg-gray-200 text-gray-400'
@@ -524,12 +547,19 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
                   {i < currentStepIndex ? '✓' : i + 1}
                 </span>
                 {STEP_LABELS[s]}
-              </div>
+              </button>
               {i < STEP_ORDER.length - 1 && (
                 <div className={`flex-1 h-px min-w-4 ${i < currentStepIndex ? 'bg-green-400' : 'bg-gray-200'}`} />
               )}
             </React.Fragment>
           ))}
+          <button
+            type="button"
+            onClick={cancelarReserva}
+            className="ml-2 shrink-0 text-xs font-medium text-gray-500 hover:text-red-600 whitespace-nowrap"
+          >
+            Cancelar
+          </button>
         </div>
       )}
 
@@ -541,6 +571,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
           experience={booking.experience}
           onNext={handleDateTimeNext}
           onBack={() => setStep('experiences')}
+          inicial={booking}
         />
       )}
       {step === 'contact' && (
@@ -548,6 +579,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
           onNext={handleContactNext}
           onBack={() => setStep('datetime')}
           conocido={conocido}
+          inicial={booking.guestInfo}
         />
       )}
       {step === 'confirmation' && booking.experience && booking.date && booking.time && booking.participants && booking.guestInfo && (

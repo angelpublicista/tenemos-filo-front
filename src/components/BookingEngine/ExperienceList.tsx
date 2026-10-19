@@ -15,15 +15,18 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 
 function getImageUrl(exp: BookingExperience): string | null {
-  // featuredImage llega como string (asset ref) gracias a la proyección GROQ.
-  // También soportamos el formato objeto { asset: { _ref } } por compatibilidad.
+  // featuredImage es la URL que devolvió la subida. También se acepta el
+  // formato objeto { asset: { _ref } } por compatibilidad. No se filtra por
+  // prefijo: el "image-" era de Sanity y dejaba sin portada a todas las que se
+  // suben hoy.
   const fi = exp.featuredImage as unknown;
-  if (fi) {
-    const ref = typeof fi === 'string'
-      ? fi
-      : (fi as { asset?: { _ref?: string } })?.asset?._ref;
-    if (ref && ref.startsWith('image-')) return urlDeImagen(ref);
-  }
+  const ref = typeof fi === 'string' ? fi : (fi as { asset?: { _ref?: string } } | undefined)?.asset?._ref;
+  const portada = urlDeImagen(ref);
+  if (portada) return portada;
+  // Sin portada, la primera foto de la galería: mejor que el marcador vacío.
+  const primera = (exp as BookingExperience & { gallery?: Array<{ assetId: string }> }).gallery?.[0]?.assetId;
+  const deGaleria = urlDeImagen(primera);
+  if (deGaleria) return deGaleria;
   if (exp.images?.[0]?.asset?._ref) return urlDeImagen(exp.images[0].asset._ref);
   return null;
 }

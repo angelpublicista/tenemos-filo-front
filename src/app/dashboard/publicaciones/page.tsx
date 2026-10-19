@@ -199,8 +199,10 @@ export default function PublicacionesPage() {
 
   // En el catálogo están las que no se han pausado: pausar es justamente
   // sacarla de ahí sin perder sus condiciones.
+  // Y la pieza tiene que estar activa: una en borrador o inactiva no sale en el
+  // catálogo público aunque esté publicada en una sede.
   const enUso = publicaciones.filter(
-    (p) => esPublicacion(p) && p.propias?.isPublished !== false,
+    (p) => esPublicacion(p) && p.propias?.isPublished !== false && p.status === 'ACTIVE',
   ).length;
 
   // Piezas, no publicaciones: lo que cuenta aquí es el trabajo que queda por
@@ -303,6 +305,21 @@ export default function PublicacionesPage() {
                           ? 'Sin publicar'
                           : `En ${publicada.length} ${publicada.length === 1 ? 'escenario' : 'escenarios'}`}
                       </p>
+                      {pieza.completa && pieza.status !== 'ACTIVE' && publicada.length > 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-start gap-1">
+                          <HiOutlineExclamationCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                          <span>
+                            {pieza.status === 'DRAFT' ? 'Está en borrador' : 'No está activa'}: no se
+                            ve en el catálogo hasta que la actives.{' '}
+                            <Link
+                              href={`/dashboard/experiences/${pieza.experienceId}/edit`}
+                              className="underline"
+                            >
+                              Activarla
+                            </Link>
+                          </span>
+                        </p>
+                      )}
                       {!pieza.completa && (
                         <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-start gap-1">
                           <HiOutlineExclamationCircle className="w-4 h-4 shrink-0 mt-0.5" />

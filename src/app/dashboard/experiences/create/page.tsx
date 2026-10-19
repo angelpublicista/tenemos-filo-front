@@ -190,13 +190,14 @@ function CreateExperiencePageContenido() {
     }
 
     if (mode === 'generate') {
-      const needsCity = Boolean(values.atHome) || locationMode === 'custom';
+      const needsCity = !values.atHome && locationMode === 'custom';
       const missing: string[] = [];
       if (selectedCategories.length === 0) missing.push('Categorías');
       if (!values.duration) missing.push('Duración');
       if (!values.basePrice) missing.push('Precio base');
-      // La ciudad solo se pide donde hay un campo para ponerla: a domicilio o en
-      // un lugar personalizado. En una sede la ciudad es la de la sede.
+      // La ciudad solo se pide donde hay un campo para ponerla: en un lugar
+      // personalizado. En una sede es la de la sede, y a domicilio son las de
+      // cada publicación.
       if (needsCity && !values.city?.trim()) missing.push('Ciudad');
       if (includes.filter((i) => i.trim()).length === 0) missing.push('Qué incluye');
       if (requirements.filter((r) => r.trim()).length === 0) missing.push('Requisitos');
@@ -324,12 +325,6 @@ function CreateExperiencePageContenido() {
     // A domicilio no hay sitio fijo que declarar: la dirección la pone quien
     // reserva, en cada reserva.
     const enUnSitio = !data.atHome;
-
-    // Sin la ciudad no hay catálogo que le toque: la ficha no podría venderse.
-    if (data.atHome && !data.city?.trim()) {
-      showError('Indica la ciudad donde prestas la experiencia a domicilio');
-      return;
-    }
 
     // Validar lugar para experiencias presenciales/híbridas
     if (enUnSitio) {
@@ -975,30 +970,19 @@ function CreateExperiencePageContenido() {
 
               </div>
             )}
-            {/* A domicilio no hay sede, pero sí hace falta saber DÓNDE se presta: un
-                chef que va a casa del cliente no cruza el país, y sin la ciudad el
-                catálogo se le ofrece a gente a la que no puede atender. */}
+            {/* A domicilio la ciudad no se pide aquí: una experiencia así puede
+                atender varias, y esa cobertura es de cada publicación. Se
+                define en Publicaciones, con el resto de condiciones. */}
             {atHome && (
-              <div className="rounded-lg border border-gray-200 p-4 bg-gray-50 space-y-3">
-                <div>
-                  <Label>Ciudad donde lo prestas *</Label>
-                  <p className="text-xs text-gray-500 mt-1">
-                    La dirección exacta la pone quien reserva; aquí va la ciudad desde la que atiendes.
-                  </p>
-                </div>
-                <DepartamentoCiudad
-                  departamento={watch('state') || ''}
-                  ciudad={watch('city') || ''}
-                  onDepartamentoChange={(v) =>
-                    setValue('state', v, { shouldValidate: true, shouldDirty: true })
-                  }
-                  onCiudadChange={(v) =>
-                    setValue('city', v, { shouldValidate: true, shouldDirty: true })
-                  }
-                  idDepartamento="experiencia-state"
-                  idCiudad="experiencia-city"
-                  requerido
-                />
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
+                <Label>Dónde se presta</Label>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                  Las ciudades que atiendes se agregan en{' '}
+                  <Link href="/dashboard/publicaciones" className="text-[#F26726] hover:underline font-medium">
+                    Publicaciones
+                  </Link>
+                  , en las condiciones de esta experiencia. Sin al menos una no se puede vender.
+                </p>
               </div>
             )}
           </div>

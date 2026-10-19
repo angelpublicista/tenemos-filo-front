@@ -457,6 +457,8 @@ export interface LocationListing {
   isPublished?: boolean;
   /** Apuntes internos del anfitrion. No sale en el catalogo publico. */
   notes?: string | null;
+  /** Ciudades donde presta una publicación a domicilio (la de sede nula). */
+  cities?: string[];
 }
 
 export interface Experience {

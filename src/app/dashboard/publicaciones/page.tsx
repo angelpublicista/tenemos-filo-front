@@ -60,6 +60,7 @@ function queCambia(p: Publicacion): string[] {
   const c = p.propias;
   if (!c) return [];
   return [
+    c.cities?.length ? `Presta en ${c.cities.join(', ')}` : '',
     c.kind === 'PRIVADA' ? 'Privada: el sitio completo' : '',
     c.kind === 'ABIERTA' ? 'Abierta: cupos sueltos' : '',
     c.basePrice !== null ? `${pesos(Number(c.basePrice))} por persona` : '',
@@ -288,6 +289,11 @@ export default function PublicacionesPage() {
               // A domicilio su fila no tiene sede, pero ES la publicación: lo
               // que está a la venta, con sus condiciones y su pausa.
               const publicada = pieza.atHome ? filas : filas.filter((f) => f.locationId !== null);
+              // Las ciudades de una pieza a domicilio son de su publicación, no
+              // de la ficha: se completan en «Condiciones», no en la pieza.
+              const esDeCiudades = (f: string) => f.toLowerCase().includes('ciudad');
+              const faltaDeLaFicha = pieza.falta.filter((f) => !esDeCiudades(f));
+              const sinCiudades = pieza.atHome && pieza.falta.some(esDeCiudades);
 
               return (
                 <div
@@ -320,11 +326,26 @@ export default function PublicacionesPage() {
                           </span>
                         </p>
                       )}
-                      {!pieza.completa && (
+                      {sinCiudades && publicada[0] && (
                         <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-start gap-1">
                           <HiOutlineExclamationCircle className="w-4 h-4 shrink-0 mt-0.5" />
                           <span>
-                            Para poder venderse le falta {pieza.falta.join(', ')}.{' '}
+                            Sin ciudades donde prestarla no se puede vender.{' '}
+                            <button
+                              type="button"
+                              className="underline"
+                              onClick={() => setEditando(publicada[0]!)}
+                            >
+                              Agregar ciudades
+                            </button>
+                          </span>
+                        </p>
+                      )}
+                      {faltaDeLaFicha.length > 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-start gap-1">
+                          <HiOutlineExclamationCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                          <span>
+                            Para poder venderse le falta {faltaDeLaFicha.join(', ')}.{' '}
                             <Link
                               href={`/dashboard/experiences/${pieza.experienceId}/edit`}
                               className="underline"

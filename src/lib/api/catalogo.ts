@@ -47,6 +47,8 @@ export interface Publicacion {
     minimumNotice: number | null;
     isPublished: boolean;
     notes: string | null;
+    /** Ciudades donde presta una publicación a domicilio. */
+    cities: string[];
   } | null;
   condiciones: {
     locationId: string | null;
@@ -74,6 +76,8 @@ export interface CondicionesDePublicacion {
   minimumNotice?: number | null;
   isPublished?: boolean;
   notes?: string | null;
+  /** Ciudades donde se presta, solo para la publicación a domicilio. */
+  cities?: string[];
 }
 
 export async function getPublicaciones(): Promise<Publicacion[]> {
@@ -113,6 +117,7 @@ export async function pausar(
     cleanupTime: suyas?.cleanupTime ?? null,
     minimumNotice: suyas?.minimumNotice ?? null,
     notes: suyas?.notes ?? null,
+    cities: suyas?.cities ?? [],
     isPublished: !enPausa,
   });
 }

@@ -31,6 +31,23 @@ type ConLasCondiciones = Pick<
   'minCapacity' | 'basePrice' | 'cleanupTime' | 'minimumNotice'
 > & { locationListings?: LocationListing[] };
 
+/**
+ * Las ciudades donde presta una experiencia a domicilio.
+ *
+ * Son de su publicación —la que no tiene sede—, no de la ficha: la misma
+ * pieza puede atender Bogotá, Medellín y Cali. La ciudad de la ficha solo se
+ * usa para lo anterior a esas listas.
+ */
+export function ciudadesQueCubre(
+  experience: { presentialCity?: string | null; locationListings?: Array<{ locationId?: string | null; cities?: string[] }> },
+): string[] {
+  const zonas = (experience.locationListings ?? [])
+    .filter((l) => !l.locationId)
+    .flatMap((l) => l.cities ?? []);
+  if (zonas.length > 0) return zonas;
+  return experience.presentialCity ? [experience.presentialCity] : [];
+}
+
 export function condicionesDeSede(
   experience: ConLasCondiciones,
   locationId?: string | null,

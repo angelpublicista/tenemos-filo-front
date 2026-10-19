@@ -74,6 +74,7 @@ export interface ApiExperience {
     minimumNotice: number | null;
     isPublished?: boolean;
     notes?: string | null;
+    cities?: string[];
   }>;
   availabilities?: Array<{
     id: string;

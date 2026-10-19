@@ -7,7 +7,7 @@ import type { BookingExperience, BookingLocationAddress } from '@/components/Boo
 import MapaUbicacion from '@/components/MapaUbicacion';
 import MediosDeSede from '@/components/BookingEngine/MediosDeSede';
 import { urlDeImagen } from '@/lib/images';
-import { cuposMaximos, precioDesde } from '@/lib/experiencias/condicionesDeSede';
+import { ciudadesQueCubre, cuposMaximos, precioDesde } from '@/lib/experiencias/condicionesDeSede';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -198,7 +198,7 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                   <HiLocationMarker className="w-3.5 h-3.5" /> Dónde
                 </div>
                 <p className="text-sm font-semibold text-gray-900">
-                  A domicilio{experience.presentialCity ? ` · ${experience.presentialCity}` : ''}
+                  A domicilio{ciudadesQueCubre(experience).length > 0 ? ` · ${ciudadesQueCubre(experience).join(', ')}` : ''}
                 </p>
               </div>
             ) : experience.presentialCity ? (

@@ -16,6 +16,7 @@ import React, { useState } from 'react';
 import { Button, Checkbox, Label, Select, TextInput, Textarea } from 'flowbite-react';
 import type { CondicionesDePublicacion, Publicacion } from '@/lib/api/catalogo';
 import PrecioInput from '@/components/PrecioInput';
+import DepartamentoCiudad from '@/components/DepartamentoCiudad';
 import { conSeparadores } from '@/lib/dinero';
 
 export interface PiezaPublicable {
@@ -87,15 +88,34 @@ export default function PublicarModal({
   const [minimumNotice, setMinimumNotice] = useState(texto(propias?.minimumNotice));
   const [prepTime, setPrepTime] = useState(texto(propias?.prepTime));
   const [cleanupTime, setCleanupTime] = useState(texto(propias?.cleanupTime));
-  const [notes, setNotes] = useState('');
+  // Las notas son de la publicación: se cargan las que ya tenía, porque
+  // guardar reemplaza la ficha entera y partir de vacío las borraba.
+  const [notes, setNotes] = useState(propias?.notes ?? '');
   const [isPublished, setIsPublished] = useState(propias?.isPublished ?? true);
+
+  // A domicilio no hay sede, pero sí zonas: las ciudades donde se presta. Sin
+  // al menos una no se puede vender, así que no se deja guardar visible.
+  const aDomicilio = editando && !publicacion?.locationId;
+  const [ciudades, setCiudades] = useState<string[]>(propias?.cities ?? []);
+  const [departamento, setDepartamento] = useState('');
+  const sinZonas = aDomicilio && isPublished && ciudades.length === 0;
+
+  const agregarCiudad = (ciudad: string) => {
+    const limpia = ciudad.trim();
+    if (!limpia) return;
+    setCiudades((prev) =>
+      prev.some((c) => c.toLowerCase() === limpia.toLowerCase()) ? prev : [...prev, limpia],
+    );
+    // Se vacía el selector para poder elegir la siguiente sin borrar a mano.
+    setDepartamento('');
+  };
 
   const pieza = piezas.find((p) => p.id === experienceId);
 
   const guardar = () => {
     // Sin sede solo vale al editar una publicación que ya no la tenía: la de
     // una experiencia a domicilio.
-    if (!experienceId || (!locationId && !editando)) return;
+    if (!experienceId || (!locationId && !editando) || sinZonas) return;
     onGuardar(experienceId, locationId || null, {
       kind: kind === '' ? null : kind,
       minCapacity: numero(minCapacity),
@@ -105,6 +125,7 @@ export default function PublicarModal({
       minimumNotice: numero(minimumNotice),
       notes: notes.trim() === '' ? null : notes.trim(),
       isPublished,
+      ...(aDomicilio ? { cities: ciudades } : {}),
     });
   };
 
@@ -161,6 +182,52 @@ export default function PublicarModal({
                 </Select>
               </div>
             </>
+          )}
+
+          {aDomicilio && (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900 space-y-3">
+              <div>
+                <Label>Ciudades donde lo prestas *</Label>
+                <p className="text-xs text-gray-500 mt-1">
+                  La dirección exacta la pone quien reserva. Agrega cada ciudad que atiendes; sin
+                  al menos una no se puede vender.
+                </p>
+              </div>
+              {ciudades.length > 0 && (
+                <ul className="flex flex-wrap gap-2">
+                  {ciudades.map((c) => (
+                    <li
+                      key={c}
+                      className="inline-flex items-center gap-1 rounded-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 pl-3 pr-1 py-0.5 text-sm"
+                    >
+                      {c}
+                      <button
+                        type="button"
+                        aria-label={`Quitar ${c}`}
+                        onClick={() => setCiudades((prev) => prev.filter((x) => x !== c))}
+                        className="w-5 h-5 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <DepartamentoCiudad
+                departamento={departamento}
+                ciudad=""
+                onDepartamentoChange={setDepartamento}
+                onCiudadChange={agregarCiudad}
+                idDepartamento="zona-departamento"
+                idCiudad="zona-ciudad"
+                etiquetaCiudad="Agregar ciudad"
+              />
+              {sinZonas && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Agrega al menos una ciudad, o desmarca «Visible en el catálogo público».
+                </p>
+              )}
+            </div>
           )}
 
           <div>
@@ -282,7 +349,7 @@ export default function PublicarModal({
             Cancelar
           </Button>
           <Button
-            disabled={guardando || !experienceId || (!locationId && !editando)}
+            disabled={guardando || !experienceId || (!locationId && !editando) || sinZonas}
             onClick={guardar}
             className="bg-[#F26726] hover:bg-[#d9551c]"
           >

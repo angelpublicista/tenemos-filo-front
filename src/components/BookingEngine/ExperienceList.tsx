@@ -5,7 +5,7 @@ import { HiClock, HiUsers, HiLocationMarker } from 'react-icons/hi';
 import type { BookingExperience } from '@/components/BookingEngine/MotorReservas';
 import ExperienceDetailModal from './ExperienceDetailModal';
 import { urlDeImagen } from '@/lib/images';
-import { cuposMaximos, precioDesde } from '@/lib/experiencias/condicionesDeSede';
+import { ciudadesQueCubre, cuposMaximos, precioDesde } from '@/lib/experiencias/condicionesDeSede';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -119,12 +119,14 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
                         return exp.minCapacity ? `Desde ${exp.minCapacity} personas` : '';
                       })()}
                     </span>
-                    {exp.presentialCity && (
+                    {(exp.atHome ? ciudadesQueCubre(exp).length > 0 : exp.presentialCity) && (
                       <span className="inline-flex items-center gap-1.5 mr-4 mb-2">
                         <HiLocationMarker className="w-4 h-4 text-gray-400" />
                         {/* A domicilio la ciudad es el área que cubre, no un
-                            sitio al que ir. */}
-                        {exp.atHome ? `${exp.presentialCity} y alrededores` : exp.presentialCity}
+                            sitio al que ir; y puede ser más de una. */}
+                        {exp.atHome
+                          ? `${ciudadesQueCubre(exp).join(', ')} y alrededores`
+                          : exp.presentialCity}
                       </span>
                     )}
                   </div>

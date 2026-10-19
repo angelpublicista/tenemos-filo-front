@@ -48,7 +48,8 @@ type AvailabilityManagerProps =
       mode: 'publicacion';
       experienceId: string;
       experienceTitle: string;
-      locationId: string;
+      /** Nulo en una publicación a domicilio: no hay sede que atar. */
+      locationId: string | null;
       locationName: string;
       companyId: string;
     }
@@ -89,11 +90,14 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
       : props.mode === 'experience'
         ? props.experience.title
         : props.mode === 'publicacion'
-          ? `${props.experienceTitle} en ${props.locationName}`
+          ? props.locationId
+            ? `${props.experienceTitle} en ${props.locationName}`
+            : props.experienceTitle
           : 'tu agenda';
   // La sede con la que se ata el horario, cuando el contexto es una
   // publicación. En los demás modos no hay pareja que atar.
-  const sedeDeLaPublicacion = props.mode === 'publicacion' ? props.locationId : undefined;
+  const sedeDeLaPublicacion =
+    props.mode === 'publicacion' ? props.locationId ?? undefined : undefined;
 
   useEffect(() => {
     loadSchedules();
@@ -108,7 +112,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
           : props.mode === 'experience'
             ? await getAvailabilitySchedulesByExperience(props.experience._id)
             : props.mode === 'publicacion'
-              ? await getHorariosDeLaPublicacion(props.experienceId, props.locationId)
+              ? props.locationId
+                ? await getHorariosDeLaPublicacion(props.experienceId, props.locationId)
+                : await getAvailabilitySchedulesByExperience(props.experienceId)
               : await getAgendaDelAnfitrion();
       setSchedules(data);
     } catch (error) {
@@ -607,7 +613,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
             : contextType === 'experience'
               ? { experience: contextId }
               : contextType === 'publicacion'
-                ? { experience: contextId, location: locationId }
+                ? { experience: contextId, ...(locationId ? { location: locationId } : {}) }
                 : {}),
           description,
           weeklySchedule,

@@ -444,17 +444,18 @@ export default function PublicacionesPage() {
           />
         )}
 
-        {horarioDe?.locationId && (
+        {horarioDe && (
           <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
             <div className="bg-gray-50 dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-4xl my-8">
               <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-[#334C5D] dark:text-gray-100">
-                    Horario de «{horarioDe.title}» en {horarioDe.locationName}
+                    Horario de «{horarioDe.title}»{horarioDe.locationName ? ` en ${horarioDe.locationName}` : ''}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                    Vale solo para este escenario. En las demás sedes, la misma experiencia puede
-                    abrir otros días.
+                    {horarioDe.locationId
+                      ? 'Vale solo para este escenario. En las demás sedes, la misma experiencia puede abrir otros días.'
+                      : 'Es a domicilio: este horario vale para donde vaya la experiencia.'}
                   </p>
                 </div>
                 <Button color="light" size="sm" onClick={() => { setHorarioDe(null); void cargar(); }}>

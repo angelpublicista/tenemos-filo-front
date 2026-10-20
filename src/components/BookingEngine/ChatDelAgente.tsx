@@ -38,6 +38,55 @@ function idDeSesion(slug: string): string {
   return nuevo;
 }
 
+// [texto](https://…) o una URL suelta. Solo http(s): nada de javascript: ni data:.
+const ENLACE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>()]+)/g;
+
+/**
+ * El texto del mensaje con sus enlaces clicables.
+ *
+ * El modelo escribe los enlaces en Markdown aunque se le pida que no, y una
+ * URL suelta tampoco es pulsable en un texto plano. Se arman nodos de React en
+ * vez de inyectar HTML: lo que escribe el modelo —o el visitante— nunca se
+ * interpreta como marcado.
+ */
+function conEnlaces(texto: string, claseEnlace: string): React.ReactNode[] {
+  const partes: React.ReactNode[] = [];
+  let desde = 0;
+  for (const m of texto.matchAll(ENLACE)) {
+    const inicio = m.index ?? 0;
+    if (inicio > desde) partes.push(texto.slice(desde, inicio));
+
+    let etiqueta = m[1];
+    let url = m[2] ?? m[3];
+    let resto = '';
+    if (!m[2]) {
+      // Una URL suelta al final de una frase arrastra el punto o la coma.
+      const cola = url.match(/[.,;:!?]+$/)?.[0] ?? '';
+      if (cola) {
+        url = url.slice(0, -cola.length);
+        resto = cola;
+      }
+    }
+    etiqueta = etiqueta ?? url;
+
+    partes.push(
+      <a
+        key={inicio}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={claseEnlace}
+      >
+        {etiqueta}
+      </a>,
+    );
+    if (resto) partes.push(resto);
+    desde = inicio + m[0].length;
+  }
+  if (desde < texto.length) partes.push(texto.slice(desde));
+  return partes;
+}
+
 /**
  * Chat con el agente de IA del anfitrión, flotando sobre el catálogo.
  *
@@ -151,7 +200,12 @@ export default function ChatDelAgente({ slug, nombre, empresa }: Props) {
                       : 'bg-marca text-marca-contraste'
                   }`}
                 >
-                  {m.texto}
+                  {conEnlaces(
+                    m.texto,
+                    m.rol === 'AGENTE'
+                      ? 'font-medium text-marca underline underline-offset-2 break-all'
+                      : 'font-medium underline underline-offset-2 break-all',
+                  )}
                 </span>
               </div>
             ))}

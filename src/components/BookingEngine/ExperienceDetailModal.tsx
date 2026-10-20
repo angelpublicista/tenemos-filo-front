@@ -247,11 +247,21 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
               </h3>
               <div className="space-y-4">
                 {experience.menus.map((menu) => (
-                  <div key={menu._ref} className="bg-gray-50 rounded-xl px-4 py-3">
-                    <p className="text-sm font-medium text-gray-900">{menu.name}</p>
-                    {menu.description && (
-                      <p className="text-xs text-gray-500 mt-0.5">{menu.description}</p>
-                    )}
+                  // Plegado de entrada: un menú largo empujaba hacia abajo todo
+                  // lo demás (requisitos, fechas, reservar). Quien lo quiere ver lo abre.
+                  <details key={menu._ref} className="group bg-gray-50 rounded-xl px-4 py-3">
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900">{menu.name}</p>
+                        {menu.description && (
+                          <p className="text-xs text-gray-500 mt-0.5">{menu.description}</p>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-xs font-medium text-marca">
+                        <span className="group-open:hidden">Ver menú</span>
+                        <span className="hidden group-open:inline">Ocultar</span>
+                      </span>
+                    </summary>
                     {menu.sections?.map((seccion, i) => (
                       <div key={seccion._key ?? i} className="mt-3">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -279,7 +289,7 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                         </ul>
                       </div>
                     ))}
-                  </div>
+                  </details>
                 ))}
               </div>
             </div>

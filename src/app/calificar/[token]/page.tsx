@@ -3,6 +3,7 @@
 import React, { use, useCallback, useEffect, useState } from 'react';
 import { HiStar, HiCheckCircle } from 'react-icons/hi';
 import { mensajeDeError } from '@/lib/api/client';
+import { estiloDeMarca } from '@/lib/marca';
 import {
   enviarCalificacion,
   getQueSeCalifica,
@@ -50,10 +51,10 @@ function Fila({
             type="button"
             aria-label={`${n} de 5`}
             onClick={() => onChange(n)}
-            className="rounded p-1 transition-transform hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#F26726]"
+            className="rounded p-1 transition-transform hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-marca"
           >
             <HiStar
-              className={`h-8 w-8 ${n <= valor ? 'text-[#F26726]' : 'text-gray-300'}`}
+              className={`h-8 w-8 ${n <= valor ? 'text-marca' : 'text-gray-300'}`}
             />
           </button>
         ))}
@@ -150,10 +151,11 @@ export default function CalificarPage({ params }: { params: Promise<{ token: str
     : '';
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 sm:p-6">
+    // Con los colores del anfitrión, igual que el catálogo y el correo que trajo hasta aquí.
+    <main className="min-h-screen bg-gray-50 p-4 sm:p-6" style={estiloDeMarca(datos?.colorMarca)}>
       <div className="mx-auto max-w-md">
         <div className="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#F26726]">
+          <p className="text-xs font-semibold uppercase tracking-wide text-marca">
             {datos?.empresa}
           </p>
           <h1 className="mt-1 text-xl font-bold leading-tight text-gray-900">
@@ -179,7 +181,7 @@ export default function CalificarPage({ params }: { params: Promise<{ token: str
             type="button"
             onClick={enviar}
             disabled={!completas || enviando}
-            className="mt-6 w-full rounded-xl bg-[#F26726] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#d9571f] disabled:cursor-not-allowed disabled:bg-gray-300"
+            className="mt-6 w-full rounded-xl bg-marca px-4 py-3 font-semibold text-marca-contraste transition-colors hover:bg-marca-fuerte disabled:cursor-not-allowed disabled:bg-gray-300"
           >
             {enviando ? 'Enviando…' : 'Enviar'}
           </button>

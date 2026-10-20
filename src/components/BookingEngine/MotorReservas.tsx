@@ -358,9 +358,10 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
               <Image
                 src={companyLogoUrl}
                 alt={company?.companyName ?? 'Logo de la empresa'}
-                width={40}
-                height={40}
-                className="w-10 h-10 rounded-full border border-gray-200 object-cover shrink-0"
+                width={80}
+                height={80}
+                quality={95}
+                className="w-10 h-10 rounded-full border border-gray-200 object-contain bg-white p-0.5 shrink-0"
               />
             ) : (
               <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 shrink-0" />
@@ -502,9 +503,11 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
               <Image
                 src={companyLogoUrl}
                 alt={company.companyName}
-                width={128}
-                height={128}
-                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover bg-white shadow-sm ${
+                width={256}
+                height={256}
+                quality={95}
+                sizes="128px"
+                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full object-contain bg-white p-2 shadow-sm ${
                   hayPortada ? 'ring-4 ring-white' : 'border border-gray-200'
                 }`}
                 priority

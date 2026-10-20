@@ -200,9 +200,11 @@ export default function CompanyInfoView({
                 <Image
                   src={urlDeImagen(existingCompany.logo?.asset?._ref)!}
                   alt={`Logo de ${existingCompany.companyName}`}
-                  width={96}
-                  height={96}
-                  className="w-full h-full object-cover"
+                  width={192}
+                  height={192}
+                  quality={95}
+                  sizes="96px"
+                  className="w-full h-full object-contain p-1.5"
                 />
               ) : (
                 <HiPhotograph className="w-10 h-10 text-gray-400" />
@@ -226,7 +228,7 @@ export default function CompanyInfoView({
                 onClick={() => logoInputRef.current?.click()}
                 disabled={isUploadingLogo}
                 aria-label={existingCompany.logo ? 'Cambiar logo' : 'Subir logo'}
-                title="Imagen cuadrada · mínimo 400 × 400 px · PNG o JPG hasta 10 MB"
+                title="PNG o JPG (fondo transparente recomendado) · hasta 10 MB"
                 className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#F26726] hover:bg-[#d9571f] text-white flex items-center justify-center shadow-md disabled:opacity-60"
               >
                 <HiUpload className="w-4 h-4" />

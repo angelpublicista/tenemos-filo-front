@@ -15,6 +15,11 @@ interface ImageUploadProps {
   helpText?: string;
   compact?: boolean;
   circular?: boolean;
+  /**
+   * Cómo encaja la imagen en el recuadro. `contain` para logos (sin recortar);
+   * `cover` para fotos que deben llenar el marco.
+   */
+  objectFit?: 'cover' | 'contain';
   scope?: UploadScope;
   /** Texto del recuadro en modo compacto. Lo que se sube no siempre es un logo. */
   placeholder?: string;
@@ -46,10 +51,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   helpText,
   compact = false,
   circular = false,
+  objectFit = 'cover',
   scope = 'misc',
   placeholder = 'Subir imagen',
 }) => {
   const shapeClass = circular ? 'rounded-full' : 'rounded-lg';
+  const fitClass = objectFit === 'contain' ? 'object-contain p-2' : 'object-cover';
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -102,7 +109,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 compact ? 'w-32 h-32 sm:w-36 sm:h-36' : 'w-full h-64'
               }`}
             >
-              <Image src={getImageUrl(value)} alt={label} fill className="object-cover" unoptimized />
+              <Image src={getImageUrl(value)} alt={label} fill className={fitClass} unoptimized />
             </div>
             <div className={compact ? 'absolute -top-2 -right-2' : 'absolute top-2 right-2'}>
               <Button size="xs" color="danger" onClick={handleRemove} className="opacity-90 hover:opacity-100">

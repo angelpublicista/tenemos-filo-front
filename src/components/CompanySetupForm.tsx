@@ -762,10 +762,12 @@ export default function CompanySetupForm() {
         label="Logo de la empresa"
         value={logoAssetId || undefined}
         onChange={(assetId) => setLogoAssetId(assetId)}
-        helpText="Imagen cuadrada · mínimo 400 × 400 px · PNG o JPG hasta 10 MB."
+        helpText="PNG o JPG (fondo transparente recomendado) · hasta 10 MB. Se muestra sin recortar."
         compact
         placeholder="Subir logo"
         circular
+        objectFit="contain"
+        scope="logos"
       />
 
       {/* Nombre de la Empresa */}

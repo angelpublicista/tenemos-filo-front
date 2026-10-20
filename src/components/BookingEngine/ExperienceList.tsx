@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { HiClock, HiUsers, HiLocationMarker } from 'react-icons/hi';
+import { useRef, useState } from 'react';
+import { HiClock, HiUsers, HiLocationMarker, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 import type { BookingExperience } from '@/components/BookingEngine/MotorReservas';
 import ExperienceDetailModal from './ExperienceDetailModal';
 import { urlDeImagen } from '@/lib/images';
@@ -13,6 +13,114 @@ const CATEGORY_LABEL: Record<string, string> = {
   workshops: 'Talleres', other: 'Otro',
 };
 
+
+/**
+ * Todas las imágenes de la experiencia: la portada primero y después la
+ * galería, sin repetir. Es la misma lista que recorre el detalle, para que lo
+ * que se ve en la tarjeta sea lo que se encuentra al abrirla.
+ */
+function imagenesDe(exp: BookingExperience): string[] {
+  const fi = exp.featuredImage as unknown;
+  const ref = typeof fi === 'string' ? fi : (fi as { asset?: { _ref?: string } } | undefined)?.asset?._ref;
+  const urls = [
+    urlDeImagen(ref),
+    ...((exp as BookingExperience & { gallery?: Array<{ assetId: string }> }).gallery ?? []).map((g) =>
+      urlDeImagen(g.assetId),
+    ),
+    ...(exp.images ?? []).map((i) => urlDeImagen(i.asset?._ref)),
+  ].filter((u): u is string => !!u);
+  return [...new Set(urls)];
+}
+
+/** Cuánto hay que arrastrar para que cuente como deslizar y no como un toque. */
+const UMBRAL_DESLIZAR = 40;
+
+/**
+ * La portada de una tarjeta: una imagen, o un carrusel si hay más de una.
+ *
+ * Sin rotación automática a propósito: en una lista de tarjetas, varias cosas
+ * moviéndose a la vez cansan y le quitan el control a quien lee. Se cambia con
+ * las flechas, los puntos o deslizando.
+ */
+function PortadaDeExperiencia({ imagenes, titulo }: { imagenes: string[]; titulo: string }) {
+  const [actual, setActual] = useState(0);
+  const inicioX = useRef<number | null>(null);
+  const total = imagenes.length;
+  const ir = (i: number) => setActual(((i % total) + total) % total);
+
+  if (total === 1) {
+    return (
+      <img src={imagenes[0]} alt={titulo} className="block w-full h-56 object-cover border-b border-gray-100" />
+    );
+  }
+
+  return (
+    <div
+      className="group relative h-56 overflow-hidden border-b border-gray-100 bg-gray-100"
+      role="group"
+      aria-roledescription="carrusel"
+      aria-label={`Imágenes de ${titulo}`}
+      // touch-pan-y: el gesto vertical sigue siendo scroll de la página.
+      style={{ touchAction: 'pan-y' }}
+      onPointerDown={(e) => { inicioX.current = e.clientX; }}
+      onPointerUp={(e) => {
+        if (inicioX.current === null) return;
+        const dx = e.clientX - inicioX.current;
+        inicioX.current = null;
+        if (Math.abs(dx) >= UMBRAL_DESLIZAR) ir(actual + (dx < 0 ? 1 : -1));
+      }}
+      onPointerCancel={() => { inicioX.current = null; }}
+    >
+      <div
+        className="flex h-full transition-transform duration-300 ease-out motion-reduce:transition-none"
+        style={{ transform: `translateX(-${actual * 100}%)` }}
+      >
+        {imagenes.map((url, i) => (
+          <img
+            key={url}
+            src={url}
+            alt={i === 0 ? titulo : `${titulo} (${i + 1} de ${total})`}
+            draggable={false}
+            // Solo la primera se pide de entrada; el resto, cuando se acerquen.
+            loading={i === 0 ? 'eager' : 'lazy'}
+            className="block h-full w-full shrink-0 object-cover"
+          />
+        ))}
+      </div>
+
+      {/* En pantallas táctiles siempre visibles; con ratón, al pasar por encima. */}
+      <button
+        type="button"
+        onClick={() => ir(actual - 1)}
+        aria-label="Imagen anterior"
+        className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-700 shadow-sm transition-opacity hover:bg-white focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+      >
+        <HiChevronLeft className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => ir(actual + 1)}
+        aria-label="Imagen siguiente"
+        className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-700 shadow-sm transition-opacity hover:bg-white focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+      >
+        <HiChevronRight className="h-4 w-4" />
+      </button>
+
+      <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5 rounded-full bg-black/40 px-2.5 py-1">
+        {imagenes.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => ir(i)}
+            aria-label={`Ir a la imagen ${i + 1}`}
+            aria-current={i === actual}
+            className={`h-1.5 rounded-full transition-all ${i === actual ? 'w-5 bg-white' : 'w-1.5 bg-white/60'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function getImageUrl(exp: BookingExperience): string | null {
   // featuredImage es la URL que devolvió la subida. También se acepta el
@@ -56,6 +164,7 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
       {experiences.map((exp) => {
         const img = getImageUrl(exp);
+        const imagenes = imagenesDe(exp);
         return (
           <div
             key={exp._id}
@@ -64,11 +173,7 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
             <div className="flex flex-col h-full">
               {/* Imagen / Placeholder con misma altura fija */}
               {img ? (
-                <img
-                  src={img}
-                  alt={exp.title}
-                  className="block w-full h-56 object-cover border-b border-gray-100"
-                />
+                <PortadaDeExperiencia imagenes={imagenes.length > 0 ? imagenes : [img]} titulo={exp.title} />
               ) : (
                 <div className="w-full h-56 bg-linear-to-br from-marca-tenue via-acento-tenue to-[#334C5D]/10 flex items-center justify-center border-b border-gray-100">
                   <div className="text-center px-4">

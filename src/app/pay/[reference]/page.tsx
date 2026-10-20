@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { HiCheckCircle, HiClock, HiXCircle } from 'react-icons/hi';
 import { getEstadoReserva, type EstadoReserva } from '@/lib/api/catalog';
+import { estiloDeMarca } from '@/lib/marca';
 
 /**
  * A donde vuelve el cliente desde la pasarela, sea cual sea.
@@ -86,7 +87,10 @@ export default function PaginaRetornoPago() {
   const resultado = noEncontrada ? 'desconocido' : resultadoDe(estado);
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+    <main
+      className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12"
+      style={estiloDeMarca(estado?.colorMarca)}
+    >
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm border border-gray-100 text-center">
         {resultado === 'pagado' && (
           <>
@@ -115,7 +119,7 @@ export default function PaginaRetornoPago() {
 
         {resultado === 'esperando' && (
           <>
-            <HiClock className={`mx-auto h-14 w-14 text-[#F26726] ${sondeando ? 'animate-pulse' : ''}`} />
+            <HiClock className={`mx-auto h-14 w-14 text-marca ${sondeando ? 'animate-pulse' : ''}`} />
             <h1 className="mt-4 text-2xl font-bold text-gray-900">
               {sondeando ? 'Confirmando tu pago...' : 'Tu pago está en proceso'}
             </h1>
@@ -146,7 +150,7 @@ export default function PaginaRetornoPago() {
 
         <Link
           href="/"
-          className="mt-6 inline-block rounded-xl bg-[#F26726] px-6 py-2.5 font-semibold text-white transition-colors hover:bg-[#d9571f]"
+          className="mt-6 inline-block rounded-xl bg-marca px-6 py-2.5 font-semibold text-marca-contraste transition-colors hover:bg-marca-fuerte"
         >
           Volver al inicio
         </Link>

@@ -95,6 +95,8 @@ export type EstadoReserva = {
   reservationNumber: string;
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
   paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED' | 'PARTIAL' | 'FAILED';
+  /** Color principal del anfitrión, o null si no eligió ninguno. */
+  colorMarca: string | null;
 };
 
 /**

@@ -289,6 +289,11 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
         },
       });
 
+      // El intento ya terminó: la clave no puede servir otra vez. Sin esto,
+      // «Hacer otra reserva» con los mismos datos (misma fecha, personas y
+      // correo) mandaba la misma clave y el API devolvía la reserva anterior
+      // en vez de crear la nueva.
+      claveDelIntento.current = null;
       setReservationNumber(result.reservationNumber);
       setCodigo(result.confirmationCode ?? null);
       setPago(result.payment ?? null);

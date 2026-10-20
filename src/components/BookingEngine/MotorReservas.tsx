@@ -17,6 +17,7 @@ import BotonDePago, { type DatosCheckout } from '@/components/BookingEngine/Boto
 import { SkeletonCard } from '@/components/Skeleton';
 import { urlDeImagen } from '@/lib/images';
 import PortadaCatalogo from '@/components/BookingEngine/PortadaCatalogo';
+import ChatDelAgente from '@/components/BookingEngine/ChatDelAgente';
 
 
 export interface BookingLocationAddress {
@@ -99,6 +100,8 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   const solicitud = searchParams.get('solicitud');
 
   const [company, setCompany] = useState<Company | null>(null);
+  // Con quién se chatea desde el catálogo; null si el anfitrión no lo ofrece.
+  const [agente, setAgente] = useState<{ nombre: string } | null>(null);
   const [experiences, setExperiences] = useState<BookingExperience[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,9 +145,13 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
           paymentsEnabled,
           paymentRequired,
           agendaDelAnfitrion,
+          agente: agenteDelChat,
         } = modoReseller ? await getResellerCatalog(slug) : await getPublicCatalog(slug);
         if (controller.signal.aborted) return;
         setCompany(companyData);
+        // El catálogo de un revendedor no trae chat: el agente es de un
+        // anfitrión y habla de sus experiencias, no de las de toda la plataforma.
+        setAgente(modoReseller ? null : agenteDelChat);
         // TR-21. Una experiencia sin horario propio ni sede usa la agenda del
         // anfitrión. Sin esto el catálogo de un cocinero a domicilio ofrecía
         // las horas por defecto —de ocho a ocho, todos los días—, que no son
@@ -396,6 +403,11 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
             <FiloLogo className="h-5 w-auto" />
           </a>
         </footer>
+      )}
+      {/* Embebido en otra web no se ofrece: el iframe suele ser angosto y un
+          panel flotante no cabria. Dentro del contenedor para heredar la marca. */}
+      {!isEmbed && agente && company && (
+        <ChatDelAgente slug={slug} nombre={agente.nombre} empresa={company.companyName} />
       )}
     </div>
   );

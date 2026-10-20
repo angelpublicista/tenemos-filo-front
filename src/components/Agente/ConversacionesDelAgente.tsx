@@ -12,6 +12,12 @@ import {
   type ConversacionResumen,
 } from '@/lib/agente/agente';
 
+/** Quien escribe: el nombre si lo dio; si no, el teléfono. Un visitante web no tiene teléfono. */
+const quien = (c: { canal: string; nombrePerfil: string | null; telefono: string }) =>
+  c.nombrePerfil ?? (c.canal === 'WEB' ? 'Visitante del catálogo' : c.telefono);
+
+const ETIQUETA_CANAL: Record<string, string> = { WEB: 'catálogo web', PRUEBA: 'prueba' };
+
 const cuando = (iso: string) =>
   new Date(iso).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
@@ -64,7 +70,7 @@ export default function ConversacionesDelAgente({ refrescar = 0 }: { refrescar?:
     <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-[#334C5D]">Conversaciones</h2>
       <p className="mt-1 mb-4 text-sm text-gray-500">
-        Lo que tu agente le ha contestado a cada quien. Si tomas un hilo, deja de contestar solo
+        Lo que tu agente le ha contestado a cada quien, por WhatsApp o desde el chat de tu catálogo. Si tomas un hilo, deja de contestar solo
         en ese: el resto sigue igual.
       </p>
 
@@ -79,12 +85,12 @@ export default function ConversacionesDelAgente({ refrescar = 0 }: { refrescar?:
                 }`}
               >
                 <p className="truncate text-sm font-medium text-gray-900">
-                  {h.nombrePerfil ?? h.telefono}
+                  {quien(h)}
                 </p>
                 <p className="truncate text-xs text-gray-500">
                   {cuando(h.ultimoMensajeAt)} · {h._count.mensajes}{' '}
                   {h._count.mensajes === 1 ? 'mensaje' : 'mensajes'}
-                  {h.canal === 'PRUEBA' ? ' · prueba' : ''}
+                  {ETIQUETA_CANAL[h.canal] ? ` · ${ETIQUETA_CANAL[h.canal]}` : ''}
                 </p>
                 {h.pausada && (
                   <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
@@ -104,7 +110,7 @@ export default function ConversacionesDelAgente({ refrescar = 0 }: { refrescar?:
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-gray-900">
-                    {abierta.nombrePerfil ?? abierta.telefono}
+                    {quien(abierta)}
                   </p>
                   {abierta.opportunity && (
                     <Link

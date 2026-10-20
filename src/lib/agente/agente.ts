@@ -13,6 +13,10 @@ export interface AgenteConfig {
   instrucciones: string | null;
   puedeCrearSolicitud: boolean;
   puedeEnviarEnlace: boolean;
+  /** Lo que pidió el anfitrión: ofrecer el chat en su catálogo público. */
+  mostrarEnCatalogo: boolean;
+  /** Visible de verdad: pedido y con el agente encendido. */
+  chatEnCatalogo: boolean;
   waPhoneNumberId: string | null;
   waNumero: string | null;
   accessTokenConfigurado: boolean;
@@ -35,6 +39,7 @@ export interface GuardarAgente {
   instrucciones?: string;
   puedeCrearSolicitud?: boolean;
   puedeEnviarEnlace?: boolean;
+  mostrarEnCatalogo?: boolean;
   /** Cadena vacía borra el secreto; omitirlo lo deja como está. */
   waPhoneNumberId?: string;
   waNumero?: string;

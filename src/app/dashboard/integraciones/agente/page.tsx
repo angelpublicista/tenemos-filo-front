@@ -49,6 +49,7 @@ export default function AgentePage() {
   const [instrucciones, setInstrucciones] = useState('');
   const [puedeCrearSolicitud, setPuedeCrearSolicitud] = useState(true);
   const [puedeEnviarEnlace, setPuedeEnviarEnlace] = useState(true);
+  const [mostrarEnCatalogo, setMostrarEnCatalogo] = useState(false);
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [numero, setNumero] = useState('');
   const [secretos, setSecretos] = useState<Secretos>(VACIOS);
@@ -67,6 +68,7 @@ export default function AgentePage() {
       setInstrucciones(a.instrucciones ?? '');
       setPuedeCrearSolicitud(a.puedeCrearSolicitud);
       setPuedeEnviarEnlace(a.puedeEnviarEnlace);
+      setMostrarEnCatalogo(a.mostrarEnCatalogo);
       setPhoneNumberId(a.waPhoneNumberId ?? '');
       setNumero(a.waNumero ?? '');
       setSecretos(VACIOS);
@@ -86,6 +88,7 @@ export default function AgentePage() {
       instrucciones,
       puedeCrearSolicitud,
       puedeEnviarEnlace,
+      mostrarEnCatalogo,
       waNumero: numero,
     };
     if (phoneNumberId !== (estado?.waPhoneNumberId ?? '')) c.waPhoneNumberId = phoneNumberId;
@@ -180,7 +183,7 @@ export default function AgentePage() {
         <div>
           <h1 className="text-2xl font-bold text-[#334C5D]">Agente de IA</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Contesta por ti en WhatsApp con la información real de tus experiencias, guarda la
+            Contesta por ti en WhatsApp y en el chat de tu catálogo con la información real de tus experiencias, guarda la
             solicitud en tu CRM y le pasa al cliente su enlace de reserva. No confirma ni cobra:
             eso lo sigues decidiendo tú.
           </p>
@@ -285,6 +288,27 @@ export default function AgentePage() {
                 checked={puedeEnviarEnlace}
                 label=""
                 onChange={() => setPuedeEnviarEnlace((v) => !v)}
+              />
+            </div>
+            {/* Aparte de encender el agente: se puede atender WhatsApp sin
+                abrirle un chat a quien visite el catálogo. */}
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-gray-100 p-4 md:col-span-2">
+              <div>
+                <p className="text-sm font-semibold text-[#334C5D]">Mostrar el chat en tu catálogo</p>
+                <p className="text-sm text-gray-500">
+                  Quien visite tu catálogo podrá escribirle a tu agente. Lo que hablen lo lees abajo,
+                  en Conversaciones. Cada respuesta cuenta en el tope del mes.
+                </p>
+                {mostrarEnCatalogo && !activo && (
+                  <p className="mt-1 text-sm text-amber-700">
+                    El chat no aparecerá mientras el agente esté apagado.
+                  </p>
+                )}
+              </div>
+              <ToggleSwitch
+                checked={mostrarEnCatalogo}
+                label=""
+                onChange={() => setMostrarEnCatalogo((v) => !v)}
               />
             </div>
           </div>

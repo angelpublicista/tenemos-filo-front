@@ -11,6 +11,7 @@ type RespuestaCruda = {
   experiences: ApiExperience[];
   paymentsEnabled?: boolean;
   paymentRequired?: boolean;
+  agente?: { nombre: string } | null;
 };
 
 /** Un horario tal como lo manda el API público. */
@@ -43,6 +44,8 @@ export type CatalogoPublico = {
    * son las suyas.
    */
   agendaDelAnfitrion: AvailabilitySchedule[];
+  /** El agente del chat, o null si el anfitrión no lo muestra en su catálogo. */
+  agente: { nombre: string } | null;
 };
 
 function aHorario(a: ApiAvailabilityCruda): AvailabilitySchedule {
@@ -68,6 +71,7 @@ function traducir(data: RespuestaCruda): CatalogoPublico {
     paymentsEnabled: Boolean(data.paymentsEnabled),
     paymentRequired: Boolean(data.paymentRequired),
     agendaDelAnfitrion: (data.company?.ownAvailabilities ?? []).map(aHorario),
+    agente: data.agente ?? null,
   };
 }
 
@@ -89,6 +93,37 @@ export const getPublicCatalog = async (slugOrId: string): Promise<CatalogoPublic
  */
 export const getResellerCatalog = async (slugOrId: string): Promise<CatalogoPublico> =>
   traducir(await api.get<RespuestaCruda>(`/public/reseller/${encodeURIComponent(slugOrId)}`));
+
+/** Un mensaje del chat con el agente, tal como lo ve el visitante. */
+export type MensajeDelChat = {
+  rol: 'CLIENTE' | 'AGENTE';
+  texto: string;
+  createdAt: string;
+};
+
+/**
+ * Escribirle al agente del catálogo.
+ *
+ * `respuesta` es null cuando no contestó (sin cupo este mes, o el anfitrión
+ * tomó el hilo): el mensaje queda guardado y el visitante debe saberlo.
+ */
+export const enviarMensajeAlAgente = async (
+  slug: string,
+  sessionId: string,
+  texto: string,
+): Promise<{ respuesta: string | null }> =>
+  api.post<{ respuesta: string | null }>(`/public/agente/${encodeURIComponent(slug)}/mensaje`, {
+    sessionId,
+    texto,
+  });
+
+/** El hilo de este visitante, para no perderlo al recargar la página. */
+export const getHistorialDelChat = async (slug: string, sessionId: string): Promise<MensajeDelChat[]> =>
+  (
+    await api.get<{ mensajes: MensajeDelChat[] }>(
+      `/public/agente/${encodeURIComponent(slug)}/conversacion/${encodeURIComponent(sessionId)}`,
+    )
+  ).mensajes;
 
 /** Lo que devuelve el API sobre una reserva a quien vuelve de la pasarela. */
 export type EstadoReserva = {

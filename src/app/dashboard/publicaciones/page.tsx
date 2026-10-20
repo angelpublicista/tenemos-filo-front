@@ -30,6 +30,7 @@ import { HiOutlineExclamationCircle } from 'react-icons/hi';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AvailabilityManager from '@/components/AvailabilityManager';
 import Loader from '@/components/Loader';
+import CopiarEnlaceDePublicacion from '@/components/Catalogo/CopiarEnlaceDePublicacion';
 import PublicarModal, { type PiezaPublicable } from '@/components/Catalogo/PublicarModal';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
@@ -42,6 +43,7 @@ import {
   type CondicionesDePublicacion,
   type Publicacion,
 } from '@/lib/api/catalogo';
+import { getCompanyById } from '@/lib/sanity/companyService';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
 import type { Location } from '@/types';
@@ -82,6 +84,16 @@ export default function PublicacionesPage() {
   const [horarioDe, setHorarioDe] = useState<Publicacion | null>(null);
 
   const companyId = sanityUser?.companyId;
+
+  // La URL de cada publicación lleva el slug de la empresa, y el perfil solo
+  // trae su id. Sin slug no se ofrece el enlace; lo demás de la página sigue.
+  const [slugEmpresa, setSlugEmpresa] = useState<string | null>(null);
+  useEffect(() => {
+    if (!companyId) return;
+    getCompanyById(companyId)
+      .then((c) => setSlugEmpresa(c?.slug?.current ?? null))
+      .catch(() => setSlugEmpresa(null));
+  }, [companyId]);
 
   const cargar = useCallback(async () => {
     if (!companyId) return;
@@ -429,6 +441,13 @@ export default function PublicacionesPage() {
                               </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
+                              {/* La URL propia de esta publicación, para compartirla
+                                  suelta. En pausa no se ofrece: abriría un 404. */}
+                              {slugEmpresa && p.slugPublicacion && p.propias?.isPublished !== false && (
+                                <CopiarEnlaceDePublicacion
+                                  ruta={`/book/${slugEmpresa}/${p.slugPublicacion}`}
+                                />
+                              )}
                               <Button size="xs" color="light" onClick={() => setHorarioDe(p)}>
                                 <AiOutlineClockCircle className="mr-1" /> Horario
                               </Button>

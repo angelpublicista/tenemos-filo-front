@@ -445,7 +445,10 @@ export interface HostStep3Data {
  * la respuesta mas comun: lo normal es que una sede cambie una cosa.
  */
 export interface LocationListing {
-  locationId: string;
+  /** Nulo en la publicación a domicilio, que no tiene sede. */
+  locationId: string | null;
+  /** La URL propia de la publicación: /book/<empresa>/<slug>. */
+  slug?: string | null;
   /** Cupos sueltos (abierta) o el sitio completo para un grupo (privada). */
   kind?: 'ABIERTA' | 'PRIVADA' | null;
   minCapacity?: number | null;

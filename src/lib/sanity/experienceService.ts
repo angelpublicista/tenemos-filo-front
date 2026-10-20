@@ -65,7 +65,9 @@ export interface ApiExperience {
   menus?: ApiMenu[];
   // Las condiciones propias de cada sede, cuando las tiene.
   locationListings?: Array<{
-    locationId: string;
+    locationId: string | null;
+    /** La URL propia de la publicación. */
+    slug?: string | null;
     kind: 'ABIERTA' | 'PRIVADA' | null;
     minCapacity: number | null;
     basePrice: string | number | null;

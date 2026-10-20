@@ -12,6 +12,15 @@ type RespuestaCruda = {
   paymentsEnabled?: boolean;
   paymentRequired?: boolean;
   agente?: { nombre: string } | null;
+  publicacion?: PublicacionAbierta | null;
+};
+
+/** La publicación a la que apunta una URL propia: qué experiencia y en qué sede. */
+export type PublicacionAbierta = {
+  slug: string;
+  /** Null cuando es a domicilio: no hay sede que preseleccionar. */
+  locationId: string | null;
+  experienceId: string;
 };
 
 /** Un horario tal como lo manda el API público. */
@@ -46,6 +55,8 @@ export type CatalogoPublico = {
   agendaDelAnfitrion: AvailabilitySchedule[];
   /** El agente del chat, o null si el anfitrión no lo muestra en su catálogo. */
   agente: { nombre: string } | null;
+  /** Presente cuando se abrió la URL propia de una publicación. */
+  publicacion: PublicacionAbierta | null;
 };
 
 function aHorario(a: ApiAvailabilityCruda): AvailabilitySchedule {
@@ -72,6 +83,7 @@ function traducir(data: RespuestaCruda): CatalogoPublico {
     paymentRequired: Boolean(data.paymentRequired),
     agendaDelAnfitrion: (data.company?.ownAvailabilities ?? []).map(aHorario),
     agente: data.agente ?? null,
+    publicacion: data.publicacion ?? null,
   };
 }
 
@@ -93,6 +105,24 @@ export const getPublicCatalog = async (slugOrId: string): Promise<CatalogoPublic
  */
 export const getResellerCatalog = async (slugOrId: string): Promise<CatalogoPublico> =>
   traducir(await api.get<RespuestaCruda>(`/public/reseller/${encodeURIComponent(slugOrId)}`));
+
+/**
+ * Una publicación suelta, desde su URL propia: /book/<empresa>/<publicacion>
+ * o, con revendedor, /r/<revendedor>/<publicacion>.
+ *
+ * Llega solo esa experiencia y solo esa sede. Falla con 404 si la publicación
+ * se pausó o ya no existe, y la página lo trata como cualquier enlace roto.
+ */
+export const getPublicacion = async (
+  slug: string,
+  publicacion: string,
+  comoReseller = false,
+): Promise<CatalogoPublico> =>
+  traducir(
+    await api.get<RespuestaCruda>(
+      `/public/${comoReseller ? 'reseller' : 'catalog'}/${encodeURIComponent(slug)}/publicacion/${encodeURIComponent(publicacion)}`,
+    ),
+  );
 
 /** Un mensaje del chat con el agente, tal como lo ve el visitante. */
 export type MensajeDelChat = {

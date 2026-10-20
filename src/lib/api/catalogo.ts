@@ -30,6 +30,8 @@ export interface Publicacion {
   locationId: string | null;
   locationName: string | null;
   sedeActiva: boolean | null;
+  /** La URL propia de la publicación: /book/<empresa>/<este valor>. */
+  slugPublicacion: string | null;
   /**
    * Lo que esta sede declara COMO SUYO. `null` cuando no declara nada y va
    * igual que la pieza; dentro, cada campo nulo también se hereda.

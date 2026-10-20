@@ -3,7 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
-import { getDatosDeSolicitud, getPublicCatalog, getResellerCatalog } from '@/lib/api/catalog';
+import {
+  getDatosDeSolicitud,
+  getPublicacion,
+  getPublicCatalog,
+  getResellerCatalog,
+} from '@/lib/api/catalog';
 import { createPublicReservation } from '@/lib/sanity/reservationService';
 import type { Company, AvailabilitySchedule } from '@/types';
 import { estiloDeMarca } from '@/lib/marca';
@@ -94,6 +99,10 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   const params = useParams();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
+  // La URL propia de una publicación: la página enseña solo esa experiencia,
+  // en su sede, y arranca en la fecha. Sin ella es el catálogo de siempre.
+  const publicacionSlug = (params.publicacion as string | undefined) ?? null;
+  const rutaDelCatalogo = `${modoReseller ? '/r' : '/book'}/${slug}`;
   const isEmbed = searchParams.get('embed') === '1';
   // CRM-33. El enlace que el anfitrion genero desde su CRM. Lo que sabemos
   // del cliente no viaja en la URL: esto es un token, y se canjea.
@@ -146,7 +155,12 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
           paymentRequired,
           agendaDelAnfitrion,
           agente: agenteDelChat,
-        } = modoReseller ? await getResellerCatalog(slug) : await getPublicCatalog(slug);
+          publicacion,
+        } = publicacionSlug
+          ? await getPublicacion(slug, publicacionSlug, modoReseller)
+          : modoReseller
+            ? await getResellerCatalog(slug)
+            : await getPublicCatalog(slug);
         if (controller.signal.aborted) return;
         setCompany(companyData);
         // El catálogo de un revendedor no trae chat: el agente es de un
@@ -156,15 +170,25 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
         // anfitrión. Sin esto el catálogo de un cocinero a domicilio ofrecía
         // las horas por defecto —de ocho a ocho, todos los días—, que no son
         // las suyas, y el API acabaría rechazando la reserva.
-        setExperiences(
-          (expData as BookingExperience[]).map((e) =>
-            (e.availabilitySchedules?.length ?? 0) === 0 && (agendaDelAnfitrion?.length ?? 0) > 0
-              ? { ...e, availabilitySchedules: agendaDelAnfitrion }
-              : e,
-          ),
+        const conAgenda = (expData as BookingExperience[]).map((e) =>
+          (e.availabilitySchedules?.length ?? 0) === 0 && (agendaDelAnfitrion?.length ?? 0) > 0
+            ? { ...e, availabilitySchedules: agendaDelAnfitrion }
+            : e,
         );
+        setExperiences(conAgenda);
         setCobraEnLinea(paymentsEnabled);
         setPagoObligatorio(Boolean(paymentRequired));
+
+        // URL propia de una publicación: se llega ya dentro de esa experiencia
+        // y esa sede, directo a elegir fecha. Quien quiera ver más vuelve al
+        // catálogo con el enlace de arriba.
+        if (publicacion) {
+          const abierta = conAgenda.find((e) => e._id === publicacion.experienceId);
+          if (abierta) {
+            setBooking({ experience: abierta, locationId: publicacion.locationId ?? undefined });
+            setStep('datetime');
+          }
+        }
 
         // CRM-33. Con el enlace del CRM no se empieza de cero: los datos del
         // cliente se rellenan solos y, si la oportunidad ya apuntaba a una
@@ -177,7 +201,8 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
             const elegida = previo.experienceId
               ? (expData as BookingExperience[]).find((e) => e._id === previo.experienceId)
               : undefined;
-            if (elegida) {
+            // Una URL de publicación ya dice cuál: lo que apunte el CRM no la pisa.
+            if (elegida && !publicacion) {
               setBooking({ experience: elegida });
               setStep('datetime');
             }
@@ -189,7 +214,11 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
         // copie la URL desde aqui se lleva la buena.
         const canonico = companyData.slug?.current;
         if (!modoReseller && canonico && canonico !== slug) {
-          window.history.replaceState(null, '', `/book/${canonico}`);
+          window.history.replaceState(
+            null,
+            '',
+            publicacion ? `/book/${canonico}/${publicacion.slug}` : `/book/${canonico}`,
+          );
         }
       } catch (err) {
         if (controller.signal.aborted) {
@@ -206,7 +235,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
     };
     load();
     return () => { controller.abort(); clearTimeout(timeout); };
-  }, [slug, modoReseller, solicitud]);
+  }, [slug, modoReseller, solicitud, publicacionSlug]);
 
   const handleSelectExperience = (exp: BookingExperience) => {
     setBooking({ experience: exp });
@@ -389,6 +418,16 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
           options.banner ? '' : 'pt-6 sm:pt-8'
         }`}
       >
+        {/* Quien llega por la URL de una publicación ve solo esa; este es el
+            camino a todo lo demás. */}
+        {publicacionSlug && !isEmbed && !loading && !error && (
+          <a
+            href={rutaDelCatalogo}
+            className="mb-4 inline-block text-sm font-medium text-marca hover:underline"
+          >
+            ← Ver todas las experiencias{company ? ` de ${company.companyName}` : ''}
+          </a>
+        )}
         {content}
       </div>
       {!isEmbed && (

@@ -6,6 +6,7 @@ import { HiExternalLink, HiInformationCircle } from 'react-icons/hi';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import SharingPanel from '@/components/BookingEngine/SharingPanel';
+import EnlacesPorPublicacion from '@/components/Catalogo/EnlacesPorPublicacion';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getCompanyById } from '@/lib/sanity/companyService';
 
@@ -73,6 +74,8 @@ export default function MiCatalogoPage() {
       ) : (
         <>
           <SharingPanel slug={slug} base="r" />
+
+          <EnlacesPorPublicacion slug={slug} />
 
           <div className="mt-6">
             <a

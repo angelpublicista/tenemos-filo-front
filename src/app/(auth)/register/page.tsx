@@ -4,7 +4,9 @@ import { useState, useEffect, Suspense } from 'react'
 import RegistrationForm from '@/components/RegistrationForm'
 import FiloLogo from '@/components/FiloLogo'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@/lib/auth/AuthContext'
+import Loader from '@/components/Loader'
 import { RiInformationLine } from "react-icons/ri";
 import { Tooltip } from 'flowbite-react'
 
@@ -24,6 +26,14 @@ const REGISTRO_COMENSAL_ABIERTO = false
 function RegisterContent() {
   const [isHost, setIsHost] = useState(true)
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { user, loading: sesionCargando } = useAuth()
+
+  // Con sesión abierta no hay nada que registrar. Al crear la cuenta el propio
+  // registro inicia sesión y va al panel, que es el mismo destino.
+  useEffect(() => {
+    if (!sesionCargando && user) router.replace('/dashboard')
+  }, [sesionCargando, user, router])
 
   useEffect(() => {
     // Con el registro de comensal cerrado, `?type=guest` se ignora: si no,
@@ -40,6 +50,11 @@ function RegisterContent() {
       setIsHost(false)
     }
   }, [searchParams])
+
+  // Ni un instante del formulario a quien ya tiene sesión.
+  if (sesionCargando || user) {
+    return <Loader message="Cargando..." className="min-h-screen" />
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen space-y-4 w-full max-w-md mx-auto py-10 px-4">

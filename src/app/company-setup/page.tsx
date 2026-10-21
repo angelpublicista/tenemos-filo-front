@@ -1,6 +1,7 @@
 import CompanySetupForm from '@/components/CompanySetupForm';
 import CompanySetupGuard from '@/components/CompanySetupGuard';
 import FiloLogo from '@/components/FiloLogo';
+import SalirDeLaSesion from '@/components/SalirDeLaSesion';
 
 export default function CompanySetupPage() {
   return (
@@ -24,10 +25,11 @@ export default function CompanySetupPage() {
             <CompanySetupForm />
 
             {/* Información adicional */}
-            <div className="mt-8 text-center">
+            <div className="mt-8 text-center space-y-2">
               <p className="text-sm text-gray-500">
                 ¿Necesitas ayuda? Contacta a nuestro equipo de soporte.
               </p>
+              <SalirDeLaSesion />
             </div>
           </div>
         </div>

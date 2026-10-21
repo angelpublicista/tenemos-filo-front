@@ -345,7 +345,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Devolvemos shape compatible con el viejo register()
       // (callers solo usan .user.uid; el id real lo obtiene el efecto via /users/me)
-      router.push("/dashboard");
+      //
+      // Un anfitrión recién registrado no tiene empresa, y sin ella el panel no
+      // le sirve para nada: el registro sigue con los datos de la empresa y,
+      // si hay suscripción, con su pago.
+      router.push(userData.role === "host" ? "/company-setup" : "/dashboard");
       return { user: { uid: email } };
     },
     [router],

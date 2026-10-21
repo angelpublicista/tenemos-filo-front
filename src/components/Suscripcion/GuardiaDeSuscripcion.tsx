@@ -49,13 +49,20 @@ export default function GuardiaDeSuscripcion({ children, bloqueado }: Props) {
     };
   }, [esAnfitrion, pathname]);
 
+  // Un anfitrión sin empresa no puede usar nada del panel: su sitio es el
+  // registro de la empresa, que es el siguiente paso tras crear la cuenta.
+  const sinEmpresa = esAnfitrion && !!sanityUser && !sanityUser.companyId;
+  useEffect(() => {
+    if (sinEmpresa) router.replace('/company-setup');
+  }, [sinEmpresa, router]);
+
   const enLaPantallaDePago = pathname === RUTA_DE_SUSCRIPCION;
 
   useEffect(() => {
     if (bloqueada && !enLaPantallaDePago) router.replace(RUTA_DE_SUSCRIPCION);
   }, [bloqueada, enLaPantallaDePago, router]);
 
-  if (esAnfitrion && (bloqueada === null || (bloqueada && !enLaPantallaDePago))) {
+  if (sinEmpresa || (esAnfitrion && (bloqueada === null || (bloqueada && !enLaPantallaDePago)))) {
     return <Loader message="Cargando..." className="min-h-screen" />;
   }
   return <>{bloqueada ? bloqueado : children}</>;

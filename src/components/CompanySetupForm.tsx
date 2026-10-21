@@ -13,7 +13,7 @@ import { Button, Label, TextInput, Select, Textarea } from 'flowbite-react';
 import { HiExclamationCircle, HiCheckCircle } from 'react-icons/hi';
 import { AiOutlineBuild, AiOutlineMail, AiOutlineInfoCircle, AiOutlineIdcard, AiOutlineHome, AiOutlineGlobal, AiOutlineTeam, AiOutlineUser } from 'react-icons/ai';
 import TelefonoInput from "./TelefonoInput";
-import { telefonoVacio } from "@/lib/telefono";
+import { aE164, telefonoVacio } from "@/lib/telefono";
 import StepIndicator from './StepIndicator';
 import { CompleteCompanyData, Company } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
@@ -244,7 +244,7 @@ export default function CompanySetupForm() {
         const company = await getCompanyByUserId(user.uid);
         if (company) {
           setExistingCompany(company);
-          setCompanyPhone(company.companyPhone || '');
+          setCompanyPhone(aE164(company.companyPhone));
           setLogoAssetId(company.logo?.asset?._ref || '');
           setRutKey(company.rutKey || '');
           setCamaraKey(company.camaraKey || '');
@@ -969,7 +969,7 @@ export default function CompanySetupForm() {
     if (depto) setValue('address.country', PAIS_FIJO, { shouldValidate: true });
 
     // Estos dos viven fuera de react-hook-form.
-    if (telefono) setCompanyPhone(telefono);
+    if (telefono) setCompanyPhone(aE164(telefono));
     // El nombre solo si esta vacio: es lo unico que la persona pudo haber
     // elegido a conciencia distinto de lo que dice el papel.
     if (nombre && !getValues('companyName')?.trim()) {
@@ -1283,7 +1283,8 @@ export default function CompanySetupForm() {
         misDatos={{
           name: sanityUser?.name,
           email: sanityUser?.email,
-          phone: companyPhone,
+          // El del usuario (es "mis datos"); si no tiene, el de la empresa.
+          phone: aE164(sanityUser?.phone) || companyPhone,
         }}
         mostrarErrores={erroresContactos}
       />
@@ -1445,6 +1446,10 @@ export default function CompanySetupForm() {
               >
                 Cancelar
               </button>
+            ) : sanityUser?.role === 'host' ? (
+              // Un anfitrión sin empresa no puede usar el panel (lo devuelve
+              // aquí), así que saltar este paso no lleva a ningún sitio.
+              <div></div>
             ) : (
               <button
                 type="button"

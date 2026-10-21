@@ -4,6 +4,7 @@ import React from 'react';
 import { Button, Label, TextInput } from 'flowbite-react';
 import { HiPlus, HiTrash, HiUser } from 'react-icons/hi';
 import TelefonoInput from '@/components/TelefonoInput';
+import { aE164 } from '@/lib/telefono';
 import {
   CONTACTOS_OBLIGATORIOS,
   MAXIMO_LIBRES,
@@ -52,7 +53,7 @@ export default function ContactosDeEmpresa({
     cambiar(indice, {
       name: misDatos?.name ?? '',
       email: misDatos?.email ?? '',
-      phone: misDatos?.phone ?? '',
+      phone: aE164(misDatos?.phone),
     });
   };
 

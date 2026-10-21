@@ -5,6 +5,7 @@ import { Button, Card } from 'flowbite-react';
 import { HiLockClosed } from 'react-icons/hi';
 import CompanySetupGuard from '@/components/CompanySetupGuard';
 import FiloLogo from '@/components/FiloLogo';
+import SalirDeLaSesion from '@/components/SalirDeLaSesion';
 import Loader from '@/components/Loader';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
@@ -97,6 +98,9 @@ export default function PagoDeSuscripcionInicialPage() {
               </p>
             </Card>
           )}
+          <div className="mt-6 text-center">
+            <SalirDeLaSesion />
+          </div>
         </div>
       </div>
     </CompanySetupGuard>

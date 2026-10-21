@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { HiClock, HiUsers, HiLocationMarker, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 import type { BookingExperience } from '@/components/BookingEngine/MotorReservas';
 import ExperienceDetailModal from './ExperienceDetailModal';
+import CompartirExperiencia from './CompartirExperiencia';
 import { urlDeImagen } from '@/lib/images';
 import { ciudadesQueCubre, cuposMaximos, precioDesde } from '@/lib/experiencias/condicionesDeSede';
 
@@ -146,9 +147,11 @@ function formatPrice(price: number, currency: string) {
 interface Props {
   experiences: BookingExperience[];
   onSelect: (exp: BookingExperience) => void;
+  /** /book/<empresa> o /r/<canal>: de ahí cuelga el enlace de cada publicación. */
+  rutaDelCatalogo: string;
 }
 
-export default function ExperienceList({ experiences, onSelect }: Props) {
+export default function ExperienceList({ experiences, onSelect, rutaDelCatalogo }: Props) {
   const [detailExp, setDetailExp] = useState<BookingExperience | null>(null);
 
   if (experiences.length === 0) {
@@ -271,6 +274,7 @@ export default function ExperienceList({ experiences, onSelect }: Props) {
                     >
                       Reservar
                     </button>
+                    <CompartirExperiencia experience={exp} rutaDelCatalogo={rutaDelCatalogo} />
                   </div>
                 </div>
               </div>

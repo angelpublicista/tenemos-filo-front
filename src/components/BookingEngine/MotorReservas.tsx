@@ -623,7 +623,11 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       )}
 
       {step === 'experiences' && (
-        <ExperienceList experiences={experiences} onSelect={handleSelectExperience} />
+        <ExperienceList
+          experiences={experiences}
+          onSelect={handleSelectExperience}
+          rutaDelCatalogo={rutaDelCatalogo}
+        />
       )}
       {step === 'datetime' && booking.experience && (
         <DateTimeStep

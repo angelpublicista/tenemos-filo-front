@@ -75,4 +75,24 @@ body {
   video {
     height: revert;
   }
+
+  /* Tailwind v4 dejo de poner cursor:pointer en los botones; se restituye
+     aqui, respetando los deshabilitados. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select,
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }

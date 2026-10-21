@@ -248,13 +248,32 @@ export default function PublicacionesPage() {
               .
             </p>
           </div>
-          <Button
-            onClick={() => setPublicando(true)}
-            disabled={piezas.length === 0 || sedes.length === 0}
-            className="bg-[#F26726] hover:bg-[#d9551c] shrink-0"
-          >
-            <AiOutlinePlus className="mr-2" /> Publicar experiencia
-          </Button>
+          <div className="shrink-0 sm:text-right">
+            <Button
+              onClick={() => setPublicando(true)}
+              disabled={piezas.length === 0 || sedes.length === 0}
+              className="bg-[#F26726] hover:bg-[#d9551c]"
+            >
+              <AiOutlinePlus className="mr-2" /> Publicar experiencia
+            </Button>
+            {/* Un botón apagado sin motivo parece un fallo: se dice qué falta. */}
+            {sedes.length === 0 && (
+              <p className="mt-2 max-w-xs text-xs text-gray-500 dark:text-gray-400">
+                Para publicar necesitas al menos una sede.{' '}
+                <Link href="/dashboard/locations" className="text-marca underline">
+                  Crear una sede
+                </Link>
+              </p>
+            )}
+            {sedes.length > 0 && piezas.length === 0 && (
+              <p className="mt-2 max-w-xs text-xs text-gray-500 dark:text-gray-400">
+                No tienes experiencias para ubicar en una sede (las de a domicilio no llevan sede).{' '}
+                <Link href="/dashboard/experiences" className="text-marca underline">
+                  Ver experiencias
+                </Link>
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2">

@@ -250,7 +250,8 @@ export default function AdminAjustesPage() {
             </p>
             <p className="mt-2 text-xs text-gray-500">
               Cuando cobra el anfitrión, el dinero ya está en su cuenta: lo que se le descuenta
-              queda registrado en la reserva, pero FILO tiene que cobrárselo aparte.
+              queda registrado en la reserva y se suma por mes en Comisiones por cobrar, donde
+              marcas cuándo lo paga.
             </p>
           </div>
         </Card>

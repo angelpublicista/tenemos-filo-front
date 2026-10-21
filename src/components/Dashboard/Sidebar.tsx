@@ -298,6 +298,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       },
       {
+        // Lo contrario de Dispersiones: aquí el que paga es el anfitrión, por
+        // lo que FILO no pudo descontar de ventas que cobró en su cuenta.
+        name: 'Comisiones por cobrar',
+        href: '/dashboard/admin/comisiones',
+        icon: AiOutlineDollar,
+        current: pathname === '/dashboard/admin/comisiones',
+        enabled: true
+      },
+      {
         // TR-44. La bandeja de cobros que llegaron sin reserva. Va aquí y no
         // en Dispersiones porque no es dinero que haya que mover: es dinero
         // que no debería estar donde está.

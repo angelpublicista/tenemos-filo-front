@@ -7,6 +7,8 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable from '@/components/Admin/AdminTable';
 import DesgloseDelPeriodo from '@/components/Ingresos/DesgloseDelPeriodo';
+import EstadoDelMesBadge, { nombreDelMes } from '@/components/Comisiones/EstadoDelMes';
+import { getMisComisionesConFilo, type BalanceMensual } from '@/lib/api/fees';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
@@ -41,6 +43,8 @@ export default function IngresosPage() {
   // ventas que cobró con su propia pasarela. Es lo contrario de un saldo y no
   // se puede sumar con él.
   const [deudas, setDeudas] = useState<Saldo[]>([]);
+  // Lo que ESTA empresa le debe a FILO, mes a mes, por cobrar con su pasarela.
+  const [comisiones, setComisiones] = useState<BalanceMensual[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const [rol, setRol] = useState<PayoutRole>('HOST');
@@ -52,7 +56,12 @@ export default function IngresosPage() {
   const cargarResumen = useCallback(async () => {
     setCargando(true);
     try {
-      const r = await getResumenIngresos();
+      const [r, deFilo] = await Promise.all([
+        getResumenIngresos(),
+        // Un fallo aquí no puede esconder los ingresos: es información extra.
+        getMisComisionesConFilo().catch(() => [] as BalanceMensual[]),
+      ]);
+      setComisiones(deFilo);
       setSaldos(r.balances);
       setDeudas(r.debts);
       setRecibidas(r.payouts);
@@ -155,6 +164,42 @@ export default function IngresosPage() {
                 <td className="px-6 py-4">{pesos(d.accrued)}</td>
                 <td className="px-6 py-4 text-gray-500">{pesos(d.paid)}</td>
                 <td className="px-6 py-4 font-semibold text-amber-700">{pesos(d.pending)}</td>
+              </tr>
+            ))}
+          </AdminTable>
+        </div>
+      )}
+
+      {/* Lo que debes a FILO, cuando cobras en tu propia cuenta y FILO fijó una
+          comisión para esas ventas. Mes a mes: FILO factura por fuera y marca
+          aquí cuándo se pagó. Solo aparece si hay algo que contar. */}
+      {comisiones.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+            Lo que debes a Tenemos Filo
+          </h2>
+          <p className="text-sm text-gray-500 mb-3">
+            Comisión de las ventas que cobraste en tu cuenta. Se suma por mes y Tenemos Filo te
+            factura al cerrarlo; cuando pagues, aquí aparece como pagado.
+          </p>
+          <AdminTable
+            columnas={['Mes', 'Reservas', 'Comisión', 'Pagado', 'Por pagar', 'Estado']}
+            cargando={cargando}
+            vacio={false}
+            mensajeVacio=""
+          >
+            {comisiones.map((c) => (
+              <tr key={c.period} className="bg-white border-b">
+                <td className="px-6 py-4 capitalize">{nombreDelMes(c.period)}</td>
+                <td className="px-6 py-4">{c.reservas}</td>
+                <td className="px-6 py-4">{pesos(c.accrued)}</td>
+                <td className="px-6 py-4 text-gray-500">{pesos(c.paid)}</td>
+                <td className="px-6 py-4 font-semibold text-amber-700">
+                  {pesos(Math.max(c.pending, 0))}
+                </td>
+                <td className="px-6 py-4">
+                  <EstadoDelMesBadge estado={c.estado} />
+                </td>
               </tr>
             ))}
           </AdminTable>

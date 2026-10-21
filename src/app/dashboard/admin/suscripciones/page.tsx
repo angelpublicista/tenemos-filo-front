@@ -9,6 +9,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { getSettings } from '@/lib/api/admin';
 import {
   definirExencionDeSuscripcion,
+  definirVencimientoDeSuscripcion,
   listSuscripciones,
   registrarPagoManualDeSuscripcion,
   type SuscripcionDeEmpresa,
@@ -16,6 +17,13 @@ import {
 
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+
+/** El valor de un <input type="date"> (AAAA-MM-DD) para una fecha, en hora local. */
+const aInputDeFecha = (iso: string) => {
+  const d = new Date(iso);
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+};
 
 /** Lo que el administrador necesita ver de un vistazo. */
 function estadoDe(s: SuscripcionDeEmpresa): { texto: string; color: string } {
@@ -38,6 +46,10 @@ export default function AdminSuscripcionesPage() {
   const [periodos, setPeriodos] = useState('1');
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
+
+  const [editandoFecha, setEditandoFecha] = useState<SuscripcionDeEmpresa | null>(null);
+  const [nuevaFecha, setNuevaFecha] = useState('');
+  const [notaFecha, setNotaFecha] = useState('');
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -81,6 +93,31 @@ export default function AdminSuscripcionesPage() {
       await cargar();
     } catch (err) {
       showError('No se pudo registrar', err instanceof Error ? err.message : undefined);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const guardarVencimiento = async () => {
+    if (!editandoFecha) return;
+    setGuardando(true);
+    try {
+      // La fecha elegida es un día, no un instante: vale hasta que termina.
+      // Se arma en hora local para que "hasta el 20" no se corra al 19 por la
+      // zona horaria.
+      const endsAt = nuevaFecha ? new Date(`${nuevaFecha}T23:59:59`).toISOString() : null;
+      await definirVencimientoDeSuscripcion(editandoFecha.companyId, {
+        endsAt,
+        notes: notaFecha.trim() || undefined,
+      });
+      showSuccess(
+        'Vencimiento actualizado',
+        `${editandoFecha.companyName}: ${nuevaFecha ? `vence el ${fecha(endsAt!)}` : 'sin suscripción pagada'}.`,
+      );
+      setEditandoFecha(null);
+      await cargar();
+    } catch (err) {
+      showError('No se pudo guardar', err instanceof Error ? err.message : undefined);
     } finally {
       setGuardando(false);
     }
@@ -170,6 +207,17 @@ export default function AdminSuscripcionesPage() {
                     <HiCash className="w-4 h-4 mr-1" />
                     Registrar pago
                   </Button>
+                  <Button
+                    size="xs"
+                    color="light"
+                    onClick={() => {
+                      setEditandoFecha(f);
+                      setNuevaFecha(f.endsAt ? aInputDeFecha(f.endsAt) : '');
+                      setNotaFecha('');
+                    }}
+                  >
+                    Editar vencimiento
+                  </Button>
                   <Button size="xs" color="light" onClick={() => void alternarExencion(f)}>
                     {f.exenta ? 'Quitar exención' : 'Exentar'}
                   </Button>
@@ -187,6 +235,60 @@ export default function AdminSuscripcionesPage() {
           registran solos.
         </p>
       </Card>
+
+      <Modal show={!!editandoFecha} onClose={() => setEditandoFecha(null)} size="md">
+        <ModalHeader>Editar vencimiento</ModalHeader>
+        <ModalBody>
+          {editandoFecha && (
+            <div className="space-y-3">
+              <div className="rounded bg-gray-50 p-3 text-sm">
+                <div className="font-medium text-gray-900">{editandoFecha.companyName}</div>
+                <div className="text-gray-600">
+                  {editandoFecha.endsAt
+                    ? `Vence el ${fecha(editandoFecha.endsAt)}.`
+                    : 'Todavía no tiene una suscripción pagada.'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nueva fecha de vencimiento
+                </label>
+                <TextInput
+                  type="date"
+                  value={nuevaFecha}
+                  onChange={(e) => setNuevaFecha(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Vale hasta el final de ese día. Déjala vacía para quitar la suscripción pagada.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
+                <TextInput
+                  value={notaFecha}
+                  onChange={(e) => setNotaFecha(e.target.value)}
+                  placeholder="Ej.: pago extemporáneo del 3 de octubre"
+                />
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Fija la fecha tal cual: no suma días ni crea un pago. El cambio queda en el registro
+                de actividad.
+              </p>
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button color="primary" onClick={guardarVencimiento} disabled={guardando}>
+            {guardando ? 'Guardando...' : 'Guardar fecha'}
+          </Button>
+          <Button color="light" onClick={() => setEditandoFecha(null)}>
+            Cancelar
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       <Modal show={!!registrando} onClose={() => setRegistrando(null)} size="md">
         <ModalHeader>Registrar pago de suscripción</ModalHeader>

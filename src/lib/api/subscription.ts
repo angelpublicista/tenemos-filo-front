@@ -114,3 +114,12 @@ export function irAPagar(c: CheckoutDeSuscripcion): void {
   document.body.appendChild(form);
   form.submit();
 }
+
+/**
+ * Fija la fecha de vencimiento tal cual (null = sin suscripción pagada). No
+ * crea un pago: sirve para corregir, p. ej. un pago extemporáneo.
+ */
+export const definirVencimientoDeSuscripcion = (
+  companyId: string,
+  data: { endsAt: string | null; notes?: string },
+) => api.patch(`/subscription/admin/${encodeURIComponent(companyId)}/vencimiento`, data);

@@ -201,6 +201,12 @@ export type PlatformSettings = {
    * dice nada.
    */
   requirePaymentDefault: boolean;
+  /** Si se exige la suscripción a los anfitriones. Apagada, nadie se bloquea. */
+  subscriptionRequired: boolean;
+  /** Precio de la suscripción por 30 días, sin IVA. */
+  subscriptionPrice: number;
+  /** IVA que se suma al precio, en porcentaje. */
+  subscriptionVat: number;
   /** Pública por diseño: el navegador la necesita para abrir el checkout. */
   wompiPublicKey: string | null;
   // Los secretos nunca llegan al front; solo si están puestos.
@@ -222,6 +228,9 @@ export type SettingsUpdate = Partial<
     | 'wompiEnabled'
     | 'wompiEnvironment'
     | 'requirePaymentDefault'
+    | 'subscriptionRequired'
+    | 'subscriptionPrice'
+    | 'subscriptionVat'
   >
 > & {
   wompiPublicKey?: string;
@@ -243,6 +252,8 @@ const normalizarAjustes = (s: PlatformSettings): PlatformSettings => ({
   filoCommissionValue: aNumero(s.filoCommissionValue),
   filoCommissionOwnGatewayValue: aNumero(s.filoCommissionOwnGatewayValue),
   resellerCommissionValue: aNumero(s.resellerCommissionValue),
+  subscriptionPrice: aNumero(s.subscriptionPrice),
+  subscriptionVat: aNumero(s.subscriptionVat),
 });
 
 export const getSettings = async (): Promise<PlatformSettings> =>

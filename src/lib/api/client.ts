@@ -89,6 +89,17 @@ async function request<T>(path: string, opts: Options = {}): Promise<Envelope<T>
 
   if (!res.ok) {
     const err = (payload as { error?: ApiError } | null)?.error;
+    // Suscripcion vencida: el panel esta cerrado y lo unico que sirve es renovar.
+    // Lleva a la pantalla de pago desde cualquier sitio, sin que cada llamada
+    // tenga que saberlo.
+    if (
+      res.status === 402 &&
+      err?.code === "SUBSCRIPTION_REQUIRED" &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/dashboard/suscripcion"
+    ) {
+      window.location.assign("/dashboard/suscripcion");
+    }
     throw new ApiHttpError(
       res.status,
       err?.code ?? "REQUEST_FAILED",

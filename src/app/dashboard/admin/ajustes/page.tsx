@@ -5,6 +5,7 @@ import { Badge, Button, Card, Select, TextInput, ToggleSwitch } from 'flowbite-r
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { AdminHeader } from '@/components/Admin/AdminTable';
 import CommissionInput from '@/components/Admin/CommissionInput';
+import PrecioInput from '@/components/PrecioInput';
 import LogoDePasarela from '@/components/LogoDePasarela';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
@@ -61,6 +62,7 @@ export default function AdminAjustesPage() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [guardandoWompi, setGuardandoWompi] = useState(false);
+  const [guardandoSuscripcion, setGuardandoSuscripcion] = useState(false);
   // Los secretos se escriben, nunca se leen: el API no los devuelve.
   const [secretos, setSecretos] = useState({ privateKey: '', integrity: '', events: '' });
 
@@ -91,6 +93,29 @@ export default function AdminAjustesPage() {
       showError('No se pudieron guardar', err instanceof Error ? err.message : undefined);
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const guardarSuscripcion = async () => {
+    if (!ajustes) return;
+    setGuardandoSuscripcion(true);
+    try {
+      const actualizados = await updateSettings({
+        subscriptionRequired: ajustes.subscriptionRequired,
+        subscriptionPrice: ajustes.subscriptionPrice,
+        subscriptionVat: ajustes.subscriptionVat,
+      });
+      setAjustes(actualizados);
+      showSuccess(
+        'Suscripción actualizada',
+        actualizados.subscriptionRequired
+          ? 'Los anfitriones sin suscripción vigente quedan bloqueados.'
+          : 'Nadie queda bloqueado mientras esté apagada.',
+      );
+    } catch (err) {
+      showError('No se pudo guardar', err instanceof Error ? err.message : undefined);
+    } finally {
+      setGuardandoSuscripcion(false);
     }
   };
 
@@ -254,6 +279,76 @@ export default function AdminAjustesPage() {
               marcas cuándo lo paga.
             </p>
           </div>
+        </Card>
+      </div>
+
+      <div className="max-w-4xl mt-4">
+        <Card>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Suscripción de anfitriones</h2>
+              <p className="text-sm text-gray-600">
+                Un solo plan, pago mensual sin permanencia. Cada pago suma 30 días; sin pago vigente
+                el panel del anfitrión queda cerrado. Se cobra por la pasarela de FILO.
+              </p>
+            </div>
+            <Badge color={ajustes.subscriptionRequired ? 'success' : 'gray'} className="shrink-0">
+              {ajustes.subscriptionRequired ? 'Activa' : 'Apagada'}
+            </Badge>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Precio (sin IVA)</label>
+              <PrecioInput
+                value={ajustes.subscriptionPrice}
+                onChange={(v) => setAjustes({ ...ajustes, subscriptionPrice: v ?? 0 })}
+                placeholder="79.000"
+                aria-label="Precio de la suscripción sin IVA"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">IVA (%)</label>
+              <TextInput
+                type="number"
+                min={0}
+                max={100}
+                value={String(ajustes.subscriptionVat)}
+                onChange={(e) =>
+                  setAjustes({ ...ajustes, subscriptionVat: e.target.value === '' ? 0 : Number(e.target.value) })
+                }
+              />
+            </div>
+            <div>
+              <span className="block text-sm font-medium text-gray-700 mb-1">Cada anfitrión paga</span>
+              <p className="text-lg font-semibold text-[#F26726]">
+                {pesos(
+                  ajustes.subscriptionPrice +
+                    Math.round((ajustes.subscriptionPrice * ajustes.subscriptionVat) / 100),
+                )}
+              </p>
+              <p className="text-xs text-gray-500">IVA incluido, cada 30 días</p>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-100 p-3">
+            <p className="text-sm font-semibold text-[#334C5D] mb-2">Exigir la suscripción</p>
+            <ToggleSwitch
+              checked={ajustes.subscriptionRequired}
+              label={ajustes.subscriptionRequired ? 'Activa' : 'Apagada'}
+              onChange={(valor) => setAjustes({ ...ajustes, subscriptionRequired: valor })}
+              theme={TEMA_SWITCH}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Apagada, nadie queda bloqueado. Antes de encenderla, registra el pago (o la exención)
+              de quienes ya operan en Suscripciones: al activarla, el panel de cualquier anfitrión
+              sin pago vigente se cierra al momento.
+            </p>
+          </div>
+
+          <Button color="primary" onClick={guardarSuscripcion} disabled={guardandoSuscripcion} className="w-fit">
+            {guardandoSuscripcion ? 'Guardando...' : 'Guardar suscripción'}
+          </Button>
         </Card>
       </div>
 

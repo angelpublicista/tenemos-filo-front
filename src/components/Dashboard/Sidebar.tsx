@@ -213,6 +213,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         current: pathname === '/dashboard/ingresos',
         enabled: true
       },
+      {
+        name: 'Suscripción',
+        href: '/dashboard/suscripcion',
+        icon: HiOutlineCreditCard,
+        current: pathname === '/dashboard/suscripcion',
+        enabled: true
+      },
       { type: 'section', name: 'Herramientas' },
       {
         name: 'Catálogo digital',
@@ -304,6 +311,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         href: '/dashboard/admin/comisiones',
         icon: AiOutlineDollar,
         current: pathname === '/dashboard/admin/comisiones',
+        enabled: true
+      },
+      {
+        name: 'Suscripciones',
+        href: '/dashboard/admin/suscripciones',
+        icon: HiOutlineCreditCard,
+        current: pathname === '/dashboard/admin/suscripciones',
         enabled: true
       },
       {

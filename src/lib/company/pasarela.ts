@@ -28,6 +28,11 @@ export interface PasarelaDeCobro {
    */
   listaParaCobrar: boolean;
   /**
+   * Lo que se lleva FILO de las ventas que cobra el anfitrión en su cuenta.
+   * Lo fija el administrador; en 0 no se cobra nada.
+   */
+  comisionDeFilo?: { type: 'PERCENT' | 'FIXED'; value: number };
+  /**
    * Solo al guardar: reservas suyas sin cobrar que quedan sin forma de
    * cobrarse si desconecta. No se le impide —es su pasarela— pero tiene que
    * enterarse antes y no al día siguiente.

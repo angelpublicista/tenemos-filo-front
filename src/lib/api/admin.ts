@@ -183,8 +183,12 @@ export type Comisiones = {
 export type WompiEnvironment = 'SANDBOX' | 'PRODUCTION';
 
 export type PlatformSettings = {
+  /** Comisión de FILO cuando cobra FILO con su pasarela. */
   filoCommissionType: CommissionType;
   filoCommissionValue: number;
+  /** Comisión de FILO cuando el anfitrión cobra con la suya. */
+  filoCommissionOwnGatewayType: CommissionType;
+  filoCommissionOwnGatewayValue: number;
   resellerCommissionType: CommissionType;
   resellerCommissionValue: number;
 
@@ -211,6 +215,8 @@ export type SettingsUpdate = Partial<
     PlatformSettings,
     | 'filoCommissionType'
     | 'filoCommissionValue'
+    | 'filoCommissionOwnGatewayType'
+    | 'filoCommissionOwnGatewayValue'
     | 'resellerCommissionType'
     | 'resellerCommissionValue'
     | 'wompiEnabled'
@@ -232,17 +238,18 @@ export type SettingsUpdate = Partial<
 const aNumeroONull = (v: unknown): number | null =>
   v === null || v === undefined ? null : aNumero(v);
 
-export const getSettings = async (): Promise<PlatformSettings> => {
-  const s = await api.get<PlatformSettings>('/settings');
-  return {
-    ...s,
-    filoCommissionValue: aNumero(s.filoCommissionValue),
-    resellerCommissionValue: aNumero(s.resellerCommissionValue),
-  };
-};
+const normalizarAjustes = (s: PlatformSettings): PlatformSettings => ({
+  ...s,
+  filoCommissionValue: aNumero(s.filoCommissionValue),
+  filoCommissionOwnGatewayValue: aNumero(s.filoCommissionOwnGatewayValue),
+  resellerCommissionValue: aNumero(s.resellerCommissionValue),
+});
 
-export const updateSettings = (data: SettingsUpdate) =>
-  api.patch<PlatformSettings>('/settings', data);
+export const getSettings = async (): Promise<PlatformSettings> =>
+  normalizarAjustes(await api.get<PlatformSettings>('/settings'));
+
+export const updateSettings = async (data: SettingsUpdate): Promise<PlatformSettings> =>
+  normalizarAjustes(await api.patch<PlatformSettings>('/settings', data));
 
 export const updateExperienceCommissions = (id: string, data: Comisiones) =>
   api.patch<AdminExperience>(`/experiences/${encodeURIComponent(id)}`, data);

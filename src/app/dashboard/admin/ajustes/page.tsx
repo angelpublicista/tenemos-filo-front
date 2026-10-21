@@ -80,6 +80,8 @@ export default function AdminAjustesPage() {
       const actualizados = await updateSettings({
         filoCommissionType: ajustes.filoCommissionType,
         filoCommissionValue: ajustes.filoCommissionValue,
+        filoCommissionOwnGatewayType: ajustes.filoCommissionOwnGatewayType,
+        filoCommissionOwnGatewayValue: ajustes.filoCommissionOwnGatewayValue,
         resellerCommissionType: ajustes.resellerCommissionType,
         resellerCommissionValue: ajustes.resellerCommissionValue,
       });
@@ -129,6 +131,11 @@ export default function AdminAjustesPage() {
   }
 
   const filo = importe(ajustes.filoCommissionType, ajustes.filoCommissionValue, EJEMPLO);
+  const filoPropia = importe(
+    ajustes.filoCommissionOwnGatewayType,
+    ajustes.filoCommissionOwnGatewayValue,
+    EJEMPLO,
+  );
   const reseller = importe(
     ajustes.resellerCommissionType,
     ajustes.resellerCommissionValue,
@@ -144,13 +151,14 @@ export default function AdminAjustesPage() {
           <h2 className="text-lg font-semibold text-gray-900">Comisiones por defecto</h2>
           <p className="text-sm text-gray-600 -mt-2">
             Se aplican a toda experiencia que no tenga una comisión propia. Puedes
-            sobrescribirlas una por una desde Experiencias.
+            sobrescribir la de cuando cobra FILO una por una desde Experiencias; la de cuando
+            cobra el anfitrión es la misma para todas.
           </p>
 
           <div className="space-y-4">
             <CommissionInput
-              etiqueta="Comisión de Tenemos Filo"
-              ayuda="Se cobra en todas las reservas."
+              etiqueta="Comisión de Tenemos Filo · cobra FILO"
+              ayuda="Cuando el cliente paga con la pasarela de FILO. Se descuenta del pago antes de dispersar al anfitrión."
               tipo={ajustes.filoCommissionType}
               valor={ajustes.filoCommissionValue}
               onChange={(tipo, valor) =>
@@ -158,6 +166,20 @@ export default function AdminAjustesPage() {
                   ...ajustes,
                   filoCommissionType: tipo ?? 'PERCENT',
                   filoCommissionValue: valor ?? 0,
+                })
+              }
+            />
+
+            <CommissionInput
+              etiqueta="Comisión de Tenemos Filo · cobra el anfitrión"
+              ayuda="Cuando el anfitrión usa su propia pasarela. El dinero entra a su cuenta, así que esta comisión se le resta de lo que gana y se la debe a FILO. En 0 no se cobra."
+              tipo={ajustes.filoCommissionOwnGatewayType}
+              valor={ajustes.filoCommissionOwnGatewayValue}
+              onChange={(tipo, valor) =>
+                setAjustes({
+                  ...ajustes,
+                  filoCommissionOwnGatewayType: tipo ?? 'PERCENT',
+                  filoCommissionOwnGatewayValue: valor ?? 0,
                 })
               }
             />
@@ -189,30 +211,46 @@ export default function AdminAjustesPage() {
           </p>
 
           <div className="text-sm">
-            <div className="flex justify-between py-2 border-b">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 py-2 border-b text-xs font-medium text-gray-500">
+              <span />
+              <span className="text-right">Cobra FILO</span>
+              <span className="text-right">Cobra el anfitrión</span>
+            </div>
+            <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 py-2 border-b">
               <span className="text-gray-600">Total que paga el cliente</span>
-              <span className="font-medium text-gray-900">{pesos(EJEMPLO)}</span>
+              <span className="text-right font-medium text-gray-900">{pesos(EJEMPLO)}</span>
+              <span className="text-right font-medium text-gray-900">{pesos(EJEMPLO)}</span>
             </div>
-            <div className="flex justify-between py-2 border-b">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 py-2 border-b">
               <span className="text-gray-600">Comisión Tenemos Filo</span>
-              <span className="text-gray-900">−{pesos(filo)}</span>
+              <span className="text-right text-gray-900">−{pesos(filo)}</span>
+              <span className="text-right text-gray-900">−{pesos(filoPropia)}</span>
             </div>
-            <div className="flex justify-between py-2 border-b">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 py-2 border-b">
               <span className="text-gray-600">
                 Comisión revendedor
                 <span className="block text-xs text-gray-400">solo por esa vía</span>
               </span>
-              <span className="text-gray-900">−{pesos(reseller)}</span>
+              <span className="text-right text-gray-900">−{pesos(reseller)}</span>
+              <span className="text-right text-gray-900">−{pesos(reseller)}</span>
             </div>
-            <div className="flex justify-between py-3">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 py-3">
               <span className="font-medium text-gray-900">Recibe el anfitrión</span>
-              <span className="font-semibold text-[#F26726]">
+              <span className="text-right font-semibold text-[#F26726]">
                 {pesos(Math.max(EJEMPLO - filo - reseller, 0))}
+              </span>
+              <span className="text-right font-semibold text-[#F26726]">
+                {pesos(Math.max(EJEMPLO - filoPropia - reseller, 0))}
               </span>
             </div>
             <p className="text-xs text-gray-500">
               En una venta directa del anfitrión no se cobra la de revendedor, así que
-              recibiría {pesos(Math.max(EJEMPLO - filo, 0))}.
+              recibiría {pesos(Math.max(EJEMPLO - filo, 0))} si cobra FILO y{' '}
+              {pesos(Math.max(EJEMPLO - filoPropia, 0))} si cobra él.
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              Cuando cobra el anfitrión, el dinero ya está en su cuenta: lo que se le descuenta
+              queda registrado en la reserva, pero FILO tiene que cobrárselo aparte.
             </p>
           </div>
         </Card>

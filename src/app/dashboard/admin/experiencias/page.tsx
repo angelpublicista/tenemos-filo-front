@@ -242,8 +242,8 @@ export default function AdminExperienciasPage() {
           {comisiones && (
             <div className="space-y-4">
               <CommissionInput
-                etiqueta="Comisión de Tenemos Filo"
-                ayuda="Se cobra en todas las reservas de esta experiencia."
+                etiqueta="Comisión de Tenemos Filo · cobra FILO"
+                ayuda="Se cobra en las reservas de esta experiencia que paga el cliente por la pasarela de FILO. Si el anfitrión cobra con la suya, aplica la de Ajustes."
                 tipo={comisiones.filoCommissionType}
                 valor={comisiones.filoCommissionValue}
                 heredable={{

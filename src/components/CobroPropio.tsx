@@ -13,8 +13,6 @@ import {
 
 interface Props {
   companyId: string;
-  /** Cuánto se lleva FILO hoy, para poder decir qué se ahorra. */
-  comisionDeFilo?: number | null;
 }
 
 /** Los dos entornos, siempre los dos a la vista. */
@@ -35,7 +33,7 @@ const VACIOS: Secretos = { publicKey: '', privateKey: '', integritySecret: '', e
  * explica las tres consecuencias —sin comisión, cobro directo, y la comisión
  * del revendedor pasa a deberla él— antes de que toque nada.
  */
-export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
+export default function CobroPropio({ companyId }: Props) {
   const { showError, showSuccess, showWarning, showConfirmation } = useSweetAlert();
   const [estado, setEstado] = useState<PasarelaDeCobro | null>(null);
   const [proveedor, setProveedor] = useState<ProveedorDePago>('WOMPI');
@@ -84,6 +82,16 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
   // sigue entrando por FILO, y decir "hoy cobras tú" ahí sería mentir.
   const cobrando = estado?.listaParaCobrar === true;
   const faltan = estado?.faltan ?? [];
+  // Lo que FILO se lleva de lo que cobra el anfitrión en su cuenta, o null si
+  // el administrador lo dejó en cero. Se dice con sus palabras: "sin comisión"
+  // seria mentira en cuanto la fije.
+  const comisionPropia = estado?.comisionDeFilo;
+  const textoDeComision =
+    comisionPropia && comisionPropia.value > 0
+      ? comisionPropia.type === 'PERCENT'
+        ? `${comisionPropia.value}%`
+        : `$${comisionPropia.value.toLocaleString('es-CO')} por reserva`
+      : null;
   const esMercadoPago = proveedor === 'MERCADO_PAGO';
   const esBold = proveedor === 'BOLD';
 
@@ -162,9 +170,9 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
       'Cancelar',
       [
         'El dinero de tus ventas entrará a tu cuenta de la pasarela, no a la de FILO.',
-        comisionDeFilo
-          ? `FILO dejará de cobrar su comisión (${comisionDeFilo}%) sobre esas ventas.`
-          : 'FILO dejará de cobrar su comisión sobre esas ventas.',
+        textoDeComision
+          ? `FILO no descuenta la comisión del pago, pero sobre esas ventas te cobra ${textoDeComision}: se resta de lo que ganas y se liquida aparte.`
+          : 'FILO no cobrará comisión sobre esas ventas.',
         'La comisión de tus revendedores la seguirás debiendo tú, y tendrás que pagársela aparte.',
       ],
     );
@@ -182,7 +190,10 @@ export default function CobroPropio({ companyId, comisionDeFilo }: Props) {
           <h2 className="text-xl font-semibold text-[#334C5D]">Cobrar en tu propia cuenta</h2>
           <p className="mt-1 text-sm text-gray-500">
             Conecta tu pasarela y el dinero de tus ventas entra directo a tu cuenta, sin pasar
-            por FILO. Sobre esas ventas FILO no cobra comisión.
+            por FILO.{' '}
+            {textoDeComision
+              ? `Sobre esas ventas FILO cobra ${textoDeComision}, que se resta de lo que ganas.`
+              : 'Sobre esas ventas FILO no cobra comisión.'}
           </p>
         </div>
         {/* El interruptor dice lo que HACE y la etiqueta de al lado quién cobra

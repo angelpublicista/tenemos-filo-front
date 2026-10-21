@@ -6,7 +6,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSession } from 'next-auth/react';
-import { createCompanyInSanity, getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
+import { getSuscripcion } from '@/lib/api/subscription';
+import { createCompanyInSanity,getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
 import { associateUserWithCompany, markCompanySetupCompleted } from '@/lib/sanity/userService';
 import { Button, Label, TextInput, Select, Textarea } from 'flowbite-react';
 import { HiExclamationCircle, HiCheckCircle } from 'react-icons/hi';
@@ -681,9 +682,20 @@ export default function CompanySetupForm() {
 
       hideLoading();
 
+      // Si la plataforma exige suscripción y esta empresa no la tiene, el
+      // registro termina en el pago en vez de caer en un panel cerrado.
+      //
       // Forzar recarga completa de la página para actualizar el AuthContext
       // Esto asegura que sanityUser tenga el companyId actualizado
-      window.location.replace('/dashboard');
+      let destino = '/dashboard';
+      if (sanityUser?.role === 'host') {
+        try {
+          if ((await getSuscripcion()).bloqueada) destino = '/company-setup/suscripcion';
+        } catch {
+          // Sin respuesta se va al panel, que sabrá devolverlo a pagar.
+        }
+      }
+      window.location.replace(destino);
 
     } catch (error) {
       console.error('Error creating company:', error);

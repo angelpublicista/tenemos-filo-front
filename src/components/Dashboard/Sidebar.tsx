@@ -338,7 +338,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       },
       {
-        name: 'Ajustes',
+        name: 'Ajustes de la plataforma',
         href: '/dashboard/admin/ajustes',
         icon: AiOutlineSetting,
         current: pathname === '/dashboard/admin/ajustes',
@@ -369,13 +369,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       current: pathname === '/dashboard/notifications',
       enabled: true
     },
-    {
-      name: 'Configuración',
-      href: '/dashboard/settings',
-      icon: AiOutlineSetting,
-      current: pathname === '/dashboard/settings',
-      enabled: true
-    }
+    // La configuración es la de UNA empresa. El admin en modo plataforma no
+    // tiene empresa, y esa pantalla solo lo reenviaba a los ajustes de la
+    // plataforma: dos entradas con casi el mismo nombre para lo mismo. Cuando
+    // actua como una empresa si la tiene, y se dice de cual es para que no se
+    // confunda con los ajustes de la plataforma.
+    ...(esAdminSinEmpresa ? [] : [
+      {
+        name: sanityUser?.role === 'admin' ? 'Configuración de la empresa' : 'Configuración',
+        href: '/dashboard/settings',
+        icon: AiOutlineSetting,
+        current: pathname === '/dashboard/settings',
+        enabled: true
+      }
+    ] as NavItem[])
   ];
 
   const handleLinkClick = () => {

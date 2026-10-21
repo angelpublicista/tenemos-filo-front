@@ -23,7 +23,7 @@ import {
   BiChevronRight,
   BiX
 } from 'react-icons/bi';
-import { HiOutlineBookOpen, HiOutlineQuestionMarkCircle, HiOutlineCash,HiOutlineChip, HiOutlineClipboardList, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
+import { HiOutlineBookOpen, HiOutlineMail,HiOutlineQuestionMarkCircle, HiOutlineCash,HiOutlineChip, HiOutlineClipboardList, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -342,6 +342,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         href: '/dashboard/admin/ayuda',
         icon: HiOutlineBookOpen,
         current: pathname === '/dashboard/admin/ayuda',
+        enabled: true
+      },
+      {
+        name: 'Plantillas de correo',
+        href: '/dashboard/admin/plantillas-de-correo',
+        icon: HiOutlineMail,
+        current: pathname?.startsWith('/dashboard/admin/plantillas-de-correo') ?? false,
         enabled: true
       },
       {

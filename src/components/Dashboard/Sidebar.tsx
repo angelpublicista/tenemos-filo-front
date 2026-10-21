@@ -23,7 +23,7 @@ import {
   BiChevronRight,
   BiX
 } from 'react-icons/bi';
-import { HiOutlineCash, HiOutlineChip, HiOutlineClipboardList, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
+import { HiOutlineBookOpen, HiOutlineQuestionMarkCircle, HiOutlineCash,HiOutlineChip, HiOutlineClipboardList, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -338,6 +338,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       },
       {
+        name: 'Base de conocimiento',
+        href: '/dashboard/admin/ayuda',
+        icon: HiOutlineBookOpen,
+        current: pathname === '/dashboard/admin/ayuda',
+        enabled: true
+      },
+      {
         name: 'Ajustes de la plataforma',
         href: '/dashboard/admin/ajustes',
         icon: AiOutlineSetting,
@@ -367,6 +374,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       href: '/dashboard/notifications',
       icon: AiOutlineBell,
       current: pathname === '/dashboard/notifications',
+      enabled: true
+    },
+    {
+      name: 'Centro de ayuda',
+      href: '/dashboard/ayuda',
+      icon: HiOutlineQuestionMarkCircle,
+      current: pathname?.startsWith('/dashboard/ayuda') ?? false,
       enabled: true
     },
     // La configuración es la de UNA empresa. El admin en modo plataforma no

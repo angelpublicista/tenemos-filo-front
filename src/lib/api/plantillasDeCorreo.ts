@@ -6,6 +6,8 @@ export interface PlantillaResumen {
   nombre: string;
   descripcion: string;
   cuando: string;
+  /** Para agrupar la lista: «Cuenta y suscripción», «Reservas». */
+  grupo: string;
   /** Tiene una versión propia; si no, se usa el texto por defecto. */
   personalizada: boolean;
   updatedAt: string | null;
@@ -15,6 +17,8 @@ export interface VariableDePlantilla {
   clave: string;
   descripcion: string;
   ejemplo: string;
+  /** Trae HTML armado por la plataforma (una tabla, una lista); solo se usa en el cuerpo. */
+  html?: boolean;
 }
 
 export interface ContenidoDePlantilla {

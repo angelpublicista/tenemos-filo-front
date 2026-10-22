@@ -40,8 +40,17 @@ export default function AdminPlantillasDeCorreoPage() {
         vacio={filas.length === 0}
         mensajeVacio="No hay plantillas."
       >
-        {filas.map((p) => (
-          <tr key={p.key} className="bg-white border-b hover:bg-gray-50">
+        {filas.map((p, i) => (
+          <React.Fragment key={p.key}>
+            {/* Cabecera cada vez que cambia el grupo: la lista ya llega ordenada por grupo. */}
+            {p.grupo !== filas[i - 1]?.grupo && (
+              <tr className="bg-gray-50 border-b">
+                <td colSpan={4} className="px-6 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {p.grupo}
+                </td>
+              </tr>
+            )}
+          <tr className="bg-white border-b hover:bg-gray-50">
             <td className="px-6 py-4">
               <div className="font-medium text-gray-900">{p.nombre}</div>
               <div className="text-xs text-gray-500">{p.descripcion}</div>
@@ -66,6 +75,7 @@ export default function AdminPlantillasDeCorreoPage() {
               </Link>
             </td>
           </tr>
+          </React.Fragment>
         ))}
       </AdminTable>
     </ProtectedRoute>

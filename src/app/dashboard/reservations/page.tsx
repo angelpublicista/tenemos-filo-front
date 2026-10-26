@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import ValidarCodigo from '@/components/Reservas/ValidarCodigo';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Select, Badge, Modal, ModalHeader, ModalBody, Tooltip } from 'flowbite-react';
 import CalendarPicker from '@/components/CalendarPicker';
@@ -19,28 +21,34 @@ import {
   HiPhone,
   HiMail,
   HiLocationMarker,
-  HiVideoCamera,
   HiChevronLeft,
   HiChevronRight,
   HiPlus,
+  HiTranslate,
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
-import { getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
+import { cancelReservation, getReservationById, getReservationsByCompany, updateReservationStatus, updateReservationInSanity } from '@/lib/sanity/reservationService';
+import { pedirDatosDeCancelacion } from '@/lib/reservas/cancelacion';
+import Reembolsos from '@/components/Reservas/Reembolsos';
+import HistorialDeReserva from '@/components/Reservas/HistorialDeReserva';
+import Link from 'next/link';
+import { mensajeDeError } from '@/lib/api/client';
 import { Experience, Reservation } from '@/types';
 import CreateReservationModal from '@/components/CreateReservationModal';
+import OportunidadesDelDia from '@/components/CRM/OportunidadesDelDia';
+import { getAgenda, oportunidadesDelDia, type OportunidadEnAgenda } from '@/lib/crm/agenda';
 import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
+import { nombreDeIdioma } from '@/lib/idiomas';
 
 interface ReservationStats {
   total: number;
   pending: number;
   confirmed: number;
-  inProgress: number;
   completed: number;
   cancelled: number;
   noShow: number;
-  rescheduled: number;
   totalRevenue: number;
   totalParticipants: number;
   averageParticipants: number;
@@ -48,7 +56,7 @@ interface ReservationStats {
   paidReservations: number;
 }
 
-export default function ReservationsPage() {
+function ReservationsPageContenido() {
   const { sanityUser } = useAuth();
   const { showSuccess, showError } = useSweetAlert();
   const router = useRouter();
@@ -65,8 +73,8 @@ export default function ReservationsPage() {
   }, [searchParams, router]);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<ReservationStats>({
-    total: 0, pending: 0, confirmed: 0, inProgress: 0,
-    completed: 0, cancelled: 0, noShow: 0, rescheduled: 0,
+    total: 0, pending: 0, confirmed: 0,
+    completed: 0, cancelled: 0, noShow: 0,
     totalRevenue: 0, totalParticipants: 0, averageParticipants: 0,
     pendingPayments: 0, paidReservations: 0,
   });
@@ -75,6 +83,11 @@ export default function ReservationsPage() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'calendar'>('calendar');
   const [currentDate, setCurrentDate] = useState(new Date()); // Fecha actual (Hoy)
+
+  // CRM-12/13. Las oportunidades con fecha tentativa que miran al periodo
+  // visible. No son reservas y no bloquean nada, pero mirar un sabado sin
+  // verlas lleva a venderlo dos veces o a dejarlo libre por error.
+  const [oportunidades, setOportunidades] = useState<OportunidadEnAgenda[]>([]);
 
   // Estados para el calendario
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -104,11 +117,9 @@ export default function ReservationsPage() {
           total: realReservations.length,
           pending: realReservations.filter(r => r.status === 'pending').length,
           confirmed: realReservations.filter(r => r.status === 'confirmed').length,
-          inProgress: realReservations.filter(r => r.status === 'in_progress').length,
           completed: realReservations.filter(r => r.status === 'completed').length,
           cancelled: realReservations.filter(r => r.status === 'cancelled').length,
           noShow: realReservations.filter(r => r.status === 'no_show').length,
-          rescheduled: realReservations.filter(r => r.status === 'rescheduled').length,
           totalRevenue: realReservations.reduce((sum, r) => sum + (r.pricing?.total || 0), 0),
           totalParticipants: realReservations.reduce((sum, r) => sum + r.participants, 0),
           averageParticipants: realReservations.reduce((sum, r) => sum + r.participants, 0) / realReservations.length || 0,
@@ -145,6 +156,24 @@ export default function ReservationsPage() {
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sanityUser]);
+
+  // Un margen generoso alrededor del mes: la rejilla enseña dias del mes
+  // anterior y del siguiente, y una oportunidad justo en el borde tiene que
+  // salir igual.
+  useEffect(() => {
+    if (!sanityUser?.companyId || viewMode !== 'calendar') return;
+    const desde = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const hasta = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0, 23, 59, 59);
+    let vigente = true;
+    getAgenda(desde, hasta)
+      .then((data) => { if (vigente) setOportunidades(data); })
+      .catch(() => {
+        // La agenda es informativa: si falla, el calendario de reservas
+        // —que es lo que de verdad manda— tiene que seguir funcionando.
+        if (vigente) setOportunidades([]);
+      });
+    return () => { vigente = false; };
+  }, [sanityUser?.companyId, currentDate, viewMode]);
 
   // Funciones para el calendario
   const getDaysInMonth = (date: Date) => {
@@ -224,11 +253,9 @@ export default function ReservationsPage() {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'completed': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'no_show': return 'bg-red-100 text-red-800';
-      case 'rescheduled': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -238,11 +265,9 @@ export default function ReservationsPage() {
     switch (status) {
       case 'confirmed': return 'success';
       case 'pending': return 'warning';
-      case 'in_progress': return 'info';
       case 'completed': return 'success';
       case 'cancelled': return 'failure';
       case 'no_show': return 'failure';
-      case 'rescheduled': return 'info';
       default: return 'gray';
     }
   };
@@ -268,10 +293,16 @@ export default function ReservationsPage() {
     return reservation.clientInfo?.phone || reservation.client?.phone || '—';
   };
 
-  // Helper para obtener tipo de experiencia (maneja diferencias entre mock y datos reales)
-  const getExperienceType = (reservation: Partial<Reservation>): 'virtual' | 'presential' | 'hybrid' | undefined => {
-    const exp = reservation.experience as { experienceType?: 'virtual' | 'presential' | 'hybrid' };
-    return exp?.experienceType;
+  /**
+   * Si el anfitrión va a casa de quien reserva.
+   *
+   * Todo es presencial; lo que hay que distinguir es dónde ocurre. Cuando es a
+   * domicilio lo que importa no es una sede sino la dirección que dio el
+   * comensal, y esa viaja en la reserva.
+   */
+  const esADomicilio = (reservation: Partial<Reservation>): boolean => {
+    const exp = reservation.experience as { atHome?: boolean } | undefined;
+    return exp?.atHome === true || !!reservation.serviceAddress;
   };
 
   // Funciones para vista de semana
@@ -348,12 +379,64 @@ export default function ReservationsPage() {
   });
 
   // Cambiar estado de reserva
+  /**
+   * TR-07. Cancelar la reserva, entera o en parte.
+   *
+   * Una baja parcial deja la reserva viva con menos gente y libera esos
+   * cupos; el API recalcula el importe y apunta el reembolso que toque.
+   */
+  const handleCancel = async (reservationId: string) => {
+    const reserva = reservations.find(r => r._id === reservationId);
+    const datos = await pedirDatosDeCancelacion({
+      numeroDeReserva: reserva?.reservationNumber ?? '',
+      participantes: reserva?.participants ?? 1,
+      total: reserva?.pricing?.total,
+    });
+    if (!datos) return;
+
+    try {
+      setIsUpdating(reservationId);
+      const actualizada = await cancelReservation(
+        reservationId,
+        datos.cancelledBy,
+        datos.reason,
+        undefined,
+        datos.participants,
+      );
+
+      setReservations(prev =>
+        prev.map(res => (res._id === reservationId ? { ...res, ...actualizada } : res)),
+      );
+
+      const total = reserva?.participants ?? datos.participants;
+      showSuccess(
+        datos.participants >= total
+          ? 'Reserva cancelada'
+          : `${datos.participants} ${datos.participants === 1 ? 'persona' : 'personas'} dadas de baja. La reserva sigue con ${total - datos.participants}.`,
+      );
+      await loadReservations();
+    } catch (error) {
+      console.error('Error al cancelar la reserva:', error);
+      showError(mensajeDeError(error));
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
   const handleStatusChange = async (reservationId: string | undefined, newStatus: string) => {
     if (!reservationId) {
       showError('ID de reserva no válido');
       return;
     }
-    
+
+    // TR-07. Cancelar no es cambiar un estado: hay que saber quién canceló
+    // —de eso depende el reembolso—, por qué, y si se cae el grupo entero o
+    // solo parte. Así que no pasa por el selector, pasa por su propio paso.
+    if (newStatus === 'cancelled') {
+      await handleCancel(reservationId);
+      return;
+    }
+
     try {
       setIsUpdating(reservationId);
       await updateReservationStatus(reservationId, newStatus as Reservation['status']);
@@ -385,6 +468,63 @@ export default function ReservationsPage() {
     setShowReservationsModal(false);
     setShowEditModal(true);
   };
+
+  /**
+   * Abrir la reserva a la que enlaza una notificacion (`?reserva=<id>`).
+   *
+   * Aqui no hay pantalla de detalle: una reserva se ve en un modal que se abre
+   * desde el calendario. Asi que se abre ese mismo modal, y se lleva el
+   * calendario al mes de la reserva para que al cerrarlo no quede mirando a
+   * una fecha que no tiene nada que ver.
+   *
+   * Se espera a que cargue la lista: casi siempre la reserva ya esta ahi y se
+   * ahorra una peticion.
+   */
+  const reservaEnlazada = searchParams?.get('reserva') ?? null;
+  const yaAbierta = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!reservaEnlazada || isLoading) return;
+    if (yaAbierta.current === reservaEnlazada) return;
+    yaAbierta.current = reservaEnlazada;
+
+    const abrirEnlazada = async () => {
+      // Lo habitual es que ya este en pantalla. Pero la lista carga 100 como
+      // mucho y solo las de esta empresa, y hay avisos legitimos que apuntan
+      // fuera de ahi: la reserva de una venta por canal pertenece al
+      // anfitrion, no al revendedor al que se le avisa de su venta. Dar por
+      // hecho que no existe solo porque no esta en la lista era decirle a la
+      // gente que su reserva se habia borrado cuando estaba perfectamente.
+      // `_id` es herencia del nombrado de Sanity; guarda el id del API, el
+      // mismo que viaja en la notificacion (reservationService: `_id: r.id`).
+      let reserva: Partial<Reservation> | null =
+        reservations.find((r) => r._id === reservaEnlazada) ?? null;
+
+      if (!reserva) {
+        try {
+          reserva = await getReservationById(reservaEnlazada);
+        } catch {
+          reserva = null;
+        }
+      }
+
+      if (!reserva) {
+        // Ahora si: no esta en la lista y el API tampoco la da. Callarse
+        // dejaria la pantalla igual que si no se hubiera pulsado nada.
+        showError('No encontramos esa reserva. Es posible que se haya eliminado.');
+        return;
+      }
+
+      if (reserva.reservationDate) setCurrentDate(new Date(reserva.reservationDate));
+      handleEditReservation(reserva);
+    };
+
+    void abrirEnlazada();
+
+    // Se quita el parametro: recargar no deberia reabrir el modal.
+    router.replace('/dashboard/reservations');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservaEnlazada, isLoading, reservations]);
 
   // Formatear fecha
   const formatDate = (dateString: string) => {
@@ -420,11 +560,9 @@ export default function ReservationsPage() {
     switch (status) {
       case 'confirmed': return 'Confirmada';
       case 'pending': return 'Pendiente';
-      case 'in_progress': return 'En Proceso';
       case 'completed': return 'Completada';
       case 'cancelled': return 'Cancelada';
       case 'no_show': return 'No Show';
-      case 'rescheduled': return 'Reagendada';
       default: return status;
     }
   };
@@ -474,7 +612,7 @@ export default function ReservationsPage() {
             </Button>
 
             <Button
-              color={isViewingToday() ? "success" : "primary"}
+              color={isViewingToday() ? 'selected' : 'secondary'}
               size="sm"
               onClick={goToToday}
               className="!px-3 !py-1.5 font-medium"
@@ -485,7 +623,7 @@ export default function ReservationsPage() {
             {/* Toggle de vista del calendario */}
             <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 ml-auto lg:ml-2">
               <Button
-                color={calendarView === 'month' ? 'primary' : 'gray'}
+                color={calendarView === 'month' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setCalendarView('month')}
                 className="!px-2 !py-1 text-xs font-medium"
@@ -493,7 +631,7 @@ export default function ReservationsPage() {
                 Mes
               </Button>
               <Button
-                color={calendarView === 'week' ? 'primary' : 'gray'}
+                color={calendarView === 'week' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setCalendarView('week')}
                 className="!px-2 !py-1 text-xs font-medium"
@@ -501,7 +639,7 @@ export default function ReservationsPage() {
                 Semana
               </Button>
               <Button
-                color={calendarView === 'day' ? 'primary' : 'gray'}
+                color={calendarView === 'day' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setCalendarView('day')}
                 className="!px-2 !py-1 text-xs font-medium"
@@ -639,6 +777,14 @@ export default function ReservationsPage() {
                       </span>
                     </button>
                   )}
+
+                  {/* CRM-12/13: propuestas con fecha tentativa. En discontinuo
+                      porque no ocupan el espacio. */}
+                  <OportunidadesDelDia
+                    dia={date}
+                    oportunidades={oportunidadesDelDia(oportunidades, date)}
+                    compacto
+                  />
                 </div>
               </div>
             );
@@ -689,6 +835,10 @@ export default function ReservationsPage() {
                       >
                         Ver todas
                       </button>
+                      <OportunidadesDelDia
+                        dia={day}
+                        oportunidades={oportunidadesDelDia(oportunidades, day)}
+                      />
                     </div>
             
                     <div className="space-y-2">
@@ -735,6 +885,12 @@ export default function ReservationsPage() {
                     HOY
                   </Badge>
                 )}
+                {/* En la cabecera y no dentro de una hora: una propuesta puede
+                    traer fecha sin hora, y ahi no cabria en ningun tramo. */}
+                <OportunidadesDelDia
+                  dia={currentDate}
+                  oportunidades={oportunidadesDelDia(oportunidades, currentDate)}
+                />
               </div>
             </div>
             
@@ -839,13 +995,23 @@ export default function ReservationsPage() {
                           <h4 className="font-medium text-gray-900 mb-2">Experiencia</h4>
                           <div className="space-y-2 text-sm text-gray-600">
                             <div className="flex items-center gap-2">
-                              {getExperienceType(reservation) === 'virtual' ? (
-                                <HiVideoCamera className="w-4 h-4 text-blue-500" />
-                              ) : (
-                                <HiLocationMarker className="w-4 h-4 text-green-500" />
-                              )}
+                              <HiLocationMarker className="w-4 h-4 text-green-500" />
                               <span>{reservation.experience?.title}</span>
                             </div>
+                            {reservation.serviceAddress && (
+                              <div className="flex items-center gap-2">
+                                <HiLocationMarker className="w-4 h-4 text-amber-500" />
+                                <span>A domicilio: {reservation.serviceAddress}</span>
+                              </div>
+                            )}
+                            {/* Solo si pidió uno: es lo que el anfitrión
+                                tiene que preparar antes de llegar. */}
+                            {reservation.language && (
+                              <div className="flex items-center gap-2">
+                                <HiTranslate className="w-4 h-4 text-blue-500" />
+                                <span>En {nombreDeIdioma(reservation.language)}</span>
+                              </div>
+                            )}
                             <div className="flex items-center gap-2">
                               <HiClock className="w-4 h-4" />
                               {reservation.duration && formatDuration(reservation.duration)}
@@ -925,11 +1091,9 @@ export default function ReservationsPage() {
                       >
                         <option value="pending">Pendiente</option>
                         <option value="confirmed">Confirmada</option>
-                        <option value="in_progress">En Proceso</option>
                         <option value="completed">Completada</option>
                         <option value="cancelled">Cancelada</option>
                         <option value="no_show">No Show</option>
-                        <option value="rescheduled">Reagendada</option>
                       </Select>
                     </div>
                   </div>
@@ -970,6 +1134,13 @@ export default function ReservationsPage() {
             Nueva Reserva
           </Button>
         </div>
+      </div>
+
+      {/* Lo primero de la pantalla cuando hay gente llegando: comprobar el
+          código que traen. Y de paso, el único sitio donde se ve que una
+          venta no entró por FILO. */}
+      <div className="mb-4">
+        <ValidarCodigo />
       </div>
 
       {/* Estadísticas */}
@@ -1045,11 +1216,9 @@ export default function ReservationsPage() {
               <option value="all">Todos los estados</option>
               <option value="pending">Pendientes</option>
               <option value="confirmed">Confirmadas</option>
-              <option value="in_progress">En Proceso</option>
               <option value="completed">Completadas</option>
               <option value="cancelled">Canceladas</option>
               <option value="no_show">No Show</option>
-              <option value="rescheduled">Reagendadas</option>
             </Select>
 
             <Select
@@ -1068,7 +1237,7 @@ export default function ReservationsPage() {
             {/* Toggle de vista */}
             <div className="flex items-center gap-2 rounded-lg p-1">
               <Button
-                color={viewMode === 'calendar' ? 'primary' : 'gray'}
+                color={viewMode === 'calendar' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('calendar')}
                 className="px-3 py-2"
@@ -1076,7 +1245,7 @@ export default function ReservationsPage() {
                 <HiCalendar className="w-4 h-4" />
               </Button>
               <Button
-                color={viewMode === 'grid' ? 'primary' : 'gray'}
+                color={viewMode === 'grid' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
                 className="px-3 py-2"
@@ -1084,7 +1253,7 @@ export default function ReservationsPage() {
                 <HiViewGrid className="w-4 h-4" />
               </Button>
               <Button
-                color={viewMode === 'list' ? 'primary' : 'gray'}
+                color={viewMode === 'list' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('list')}
                 className="px-3 py-2"
@@ -1148,18 +1317,27 @@ export default function ReservationsPage() {
                           </div>
                         </div>
 
-                        {/* Tipo de experiencia */}
+                        {/* Dónde ocurre: en un sitio del anfitrión o en casa
+                            de quien reserva. */}
                         <div className="flex items-center mb-2">
-                          {getExperienceType(reservation) === 'virtual' ? (
-                            <HiVideoCamera className="w-4 h-4 mr-1 text-blue-500" />
-                          ) : (
-                            <HiLocationMarker className="w-4 h-4 mr-1 text-green-500" />
-                          )}
+                          <HiLocationMarker
+                            className={`w-4 h-4 mr-1 ${esADomicilio(reservation) ? 'text-amber-500' : 'text-green-500'}`}
+                          />
                           <span className="text-sm text-gray-600">
-                            {getExperienceType(reservation) === 'virtual' ? 'Virtual' : 
-                             getExperienceType(reservation) === 'hybrid' ? 'Híbrida' : 'Presencial'}
+                            {esADomicilio(reservation)
+                              ? reservation.serviceAddress || 'A domicilio'
+                              : 'En sede'}
                           </span>
                         </div>
+
+                        {reservation.language && (
+                          <div className="flex items-center mb-2">
+                            <HiTranslate className="w-4 h-4 mr-1 text-blue-500" />
+                            <span className="text-sm text-gray-600">
+                              En {nombreDeIdioma(reservation.language)}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Cliente */}
                         <div className="mb-3">
@@ -1240,11 +1418,9 @@ export default function ReservationsPage() {
                           >
                             <option value="pending">Pendiente</option>
                             <option value="confirmed">Confirmada</option>
-                            <option value="in_progress">En Proceso</option>
                             <option value="completed">Completada</option>
                             <option value="cancelled">Cancelada</option>
                             <option value="no_show">No Show</option>
-                            <option value="rescheduled">Reagendada</option>
                           </Select>
                         </div>
                       </div>
@@ -1325,11 +1501,9 @@ export default function ReservationsPage() {
                             >
                               <option value="pending">Pendiente</option>
                               <option value="confirmed">Confirmada</option>
-                              <option value="in_progress">En Proceso</option>
                               <option value="completed">Completada</option>
                               <option value="cancelled">Cancelada</option>
                               <option value="no_show">No Show</option>
-                              <option value="rescheduled">Reagendada</option>
                             </Select>
                           </div>
                         </div>
@@ -1498,11 +1672,11 @@ export default function ReservationsPage() {
                   >
                     <option value="pending">Pendiente</option>
                     <option value="confirmed">Confirmada</option>
-                    <option value="in_progress">En Proceso</option>
                     <option value="completed">Completada</option>
-                    <option value="cancelled">Cancelada</option>
+                    {/* "Cancelada" no está aquí a propósito (TR-07): cancelar
+                        pide saber quién canceló y si se cae todo el grupo, y
+                        eso tiene su propio paso en el menú de la reserva. */}
                     <option value="no_show">No Show</option>
-                    <option value="rescheduled">Reagendada</option>
                   </Select>
                 </div>
 
@@ -1525,6 +1699,58 @@ export default function ReservationsPage() {
                   </Select>
                 </div>
               </div>
+
+              {/* TR-04. Por dónde entró esta venta. Se enseña porque de ello
+                  depende la comisión, y porque explica por qué dos reservas
+                  del mismo precio dejan cifras distintas. */}
+              {editingReservation.canal && (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Entró por:{' '}
+                  <span className="font-medium">
+                    {{
+                      MANUAL: 'cargada a mano',
+                      CHECKOUT: 'tu catálogo',
+                      CRM: 'el enlace que mandaste desde el CRM',
+                      RESELLER: 'un canal de venta',
+                    }[editingReservation.canal]}
+                  </span>
+                </p>
+              )}
+
+              {/* TR-26. El comprador también es un contacto del CRM, y desde
+                  ahí se ve su historial: cuántas veces ha venido y qué pidió.
+                  Sin el enlace, el vínculo existe y nadie lo usa. */}
+              {editingReservation.contactoCrm && (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Cliente en tu CRM:{' '}
+                  <Link
+                    href={`/dashboard/crm/contactos/${editingReservation.contactoCrm._id}`}
+                    className="font-medium text-[#F26726] hover:underline"
+                  >
+                    {editingReservation.contactoCrm.nombre}
+                  </Link>
+                </p>
+              )}
+
+              {/* TR-30. Los reembolsos no son un campo del formulario: cada
+                  uno baja lo vendido y la comisión que se cobra sobre ello,
+                  así que se registran aparte y al momento. */}
+              {editingReservation._id && (
+                <Reembolsos
+                  reservationId={editingReservation._id}
+                  onCambio={() => void loadReservations()}
+                />
+              )}
+
+              {/* TR-39 y TR-12. Qué le fue pasando, y lo que se cobró de más.
+                  Va aquí porque es donde se mira cuando alguien llama a
+                  reclamar que su reserva era otro día. */}
+              {editingReservation._id && (
+                <HistorialDeReserva
+                  reservationId={editingReservation._id}
+                  onCambio={() => void loadReservations()}
+                />
+              )}
 
               {/* Botones */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
@@ -1558,8 +1784,7 @@ export default function ReservationsPage() {
                         pricing: editingReservation.pricing,
                         paymentMethod: editingReservation.paymentMethod,
                         paymentDetails: editingReservation.paymentDetails,
-                        isVirtual: editingReservation.isVirtual,
-                        virtualDetails: editingReservation.virtualDetails,
+                        serviceAddress: editingReservation.serviceAddress,
                         location: editingReservation.location?._id,
                       });
 
@@ -1582,5 +1807,20 @@ export default function ReservationsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Pantalla de anfitrion: las reservas las gestiona el anfitrion; el canal ve sus comisiones.
+ *
+ * El menu ya no se la enseña a un revendedor, pero por URL se llegaba igual
+ * y lo que salia era una pantalla rota —el titulo de su empresa, botones que
+ * dan 403 y un error al cargar—. ProtectedRoute lo devuelve al dashboard.
+ */
+export default function ReservationsPage() {
+  return (
+    <ProtectedRoute roles={['host', 'admin']}>
+      <ReservationsPageContenido />
+    </ProtectedRoute>
   );
 }

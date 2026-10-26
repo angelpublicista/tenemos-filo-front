@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Button, Label, TextInput, Select, Badge, Card, Dropdown, DropdownItem } from 'flowbite-react';
+import { Button, Label, TextInput, Select, Badge, Card } from 'flowbite-react';
 import { 
   HiArrowLeft, 
   HiPlus, 
@@ -11,10 +11,7 @@ import {
   HiPencilAlt, 
   HiEye,
   HiTrash,
-  HiCurrencyDollar,
-  HiCalendar,
   HiUser,
-  HiDownload,
   HiCheckCircle,
   HiXCircle,
 } from 'react-icons/hi';
@@ -40,17 +37,17 @@ const statusColors: Record<string, string> = {
 };
 
 const stageLabels: Record<string, string> = {
-  prospecting: 'Prospección',
+  prospecting: 'Cliente potencial',
   qualification: 'Calificación',
-  proposal: 'Propuesta',
+  proposal: 'Propuesta enviada',
   negotiation: 'Negociación',
   approval: 'Aprobación',
-  closed_won: 'Cerrado Ganado',
-  closed_lost: 'Cerrado Perdido',
+  closed_won: 'Ganado cerrado',
+  closed_lost: 'Perdido cerrado',
 };
 
 export default function OportunidadesPage() {
-  const { user, sanityUser } = useAuth();
+  const { sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [opportunities, setOpportunities] = useState<OpportunityWithExpanded[]>([]);
@@ -126,7 +123,7 @@ export default function OportunidadesPage() {
 
   if (!sanityUser?.companyId) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <div className="text-center py-12">
             <p className="text-gray-500 dark:text-gray-400">
@@ -263,7 +260,7 @@ export default function OportunidadesPage() {
                       <th scope="col" className="px-6 py-3">Estado</th>
                       <th scope="col" className="px-6 py-3">Fecha Cierre Esperada</th>
                       <th scope="col" className="px-6 py-3">Asignado a</th>
-                      <th scope="col" className="px-6 py-3">Acciones</th>
+                      <th scope="col" className="px-6 py-3 sticky right-0 bg-gray-50 border-l border-gray-200 dark:bg-gray-700 dark:border-gray-600">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -343,7 +340,7 @@ export default function OportunidadesPage() {
                             {opportunity.assignedToName || 'Sin asignar'}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 sticky right-0 bg-white border-l border-gray-200 dark:bg-gray-800 dark:border-gray-700">
                           <div className="flex items-center space-x-2">
                             <Button
                               size="xs"
@@ -361,7 +358,7 @@ export default function OportunidadesPage() {
                             </Button>
                             <Button
                               size="xs"
-                              color="failure"
+                              color="danger"
                               onClick={() => handleDelete(opportunity._id, opportunity.name)}
                               disabled={isDeleting === opportunity._id}
                             >

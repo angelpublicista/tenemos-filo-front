@@ -1,8 +1,10 @@
 "use client";
 
 import React from 'react';
-import { HiArrowLeft, HiCalendar, HiUsers, HiLocationMarker, HiMail, HiPhone, HiVideoCamera } from 'react-icons/hi';
-import type { BookingData } from '@/app/book/[companyId]/page';
+import { HiArrowLeft, HiCalendar, HiUsers, HiLocationMarker, HiMail, HiPhone, HiTranslate } from 'react-icons/hi';
+import { nombreDeIdioma } from '@/lib/idiomas';
+import type { BookingData } from '@/components/BookingEngine/MotorReservas';
+import { condicionesDeSede } from '@/lib/experiencias/condicionesDeSede';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
 
@@ -12,46 +14,59 @@ function formatPrice(price: number, currency: string) {
 
 interface Props {
   booking: BookingData;
+  /** La plataforma cobra en linea. Cambia lo que se promete bajo el total. */
+  cobraEnLinea: boolean;
   submitting: boolean;
   onConfirm: () => void;
   onBack: () => void;
 }
 
-export default function ConfirmationStep({ booking, submitting, onConfirm, onBack }: Props) {
-  const { experience, date, time, participants, locationName, selectedAddons, guestInfo } = booking;
-  const subtotal = experience.basePrice * participants;
+export default function ConfirmationStep({ booking, cobraEnLinea, submitting, onConfirm, onBack }: Props) {
+  const { experience, date, time, participants, locationId, locationName, serviceAddress, idioma, selectedAddons, guestInfo } = booking;
+  // El precio es el de la sede elegida: la misma experiencia puede valer una
+  // cosa en el local del centro y otra en la finca. El API cobra ese, asi que
+  // enseñar aqui el de la experiencia seria prometer un total que no es.
+  const { basePrice } = condicionesDeSede(experience, locationId);
+  const subtotal = basePrice * participants;
   const addonsTotal = selectedAddons?.reduce((sum, a) => sum + a.price * a.quantity, 0) ?? 0;
   const total = subtotal + addonsTotal;
   const formattedDate = format(date, "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
 
   const rows = [
     {
-      icon: <HiCalendar className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiCalendar className="w-4 h-4 text-marca" />,
       label: 'Fecha y hora',
       value: `${formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)}, ${time}`,
     },
     {
-      icon: <HiUsers className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiUsers className="w-4 h-4 text-marca" />,
       label: 'Personas',
       value: `${participants} persona${participants > 1 ? 's' : ''}`,
     },
-    ...(experience.experienceType !== 'virtual' && locationName ? [{
-      icon: <HiLocationMarker className="w-4 h-4 text-[#F26726]" />,
+    // A domicilio lo que importa es la dirección a la que va el anfitrión; en
+    // sede, cuál de ellas.
+    ...(experience.atHome && serviceAddress ? [{
+      icon: <HiLocationMarker className="w-4 h-4 text-marca" />,
+      label: 'Dónde',
+      value: serviceAddress,
+    }] : locationName ? [{
+      icon: <HiLocationMarker className="w-4 h-4 text-marca" />,
       label: 'Sede',
       value: locationName,
     }] : []),
-    ...(experience.experienceType === 'virtual' ? [{
-      icon: <HiVideoCamera className="w-4 h-4 text-[#F26726]" />,
-      label: 'Modalidad',
-      value: 'Virtual',
+    // Solo si pidió uno: "cualquiera" no es un dato que confirmar.
+    ...(idioma ? [{
+      icon: <HiTranslate className="w-4 h-4 text-marca" />,
+      label: 'Idioma',
+      value: nombreDeIdioma(idioma),
     }] : []),
     {
-      icon: <HiMail className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiMail className="w-4 h-4 text-marca" />,
       label: 'Email',
       value: guestInfo.email,
     },
     {
-      icon: <HiPhone className="w-4 h-4 text-[#F26726]" />,
+      icon: <HiPhone className="w-4 h-4 text-marca" />,
       label: 'Teléfono',
       value: guestInfo.phone,
     },
@@ -69,8 +84,8 @@ export default function ConfirmationStep({ booking, submitting, onConfirm, onBac
       </div>
 
       {/* Experiencia */}
-      <div className="bg-orange-50 rounded-xl px-4 py-3.5 mb-5 border border-orange-100">
-        <p className="text-xs text-[#F26726] font-semibold uppercase tracking-wide mb-1">Experiencia</p>
+      <div className="bg-marca-tenue rounded-xl px-4 py-3.5 mb-5 border border-marca-borde">
+        <p className="text-xs text-marca font-semibold uppercase tracking-wide mb-1">Experiencia</p>
         <p className="text-base font-bold text-gray-900">{experience.title}</p>
       </div>
 
@@ -89,7 +104,7 @@ export default function ConfirmationStep({ booking, submitting, onConfirm, onBac
       <div className="bg-gray-50 rounded-xl px-4 py-4 border border-gray-200 mb-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-gray-500">
-            {formatPrice(experience.basePrice, experience.currency)} × {participants} persona{participants > 1 ? 's' : ''}
+            {formatPrice(basePrice, experience.currency)} × {participants} persona{participants > 1 ? 's' : ''}
           </span>
           <span className="text-sm text-gray-700">{formatPrice(subtotal, experience.currency)}</span>
         </div>
@@ -113,7 +128,11 @@ export default function ConfirmationStep({ booking, submitting, onConfirm, onBac
           <span className="text-sm font-bold text-gray-900">Total estimado</span>
           <span className="text-xl font-bold text-[#334C5D]">{formatPrice(total, experience.currency)}</span>
         </div>
-        <p className="text-xs text-gray-400 mt-2">* Precio referencial. El pago se gestiona directamente con el anfitrión.</p>
+        <p className="text-xs text-gray-400 mt-2">
+          {cobraEnLinea
+            ? '* Al confirmar podrás pagar en línea de forma segura.'
+            : '* Precio referencial. El pago se gestiona directamente con el anfitrión.'}
+        </p>
       </div>
 
       <div className="pt-5 border-t border-gray-100">
@@ -123,7 +142,7 @@ export default function ConfirmationStep({ booking, submitting, onConfirm, onBac
           className={`w-full py-4 rounded-xl font-bold text-base transition-all ${
             submitting
               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : 'bg-[#F26726] hover:bg-[#d9571f] text-white shadow-sm'
+              : 'bg-marca hover:bg-marca-fuerte text-marca-contraste shadow-sm'
           }`}
         >
           {submitting ? 'Enviando reserva...' : 'Confirmar reserva'}

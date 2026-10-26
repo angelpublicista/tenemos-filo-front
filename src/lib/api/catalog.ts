@@ -1,0 +1,200 @@
+// Catalogo digital publico: lo que ve un cliente al abrir el enlace que le
+// comparte un anfitrion. No requiere sesion.
+import { api } from './client';
+import { toCompany, type ApiCompany } from '@/lib/sanity/companyService';
+import { toExperience, type ApiExperience } from '@/lib/sanity/experienceService';
+import type { AvailabilitySchedule, Company, Experience } from '@/types';
+
+/** Tal como llega del API, antes de traducir empresa y experiencias. */
+type RespuestaCruda = {
+  company: ApiCompany & { ownAvailabilities?: ApiAvailabilityCruda[] };
+  experiences: ApiExperience[];
+  paymentsEnabled?: boolean;
+  paymentRequired?: boolean;
+  agente?: { nombre: string } | null;
+  publicacion?: PublicacionAbierta | null;
+};
+
+/** La publicación a la que apunta una URL propia: qué experiencia y en qué sede. */
+export type PublicacionAbierta = {
+  slug: string;
+  /** Null cuando es a domicilio: no hay sede que preseleccionar. */
+  locationId: string | null;
+  experienceId: string;
+};
+
+/** Un horario tal como lo manda el API público. */
+type ApiAvailabilityCruda = {
+  id: string;
+  name: string;
+  weeklySchedule: unknown;
+  dateOverrides: Record<string, unknown> | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+};
+
+/**
+ * El catalogo ya traducido a los tipos del front.
+ *
+ * paymentRequired dice si hay que pagar para que la reserva valga. Lo decide
+ * el anfitrion; si no dice nada, el valor por defecto de la plataforma. Sin
+ * pasarela activa llega siempre en false: no se puede exigir lo que no se
+ * puede cobrar.
+ */
+export type CatalogoPublico = {
+  company: Company;
+  experiences: Experience[];
+  paymentsEnabled: boolean;
+  paymentRequired: boolean;
+  /**
+   * TR-21. La agenda propia del anfitrión: vale para las experiencias que no
+   * tienen horario ni sede. Sin ella, el catálogo de un cocinero a domicilio
+   * ofrecía las horas por defecto —de ocho a ocho, todos los días—, que no
+   * son las suyas.
+   */
+  agendaDelAnfitrion: AvailabilitySchedule[];
+  /** El agente del chat, o null si el anfitrión no lo muestra en su catálogo. */
+  agente: { nombre: string } | null;
+  /** Presente cuando se abrió la URL propia de una publicación. */
+  publicacion: PublicacionAbierta | null;
+};
+
+function aHorario(a: ApiAvailabilityCruda): AvailabilitySchedule {
+  return {
+    _id: a.id,
+    _type: 'availability',
+    name: a.name,
+    isMain: false,
+    isActive: true,
+    weeklySchedule: a.weeklySchedule as AvailabilitySchedule['weeklySchedule'],
+    validFrom: a.validFrom ? a.validFrom.slice(0, 10) : undefined,
+    validUntil: a.validUntil ? a.validUntil.slice(0, 10) : null,
+    dateOverrides: (a.dateOverrides ?? undefined) as AvailabilitySchedule['dateOverrides'],
+    createdAt: '',
+    updatedAt: '',
+  };
+}
+
+function traducir(data: RespuestaCruda): CatalogoPublico {
+  return {
+    company: toCompany(data.company),
+    experiences: (data.experiences ?? []).map(toExperience),
+    paymentsEnabled: Boolean(data.paymentsEnabled),
+    paymentRequired: Boolean(data.paymentRequired),
+    agendaDelAnfitrion: (data.company?.ownAvailabilities ?? []).map(aHorario),
+    agente: data.agente ?? null,
+    publicacion: data.publicacion ?? null,
+  };
+}
+
+/**
+ * Acepta el slug de la empresa ("filo-demo") o su id.
+ *
+ * El id se sigue admitiendo porque los anfitriones ya compartieron enlaces
+ * con ese formato y romperlos seria peor que tener dos formas validas.
+ */
+export const getPublicCatalog = async (slugOrId: string): Promise<CatalogoPublico> =>
+  traducir(await api.get<RespuestaCruda>(`/public/catalog/${encodeURIComponent(slugOrId)}`));
+
+/**
+ * Catálogo de un revendedor: las experiencias activas de toda la
+ * plataforma, no las de una empresa concreta.
+ *
+ * La empresa que devuelve es la del revendedor, para que su catálogo salga
+ * con su marca aunque las experiencias sean de otros.
+ */
+export const getResellerCatalog = async (slugOrId: string): Promise<CatalogoPublico> =>
+  traducir(await api.get<RespuestaCruda>(`/public/reseller/${encodeURIComponent(slugOrId)}`));
+
+/**
+ * Una publicación suelta, desde su URL propia: /book/<empresa>/<publicacion>
+ * o, con revendedor, /r/<revendedor>/<publicacion>.
+ *
+ * Llega solo esa experiencia y solo esa sede. Falla con 404 si la publicación
+ * se pausó o ya no existe, y la página lo trata como cualquier enlace roto.
+ */
+export const getPublicacion = async (
+  slug: string,
+  publicacion: string,
+  comoReseller = false,
+): Promise<CatalogoPublico> =>
+  traducir(
+    await api.get<RespuestaCruda>(
+      `/public/${comoReseller ? 'reseller' : 'catalog'}/${encodeURIComponent(slug)}/publicacion/${encodeURIComponent(publicacion)}`,
+    ),
+  );
+
+/** Un mensaje del chat con el agente, tal como lo ve el visitante. */
+export type MensajeDelChat = {
+  rol: 'CLIENTE' | 'AGENTE';
+  texto: string;
+  createdAt: string;
+};
+
+/**
+ * Escribirle al agente del catálogo.
+ *
+ * `respuesta` es null cuando no contestó (sin cupo este mes, o el anfitrión
+ * tomó el hilo): el mensaje queda guardado y el visitante debe saberlo.
+ */
+export const enviarMensajeAlAgente = async (
+  slug: string,
+  sessionId: string,
+  texto: string,
+): Promise<{ respuesta: string | null }> =>
+  api.post<{ respuesta: string | null }>(`/public/agente/${encodeURIComponent(slug)}/mensaje`, {
+    sessionId,
+    texto,
+  });
+
+/** El hilo de este visitante, para no perderlo al recargar la página. */
+export const getHistorialDelChat = async (slug: string, sessionId: string): Promise<MensajeDelChat[]> =>
+  (
+    await api.get<{ mensajes: MensajeDelChat[] }>(
+      `/public/agente/${encodeURIComponent(slug)}/conversacion/${encodeURIComponent(sessionId)}`,
+    )
+  ).mensajes;
+
+/** Lo que devuelve el API sobre una reserva a quien vuelve de la pasarela. */
+export type EstadoReserva = {
+  reservationNumber: string;
+  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED' | 'PARTIAL' | 'FAILED';
+  /** Color principal del anfitrión, o null si no eligió ninguno. */
+  colorMarca: string | null;
+};
+
+/**
+ * Estado de una reserva por su número, sin sesión.
+ *
+ * Lo usa la página de retorno del pago: quien vuelve de Wompi no tiene
+ * cuenta, solo su número de reserva. El API devuelve únicamente el estado.
+ */
+export const getEstadoReserva = async (reservationNumber: string): Promise<EstadoReserva> =>
+  api.get<EstadoReserva>(
+    `/public/reservations/${encodeURIComponent(reservationNumber)}/status`,
+  );
+
+/** Lo que el anfitrión ya sabe de quien abre su enlace de reserva. */
+export type DatosDeLaSolicitud = {
+  nombre: string;
+  email: string;
+  telefono: string;
+  experienceId: string | null;
+};
+
+/**
+ * CRM-33. Canjea el token del enlace por los datos que ya tenemos.
+ *
+ * El enlace no lleva el nombre ni el teléfono en la URL —se reenvía, se pega
+ * en un chat y acaba donde nadie previó—, así que viajan por aquí. Devuelve
+ * null si el enlace ya no sirve: la venta se cerró, o el token no existe.
+ */
+export async function getDatosDeSolicitud(token: string): Promise<DatosDeLaSolicitud | null> {
+  try {
+    return await api.get<DatosDeLaSolicitud>(`/public/solicitud/${encodeURIComponent(token)}`);
+  } catch {
+    // Un enlace caducado no puede romper el catálogo: se reserva a mano.
+    return null;
+  }
+}

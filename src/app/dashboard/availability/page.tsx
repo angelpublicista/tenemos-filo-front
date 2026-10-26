@@ -12,7 +12,9 @@ import { AiOutlineCalendar } from 'react-icons/ai';
 import Link from 'next/link';
 import Loader from '@/components/Loader';
 
-type ViewMode = 'location' | 'experience';
+// TR-21. Tres contextos, no dos: la agenda propia del anfitrión es la de
+// quien va a casa del cliente y no tiene sede donde colgar su calendario.
+type ViewMode = 'location' | 'experience' | 'company';
 
 export default function AvailabilityPage() {
   const { sanityUser } = useAuth();
@@ -77,7 +79,7 @@ export default function AvailabilityPage() {
 
   if (initialLoading || !sanityUser) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <Loader message="Cargando disponibilidad..." />
       </ProtectedRoute>
     );
@@ -94,7 +96,23 @@ export default function AvailabilityPage() {
             Gestión de Disponibilidad
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
-            Configura los horarios de disponibilidad para tus experiencias o sedes
+            Define las franjas horarias en las que se pueden reservar tus experiencias o sedes
+          </p>
+        </div>
+
+        {/* Cuál manda.
+            Hay cuatro niveles y gana el más específico. Sin decirlo, el
+            anfitrión pone un horario aquí, ve otro en el catálogo y no
+            entiende por qué: el de la publicación le estaba ganando. */}
+        <div className="mb-4 sm:mb-6 rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900 mb-1">Cuál manda</p>
+          <p className="text-sm text-gray-600">
+            Gana el más específico de estos cuatro, en este orden:{' '}
+            <Link href="/dashboard/publicaciones" className="text-[#F26726] underline">
+              el de la experiencia en una sede
+            </Link>{' '}
+            (se define en Publicaciones) → el de la experiencia, que vale para todas sus sedes →
+            el de la sede → tu agenda.
           </p>
         </div>
 
@@ -112,6 +130,17 @@ export default function AvailabilityPage() {
             Por Experiencia
           </button>
           <button
+            onClick={() => setViewMode('company')}
+            className={`flex items-center justify-center gap-2 px-3 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-1 sm:flex-none ${
+              viewMode === 'company'
+                ? 'border-[#F26726] text-[#F26726]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <BiBuilding className="text-lg" />
+            Mi agenda
+          </button>
+          <button
             onClick={() => setViewMode('location')}
             className={`flex items-center justify-center gap-2 px-3 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-1 sm:flex-none ${
               viewMode === 'location'
@@ -124,15 +153,41 @@ export default function AvailabilityPage() {
           </button>
         </div>
 
-        {isLoadingCurrent ? (
+        {viewMode === 'company' ? (
+          <div>
+            {/* TR-21. Para quien no tiene sede, esta es su única agenda; para
+                quien sí, es la que vale cuando una experiencia no tiene
+                horario propio. */}
+            <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+              <p className="text-sm text-gray-700">
+                Estas franjas valen para todo lo que no tenga su propio horario:
+                una experiencia sin calendario y sin sede se ofrece con esta
+                agenda. Es la de quien va a casa del cliente.
+              </p>
+            </div>
+            <AvailabilityManager mode="company" companyId={sanityUser.companyId || ''} />
+          </div>
+        ) : isLoadingCurrent ? (
           <Loader message={viewMode === 'experience' ? 'Cargando experiencias...' : 'Cargando sedes...'} />
         ) : viewMode === 'experience' ? (
-          <ExperienceAvailabilityView
+          <>
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm text-amber-900">
+                Lo que pongas aquí vale para <strong>todas</strong> las sedes de esa experiencia. Si
+                abre días distintos en cada sitio, el horario va por publicación:{' '}
+                <Link href="/dashboard/publicaciones" className="underline font-medium">
+                  Publicaciones → Horario
+                </Link>
+                , y ese le gana a este.
+              </p>
+            </div>
+            <ExperienceAvailabilityView
             experiences={experiences}
             selectedExperience={selectedExperience}
             onSelectExperience={setSelectedExperience}
             companyId={sanityUser.companyId || ''}
           />
+          </>
         ) : (
           <LocationAvailabilityView
             locations={locations}
@@ -209,7 +264,7 @@ function ExperienceAvailabilityView({
                 <div className={`text-xs mt-1 ${
                   selectedExperience?._id === experience._id ? 'text-white/80' : 'text-gray-500'
                 }`}>
-                  {experience.duration} min • {experience.capacity} personas
+                  {experience.duration} min
                 </div>
               </button>
             ))}
@@ -226,7 +281,7 @@ function ExperienceAvailabilityView({
                 {selectedExperience.title}
               </h2>
               <p className="text-sm text-gray-600">
-                {selectedExperience.duration} min · capacidad {selectedExperience.capacity} personas
+                {selectedExperience.duration} min · los cupos van en cada franja
               </p>
             </div>
             <AvailabilityManager

@@ -5,6 +5,7 @@ import { Label, Button, TextInput } from 'flowbite-react';
 import { HiUpload, HiPhotograph, HiPlus, HiTrash } from 'react-icons/hi';
 import Image from 'next/image';
 import { uploadImage, UploadScope } from '@/lib/api/uploads';
+import { urlDeImagen } from '@/lib/images';
 
 interface ImageUploadProps {
   label: string;
@@ -14,7 +15,14 @@ interface ImageUploadProps {
   helpText?: string;
   compact?: boolean;
   circular?: boolean;
+  /**
+   * Cómo encaja la imagen en el recuadro. `contain` para logos (sin recortar);
+   * `cover` para fotos que deben llenar el marco.
+   */
+  objectFit?: 'cover' | 'contain';
   scope?: UploadScope;
+  /** Texto del recuadro en modo compacto. Lo que se sube no siempre es un logo. */
+  placeholder?: string;
 }
 
 interface GalleryUploadProps {
@@ -26,21 +34,9 @@ interface GalleryUploadProps {
   scope?: UploadScope;
 }
 
-// Resuelve la URL de visualizacion. Compat con assets viejos de Sanity:
-// - URL absoluta (S3/CloudFront): se usa tal cual
-// - "image-..." (asset id Sanity legacy): se construye URL del CDN de Sanity
-function getImageUrl(value: string): string {
-  if (!value) return '';
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
-  // Legacy: Sanity asset id
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
-  if (value.startsWith('image-')) {
-    const cleanAssetId = value.replace('image-', '').replace(/-([a-z]+)$/, '.$1');
-    return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
-  }
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${value}`;
-}
+// Misma resolucion que el resto de la app; devuelve '' para poder pasarla
+// directo a un src.
+const getImageUrl = (value: string): string => urlDeImagen(value) ?? '';
 
 const formatSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
@@ -55,9 +51,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   helpText,
   compact = false,
   circular = false,
+  objectFit = 'cover',
   scope = 'misc',
+  placeholder = 'Subir imagen',
 }) => {
   const shapeClass = circular ? 'rounded-full' : 'rounded-lg';
+  const fitClass = objectFit === 'contain' ? 'object-contain p-2' : 'object-cover';
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -110,10 +109,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 compact ? 'w-32 h-32 sm:w-36 sm:h-36' : 'w-full h-64'
               }`}
             >
-              <Image src={getImageUrl(value)} alt={label} fill className="object-cover" unoptimized />
+              <Image src={getImageUrl(value)} alt={label} fill className={fitClass} unoptimized />
             </div>
             <div className={compact ? 'absolute -top-2 -right-2' : 'absolute top-2 right-2'}>
-              <Button size="xs" color="failure" onClick={handleRemove} className="opacity-90 hover:opacity-100">
+              <Button size="xs" color="danger" onClick={handleRemove} className="opacity-90 hover:opacity-100">
                 <HiTrash className={compact ? 'w-3 h-3' : 'w-4 h-4'} />
               </Button>
             </div>
@@ -138,7 +137,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             ) : compact ? (
               <div className="space-y-1.5">
                 <HiPhotograph className="w-7 h-7 text-gray-400 mx-auto" />
-                <p className="text-xs text-gray-600 leading-tight">Subir logo</p>
+                <p className="text-xs text-gray-600 leading-tight">{placeholder}</p>
                 <p className="text-[10px] text-gray-400 leading-tight">PNG, JPG · 10 MB</p>
               </div>
             ) : (
@@ -273,7 +272,7 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
                   <div className="absolute top-2 right-2">
                     <Button
                       size="xs"
-                      color="failure"
+                      color="danger"
                       onClick={() => handleRemove(index)}
                       className="opacity-90 hover:opacity-100"
                     >
@@ -296,7 +295,7 @@ export const GalleryUpload: React.FC<GalleryUploadProps> = ({
                       value={image.caption || ''}
                       onChange={(e) => handleUpdateMetadata(index, 'caption', e.target.value)}
                     />
-                    <Button size="xs" color="gray" onClick={() => setEditingIndex(null)} className="w-full">
+                    <Button size="xs" color="primary" onClick={() => setEditingIndex(null)} className="w-full">
                       Guardar
                     </Button>
                   </div>

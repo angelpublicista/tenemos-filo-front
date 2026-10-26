@@ -2,6 +2,7 @@
 // para no tocar los callers (dashboard/locations, dashboard/availability,
 // CompanySetupForm, etc.). El shape de retorno se mantiene "Sanity-like".
 import { api } from '@/lib/api/client';
+import { horarioDesde, type HorarioSemanal } from '@/lib/company/horarios';
 import { Location } from '@/types';
 
 export interface CreateLocationData {
@@ -20,10 +21,28 @@ export interface CreateLocationData {
     phone?: string;
     email?: string;
   };
-  capacity?: {
-    minGuests?: number;
-    maxGuests?: number;
-  };
+  /** Obligatoria: cuanta gente cabe a la vez. */
+  maxCapacity?: number;
+  isPublic?: boolean | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  responsibleContactId?: string | null;
+  photos?: string[];
+  videoUrl?: string | null;
+  amenities?: string[];
+  avEquipmentDetail?: string | null;
+  bathroomsCount?: number | null;
+  importantInfo?: string | null;
+  openingHours?: HorarioSemanal | null;
+  hasRooms?: boolean | null;
+  rooms?: Array<{
+    id?: string;
+    name: string;
+    description?: string;
+    maxCapacity: number;
+    photos?: string[];
+    isActive?: boolean;
+  }>;
   isActive?: boolean;
 }
 
@@ -35,7 +54,35 @@ interface ApiLocation {
   description: string | null;
   address: Location['address'] | null;
   contactInfo: Location['contactInfo'] | null;
-  capacity: Location['capacity'] | null;
+  maxCapacity: number | null;
+  isPublic: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
+  photos: string[] | null;
+  videoUrl: string | null;
+  amenities: string[] | null;
+  avEquipmentDetail: string | null;
+  bathroomsCount: number | null;
+  importantInfo: string | null;
+  openingHours: unknown;
+  hasRooms: boolean | null;
+  rooms?: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    maxCapacity: number;
+    photos: string[];
+    isActive: boolean;
+  }> | null;
+  responsibleContactId: string | null;
+  responsibleContact: {
+    id: string;
+    name: string;
+    type: 'RESERVAS' | 'CONTABILIDAD' | 'OTRO';
+    label: string | null;
+    phone: string | null;
+    position: string | null;
+  } | null;
   isMain: boolean;
   isActive: boolean;
   createdAt: string;
@@ -53,7 +100,27 @@ function toLocation(l: ApiLocation): Location {
     description: l.description ?? undefined,
     address: l.address ?? { street: '', city: '' },
     contactInfo: l.contactInfo ?? undefined,
-    capacity: l.capacity ?? undefined,
+    maxCapacity: l.maxCapacity ?? undefined,
+    isPublic: l.isPublic,
+    latitude: l.latitude,
+    longitude: l.longitude,
+    photos: l.photos ?? [],
+    videoUrl: l.videoUrl,
+    amenities: l.amenities ?? [],
+    avEquipmentDetail: l.avEquipmentDetail,
+    bathroomsCount: l.bathroomsCount,
+    importantInfo: l.importantInfo,
+    // Llega como Json suelto; horarioDesde lo completa si viniera a medias.
+    openingHours: l.openingHours ? horarioDesde(l.openingHours) : null,
+    hasRooms: l.hasRooms,
+    rooms: (l.rooms ?? []).map((r) => ({ ...r, photos: r.photos ?? [] })),
+    responsibleContactId: l.responsibleContactId,
+    responsibleContact: l.responsibleContact
+      ? {
+          ...l.responsibleContact,
+          type: l.responsibleContact.type.toLowerCase() as 'reservas' | 'contabilidad' | 'otro',
+        }
+      : null,
     isActive: l.isActive,
     createdAt: l.createdAt,
     updatedAt: l.updatedAt,
@@ -68,7 +135,20 @@ export const createLocationInSanity = async (data: CreateLocationData) => {
     description: data.description,
     address: data.address,
     contactInfo: data.contactInfo,
-    capacity: data.capacity,
+    maxCapacity: data.maxCapacity,
+    isPublic: data.isPublic,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    responsibleContactId: data.responsibleContactId,
+    photos: data.photos,
+    videoUrl: data.videoUrl,
+    amenities: data.amenities,
+    avEquipmentDetail: data.avEquipmentDetail,
+    bathroomsCount: data.bathroomsCount,
+    importantInfo: data.importantInfo,
+    openingHours: data.openingHours,
+    hasRooms: data.hasRooms,
+    rooms: data.rooms,
     isActive: data.isActive,
   });
   return toLocation(created);
@@ -101,7 +181,20 @@ export const updateLocationInSanity = async (
     description: updateData.description,
     address: updateData.address,
     contactInfo: updateData.contactInfo,
-    capacity: updateData.capacity,
+    maxCapacity: updateData.maxCapacity,
+    isPublic: updateData.isPublic,
+    latitude: updateData.latitude,
+    longitude: updateData.longitude,
+    responsibleContactId: updateData.responsibleContactId,
+    photos: updateData.photos,
+    videoUrl: updateData.videoUrl,
+    amenities: updateData.amenities,
+    avEquipmentDetail: updateData.avEquipmentDetail,
+    bathroomsCount: updateData.bathroomsCount,
+    importantInfo: updateData.importantInfo,
+    openingHours: updateData.openingHours,
+    hasRooms: updateData.hasRooms,
+    rooms: updateData.rooms,
     isActive: updateData.isActive,
   });
   return toLocation(updated);

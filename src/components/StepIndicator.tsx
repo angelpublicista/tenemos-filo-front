@@ -18,7 +18,6 @@ export default function StepIndicator({ currentStep, totalSteps, steps }: StepIn
           const stepNumber = index + 1;
           const isCompleted = stepNumber < currentStep;
           const isCurrent = stepNumber === currentStep;
-          const isUpcoming = stepNumber > currentStep;
 
           return (
             <div key={index} className="flex items-center">

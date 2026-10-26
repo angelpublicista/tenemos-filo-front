@@ -1,11 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import CalendarPicker from '@/components/CalendarPicker';
 import TimePicker from '@/components/TimePicker';
 import { HiArrowLeft, HiArrowRight, HiUsers } from 'react-icons/hi';
-import type { BookingExperience, BookingLocationAddress, SelectedAddon } from '@/app/book/[companyId]/page';
+import type { BookingExperience, BookingLocationAddress, SelectedAddon } from '@/components/BookingEngine/MotorReservas';
 import type { AvailabilitySchedule } from '@/types';
+import {
+  condicionesDeSede,
+  cuposDelDia,
+  cuposDeLaHora,
+  horariosDeSede,
+} from '@/lib/experiencias/condicionesDeSede';
+import { listaDeIdiomas, nombreDeIdioma } from '@/lib/idiomas';
 
 function formatPrice(price: number, currency: string) {
   return price.toLocaleString('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 });
@@ -21,7 +28,39 @@ function formatAddress(address: BookingLocationAddress | string | undefined): st
 
 const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
-function getAvailableSlots(date: Date, schedules: AvailabilitySchedule[], duration: number): string[] {
+const soloElDia = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * TR-35. Si este horario se aplica en esa fecha.
+ *
+ * Un horario semanal sin vigencia ofrecería sábados de dentro de cinco años
+ * que nadie decidió abrir. Sin fecha final —los horarios creados antes de
+ * esta regla— se comporta como antes: se repite indefinidamente.
+ */
+function rigeEseDia(schedule: AvailabilitySchedule, date: Date): boolean {
+  const dia = soloElDia(date);
+  if (schedule.validFrom && dia < schedule.validFrom) return false;
+  if (schedule.validUntil && dia > schedule.validUntil) return false;
+  return true;
+}
+
+/**
+ * Las horas en que se puede empezar ese día.
+ *
+ * Tres cosas las recortan: que la franja tenga sitio para la duración más la
+ * limpieza, que la fecha caiga dentro de la vigencia del horario (TR-35), y
+ * la anticipación mínima de la experiencia, que ahora es suya y no del
+ * horario: un mismo calendario sirve a una cata que se reserva el mismo día y
+ * a una cena de quince que hay que comprar con dos días.
+ */
+function franjasDisponibles(
+  date: Date,
+  schedules: AvailabilitySchedule[],
+  duration: number,
+  limpieza = 0,
+  horasDeAviso = 0,
+): string[] {
   if (!schedules || schedules.length === 0) {
     const defaults: string[] = [];
     for (let h = 8; h <= 20; h++) {
@@ -34,19 +73,47 @@ function getAvailableSlots(date: Date, schedules: AvailabilitySchedule[], durati
   const dayKey = DAYS_OF_WEEK[date.getDay()];
   const slots = new Set<string>();
 
-  schedules.forEach(schedule => {
-    const daySchedule = schedule.weeklySchedule?.[dayKey];
-    if (!daySchedule?.isActive || !daySchedule.timeSlots) return;
+  /**
+   * TR-06. Lo que ya no se puede reservar por falta de anticipación.
+   *
+   * Cada horario dice cuánta necesita el anfitrión: comprar para una cena de
+   * quince personas no se hace a las seis de la tarde. El API lo rechaza
+   * igual, pero ofrecer una hora para que luego falle es hacer perder el
+   * tiempo a quien está reservando.
+   */
+  const ahora = Date.now();
+  const avisoMs = horasDeAviso * 3_600_000;
 
-    daySchedule.timeSlots.forEach((slot: { startTime: string; endTime: string }) => {
+  schedules.forEach(schedule => {
+    if (!rigeEseDia(schedule, date)) return;
+
+    // Lo que se dijo de ESA fecha manda sobre el patron semanal: el 24 no se
+    // abre aunque sea jueves, y el 31 puede abrir solo la cena.
+    const suelta = schedule.dateOverrides?.[soloElDia(date)];
+    const daySchedule = suelta ?? schedule.weeklySchedule?.[dayKey];
+    if (!daySchedule?.isActive) return;
+
+    // `franjas` es el nombre de ahora; `timeSlots` son los horarios guardados
+    // antes del renombre, que se siguen leyendo.
+    const franjas = daySchedule.franjas ?? daySchedule.timeSlots ?? [];
+    franjas.forEach((slot: { startTime: string; endTime: string }) => {
       const [sh, sm] = slot.startTime.split(':').map(Number);
       const [eh, em] = slot.endTime.split(':').map(Number);
       const startMin = sh * 60 + sm;
       const endMin = eh * 60 + em;
 
-      for (let m = startMin; m + duration <= endMin; m += 30) {
+      // TR-19. La limpieza tiene que caber antes de cerrar: ofrecer una cena
+      // que acaba justo a la hora de cierre deja al equipo recogiendo fuera
+      // de horario. El montaje no se descuenta aquí porque se hace antes de
+      // abrir, y restarlo quitaría el primer turno del día.
+      for (let m = startMin; m + duration + limpieza <= endMin; m += 30) {
         const h = Math.floor(m / 60);
         const min = m % 60;
+        if (avisoMs > 0) {
+          const cuando = new Date(date);
+          cuando.setHours(h, min, 0, 0);
+          if (cuando.getTime() - ahora < avisoMs) continue;
+        }
         slots.add(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`);
       }
     });
@@ -55,37 +122,115 @@ function getAvailableSlots(date: Date, schedules: AvailabilitySchedule[], durati
   return Array.from(slots).sort();
 }
 
+/**
+ * Si todos los horarios que aplican cierran ese dia a proposito.
+ *
+ * Con uno que lo abra hay donde reservar, asi que solo se bloquea cuando lo
+ * cierran todos.
+ */
 function isDateBlocked(date: Date, schedules: AvailabilitySchedule[]): boolean {
-  const dateStr = date.toISOString().split('T')[0];
-  return schedules?.some(s => s.blockedDates?.some(b => b.date === dateStr)) ?? false;
+  if (!schedules || schedules.length === 0) return false;
+  const clave = soloElDia(date);
+  return schedules.every((s) => s.dateOverrides?.[clave]?.isActive === false);
 }
 
 interface Props {
   experience: BookingExperience;
-  onNext: (date: Date, time: string, participants: number, locationId?: string, locationName?: string, selectedAddons?: SelectedAddon[]) => void;
+  onNext: (date: Date, time: string, participants: number, locationId?: string, locationName?: string, selectedAddons?: SelectedAddon[], serviceAddress?: string, idioma?: string) => void;
   onBack: () => void;
+  /**
+   * Lo que ya había elegido, al volver desde un paso posterior: retroceder a
+   * corregir un dato no debe obligar a repetir los demás.
+   */
+  inicial?: {
+    date?: Date;
+    time?: string;
+    participants?: number;
+    locationId?: string;
+    selectedAddons?: SelectedAddon[];
+    serviceAddress?: string;
+    idioma?: string;
+  };
 }
 
-export default function DateTimeStep({ experience, onNext, onBack }: Props) {
-  const [date, setDate] = useState<Date | null>(null);
-  const [time, setTime] = useState('');
-  const [participants, setParticipants] = useState(experience.minCapacity ?? 1);
-  const [locationId, setLocationId] = useState<string | undefined>(undefined);
+export default function DateTimeStep({ experience, onNext, onBack, inicial }: Props) {
+  const [date, setDate] = useState<Date | null>(inicial?.date ?? null);
+  const [time, setTime] = useState(inicial?.time ?? '');
+  // Al cambiar la fecha se vacía la hora; la de partida se aplica una sola vez,
+  // cuando ya están calculadas las franjas de esa fecha.
+  const horaPendiente = useRef<string | undefined>(inicial?.time);
+  const [personasElegidas, setParticipants] = useState(
+    inicial?.participants ?? experience.minCapacity ?? 1,
+  );
+  const [locationId, setLocationId] = useState<string | undefined>(inicial?.locationId);
+  /** Dónde hay que ir, cuando la experiencia es a domicilio. */
+  const [serviceAddress, setServiceAddress] = useState(inicial?.serviceAddress ?? '');
+  /**
+   * El idioma que pide, de los que el anfitrión declaró.
+   *
+   * Vacío es "cualquiera de los que ofrece": no todo el mundo tiene
+   * preferencia, y obligar a elegir una convertiría un dato útil en un
+   * trámite. Si solo ofrece uno no hay nada que elegir y se manda ese.
+   */
+  const idiomas = experience.languages ?? [];
+  const [idioma, setIdioma] = useState(
+    inicial?.idioma ?? (idiomas.length === 1 ? idiomas[0] : ''),
+  );
   const [slots, setSlots] = useState<string[]>([]);
-  const [selectedAddonKeys, setSelectedAddonKeys] = useState<Set<string>>(new Set());
-
+  // Por posicion, no por `_key`: ese campo venia de Sanity y hoy nadie lo
+  // escribe, asi que todos los addons compartian la misma clave `undefined`
+  // y marcar uno los marcaba todos.
   const availableAddons = useMemo(
     () => (experience.addons ?? []).filter(a => a.name && typeof a.price === 'number'),
     [experience.addons]
   );
+  const [addonsElegidos, setAddonsElegidos] = useState<Set<number>>(() => {
+    const previos = new Set((inicial?.selectedAddons ?? []).map((a) => a.name));
+    return new Set(availableAddons.flatMap((a, i) => (previos.has(a.name) ? [i] : [])));
+  });
 
-  const schedules = useMemo(
+  /**
+   * Las condiciones de la sede elegida. La misma experiencia puede estar en el
+   * local del centro como abierta y en la finca como privada, con otro aforo,
+   * otro precio y otra anticipación; sin esto se ofrecían en las dos las de la
+   * experiencia, y el API acababa rechazando la reserva.
+   */
+  const condiciones = useMemo(
+    () => condicionesDeSede(experience, locationId),
+    [experience, locationId],
+  );
+
+  const todosLosHorarios = useMemo(
     () => (experience.availabilitySchedules ?? []) as AvailabilitySchedule[],
     [experience.availabilitySchedules]
   );
+  // Los de la sede elegida: los sábados que solo abre la finca no tienen por
+  // qué aparecer en el local del centro.
+  const schedules = useMemo(
+    () => horariosDeSede(todosLosHorarios, locationId),
+    [todosLosHorarios, locationId],
+  );
+  /**
+   * TR-35. El último día que algún horario sigue ofreciendo (si todos tienen
+   * fecha final). Se le pone tope al calendario para no dejar que alguien
+   * navegue tres meses por un calendario que ya no ofrece nada.
+   *
+   * Si algún horario no tiene fecha final, no hay tope: ese se repite
+   * indefinidamente y el tope sería mentira.
+   */
+  const ultimoDiaConHorario = useMemo(() => {
+    if (schedules.length === 0) return undefined;
+    if (schedules.some((s) => !s.validUntil)) return undefined;
+    const fechas = schedules.map((s) => s.validUntil as string).sort();
+    const ultima = fechas[fechas.length - 1];
+    return ultima ? new Date(`${ultima}T23:59:59`) : undefined;
+  }, [schedules]);
+
   const locations = useMemo(() => experience.locations ?? [], [experience.locations]);
-  const isVirtual = experience.experienceType === 'virtual' || experience.isVirtual === true;
-  const isPresential = !isVirtual;
+  // A domicilio no se elige sede: se va a donde diga quien reserva, y lo que
+  // hace falta es su dirección.
+  const aDomicilio = experience.atHome === true;
+  const isPresential = !aDomicilio;
   const hasLocations = locations.length > 0;
   const hasMultipleLocations = isPresential && locations.length > 1;
   const singleLocation = isPresential && locations.length === 1 ? locations[0] : null;
@@ -98,17 +243,51 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
 
   useEffect(() => {
     if (!date) { setSlots([]); setTime(''); return; }
-    const newSlots = getAvailableSlots(date, schedules, experience.duration ?? 60);
+    const newSlots = franjasDisponibles(
+      date,
+      schedules,
+      experience.duration ?? 60,
+      condiciones.cleanupTime,
+      condiciones.minimumNotice,
+    );
     setSlots(newSlots);
-    setTime('');
-  }, [date, schedules, experience.duration]);
+    const previa = horaPendiente.current;
+    horaPendiente.current = undefined;
+    setTime(previa && newSlots.includes(previa) ? previa : '');
+  }, [date, schedules, experience.duration, condiciones.cleanupTime, condiciones.minimumNotice]);
 
-  const canContinue = !!date && !!time && participants >= (experience.minCapacity ?? 1) &&
-    (!isPresential || !hasLocations || !!locationId);
+  /**
+   * Cuánta gente cabe: lo dice la FRANJA, no la experiencia.
+   *
+   * El almuerzo y la cena de un sábado son dos inventarios distintos, así que
+   * el tope depende de la hora elegida. Mientras no hay hora, se ofrece el
+   * mayor del día: alguna franja lo admite.
+   */
+  const tope = useMemo(() => {
+    if (!date) return null;
+    return time ? cuposDeLaHora(schedules, date, time) : cuposDelDia(schedules, date);
+  }, [schedules, date, time]);
+
+  /**
+   * Las personas que de verdad caben.
+   *
+   * Se recorta al leerlo y no guardando otro valor: cambiar a una franja más
+   * grande devuelve el número que la persona había elegido, en vez de dejarle
+   * el recorte puesto.
+   */
+  const participants = Math.min(
+    Math.max(personasElegidas, condiciones.minCapacity),
+    tope || personasElegidas,
+  );
+
+  const canContinue = !!date && !!time && participants >= condiciones.minCapacity &&
+    (!isPresential || !hasLocations || !!locationId) &&
+    // Sin dirección no se puede ir: es el equivalente a no haber elegido sede.
+    (!aDomicilio || serviceAddress.trim().length > 0);
 
   const buildSelectedAddons = (): SelectedAddon[] => {
     return availableAddons
-      .filter(a => selectedAddonKeys.has(a._key))
+      .filter((_, i) => addonsElegidos.has(i))
       .map(a => ({
         name: a.name,
         price: a.price,
@@ -118,7 +297,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   };
 
   const currentAddons = buildSelectedAddons();
-  const baseSubtotal = (experience.basePrice ?? 0) * participants;
+  const baseSubtotal = condiciones.basePrice * participants;
   const addonsSubtotal = currentAddons.reduce((sum, a) => sum + a.price * a.quantity, 0);
   const runningTotal = baseSubtotal + addonsSubtotal;
   const currency = experience.currency ?? 'COP';
@@ -126,7 +305,16 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
   const handleNext = () => {
     if (!date || !time) return;
     const loc = locations.find(l => l._id === locationId);
-    onNext(date, time, participants, locationId, loc?.name, buildSelectedAddons());
+    onNext(
+      date,
+      time,
+      participants,
+      locationId,
+      loc?.name,
+      buildSelectedAddons(),
+      aDomicilio ? serviceAddress.trim() : undefined,
+      idioma || undefined,
+    );
   };
 
   return (
@@ -137,10 +325,91 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
 
       <div className="mb-6">
         <h2 className="text-xl font-bold text-gray-900 leading-tight">Fecha y hora</h2>
-        <p className="text-xs text-[#F26726] font-semibold uppercase tracking-wide mt-1.5">{experience.title}</p>
+        <p className="text-xs text-marca font-semibold uppercase tracking-wide mt-1.5">{experience.title}</p>
       </div>
 
       <div className="space-y-6">
+        {/* A domicilio: la dirección de quien reserva. Va donde iría la sede,
+            y antes de la fecha, por el mismo motivo: es parte de decidir
+            dónde ocurre. */}
+        {aDomicilio && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2.5" htmlFor="direccion">
+              Dirección donde quieres la experiencia
+            </label>
+            <input
+              id="direccion"
+              type="text"
+              value={serviceAddress}
+              onChange={(e) => setServiceAddress(e.target.value)}
+              placeholder="Calle 93 # 13-24, apto 502"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-marca focus:ring-1 focus:ring-marca outline-none"
+            />
+            <p className="text-xs text-gray-400 mt-1.5">
+              El anfitrión va hasta allí. La compartimos solo con él.
+            </p>
+          </div>
+        )}
+
+
+        {/* Sede. Va ANTES de la fecha: la sede decide qué horas hay, qué aforo
+            y qué precio, así que elegirla después dejaría la pantalla
+            enseñando las condiciones de otra. */}
+        {isPresential && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2.5">Sede</label>
+            {hasMultipleLocations ? (
+              <div className="space-y-2">
+                {locations.map(loc => {
+                  const cityOnly = typeof loc.address === 'object' && loc.address ? loc.address.city : '';
+                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(loc.address);
+                  return (
+                    <button
+                      key={loc._id}
+                      type="button"
+                      onClick={() => setLocationId(loc._id)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
+                        locationId === loc._id
+                          ? 'border-marca bg-marca-tenue text-marca font-medium'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      <span className="font-medium">{loc.name}</span>
+                      {display && <span className="text-gray-400 ml-2">— {display}</span>}
+                      {(() => {
+                        // Solo lo que cambia aquí: repetir el precio de la
+                        // experiencia en cada sede alargaría la lista sin
+                        // decir nada.
+                        const f = (experience.locationListings ?? []).find(x => x.locationId === loc._id);
+                        const propio = [
+                          f?.kind === 'PRIVADA' ? 'solo para grupo completo' : '',
+                          f?.basePrice != null ? `${formatPrice(f.basePrice, experience.currency ?? 'COP')} por persona` : '',
+                        ].filter(Boolean);
+                        return propio.length ? (
+                          <span className="block text-xs text-gray-500 mt-0.5">{propio.join(' · ')}</span>
+                        ) : null;
+                      })()}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : singleLocation ? (
+              <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-600 border border-gray-200">
+                <span className="font-medium">{singleLocation.name}</span>
+                {(() => {
+                  const cityOnly = typeof singleLocation.address === 'object' && singleLocation.address ? singleLocation.address.city : '';
+                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(singleLocation.address);
+                  return display ? <span className="text-gray-400 ml-1">— {display}</span> : null;
+                })()}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                Esta experiencia aún no tiene sedes configuradas. Podrás coordinar el lugar con el anfitrión.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Fecha */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2.5">Fecha</label>
@@ -151,6 +420,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
               setDate(d);
             }}
             minDate={new Date()}
+            maxDate={ultimoDiaConHorario}
             placeholder="Selecciona una fecha"
           />
         </div>
@@ -178,29 +448,59 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => setParticipants(p => Math.max(experience.minCapacity ?? 1, p - 1))}
-                disabled={participants <= (experience.minCapacity ?? 1)}
-                className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-[#F26726] hover:text-[#F26726] disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
+                onClick={() => setParticipants(Math.max(condiciones.minCapacity, participants - 1))}
+                disabled={participants <= condiciones.minCapacity}
+                className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-marca hover:text-marca disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
               >
                 −
               </button>
               <span className="min-w-8 text-center text-lg font-bold text-gray-900">{participants}</span>
               <button
                 type="button"
-                onClick={() => setParticipants(p => Math.min(experience.capacity, p + 1))}
-                disabled={participants >= experience.capacity}
-                className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-[#F26726] hover:text-[#F26726] disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
+                onClick={() => setParticipants(tope ? Math.min(tope, participants + 1) : participants + 1)}
+                disabled={!!tope && participants >= tope}
+                className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:border-marca hover:text-marca disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg font-bold"
               >
                 +
               </button>
             </div>
             <span className="text-xs text-gray-400 text-right">
-              {experience.minCapacity ? `Mín. ${experience.minCapacity}` : ''}
-              {experience.minCapacity ? <br /> : ''}
-              Máx. {experience.capacity}
+              {condiciones.minCapacity > 1 ? `Mín. ${condiciones.minCapacity}` : ''}
+              {condiciones.minCapacity > 1 ? <br /> : ''}
+              {tope ? `Máx. ${tope}` : ''}
             </span>
           </div>
         </div>
+
+        {/* Idioma. Solo si el anfitrión declaró en cuáles la da: sin eso no
+            hay nada que ofrecer, y un desplegable vacío sobra. Con uno solo
+            tampoco se pregunta —se dice— porque no hay elección que hacer. */}
+        {idiomas.length === 1 && (
+          <p className="text-sm text-gray-500">
+            Esta experiencia se da en <span className="font-semibold text-gray-700">{nombreDeIdioma(idiomas[0])}</span>.
+          </p>
+        )}
+        {idiomas.length > 1 && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2.5" htmlFor="idioma">
+              Idioma
+            </label>
+            <select
+              id="idioma"
+              value={idioma}
+              onChange={(e) => setIdioma(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-marca focus:ring-1 focus:ring-marca outline-none"
+            >
+              <option value="">Cualquiera de los que ofrece</option>
+              {idiomas.map((c) => (
+                <option key={c} value={c}>{nombreDeIdioma(c)}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1.5">
+              El anfitrión la da en {listaDeIdiomas(idiomas)}.
+            </p>
+          </div>
+        )}
 
         {/* Adiciones */}
         {availableAddons.length > 0 && (
@@ -209,33 +509,33 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
               Adiciones <span className="text-xs font-normal text-gray-400">(opcional)</span>
             </label>
             <div className="space-y-2">
-              {availableAddons.map(addon => {
-                const checked = selectedAddonKeys.has(addon._key);
+              {availableAddons.map((addon, i) => {
+                const checked = addonsElegidos.has(i);
                 const unitLabel = addon.priceType === 'per_person' ? '/persona' : '';
                 const lineTotal = addon.priceType === 'per_person'
                   ? addon.price * participants
                   : addon.price;
                 return (
                   <button
-                    key={addon._key}
+                    key={`${addon.name}-${i}`}
                     type="button"
                     onClick={() => {
-                      setSelectedAddonKeys(prev => {
+                      setAddonsElegidos(prev => {
                         const next = new Set(prev);
-                        if (next.has(addon._key)) next.delete(addon._key);
-                        else next.add(addon._key);
+                        if (next.has(i)) next.delete(i);
+                        else next.add(i);
                         return next;
                       });
                     }}
                     className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
                       checked
-                        ? 'border-[#F26726] bg-orange-50'
+                        ? 'border-marca bg-marca-tenue'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <span className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                        checked ? 'border-[#F26726] bg-[#F26726]' : 'border-gray-300 bg-white'
+                        checked ? 'border-marca bg-marca' : 'border-gray-300 bg-white'
                       }`}>
                         {checked && (
                           <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -255,7 +555,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
                           <p className="text-xs text-gray-500 mt-0.5">{addon.description}</p>
                         )}
                         {checked && addon.priceType === 'per_person' && participants > 1 && (
-                          <p className="text-xs text-[#F26726] font-medium mt-1">
+                          <p className="text-xs text-marca font-medium mt-1">
                             {participants} × {formatPrice(addon.price, experience.currency)} = {formatPrice(lineTotal, experience.currency)}
                           </p>
                         )}
@@ -268,48 +568,6 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
           </div>
         )}
 
-        {/* Sede */}
-        {isPresential && (
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2.5">Sede</label>
-            {hasMultipleLocations ? (
-              <div className="space-y-2">
-                {locations.map(loc => {
-                  const cityOnly = typeof loc.address === 'object' && loc.address ? loc.address.city : '';
-                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(loc.address);
-                  return (
-                    <button
-                      key={loc._id}
-                      type="button"
-                      onClick={() => setLocationId(loc._id)}
-                      className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
-                        locationId === loc._id
-                          ? 'border-[#F26726] bg-orange-50 text-[#F26726] font-medium'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                      }`}
-                    >
-                      <span className="font-medium">{loc.name}</span>
-                      {display && <span className="text-gray-400 ml-2">— {display}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : singleLocation ? (
-              <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-600 border border-gray-200">
-                <span className="font-medium">{singleLocation.name}</span>
-                {(() => {
-                  const cityOnly = typeof singleLocation.address === 'object' && singleLocation.address ? singleLocation.address.city : '';
-                  const display = experience.hideAddress ? (cityOnly || '') : formatAddress(singleLocation.address);
-                  return display ? <span className="text-gray-400 ml-1">— {display}</span> : null;
-                })()}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
-                Esta experiencia aún no tiene sedes configuradas. Podrás coordinar el lugar con el anfitrión.
-              </p>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="mt-7 pt-6 border-t border-gray-100 space-y-4">
@@ -348,7 +606,7 @@ export default function DateTimeStep({ experience, onNext, onBack }: Props) {
           disabled={!canContinue}
           className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-semibold text-base transition-all ${
             canContinue
-              ? 'bg-[#F26726] hover:bg-[#d9571f] text-white shadow-sm'
+              ? 'bg-marca hover:bg-marca-fuerte text-marca-contraste shadow-sm'
               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
           }`}
         >

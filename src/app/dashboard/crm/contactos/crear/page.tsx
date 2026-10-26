@@ -5,11 +5,13 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import DepartamentoCiudad from '@/components/DepartamentoCiudad';
+import TelefonoInput from '@/components/TelefonoInput';
 import { Button, Label, TextInput, Select, Textarea, Card } from 'flowbite-react';
 import { HiArrowLeft, HiSave } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
 import { createContact } from '@/lib/sanity/contactService';
-import { CreateContactData, ContactType, ContactStatus, ContactSource } from '@/types';
+import { CreateContactData, ContactSource } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
 import { getCRMCompaniesByHost } from '@/lib/sanity/crmCompanyService';
@@ -84,6 +86,11 @@ export default function CrearContactoPage() {
   const router = useRouter();
   const { showSuccess, showError } = useSweetAlert();
   const [isLoading, setIsLoading] = useState(false);
+  // Departamento y ciudad, controlados: el selector compartido los necesita
+  // asi. El envio los sigue leyendo del DOM por sus ids.
+  const [depto, setDepto] = useState('');
+  const [ciudad, setCiudad] = useState('');
+  const [pais] = useState('CO');
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -93,6 +100,8 @@ export default function CrearContactoPage() {
     register,
     handleSubmit,
     formState: { errors },
+    watch,
+    setValue,
   } = useForm<ContactFormData>({
     defaultValues: {
       firstName: '',
@@ -199,7 +208,7 @@ export default function CrearContactoPage() {
 
   if (!sanityUser?.companyId) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <div className="text-center py-12">
             <p className="text-gray-500 dark:text-gray-400">
@@ -317,22 +326,21 @@ export default function CrearContactoPage() {
               </div>
 
               <div>
-                <Label htmlFor="phone">Teléfono</Label>
-                <TextInput
+                {/* El id se conserva por si algo lo lee del DOM. */}
+                <TelefonoInput
+                  label="Teléfono"
                   id="phone"
-                  {...register('phone')}
-                  placeholder="+57 1 234 5678"
-                  className="mt-1"
+                  value={watch('phone') || ''}
+                  onChange={(v) => setValue('phone', v, { shouldDirty: true })}
                 />
               </div>
 
               <div>
-                <Label htmlFor="mobile">Celular</Label>
-                <TextInput
+                <TelefonoInput
+                  label="Celular"
                   id="mobile"
-                  {...register('mobile')}
-                  placeholder="+57 300 123 4567"
-                  className="mt-1"
+                  value={watch('mobile') || ''}
+                  onChange={(v) => setValue('mobile', v, { shouldDirty: true })}
                 />
               </div>
 
@@ -369,24 +377,25 @@ export default function CrearContactoPage() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="address-city">Ciudad</Label>
-                <TextInput
-                  id="address-city"
-                  placeholder="Ciudad"
-                  className="mt-1"
-                />
-              </div>
+              {/* Los ids se conservan: el envio lee su valor del DOM. */}
 
-              <div>
-                <Label htmlFor="address-state">Departamento/Estado</Label>
-                <TextInput
-                  id="address-state"
-                  placeholder="Departamento o estado"
-                  className="mt-1"
-                />
-              </div>
+              <div className="sm:col-span-2">
 
+                <DepartamentoCiudad
+
+                  departamento={depto}
+
+                  ciudad={ciudad}
+
+                  onDepartamentoChange={setDepto}
+
+                  onCiudadChange={setCiudad}
+
+                  pais={pais}
+
+                />
+
+              </div>
               <div>
                 <Label htmlFor="address-postalCode">Código Postal</Label>
                 <TextInput

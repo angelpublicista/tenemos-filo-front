@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import {
   AvailabilitySchedule,
   DaySchedule,
-  TimeSlot,
-  BlockedDate,
+  Franja,
   DayOfWeek,
   Location,
   Experience,
@@ -14,8 +14,11 @@ import {
 import {
   getAvailabilitySchedulesByLocation,
   getAvailabilitySchedulesByExperience,
+  getHorariosDeLaPublicacion,
+  getAgendaDelAnfitrion,
   createAvailabilitySchedule,
   updateAvailabilitySchedule,
+  vigenciaPorDefecto,
   deleteAvailabilitySchedule,
   setPrimarySchedule,
   generateDefaultSchedule
@@ -23,6 +26,7 @@ import {
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
   AiOutlinePlus,
+  AiOutlineCopy,
   AiOutlineEdit,
   AiOutlineDelete,
   AiOutlineStar,
@@ -31,10 +35,27 @@ import {
 } from 'react-icons/ai';
 import { BiCalendar, BiTime } from 'react-icons/bi';
 import Loader from '@/components/Loader';
+import CalendarioDelHorario from '@/components/Disponibilidad/CalendarioDelHorario';
+import { mensajeDeError } from '@/lib/api/client';
 
 type AvailabilityManagerProps =
   | { mode: 'location'; location: Location; companyId: string }
-  | { mode: 'experience'; experience: Experience; companyId: string };
+  | { mode: 'experience'; experience: Experience; companyId: string }
+  // El horario de una experiencia EN una sede: la misma pieza puede abrir los
+  // sábados en el local del centro y los viernes en la finca, así que su
+  // horario no es uno, es uno por escenario.
+  | {
+      mode: 'publicacion';
+      experienceId: string;
+      experienceTitle: string;
+      /** Nulo en una publicación a domicilio: no hay sede que atar. */
+      locationId: string | null;
+      locationName: string;
+      companyId: string;
+    }
+  // TR-21. La agenda propia del anfitrión: ni sede ni experiencia. Es la de
+  // quien va a casa del cliente y no tiene dónde colgar su calendario.
+  | { mode: 'company'; companyId: string };
 
 const dayNames: Record<DayOfWeek, string> = {
   monday: 'Lunes',
@@ -55,8 +76,28 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
   const [editingSchedule, setEditingSchedule] = useState<AvailabilitySchedule | null>(null);
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
 
-  const contextId = props.mode === 'location' ? props.location._id : props.experience._id;
-  const contextLabel = props.mode === 'location' ? props.location.name : props.experience.title;
+  const contextId =
+    props.mode === 'location'
+      ? props.location._id
+      : props.mode === 'experience'
+        ? props.experience._id
+        : props.mode === 'publicacion'
+          ? props.experienceId
+          : props.companyId;
+  const contextLabel =
+    props.mode === 'location'
+      ? props.location.name
+      : props.mode === 'experience'
+        ? props.experience.title
+        : props.mode === 'publicacion'
+          ? props.locationId
+            ? `${props.experienceTitle} en ${props.locationName}`
+            : props.experienceTitle
+          : 'tu agenda';
+  // La sede con la que se ata el horario, cuando el contexto es una
+  // publicación. En los demás modos no hay pareja que atar.
+  const sedeDeLaPublicacion =
+    props.mode === 'publicacion' ? props.locationId ?? undefined : undefined;
 
   useEffect(() => {
     loadSchedules();
@@ -65,9 +106,16 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
   const loadSchedules = async () => {
     try {
       setLoading(true);
-      const data = props.mode === 'location'
-        ? await getAvailabilitySchedulesByLocation(props.location._id)
-        : await getAvailabilitySchedulesByExperience(props.experience._id);
+      const data =
+        props.mode === 'location'
+          ? await getAvailabilitySchedulesByLocation(props.location._id)
+          : props.mode === 'experience'
+            ? await getAvailabilitySchedulesByExperience(props.experience._id)
+            : props.mode === 'publicacion'
+              ? props.locationId
+                ? await getHorariosDeLaPublicacion(props.experienceId, props.locationId)
+                : await getAvailabilitySchedulesByExperience(props.experienceId)
+              : await getAgendaDelAnfitrion();
       setSchedules(data);
     } catch (error) {
       showError('Error al cargar los calendarios de disponibilidad');
@@ -111,9 +159,18 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
   };
 
   const handleSetPrimary = async (scheduleId: string) => {
+    // En la agenda propia no hay "principal": no se elige entre contextos,
+    // porque el contexto es el anfitrión y no hay más de uno.
+    if (props.mode === 'company') return;
     try {
       showLoading('Estableciendo como principal...');
-      await setPrimarySchedule(scheduleId, contextId, props.mode);
+      // En una publicación el contexto que manda es la experiencia: el
+      // `contextId` ya es el suyo, y «principal» se decide entre sus horarios.
+      await setPrimarySchedule(
+        scheduleId,
+        contextId,
+        props.mode === 'publicacion' ? 'experience' : props.mode,
+      );
       hideLoading();
       await loadSchedules();
       showSuccess('Calendario establecido como principal');
@@ -121,6 +178,26 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
       hideLoading();
       showError('Error al establecer el calendario como principal');
       console.error(error);
+    }
+  };
+
+  /**
+   * Guarda las fechas sueltas de un horario.
+   *
+   * Se manda solo eso: el patron semanal no se toca desde el calendario, y
+   * mandarlo entero arriesgaria pisar lo que otra pestaña acabe de cambiar.
+   */
+  const handleGuardarFechas = async (
+    schedule: AvailabilitySchedule,
+    dateOverrides: Record<string, DaySchedule>,
+  ) => {
+    try {
+      await updateAvailabilitySchedule({ _id: schedule._id, dateOverrides });
+      await loadSchedules();
+      showSuccess('Fechas actualizadas');
+    } catch (error) {
+      showError(mensajeDeError(error));
+      throw error;
     }
   };
 
@@ -197,7 +274,11 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
               onEdit={() => handleEditSchedule(schedule)}
               onDelete={() => handleDeleteSchedule(schedule._id)}
               onSetPrimary={() => handleSetPrimary(schedule._id)}
+              // En la agenda propia no hay "principal": el contexto es el
+              // anfitrión y no hay más de uno entre los que elegir.
+              puedeSerPrincipal={props.mode !== 'company'}
               onToggleActive={() => handleToggleActive(schedule)}
+              onGuardarFechas={(fechas) => handleGuardarFechas(schedule, fechas)}
             />
           ))}
         </div>
@@ -209,6 +290,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
           schedule={editingSchedule}
           contextId={contextId}
           contextType={props.mode}
+          locationId={sedeDeLaPublicacion}
           companyId={props.companyId}
           onClose={() => {
             setShowCreateModal(false);
@@ -230,7 +312,10 @@ interface ScheduleCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onSetPrimary: () => void;
+  puedeSerPrincipal?: boolean;
   onToggleActive: () => void;
+  /** Guarda las fechas sueltas que se tocan en el calendario. */
+  onGuardarFechas: (dateOverrides: Record<string, DaySchedule>) => Promise<void>;
 }
 
 const ScheduleCard: React.FC<ScheduleCardProps> = ({
@@ -238,8 +323,11 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   onEdit,
   onDelete,
   onSetPrimary,
+  puedeSerPrincipal = true,
   onToggleActive,
+  onGuardarFechas,
 }) => {
+  const [vista, setVista] = useState<'semana' | 'calendario'>('semana');
   const activeDays = Object.values(schedule.weeklySchedule).filter(day => day.isActive);
 
   return (
@@ -266,11 +354,23 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
               </span>
             </div>
             <p className="text-sm text-gray-600">
-              {activeDays.length} días activos • {schedule.blockedDates?.length || 0} fechas bloqueadas
+              {activeDays.length} días activos
+              {(() => {
+                // Las fechas sueltas que se salen del patrón: las que se
+                // cerraron y las que se abrieron a mano.
+                const sueltas = Object.values(schedule.dateOverrides ?? {});
+                if (sueltas.length === 0) return null;
+                const cerradas = sueltas.filter((d) => !d.isActive).length;
+                const abiertas = sueltas.length - cerradas;
+                return ` • ${[
+                  cerradas ? `${cerradas} ${cerradas === 1 ? 'fecha cerrada' : 'fechas cerradas'}` : '',
+                  abiertas ? `${abiertas} ${abiertas === 1 ? 'fecha abierta aparte' : 'fechas abiertas aparte'}` : '',
+                ].filter(Boolean).join(' • ')}`;
+              })()}
             </p>
           </div>
           <div className="flex gap-2">
-            {!schedule.isMain && schedule.isActive && (
+            {puedeSerPrincipal && !schedule.isMain && schedule.isActive && (
               <button
                 onClick={onSetPrimary}
                 className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
@@ -307,7 +407,37 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           </div>
         </div>
 
-        {/* Week Schedule Preview */}
+        {/* Dos vistas del mismo horario: la semana dice la regla —lo que pasa
+            todos los jueves— y el calendario la excepcion —que el 24 no se
+            abre—. La semana sola es ciega a los dias que se salen. */}
+        <div className="flex gap-1 mb-3 border-b border-gray-200">
+          <button
+            type="button"
+            onClick={() => setVista('semana')}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              vista === 'semana'
+                ? 'border-[#F26726] text-[#F26726]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Semana
+          </button>
+          <button
+            type="button"
+            onClick={() => setVista('calendario')}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              vista === 'calendario'
+                ? 'border-[#F26726] text-[#F26726]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Calendario
+          </button>
+        </div>
+
+        {vista === 'calendario' ? (
+          <CalendarioDelHorario schedule={schedule} onGuardar={onGuardarFechas} />
+        ) : (
         <div className="space-y-2">
           <h5 className="text-sm font-medium text-gray-700 flex items-center">
             <BiTime className="mr-2" />
@@ -331,11 +461,11 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                   <span className="sm:hidden">{dayNames[dayKey].substring(0, 1)}</span>
                   <span className="hidden sm:inline">{dayNames[dayKey].substring(0, 3)}</span>
                 </div>
-                {day.isActive && day.timeSlots.length > 0 && (
+                {day.isActive && day.franjas.length > 0 && (
                   <div className="text-[10px] sm:text-xs text-gray-600 mt-0.5 sm:mt-1">
-                    <span className="sm:hidden">{day.timeSlots.length}</span>
+                    <span className="sm:hidden">{day.franjas.length}</span>
                     <span className="hidden sm:inline">
-                      {day.timeSlots.length} slot{day.timeSlots.length > 1 ? 's' : ''}
+                      {day.franjas.length} franja{day.franjas.length > 1 ? 's' : ''}
                     </span>
                   </div>
                 )}
@@ -344,6 +474,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
             })}
           </div>
         </div>
+        )}
 
         {(schedule.description || schedule.notes) && (
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
@@ -363,7 +494,12 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
 interface ScheduleModalProps {
   schedule: AvailabilitySchedule | null;
   contextId: string;
-  contextType: 'location' | 'experience';
+  contextType: 'location' | 'experience' | 'company' | 'publicacion';
+  /**
+   * La sede con la que se ata el horario cuando el contexto es una
+   * publicación: el horario es de la experiencia EN ese escenario.
+   */
+  locationId?: string;
   companyId: string;
   onClose: () => void;
   onSave: () => void;
@@ -373,6 +509,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   schedule,
   contextId,
   contextType,
+  locationId,
   onClose,
   onSave,
 }) => {
@@ -381,18 +518,68 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(
     schedule?.weeklySchedule || generateDefaultSchedule()
   );
-  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>(
-    schedule?.blockedDates || []
-  );
+  // Las fechas sueltas se tocan desde el calendario, no desde este formulario:
+  // aqui se arrastran tal cual para no perderlas al guardar el patrón.
+  const [dateOverrides] = useState(schedule?.dateOverrides);
   const [notes, setNotes] = useState(schedule?.notes || '');
-  const [bufferTime, setBufferTime] = useState(schedule?.bufferTime || 0);
-  const [minimumNotice, setMinimumNotice] = useState(schedule?.minimumNotice || 24);
+  // Los dos numericos se guardan como TEXTO mientras se escriben.
+  //
+  // Antes eran numeros y el onChange hacia `parseInt(valor) || 0`: al borrar
+  // el campo para escribir otra cifra, el valor volvia solo a 0 —o a 24— y el
+  // cursor quedaba detras, asi que teclear "45" daba "045" y teclear "4"
+  // dejaba "04". En la practica el campo no se dejaba cambiar. El numero se
+  // resuelve al guardar, que es cuando hace falta que sea un numero.
+  //
+  // La preparación y el aviso mínimo ya no están aquí: son de la experiencia.
+  // Un mismo horario sirve a experiencias que necesitan preparaciones y
+  // anticipaciones muy distintas, y tenerlos aquí obligaba a elegir una.
+  // TR-35. Desde y hasta cuándo se repite. Un horario nuevo arranca hoy y
+  // dura un año: suficiente para no chocar con el corte mientras se monta el
+  // catálogo, y poco para que no quede una agenda abierta por décadas.
+  // Inicializadores perezosos: la vigencia por defecto lee la fecha de hoy, y
+  // calcularla en cada render es trabajo que no cambia nada.
+  const [validFrom, setValidFrom] = useState(
+    () => schedule?.validFrom ?? vigenciaPorDefecto().validFrom,
+  );
+  const [validUntil, setValidUntil] = useState(() =>
+    schedule ? schedule.validUntil ?? '' : vigenciaPorDefecto().validUntil,
+  );
   const [saving, setSaving] = useState(false);
   const { showSuccess, showError } = useSweetAlert();
+
+  /**
+   * El numero que el usuario dejo escrito, o el de por defecto.
+   *
+   * Un campo vacio no es un error: significa "lo normal". Fallar ahi obligaria
+   * a escribir un cero para decir que no hay buffer.
+   */
 
   const handleSave = async () => {
     if (!name.trim()) {
       showError('Por favor ingresa un nombre para el calendario');
+      return;
+    }
+
+    if (!validFrom) {
+      showError('Indica desde cuándo se aplica este horario');
+      return;
+    }
+
+    // Los cupos son de la franja: sin ellos no se sabe cuánta gente cabe a esa
+    // hora, y el día se vendería sin límite.
+    const sinCupos = Object.entries(weeklySchedule).find(
+      ([, d]) => d.isActive && (d.franjas ?? []).some((f: Franja) => !f.cupos || f.cupos < 1),
+    );
+    if (sinCupos) {
+      showError(`Ponle cupos a todas las franjas: falta en ${dayNames[sinCupos[0] as DayOfWeek]}`);
+      return;
+    }
+    if (!schedule && !validUntil) {
+      showError('Indica hasta cuándo se repite este horario');
+      return;
+    }
+    if (validUntil && validUntil < validFrom) {
+      showError('La fecha final no puede ser anterior a la de inicio');
       return;
     }
 
@@ -405,22 +592,35 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           name,
           description,
           weeklySchedule,
-          blockedDates,
+          dateOverrides,
           notes,
-          bufferTime,
-          minimumNotice,
+          validFrom,
+          // Vacío vuelve a «sin fecha final», que es lo que hacían los
+          // horarios creados antes de esta regla.
+          validUntil: validUntil || null,
         });
         showSuccess('Calendario actualizado exitosamente');
       } else {
         await createAvailabilitySchedule({
           name,
-          ...(contextType === 'location' ? { location: contextId } : { experience: contextId }),
+          // TR-21. Sin sede y sin experiencia, el horario ES la agenda del
+          // anfitrión: el API le pone de dueño a su empresa y vale para todo
+          // lo que no tenga el suyo.
+          // Una publicación ata las DOS cosas: el horario es de esa
+          // experiencia en esa sede, y no vale para las demás.
+          ...(contextType === 'location'
+            ? { location: contextId }
+            : contextType === 'experience'
+              ? { experience: contextId }
+              : contextType === 'publicacion'
+                ? { experience: contextId, ...(locationId ? { location: locationId } : {}) }
+                : {}),
           description,
           weeklySchedule,
-          blockedDates,
+          dateOverrides,
           notes,
-          bufferTime,
-          minimumNotice,
+          validFrom,
+          validUntil,
         });
         showSuccess('Calendario creado exitosamente');
       }
@@ -444,50 +644,117 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
     }));
   };
 
-  const handleAddTimeSlot = (day: DayOfWeek) => {
+  const agregarFranja = (day: DayOfWeek) => {
     setWeeklySchedule(prev => {
       const daySchedule = prev[day];
-      const lastSlot = daySchedule.timeSlots[daySchedule.timeSlots.length - 1];
-      const newSlot: TimeSlot = {
-        startTime: lastSlot ? lastSlot.endTime : '09:00',
-        endTime: lastSlot ? '18:00' : '13:00',
+      const ultima = daySchedule.franjas[daySchedule.franjas.length - 1];
+      const nueva: Franja = {
+        startTime: ultima ? ultima.endTime : '09:00',
+        endTime: ultima ? '18:00' : '13:00',
+        // Los cupos se heredan de la franja anterior: quien pone 20 en el
+        // almuerzo casi siempre pone 20 en la cena, y es un número menos que
+        // teclear.
+        cupos: ultima?.cupos ?? 10,
       };
 
       return {
         ...prev,
-        [day]: {
-          ...daySchedule,
-          timeSlots: [...daySchedule.timeSlots, newSlot],
-        },
+        [day]: { ...daySchedule, franjas: [...daySchedule.franjas, nueva] },
       };
     });
   };
 
-  const handleRemoveTimeSlot = (day: DayOfWeek, slotIndex: number) => {
+  const quitarFranja = (day: DayOfWeek, i: number) => {
     setWeeklySchedule(prev => ({
       ...prev,
       [day]: {
         ...prev[day],
-        timeSlots: prev[day].timeSlots.filter((_, index) => index !== slotIndex),
+        franjas: prev[day].franjas.filter((_, index) => index !== i),
       },
     }));
   };
 
-  const handleTimeSlotChange = (
+  const cambiarFranja = (
     day: DayOfWeek,
-    slotIndex: number,
-    field: 'startTime' | 'endTime',
-    value: string
+    i: number,
+    campo: 'startTime' | 'endTime' | 'cupos',
+    valor: string,
   ) => {
     setWeeklySchedule(prev => ({
       ...prev,
       [day]: {
         ...prev[day],
-        timeSlots: prev[day].timeSlots.map((slot, index) =>
-          index === slotIndex ? { ...slot, [field]: value } : slot
+        franjas: prev[day].franjas.map((f, index) =>
+          index === i
+            ? {
+                ...f,
+                // Vacío significa "sin cupos propios": manda el aforo de la
+                // experiencia. Guardar 0 sería decir que no cabe nadie.
+                [campo]: campo === 'cupos' ? (valor === '' ? null : Number(valor)) : valor,
+              }
+            : f,
         ),
       },
     }));
+  };
+
+  /**
+   * Copia las franjas de un día a otros.
+   *
+   * Un horario de restaurante es el mismo de martes a domingo: teclear siete
+   * veces lo mismo es la forma de que nadie lo configure. Se copian las
+   * franjas con sus cupos, y los días que reciben quedan activos.
+   */
+  const replicarDia = async (origen: DayOfWeek) => {
+    const franjas = weeklySchedule[origen].franjas;
+    if (franjas.length === 0) {
+      showError('Ese día no tiene franjas', 'Agrega al menos una antes de replicarla.');
+      return;
+    }
+
+    const otros = daysOrder.filter((d) => d !== origen);
+    const { value, isConfirmed } = await Swal.fire({
+      title: `Replicar ${dayNames[origen]}`,
+      html: `
+        <p style="font-size:13px;color:#6b7280;margin:0 0 10px;text-align:left">
+          Se copian sus ${franjas.length === 1 ? 'franja' : `${franjas.length} franjas`} con
+          sus cupos. Lo que esos días tengan ahora se reemplaza.
+        </p>
+        <div style="text-align:left;font-size:14px">
+          ${otros
+            .map(
+              (d) => `
+            <label style="display:flex;align-items:center;gap:8px;margin:6px 0">
+              <input type="checkbox" id="dia-${d}" checked style="width:16px;height:16px">
+              ${dayNames[d]}
+            </label>`,
+            )
+            .join('')}
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: 'Replicar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#F26726',
+      preConfirm: () =>
+        otros.filter(
+          (d) => (document.getElementById(`dia-${d}`) as HTMLInputElement | null)?.checked,
+        ),
+    });
+    if (!isConfirmed || !Array.isArray(value) || value.length === 0) return;
+
+    setWeeklySchedule(prev => {
+      const siguiente = { ...prev };
+      for (const d of value as DayOfWeek[]) {
+        siguiente[d] = {
+          isActive: true,
+          // Copia, no referencia: si se comparte el array, editar un día
+          // edita todos y nadie entiende por qué.
+          franjas: franjas.map((f) => ({ ...f })),
+        };
+      }
+      return siguiente;
+    });
+    showSuccess('Franjas replicadas', `Se copiaron a ${value.length} día(s).`);
   };
 
   return (
@@ -533,7 +800,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
           {/* Week Schedule */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Horario Semanal
+              Franjas horarias de la semana
             </h3>
             <div className="space-y-4">
               {daysOrder.map((dayKey) => {
@@ -553,43 +820,81 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                       </span>
                     </div>
                     {day.isActive && (
-                      <button
-                        onClick={() => handleAddTimeSlot(dayKey as DayOfWeek)}
-                        className="text-sm text-[#F26726] hover:text-[#d9571f] flex items-center"
-                      >
-                        <AiOutlinePlus className="mr-1" />
-                        Agregar Horario
-                      </button>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* Replicar: un horario de restaurante es el mismo de
+                            martes a domingo, y teclear siete veces lo mismo es
+                            la forma de que nadie lo configure. */}
+                        {day.franjas.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => void replicarDia(dayKey as DayOfWeek)}
+                            className="flex items-center text-sm text-gray-600 hover:text-[#F26726]"
+                          >
+                            <AiOutlineCopy className="mr-1" />
+                            Replicar a otros días
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => agregarFranja(dayKey as DayOfWeek)}
+                          className="text-sm text-[#F26726] hover:text-[#d9571f] flex items-center"
+                        >
+                          <AiOutlinePlus className="mr-1" />
+                          Agregar franja horaria
+                        </button>
+                      </div>
                     )}
                   </div>
 
                   {day.isActive && (
                     <div className="space-y-2 ml-0 sm:ml-8">
-                      {day.timeSlots.map((slot: TimeSlot, slotIndex: number) => (
-                        <div key={slotIndex} className="flex flex-wrap items-center gap-2">
+                      {day.franjas.map((franja: Franja, i: number) => (
+                        <div key={i} className="flex flex-wrap items-center gap-2">
                           <input
                             type="time"
-                            value={slot.startTime}
-                            onChange={(e) => handleTimeSlotChange(dayKey as DayOfWeek, slotIndex, 'startTime', e.target.value)}
-                            className="flex-1 min-w-[120px] px-3 py-2 border border-gray-300 rounded-lg"
+                            aria-label="Desde"
+                            value={franja.startTime}
+                            onChange={(e) => cambiarFranja(dayKey as DayOfWeek, i, 'startTime', e.target.value)}
+                            className="flex-1 min-w-[110px] px-3 py-2 border border-gray-300 rounded-lg"
                           />
                           <span className="text-gray-500">-</span>
                           <input
                             type="time"
-                            value={slot.endTime}
-                            onChange={(e) => handleTimeSlotChange(dayKey as DayOfWeek, slotIndex, 'endTime', e.target.value)}
-                            className="flex-1 min-w-[120px] px-3 py-2 border border-gray-300 rounded-lg"
+                            aria-label="Hasta"
+                            value={franja.endTime}
+                            onChange={(e) => cambiarFranja(dayKey as DayOfWeek, i, 'endTime', e.target.value)}
+                            className="flex-1 min-w-[110px] px-3 py-2 border border-gray-300 rounded-lg"
                           />
-                          {day.timeSlots.length > 1 && (
+                          {/* Los cupos de ESTA franja: el almuerzo y la cena de
+                              un sábado se llenan por separado. Son obligatorios:
+                              sin ellos no se sabe cuánta gente cabe. */}
+                          <input
+                            type="number"
+                            min="1"
+                            aria-label="Cupos de esta franja"
+                            value={franja.cupos ?? ''}
+                            onChange={(e) => cambiarFranja(dayKey as DayOfWeek, i, 'cupos', e.target.value)}
+                            placeholder="Cupos *"
+                            className={`w-[92px] px-3 py-2 border rounded-lg ${
+                              franja.cupos ? 'border-gray-300' : 'border-red-400 bg-red-50'
+                            }`}
+                          />
+                          {day.franjas.length > 1 && (
                             <button
-                              onClick={() => handleRemoveTimeSlot(dayKey as DayOfWeek, slotIndex)}
+                              type="button"
+                              onClick={() => quitarFranja(dayKey as DayOfWeek, i)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg shrink-0"
+                              aria-label="Quitar esta franja"
                             >
                               <AiOutlineDelete />
                             </button>
                           )}
                         </div>
                       ))}
+                      <p className="text-xs text-gray-500">
+                        Los cupos son de cada franja: cuánta gente cabe a esa hora. El almuerzo y
+                        la cena de un sábado se llenan por separado.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -598,38 +903,49 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
             </div>
           </div>
 
-          {/* Additional Settings */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* La preparación y el aviso mínimo se piden en la experiencia, no
+              aquí: un mismo horario sirve a una cata que se monta en diez
+              minutos y a un taller que necesita una hora, y guardarlos aquí
+              obligaba a elegir una de las dos. */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <p className="text-xs text-gray-600">
+              La preparación y la anticipación mínima se configuran en cada
+              experiencia, porque dependen de lo que se vende y no del día.
+            </p>
+          </div>
+
+          {/* TR-35. Hasta cuándo se repite. Sin fecha final, el calendario
+              ofrece sábados de dentro de cinco años que nadie decidió abrir. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tiempo de buffer (minutos)
+                Se aplica desde
               </label>
               <input
-                type="number"
-                value={bufferTime}
-                onChange={(e) => setBufferTime(parseInt(e.target.value) || 0)}
+                type="date"
+                value={validFrom}
+                onChange={(e) => setValidFrom(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                placeholder="0"
-                min="0"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Tiempo entre reservas consecutivas
+                Antes de esta fecha no se ofrecen horarios
               </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Aviso mínimo (horas)
+                Hasta
               </label>
               <input
-                type="number"
-                value={minimumNotice}
-                onChange={(e) => setMinimumNotice(parseInt(e.target.value) || 24)}
+                type="date"
+                value={validUntil}
+                min={validFrom}
+                onChange={(e) => setValidUntil(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
-                placeholder="24"
-                min="1"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Anticipación mínima para reservas
+                {schedule && !validUntil
+                  ? 'Ahora no tiene fecha final: se repite indefinidamente. Ponle una.'
+                  : 'Después de esta fecha deja de ofrecer franjas. Puedes extenderla cuando quieras.'}
               </p>
             </div>
           </div>

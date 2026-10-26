@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import ImportarContactos from '@/components/CRM/ImportarContactos';
 import { Button, Label, TextInput, Select, Badge, Card, Dropdown, DropdownItem } from 'flowbite-react';
 import { 
   HiArrowLeft, 
@@ -30,14 +31,21 @@ const statusColors: Record<string, string> = {
   unqualified: 'warning',
 };
 
-const contactTypeLabels: Record<string, string> = {
-  customer: 'Cliente',
-  supplier: 'Proveedor',
-  other: 'Otro',
+/**
+ * CRM-20. La relación comercial sale del historial de ventas, no de un campo
+ * que alguien marca: así quien ya compró sigue siendo cliente aunque se acabe
+ * de perder una oportunidad suya.
+ */
+const CONDICION: Record<string, { etiqueta: string; color: string }> = {
+  PROSPECTO: { etiqueta: 'Prospecto', color: 'gray' },
+  CLIENTE: { etiqueta: 'Cliente', color: 'info' },
+  // "Recurrente" a secas: bajo la columna "Relación" se entiende igual, y
+  // "Cliente recurrente" ensanchaba una tabla que ya se sale de pantalla.
+  RECURRENTE: { etiqueta: 'Recurrente', color: 'success' },
 };
 
 export default function ContactosPage() {
-  const { user, sanityUser } = useAuth();
+  const { sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -139,7 +147,7 @@ export default function ContactosPage() {
 
   if (!sanityUser?.companyId) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <div className="text-center py-12">
             <p className="text-gray-500 dark:text-gray-400">
@@ -197,6 +205,7 @@ export default function ContactosPage() {
                   </DropdownItem>
                 </Dropdown>
               )}
+              <ImportarContactos onImportado={() => void loadContacts()} />
               <Button
                 color="primary"
                 onClick={() => router.push('/dashboard/crm/contactos/crear')}
@@ -240,18 +249,21 @@ export default function ContactosPage() {
               </Select>
             </div>
 
+            {/* Se filtra por lo que compró, no por el "Tipo" que alguien
+                escribió en la ficha: tener dos cosas llamadas "Cliente" con
+                significados distintos era pedir que se confundieran. */}
             <div>
-              <Label htmlFor="contactType">Tipo</Label>
+              <Label htmlFor="condicion">Relación</Label>
               <Select
-                id="contactType"
-                value={filters.contactType || 'all'}
-                onChange={(e) => handleFilterChange('contactType', e.target.value)}
+                id="condicion"
+                value={filters.condicion || 'all'}
+                onChange={(e) => handleFilterChange('condicion', e.target.value)}
                 className="mt-1"
               >
-                <option value="all">Todos</option>
-                <option value="customer">Cliente</option>
-                <option value="supplier">Proveedor</option>
-                <option value="other">Otro</option>
+                <option value="all">Todas</option>
+                <option value="RECURRENTE">Clientes recurrentes</option>
+                <option value="CLIENTE">Clientes</option>
+                <option value="PROSPECTO">Prospectos</option>
               </Select>
             </div>
           </div>
@@ -291,10 +303,10 @@ export default function ContactosPage() {
                       <th scope="col" className="px-6 py-3">Contacto</th>
                       <th scope="col" className="px-6 py-3">Empresa</th>
                       <th scope="col" className="px-6 py-3">Contacto</th>
-                      <th scope="col" className="px-6 py-3">Tipo</th>
+                      <th scope="col" className="px-6 py-3">Relación</th>
                       <th scope="col" className="px-6 py-3">Estado</th>
                       <th scope="col" className="px-6 py-3">Último Contacto</th>
-                      <th scope="col" className="px-6 py-3">Acciones</th>
+                      <th scope="col" className="px-6 py-3 sticky right-0 bg-gray-50 border-l border-gray-200 dark:bg-gray-700 dark:border-gray-600">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -350,10 +362,18 @@ export default function ContactosPage() {
                             )}
                           </div>
                         </td>
+                        {/* CRM-20: no es un campo de la ficha, sale de lo que
+                            compró. Por eso puede decir "Cliente recurrente"
+                            aunque acabe de perderse una oportunidad suya. */}
                         <td className="px-6 py-4">
-                          <Badge color="info">
-                            {contactTypeLabels[contact.contactType] || contact.contactType}
+                          <Badge color={CONDICION[contact.condicion ?? 'PROSPECTO'].color} className="w-fit">
+                            {CONDICION[contact.condicion ?? 'PROSPECTO'].etiqueta}
                           </Badge>
+                          {!!contact.ventas && (
+                            <div className="mt-1 whitespace-nowrap text-xs text-gray-500">
+                              {contact.ventas === 1 ? '1 compra' : `${contact.ventas} compras`}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <Badge color={statusColors[contact.status] || 'gray'}>
@@ -372,7 +392,7 @@ export default function ContactosPage() {
                             <span className="text-sm text-gray-400">Nunca</span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 sticky right-0 bg-white border-l border-gray-200 dark:bg-gray-800 dark:border-gray-700">
                           <div className="flex items-center space-x-2">
                             <Button
                               size="xs"
@@ -390,7 +410,7 @@ export default function ContactosPage() {
                             </Button>
                             <Button
                               size="xs"
-                              color="failure"
+                              color="danger"
                               onClick={() => handleDelete(contact._id, `${contact.firstName} ${contact.lastName}`)}
                               disabled={isDeleting === contact._id}
                             >

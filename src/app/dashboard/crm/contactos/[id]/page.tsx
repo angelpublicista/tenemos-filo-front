@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Badge, Card } from 'flowbite-react';
 import { 
@@ -12,11 +11,10 @@ import {
   HiPhone,
   HiLocationMarker,
   HiUser,
-  HiCalendar,
-  HiTag
+  HiCalendar
 } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
-import { getContactById, deleteContact } from '@/lib/sanity/contactService';
+import { getContactById, deleteContact, updateContact } from '@/lib/sanity/contactService';
 import { Contact } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
@@ -28,10 +26,14 @@ const statusColors: Record<string, string> = {
   unqualified: 'warning',
 };
 
-const contactTypeLabels: Record<string, string> = {
-  customer: 'Cliente',
-  supplier: 'Proveedor',
-  other: 'Otro',
+/**
+ * CRM-20. La relación comercial sale del historial de ventas, no de un campo
+ * que alguien marca.
+ */
+const CONDICION: Record<string, { etiqueta: string; color: string }> = {
+  PROSPECTO: { etiqueta: 'Prospecto', color: 'gray' },
+  CLIENTE: { etiqueta: 'Cliente', color: 'info' },
+  RECURRENTE: { etiqueta: 'Cliente recurrente', color: 'success' },
 };
 
 const sourceLabels: Record<string, string> = {
@@ -45,7 +47,6 @@ const sourceLabels: Record<string, string> = {
 };
 
 export default function ContactoDetailPage() {
-  const { sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
   const contactId = params.id as string;
@@ -59,6 +60,46 @@ export default function ContactoDetailPage() {
       loadContact();
     }
   }, [contactId]);
+
+  const [guardandoContacto, setGuardandoContacto] = useState(false);
+
+  /**
+   * Marcar o desmarcar "no contactar".
+   *
+   * Al marcarlo, el API retira sus seguimientos pendientes. Se confirma antes
+   * porque es una peticion del cliente y desmarcarla por error significaria
+   * volver a escribirle a quien pidio que no.
+   */
+  const alternarNoContactar = async () => {
+    if (!contact) return;
+    const activando = !contact.doNotContact;
+    const ok = await showConfirmation(
+      activando ? '¿Marcar como no contactar?' : '¿Volver a contactarle?',
+      '',
+      activando ? 'Sí, no contactar' : 'Sí, reactivar',
+      'Cancelar',
+      activando
+        ? ['Dejará de aparecer en los seguimientos comerciales y no se le',
+           'crearán recordatorios nuevos. Sus datos y su historial se conservan.']
+        : ['Volverá a recibir recordatorios de seguimiento en sus próximas solicitudes.'],
+    );
+    if (!ok) return;
+
+    setGuardandoContacto(true);
+    try {
+      await updateContact(contact._id, { _id: contact._id, doNotContact: activando });
+      await loadContact();
+      showSuccess(
+        activando ? 'Marcado como no contactar' : 'Seguimiento reactivado',
+        '',
+      );
+    } catch (err) {
+      console.error('Error actualizando el contacto:', err);
+      showError('No pudimos guardarlo', 'Inténtalo de nuevo.');
+    } finally {
+      setGuardandoContacto(false);
+    }
+  };
 
   const loadContact = async () => {
     setIsLoading(true);
@@ -106,7 +147,7 @@ export default function ContactoDetailPage() {
 
   if (isLoading) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <Loader message="Cargando contacto..." />
         </div>
@@ -167,6 +208,11 @@ export default function ContactoDetailPage() {
                       {contact.status === 'qualified' && 'Calificado'}
                       {contact.status === 'unqualified' && 'No Calificado'}
                     </Badge>
+                    {/* Se enseña junto al estado porque cambia lo que se puede
+                        hacer con el contacto, no solo como se clasifica. */}
+                    {contact.doNotContact && (
+                      <Badge color="failure">No contactar</Badge>
+                    )}
                   </div>
                   {contact.jobTitle && (
                     <p className="text-gray-600 dark:text-gray-400 mt-1">
@@ -185,7 +231,7 @@ export default function ContactoDetailPage() {
                 Editar
               </Button>
               <Button
-                color="failure"
+                color="danger"
                 onClick={handleDelete}
                 disabled={isDeleting}
               >
@@ -199,6 +245,31 @@ export default function ContactoDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Columna Principal */}
           <div className="lg:col-span-2 space-y-6">
+            {/* CRM-21. Va arriba del todo porque condiciona todo lo demas: si
+                pidio no ser contactado, da igual lo bien clasificado que este. */}
+            <Card>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+                    Seguimiento comercial
+                  </h2>
+                  <p className="mt-0.5 text-sm text-gray-500">
+                    {contact.doNotContact
+                      ? 'Pidió no recibir seguimiento. No se le crean recordatorios y los que tenía dejaron de aplicar.'
+                      : 'Se le crean recordatorios automáticos a las 24, 48 y 72 horas de cada solicitud.'}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  color={contact.doNotContact ? 'secondary' : 'danger'}
+                  onClick={alternarNoContactar}
+                  disabled={guardandoContacto}
+                >
+                  {contact.doNotContact ? 'Volver a contactar' : 'No contactar'}
+                </Button>
+              </div>
+            </Card>
+
             {/* Información Personal */}
             <Card>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
@@ -404,11 +475,28 @@ export default function ContactoDetailPage() {
                 Estado y Origen
               </h2>
               <div className="space-y-4">
+                {/* CRM-20: sale de lo que compró, no de un campo de la ficha.
+                    Por eso sigue diciendo "Recurrente" aunque se le acabe de
+                    perder una oportunidad. */}
                 <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tipo</p>
-                  <Badge color="info" className="mt-2">
-                    {contactTypeLabels[contact.contactType] || contact.contactType}
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Relación</p>
+                  <Badge
+                    color={CONDICION[contact.condicion ?? 'PROSPECTO'].color}
+                    className="mt-2 w-fit"
+                  >
+                    {CONDICION[contact.condicion ?? 'PROSPECTO'].etiqueta}
                   </Badge>
+                  {!!contact.ventas && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      {contact.ventas === 1 ? '1 compra' : `${contact.ventas} compras`}
+                      {contact.ultimaVenta &&
+                        ` · última el ${new Date(contact.ultimaVenta).toLocaleDateString('es-CO', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })}`}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</p>

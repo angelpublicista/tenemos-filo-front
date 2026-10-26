@@ -8,14 +8,28 @@
 //   conservamos el nombre por compatibilidad con los 44+ callers).
 "use client";
 
+import { CLAVE_DE_VUELTA } from "@/lib/api/mcp";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { api, ApiHttpError } from "@/lib/api/client";
+import {
+  getActingCompany,
+  getActingOwnerRole,
+  setActingCompany,
+  setActingOwnerRole,
+} from "@/lib/api/actingCompany";
 import { useCompanySetup } from "@/hooks/useCompanySetup";
 import type { AuthContextType, AuthUser, CreateUserData, SanityUser } from "@/types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Rutas de recuperacion de contraseña en el API. Si el backend las expone con
+// otros nombres, este es el unico sitio a tocar.
+//   POST {FORGOT_PASSWORD_PATH}  body { email }             -> 204/200
+//   POST {RESET_PASSWORD_PATH}   body { token, password }   -> 204/200
+const FORGOT_PASSWORD_PATH = "/auth/forgot-password";
+const RESET_PASSWORD_PATH = "/auth/reset-password";
 
 type ApiUser = {
   id: string;
@@ -32,6 +46,8 @@ type ApiUser = {
   updatedAt: string;
 };
 
+// Debe cubrir los 4 valores del enum UserRole del API. Si falta uno, el
+// lookup devuelve undefined y el usuario queda sin rol en todo el front.
 const ROLE_DOWN: Record<ApiUser["role"], SanityUser["role"]> = {
   HOST: "host",
   GUEST: "guest",
@@ -39,34 +55,21 @@ const ROLE_DOWN: Record<ApiUser["role"], SanityUser["role"]> = {
   RESELLER: "reseller",
 };
 
+// Solo roles auto-registrables: el API rechaza ADMIN en /auth/register.
 const ROLE_UP: Record<NonNullable<CreateUserData["role"]>, ApiUser["role"]> = {
   host: "HOST",
   guest: "GUEST",
-  admin: "ADMIN",
-  reseller: "RESELLER",
 };
 
-// DEV ONLY: permite forzar el rol del usuario logueado para probar UI de roles
-// que aun no existen en backend (p.ej. 'reseller'). Activar en consola con:
-//   localStorage.setItem('dev_role', 'reseller')
-// Quitar con: localStorage.removeItem('dev_role').
-// TODO: eliminar cuando el backend implemente RESELLER (ver memory: reseller_role_status).
-function getDevRoleOverride(): SanityUser["role"] | null {
-  if (typeof window === "undefined") return null;
-  const r = window.localStorage.getItem("dev_role");
-  if (r === "host" || r === "guest" || r === "admin" || r === "reseller") return r;
-  return null;
-}
-
 function toSanityUser(u: ApiUser): SanityUser {
-  const devRole = getDevRoleOverride();
   return {
     _id: u.id,
     _type: "user",
     firebaseId: u.id, // alias por compat — antes era firebase uid, ahora es id Postgres
     name: u.name ?? "",
     email: u.email,
-    role: devRole ?? ROLE_DOWN[u.role],
+    image: u.image ?? undefined,
+    role: ROLE_DOWN[u.role],
     phone: u.phone ?? "",
     typeDocument: (u.documentType as SanityUser["typeDocument"]) ?? "cedula",
     documentNumber: u.documentNumber ?? "",
@@ -84,6 +87,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     useCompanySetup();
 
   const [sanityUser, setSanityUser] = useState<SanityUser | null>(null);
+  // Empresa sobre la que actua un ADMIN. null = modo plataforma (ve todo).
+  const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(null);
+  // Rol del titular de esa empresa: dice si lo que se opera es un negocio
+  // de anfitrion o un canal de revendedor. Se resuelve mas abajo.
+  const [rolTitularActivo, setRolTitularActivo] = useState<SanityUser["role"] | null>(null);
   // Arranca true: hasta que sepamos si hay sesion no podemos decir que
   // "no hay perfil". Esto evita que ProtectedRoute redirija a /login
   // durante el primer render despues de un page reload.
@@ -154,6 +162,99 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loading = status === "loading" || (status === "authenticated" && profileLoading);
 
+  // Rehidrata la empresa activa del storage. Aplica al admin (elige sobre
+  // que empresa opera) y al anfitrion con varias (elige en cual trabaja).
+  useEffect(() => {
+    const rol = sanityUser?.role;
+    if (rol !== "admin" && rol !== "host") return;
+    const empresa = getActingCompany();
+    setActiveCompanyIdState(empresa);
+    // La pista cacheada evita que el menu parpadee mientras /companies/me
+    // confirma que clase de empresa es. Se refresca abajo. Sin empresa
+    // activa no aplica: una pista vieja pintaria el panel equivocado.
+    if (rol === "admin" && empresa) {
+      setRolTitularActivo(getActingOwnerRole() as SanityUser["role"] | null);
+    }
+  }, [sanityUser?.role]);
+
+  /**
+   * Vuelve a leer el perfil del API.
+   *
+   * Hace falta cuando algo del usuario cambia fuera del flujo normal —la foto
+   * de perfil, por ejemplo—: sin esto el avatar de la barra seguiria mostrando
+   * lo anterior hasta recargar la pagina.
+   */
+  const refrescarPerfil = useCallback(async () => {
+    try {
+      const u = await api.get<ApiUser>("/users/me");
+      setSanityUser(toSanityUser(u));
+    } catch (err) {
+      // Que falle el refresco no debe romper lo que acaba de hacer la persona:
+      // el cambio ya se guardo, solo no se ve hasta la proxima carga.
+      console.error("No se pudo refrescar el perfil:", err);
+    }
+  }, []);
+
+  const setActiveCompany = useCallback((companyId: string | null) => {
+    // Persistimos ANTES de tocar el estado: el cliente HTTP lee del storage,
+    // asi que cualquier request disparado por el re-render ya lleva la nueva.
+    setActingCompany(companyId);
+    // La pista del rol pertenece a la empresa que se deja atras. Volver al
+    // modo plataforma la borra; cambiar de empresa la deja caducar hasta
+    // que /companies/me traiga la de la nueva.
+    if (!companyId) setActingOwnerRole(null);
+    setActiveCompanyIdState(companyId);
+  }, []);
+
+  /**
+   * Perfil que ven las pantallas. Si hay empresa activa, sustituimos el
+   * companyId: para el admin es la empresa sobre la que actua (su companyId
+   * real es null), y para un anfitrion con varias, aquella en la que esta
+   * trabajando. Asi todas las pantallas existentes operan sobre la correcta
+   * sin cambiarles una linea.
+   */
+  const effectiveUser: SanityUser | null =
+    sanityUser && activeCompanyId && (sanityUser.role === "admin" || sanityUser.role === "host")
+      ? { ...sanityUser, companyId: activeCompanyId }
+      : sanityUser;
+
+  /**
+   * Rol del titular de la empresa activa.
+   *
+   * Solo hace falta para el admin: es el unico que opera empresas que no
+   * son suyas, y hasta ahora "actuando como" solo cambiaba el alcance de
+   * los datos, no la forma del panel. Entrando en una empresa de
+   * revendedor se le enseñaba el menu de anfitrion —sedes, experiencias,
+   * CRM— que ahi no existe, y no el canal de venta que es lo que esa
+   * empresa tiene. Un host no lo necesita: todas las suyas son de host.
+   *
+   * Se resuelve con /companies/me, que ya responde segun la cabecera
+   * X-Acting-Company que manda el cliente HTTP.
+   */
+  useEffect(() => {
+    if (!activeCompanyId || sanityUser?.role !== "admin") return;
+    let cancelado = false;
+    api
+      .get<{ owner?: { role: ApiUser["role"] } | null } | null>("/companies/me")
+      .then((empresa) => {
+        const rol = empresa?.owner ? ROLE_DOWN[empresa.owner.role] : null;
+        setActingOwnerRole(rol);
+        if (!cancelado) setRolTitularActivo(rol);
+      })
+      .catch(() => {
+        // Sin dato nos quedamos con la pista cacheada. Es preferible a
+        // cambiarle el panel al admin por un fallo de red, y el API sigue
+        // decidiendo por su cuenta que le deja hacer.
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [activeCompanyId, sanityUser?.role]);
+
+  const esPanelRevendedor =
+    sanityUser?.role === "reseller" ||
+    (sanityUser?.role === "admin" && !!activeCompanyId && rolTitularActivo === "reseller");
+
   const login = useCallback(
     async (email: string, password: string) => {
       const res = await signIn("credentials", { email, password, redirect: false });
@@ -182,6 +283,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         router.push("/company-setup");
         return;
       }
+      // Quien venía a aprobar la conexión de un asistente vuelve a eso. Solo
+      // se acepta esa ruta nuestra: lo guardado no puede mandar a otro sitio.
+      let volverA: string | null = null;
+      try {
+        volverA = window.sessionStorage.getItem(CLAVE_DE_VUELTA);
+        window.sessionStorage.removeItem(CLAVE_DE_VUELTA);
+      } catch {
+        // Sin almacenamiento, al panel como siempre.
+      }
+      if (volverA?.startsWith("/oauth/autorizar?")) {
+        router.push(volverA);
+        return;
+      }
       router.push("/dashboard");
     },
     [router, markSetupCompleted],
@@ -196,7 +310,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [router, clearSetupState]);
 
   const register = useCallback(
-    async (email: string, password: string, userData: Omit<CreateUserData, "firebaseId">) => {
+    async (
+      email: string,
+      password: string,
+      userData: Omit<CreateUserData, "firebaseId">,
+      recaptchaToken?: string | null,
+    ) => {
       try {
         await api.post<ApiUser>("/auth/register", {
           email,
@@ -206,6 +325,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           role: ROLE_UP[userData.role],
           documentType: userData.typeDocument,
           documentNumber: userData.documentNumber,
+          // Quien decide si vale es el API, no el navegador.
+          recaptchaToken: recaptchaToken ?? undefined,
         });
       } catch (err) {
         if (err instanceof ApiHttpError && err.status === 409) {
@@ -224,15 +345,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Devolvemos shape compatible con el viejo register()
       // (callers solo usan .user.uid; el id real lo obtiene el efecto via /users/me)
-      router.push("/dashboard");
+      //
+      // Un anfitrión recién registrado no tiene empresa, y sin ella el panel no
+      // le sirve para nada: el registro sigue con los datos de la empresa y,
+      // si hay suscripción, con su pago.
+      router.push(userData.role === "host" ? "/company-setup" : "/dashboard");
       return { user: { uid: email } };
     },
     [router],
   );
 
-  const resetPassword = useCallback(async (_email: string) => {
-    void _email;
-    throw new Error("Recuperacion de contraseña aun no migrada al nuevo backend.");
+  // Paso 1 del reset: el API genera el token, lo persiste y envia el correo.
+  // El enlace del correo apunta a /reset-password?token=... y lo arma el API.
+  const resetPassword = useCallback(async (email: string) => {
+    try {
+      await api.post(FORGOT_PASSWORD_PATH, { email });
+    } catch (err) {
+      // OJO: no tragamos el 404. El API devuelve 404 NOT_FOUND tanto para
+      // "email inexistente" como para "ruta inexistente" (notFoundHandler),
+      // asi que tratarlo como exito mostraria "correo enviado" cuando el
+      // endpoint ni siquiera existe. La proteccion contra enumeracion de
+      // usuarios va en el API: debe responder 204 exista o no el email.
+      if (err instanceof ApiHttpError && err.status === 429) {
+        throw new Error("Demasiados intentos. Espera unos minutos e intenta de nuevo.");
+      }
+      throw new Error("No se pudo enviar el correo de recuperacion. Intenta de nuevo.");
+    }
+  }, []);
+
+  // Paso 2 del reset: canjea el token del enlace por la contrasena nueva.
+  const confirmPasswordReset = useCallback(async (token: string, newPassword: string) => {
+    try {
+      await api.post(RESET_PASSWORD_PATH, { token, password: newPassword });
+    } catch (err) {
+      if (err instanceof ApiHttpError && (err.status === 400 || err.status === 410)) {
+        throw new Error(
+          "El enlace de recuperacion no es valido o ya expiro. Solicita uno nuevo.",
+        );
+      }
+      throw new Error("No se pudo cambiar la contraseña. Intenta de nuevo.");
+    }
   }, []);
 
   const sendVerificationEmail = useCallback(async () => {
@@ -244,14 +396,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        sanityUser,
+        sanityUser: effectiveUser,
+        activeCompanyId,
+        setActiveCompany,
+        esPanelRevendedor,
         loading,
         login,
         logout,
         register,
         resetPassword,
+        confirmPasswordReset,
         sendVerificationEmail,
         markSetupCompleted,
+        refrescarPerfil,
         clearSetupState,
         isSetupCompleted,
         hasCompany,

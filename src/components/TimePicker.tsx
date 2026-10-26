@@ -7,7 +7,8 @@ import { HiClock } from 'react-icons/hi';
 interface TimePickerProps {
   value: string;                  // "HH:mm"
   onChange: (time: string) => void;
-  slots?: string[];               // si vienen slots predefinidos
+  /** Las horas que ofrece la disponibilidad. Sin ellas, cada media hora. */
+  slots?: string[];
   placeholder?: string;
   required?: boolean;
   className?: string;
@@ -112,7 +113,7 @@ export default function TimePicker({
 
       {/* Slots */}
       {useChips ? (
-        // Chips para slots predefinidos
+        // Chips cuando la disponibilidad ya dice qué horas hay
         <div className="p-3 grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
           {displaySlots.map((t) => (
             <button

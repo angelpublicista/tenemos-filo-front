@@ -1,0 +1,660 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
+import { useParams, useSearchParams } from 'next/navigation';
+import {
+  getDatosDeSolicitud,
+  getPublicacion,
+  getPublicCatalog,
+  getResellerCatalog,
+} from '@/lib/api/catalog';
+import { createPublicReservation } from '@/lib/sanity/reservationService';
+import type { Company, AvailabilitySchedule } from '@/types';
+import { estiloDeMarca } from '@/lib/marca';
+import type { Experience } from '@/types';
+import ExperienceList from '@/components/BookingEngine/ExperienceList';
+import DateTimeStep from '@/components/BookingEngine/DateTimeStep';
+import ContactStep from '@/components/BookingEngine/ContactStep';
+import ConfirmationStep from '@/components/BookingEngine/ConfirmationStep';
+import FiloLogo from '@/components/FiloLogo';
+import BotonDePago, { type DatosCheckout } from '@/components/BookingEngine/BotonDePago';
+import { SkeletonCard } from '@/components/Skeleton';
+import { urlDeImagen } from '@/lib/images';
+import PortadaCatalogo from '@/components/BookingEngine/PortadaCatalogo';
+import ChatDelAgente from '@/components/BookingEngine/ChatDelAgente';
+
+
+export interface BookingLocationAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+export interface BookingExperience extends Omit<Experience, 'locations' | 'availabilities'> {
+  availabilitySchedules?: AvailabilitySchedule[];
+  locations?: Array<{
+    _id: string;
+    name: string;
+    address?: BookingLocationAddress | string;
+    isMain?: boolean;
+    latitude?: number | null;
+    longitude?: number | null;
+    photos?: string[];
+    videoUrl?: string | null;
+  }>;
+}
+
+export interface SelectedAddon {
+  name: string;
+  price: number;
+  quantity: number;
+  priceType: 'per_person' | 'total';
+}
+
+export interface BookingData {
+  experience: BookingExperience;
+  date: Date;
+  time: string;
+  participants: number;
+  locationId?: string;
+  locationName?: string;
+  selectedAddons?: SelectedAddon[];
+  /** Dónde hay que ir, cuando la experiencia es a domicilio. */
+  serviceAddress?: string;
+  /** En qué idioma lo pidió, si la experiencia ofrece más de uno. */
+  idioma?: string;
+  guestInfo: {
+    name: string;
+    email: string;
+    phone: string;
+    notes?: string;
+  };
+}
+
+type Step = 'experiences' | 'datetime' | 'contact' | 'confirmation' | 'success';
+
+const STEP_LABELS: Record<Step, string> = {
+  experiences: 'Experiencia',
+  datetime: 'Fecha y hora',
+  contact: 'Tus datos',
+  confirmation: 'Confirmación',
+  success: 'Listo',
+};
+
+const STEP_ORDER: Step[] = ['experiences', 'datetime', 'contact', 'confirmation'];
+
+// Inner component that uses useSearchParams (requires Suspense)
+type PropsMotor = {
+  /**
+   * Catalogo de un revendedor en vez del de un anfitrion: salen las
+   * experiencias de toda la plataforma y las reservas se le atribuyen.
+   */
+  modoReseller?: boolean;
+};
+
+export function MotorReservas({ modoReseller = false }: PropsMotor) {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const slug = params.slug as string;
+  // La URL propia de una publicación: la página enseña solo esa experiencia,
+  // en su sede, y arranca en la fecha. Sin ella es el catálogo de siempre.
+  const publicacionSlug = (params.publicacion as string | undefined) ?? null;
+  const rutaDelCatalogo = `${modoReseller ? '/r' : '/book'}/${slug}`;
+  const isEmbed = searchParams.get('embed') === '1';
+  // CRM-33. El enlace que el anfitrion genero desde su CRM. Lo que sabemos
+  // del cliente no viaja en la URL: esto es un token, y se canjea.
+  const solicitud = searchParams.get('solicitud');
+
+  const [company, setCompany] = useState<Company | null>(null);
+  // Con quién se chatea desde el catálogo; null si el anfitrión no lo ofrece.
+  const [agente, setAgente] = useState<{ nombre: string } | null>(null);
+  const [experiences, setExperiences] = useState<BookingExperience[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [step, setStep] = useState<Step>('experiences');
+  const [booking, setBooking] = useState<Partial<BookingData>>({});
+  const [reservationNumber, setReservationNumber] = useState('');
+  const [codigo, setCodigo] = useState<string | null>(null);
+  // Con que cobrar; llega con la reserva si hay pasarela activa. La forma
+  // depende de cual sea: Wompi manda un formulario firmado y Mercado Pago una
+  // URL ya creada.
+  const [pago, setPago] = useState<DatosCheckout | null>(null);
+  // Lo dice el catalogo, no el cliente: si la pasarela esta apagada el
+  // resumen no debe anunciar un cobro en linea.
+  const [cobraEnLinea, setCobraEnLinea] = useState(false);
+  // Si el anfitrion exige el pago, la reserva no vale hasta cobrarse y
+  // tampoco retiene el cupo: el texto tiene que decirlo, o el comensal se
+  // va creyendo que ya tiene su mesa.
+  const [pagoObligatorio, setPagoObligatorio] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  // Lo que el anfitrion ya sabe del cliente, para no volver a pedirselo.
+  const [conocido, setConocido] = useState<{ name: string; email: string; phone: string } | null>(null);
+
+  useEffect(() => {
+    if (!slug) {
+      console.error('[BookingPage] slug vacío, no se puede cargar.');
+      setError('Enlace de reservas inválido.');
+      setLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    const load = async () => {
+      try {
+        // Un solo endpoint publico: esta pagina la abre gente sin cuenta, y
+        // los de /companies y /experiences exigen sesion.
+        const {
+          company: companyData,
+          experiences: expData,
+          paymentsEnabled,
+          paymentRequired,
+          agendaDelAnfitrion,
+          agente: agenteDelChat,
+          publicacion,
+        } = publicacionSlug
+          ? await getPublicacion(slug, publicacionSlug, modoReseller)
+          : modoReseller
+            ? await getResellerCatalog(slug)
+            : await getPublicCatalog(slug);
+        if (controller.signal.aborted) return;
+        setCompany(companyData);
+        // El catálogo de un revendedor no trae chat: el agente es de un
+        // anfitrión y habla de sus experiencias, no de las de toda la plataforma.
+        setAgente(modoReseller ? null : agenteDelChat);
+        // TR-21. Una experiencia sin horario propio ni sede usa la agenda del
+        // anfitrión. Sin esto el catálogo de un cocinero a domicilio ofrecía
+        // las horas por defecto —de ocho a ocho, todos los días—, que no son
+        // las suyas, y el API acabaría rechazando la reserva.
+        const conAgenda = (expData as BookingExperience[]).map((e) =>
+          (e.availabilitySchedules?.length ?? 0) === 0 && (agendaDelAnfitrion?.length ?? 0) > 0
+            ? { ...e, availabilitySchedules: agendaDelAnfitrion }
+            : e,
+        );
+        setExperiences(conAgenda);
+        setCobraEnLinea(paymentsEnabled);
+        setPagoObligatorio(Boolean(paymentRequired));
+
+        // URL propia de una publicación: se llega ya dentro de esa experiencia
+        // y esa sede, directo a elegir fecha. Quien quiera ver más vuelve al
+        // catálogo con el enlace de arriba.
+        if (publicacion) {
+          const abierta = conAgenda.find((e) => e._id === publicacion.experienceId);
+          if (abierta) {
+            setBooking({ experience: abierta, locationId: publicacion.locationId ?? undefined });
+            setStep('datetime');
+          }
+        }
+
+        // CRM-33. Con el enlace del CRM no se empieza de cero: los datos del
+        // cliente se rellenan solos y, si la oportunidad ya apuntaba a una
+        // experiencia, se entra directo a elegir fecha. Que el enlace no
+        // sirva no puede romper el catalogo: se reserva a mano y ya.
+        if (solicitud) {
+          const previo = await getDatosDeSolicitud(solicitud);
+          if (previo && !controller.signal.aborted) {
+            setConocido({ name: previo.nombre, email: previo.email, phone: previo.telefono });
+            const elegida = previo.experienceId
+              ? (expData as BookingExperience[]).find((e) => e._id === previo.experienceId)
+              : undefined;
+            // Una URL de publicación ya dice cuál: lo que apunte el CRM no la pisa.
+            if (elegida && !publicacion) {
+              setBooking({ experience: elegida });
+              setStep('datetime');
+            }
+          }
+        }
+
+        // Si se llego por un slug antiguo (o por el id), la barra pasa a
+        // mostrar el actual. El enlace viejo sigue funcionando, pero quien
+        // copie la URL desde aqui se lleva la buena.
+        const canonico = companyData.slug?.current;
+        if (!modoReseller && canonico && canonico !== slug) {
+          window.history.replaceState(
+            null,
+            '',
+            publicacion ? `/book/${canonico}/${publicacion.slug}` : `/book/${canonico}`,
+          );
+        }
+      } catch (err) {
+        if (controller.signal.aborted) {
+          console.error('[BookingPage] Fetch timed out after 12s');
+          setError('La carga tardó demasiado. Verifica tu conexión e intenta de nuevo.');
+        } else {
+          console.error('[BookingPage] Error loading booking page:', err);
+          setError('Error al cargar la información. Intenta de nuevo más tarde.');
+        }
+      } finally {
+        clearTimeout(timeout);
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    load();
+    return () => { controller.abort(); clearTimeout(timeout); };
+  }, [slug, modoReseller, solicitud, publicacionSlug]);
+
+  const handleSelectExperience = (exp: BookingExperience) => {
+    setBooking({ experience: exp });
+    setStep('datetime');
+  };
+
+  const handleDateTimeNext = (
+    date: Date,
+    time: string,
+    participants: number,
+    locationId?: string,
+    locationName?: string,
+    selectedAddons?: SelectedAddon[],
+    serviceAddress?: string,
+    idioma?: string,
+  ) => {
+    setBooking(prev => ({
+      ...prev, date, time, participants, locationId, locationName, selectedAddons, serviceAddress, idioma,
+    }));
+    setStep('contact');
+  };
+
+  const handleContactNext = (guestInfo: BookingData['guestInfo']) => {
+    setBooking(prev => ({ ...prev, guestInfo }));
+    setStep('confirmation');
+  };
+
+  /**
+   * TR-43. La clave de este intento de reserva.
+   *
+   * Si el primer intento falla —se cayo la red, salio un error— y la persona
+   * vuelve a pulsar "Confirmar", la clave es la misma y el API devuelve la
+   * reserva que ya habia creado en vez de crear otra, descontar otro cupo y
+   * cobrarlo dos veces.
+   *
+   * Cambia en cuanto cambian los datos: volver atras y reservar otra fecha
+   * es otra reserva, no un reintento de la anterior.
+   */
+  const claveDelIntento = useRef<{ huella: string; clave: string } | null>(null);
+  const claveDeIdempotencia = (huella: string): string => {
+    if (claveDelIntento.current?.huella !== huella) {
+      claveDelIntento.current = { huella, clave: crypto.randomUUID() };
+    }
+    return claveDelIntento.current.clave;
+  };
+
+  const handleConfirm = async () => {
+    if (!booking.experience || !booking.date || !booking.time || !booking.participants || !booking.guestInfo) return;
+    setSubmitting(true);
+    try {
+      const [hours, minutes] = booking.time.split(':').map(Number);
+      const reservationDate = new Date(booking.date);
+      reservationDate.setHours(hours, minutes, 0, 0);
+
+      const result = await createPublicReservation({
+        idempotencyKey: claveDeIdempotencia(
+          [
+            booking.experience._id,
+            reservationDate.toISOString(),
+            booking.participants,
+            booking.guestInfo.email,
+            booking.locationId ?? '',
+            booking.serviceAddress ?? '',
+            booking.idioma ?? '',
+            (booking.selectedAddons ?? []).map((a) => `${a.name}x${a.quantity}`).join(','),
+          ].join('|'),
+        ),
+        // Con esto la venta se atribuye al revendedor y le genera comision.
+        ...(modoReseller ? { reseller: slug } : {}),
+        // Y con esto la reserva queda colgada de la oportunidad que la
+        // origino, en vez de aparecer suelta en el CRM del anfitrion.
+        ...(solicitud ? { solicitudToken: solicitud } : {}),
+        experience: booking.experience._id,
+        location: booking.locationId,
+        reservationDate: reservationDate.toISOString(),
+        participants: booking.participants,
+        specialRequests: booking.guestInfo.notes,
+        selectedAddons: booking.selectedAddons?.map(a => ({ name: a.name, price: a.price, quantity: a.quantity })),
+        // A domicilio, sin esto el anfitrión no sabe a dónde ir.
+        serviceAddress: booking.serviceAddress,
+        // Sin esto el anfitrión no sabe en qué idioma lo esperan.
+        language: booking.idioma,
+        guestInfo: {
+          name: booking.guestInfo.name,
+          email: booking.guestInfo.email,
+          phone: booking.guestInfo.phone,
+        },
+      });
+
+      // El intento ya terminó: la clave no puede servir otra vez. Sin esto,
+      // «Hacer otra reserva» con los mismos datos (misma fecha, personas y
+      // correo) mandaba la misma clave y el API devolvía la reserva anterior
+      // en vez de crear la nueva.
+      claveDelIntento.current = null;
+      setReservationNumber(result.reservationNumber);
+      setCodigo(result.confirmationCode ?? null);
+      setPago(result.payment ?? null);
+      setStep('success');
+    } catch (err) {
+      console.error('Error creating reservation:', err);
+      alert('Ocurrió un error al crear la reserva. Por favor intenta de nuevo.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const currentStepIndex = STEP_ORDER.indexOf(step);
+
+  // Solo se retrocede: avanzar saltándose un paso dejaría la reserva sin datos.
+  // Lo ya elegido se conserva en `booking`, así corregir uno no obliga a
+  // repetir el resto.
+  const irAPaso = (destino: Step) => {
+    if (STEP_ORDER.indexOf(destino) < currentStepIndex) setStep(destino);
+  };
+
+  // Salir en cualquier paso, volviendo al catálogo y sin reserva a medias. Si
+  // ya había algo elegido se pregunta: un clic suelto no debe tirar el trabajo.
+  const cancelarReserva = () => {
+    const hayAvance = !!booking.date || !!booking.guestInfo;
+    if (hayAvance && !window.confirm('¿Cancelar la reserva? Se perderán los datos que llevas.')) {
+      return;
+    }
+    setBooking({});
+    setStep('experiences');
+  };
+
+  const companyLogoUrl = urlDeImagen(company?.logo?.asset?._ref);
+  // "NONE" o sin medios significa que no se pinta banner, y entonces el
+  // logo no debe subir a montarse sobre nada.
+  const hayPortada =
+    !!company &&
+    ((company.coverType === 'IMAGE' && (company.coverImages?.length ?? 0) > 0) ||
+      (company.coverType === 'SLIDER' && (company.coverImages?.length ?? 0) > 0) ||
+      (company.coverType === 'VIDEO' && !!company.coverVideo));
+
+  /**
+   * Los colores del anfitrion, aplicados a todo el catalogo.
+   *
+   * Van como variables CSS en este contenedor y no en una hoja global: asi
+   * las utilidades `bg-marca`, `text-marca` y demas cogen su color aqui
+   * dentro, mientras el resto de la aplicacion —el panel, sin ir mas lejos—
+   * sigue con los de la plataforma. Sin colores elegidos no se pone nada y
+   * mandan los de siempre.
+   */
+  const colores = estiloDeMarca(company?.brandPrimary, company?.brandSecondary);
+
+  const wrap = (
+    content: React.ReactNode,
+    options: { showHeader?: boolean; banner?: React.ReactNode } = {},
+  ) => (
+    <div className="min-h-screen bg-gray-50 flex flex-col" style={colores}>
+      {!isEmbed && options.showHeader && (
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 min-w-0">
+            {companyLogoUrl ? (
+              <Image
+                src={companyLogoUrl}
+                alt={company?.companyName ?? 'Logo de la empresa'}
+                width={80}
+                height={80}
+                quality={95}
+                className="w-10 h-10 rounded-full border border-gray-200 object-contain bg-white p-0.5 shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 shrink-0" />
+            )}
+            {company && (
+              <span className="text-sm sm:text-base font-semibold text-gray-900 truncate">
+                {company.companyName}
+              </span>
+            )}
+          </div>
+        </header>
+      )}
+      {/* Fuera del contenedor centrado: el banner va de borde a borde. */}
+      {options.banner}
+      <div
+        className={`flex-1 max-w-6xl w-full mx-auto px-4 pb-6 sm:pb-8 ${
+          // Con banner no hay separacion arriba: el logo se monta sobre el.
+          options.banner ? '' : 'pt-6 sm:pt-8'
+        }`}
+      >
+        {/* Quien llega por la URL de una publicación ve solo esa; este es el
+            camino a todo lo demás. */}
+        {publicacionSlug && !isEmbed && !loading && !error && (
+          <a
+            href={rutaDelCatalogo}
+            className="mb-4 inline-block text-sm font-medium text-marca hover:underline"
+          >
+            ← Ver todas las experiencias{company ? ` de ${company.companyName}` : ''}
+          </a>
+        )}
+        {content}
+      </div>
+      {!isEmbed && (
+        <footer className="border-t border-gray-200 bg-white">
+          <a
+            href="https://tenemosfilo.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="max-w-6xl mx-auto px-4 py-5 flex flex-col sm:flex-row items-center justify-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <span>Powered by</span>
+            <FiloLogo className="h-5 w-auto" />
+          </a>
+        </footer>
+      )}
+      {/* Embebido en otra web no se ofrece: el iframe suele ser angosto y un
+          panel flotante no cabria. Dentro del contenedor para heredar la marca. */}
+      {!isEmbed && agente && company && (
+        <ChatDelAgente slug={slug} nombre={agente.nombre} empresa={company.companyName} />
+      )}
+    </div>
+  );
+
+  if (loading) return wrap(
+    <div className="space-y-4">
+      {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+    </div>
+  );
+
+  if (error) return wrap(
+    <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+      <p className="text-red-500 font-medium mb-2">Algo salió mal</p>
+      <p className="text-gray-500 text-sm">{error}</p>
+    </div>
+  );
+
+  if (step === 'success') return wrap(
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 text-center">
+      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        {pago ? '¡Ya casi!' : '¡Reserva enviada!'}
+      </h2>
+      <p className="text-gray-500 mb-4">
+        {pago
+          ? pagoObligatorio
+            ? 'Tu lugar se aparta al completar el pago. Hasta entonces alguien más puede tomarlo.'
+            : 'Completa el pago para confirmar tu reserva.'
+          : 'Tu solicitud fue recibida. El anfitrión la confirmará pronto.'}
+      </p>
+      {/* El codigo manda sobre el numero de reserva: es lo que le van a pedir
+          en la puerta. El numero queda debajo, para el pago y para soporte. */}
+      <div className="inline-block bg-gray-50 border border-gray-200 rounded-xl px-8 py-4 mb-6">
+        <p className="text-xs text-gray-400 mb-1">
+          {codigo ? 'Tu código de entrada' : 'Número de reserva'}
+        </p>
+        <p className="text-2xl font-bold text-marca tracking-wider">
+          {codigo ?? reservationNumber}
+        </p>
+        {codigo && (
+          <p className="mt-2 text-xs text-gray-400">
+            Enséñalo al llegar · Reserva {reservationNumber}
+          </p>
+        )}
+      </div>
+
+      {pago && (
+        <div className="max-w-sm mx-auto mb-6">
+          <BotonDePago datos={pago} />
+        </div>
+      )}
+
+      <p className="text-sm text-gray-400">
+        Recibirás una confirmación en <strong>{booking.guestInfo?.email}</strong>
+      </p>
+      {!isEmbed && (
+        <button
+          onClick={() => { setStep('experiences'); setBooking({}); }}
+          className="mt-8 text-sm text-marca hover:underline"
+        >
+          Hacer otra reserva
+        </button>
+      )}
+    </div>,
+    { showHeader: true }
+  );
+
+  // El banner solo tiene sentido en el listado: dentro del flujo de reserva
+  // se metería entre el paso y su resumen.
+  const portada =
+    step === 'experiences' && company ? (
+      <PortadaCatalogo
+        tipo={company.coverType}
+        imagenes={company.coverImages}
+        video={company.coverVideo}
+        nombreEmpresa={company.companyName}
+      />
+    ) : null;
+
+  return wrap(
+    <>
+      {/* Header empresa */}
+      {step === 'experiences' && company && (
+        <div
+          className={`mb-8 flex flex-col sm:flex-row gap-4 sm:gap-5 text-center sm:text-left ${
+            // items-start y no items-end: al alinear por abajo, flex
+            // recalcula el margen negativo del logo y el solape se queda a
+            // menos de la mitad.
+            hayPortada ? 'sm:items-start' : 'sm:items-center pt-6 sm:pt-8'
+          }`}
+        >
+          {/* Con banner el logo se monta a media altura sobre el: el margen
+              negativo es la mitad de su tamaño, y el aro blanco lo despega
+              de la imagen para que se lea sobre cualquier fondo. */}
+          <div
+            className={`relative z-10 mx-auto sm:mx-0 shrink-0 ${
+              hayPortada ? '-mt-14 sm:-mt-16' : ''
+            }`}
+          >
+            {companyLogoUrl ? (
+              <Image
+                src={companyLogoUrl}
+                alt={company.companyName}
+                width={256}
+                height={256}
+                quality={95}
+                sizes="128px"
+                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full object-contain bg-white p-2 shadow-sm ${
+                  hayPortada ? 'ring-4 ring-white' : 'border border-gray-200'
+                }`}
+                priority
+              />
+            ) : (
+              <div
+                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gray-100 ${
+                  hayPortada ? 'ring-4 ring-white' : 'border border-gray-200'
+                }`}
+              />
+            )}
+          </div>
+          <div className={`min-w-0 ${hayPortada ? 'sm:pt-3' : ''}`}>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{company.companyName}</h1>
+            {company.tagline && (
+              <p className="text-marca font-medium mt-1 text-sm sm:text-base">{company.tagline}</p>
+            )}
+            {(company as Company & { description?: string }).description && (
+              <p className="text-gray-500 mt-2 text-sm sm:text-base leading-relaxed">
+                {(company as Company & { description?: string }).description}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Stepper */}
+      {step !== 'experiences' && (
+        <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-1">
+          {STEP_ORDER.map((s, i) => (
+            <React.Fragment key={s}>
+              <button
+                type="button"
+                disabled={i >= currentStepIndex}
+                onClick={() => irAPaso(s)}
+                aria-current={i === currentStepIndex ? 'step' : undefined}
+                className={`flex items-center gap-2 text-xs font-medium whitespace-nowrap ${
+                i === currentStepIndex ? 'text-marca' :
+                i < currentStepIndex ? 'text-green-600 hover:underline cursor-pointer' : 'text-gray-400'
+              } disabled:cursor-default`}>
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  i < currentStepIndex ? 'bg-green-500 text-white' :
+                  i === currentStepIndex ? 'bg-marca text-marca-contraste' : 'bg-gray-200 text-gray-400'
+                }`}>
+                  {i < currentStepIndex ? '✓' : i + 1}
+                </span>
+                {STEP_LABELS[s]}
+              </button>
+              {i < STEP_ORDER.length - 1 && (
+                <div className={`flex-1 h-px min-w-4 ${i < currentStepIndex ? 'bg-green-400' : 'bg-gray-200'}`} />
+              )}
+            </React.Fragment>
+          ))}
+          <button
+            type="button"
+            onClick={cancelarReserva}
+            className="ml-2 shrink-0 text-xs font-medium text-gray-500 hover:text-red-600 whitespace-nowrap"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      {step === 'experiences' && (
+        <ExperienceList
+          experiences={experiences}
+          onSelect={handleSelectExperience}
+          rutaDelCatalogo={rutaDelCatalogo}
+        />
+      )}
+      {step === 'datetime' && booking.experience && (
+        <DateTimeStep
+          experience={booking.experience}
+          onNext={handleDateTimeNext}
+          onBack={() => setStep('experiences')}
+          inicial={booking}
+        />
+      )}
+      {step === 'contact' && (
+        <ContactStep
+          onNext={handleContactNext}
+          onBack={() => setStep('datetime')}
+          conocido={conocido}
+          inicial={booking.guestInfo}
+        />
+      )}
+      {step === 'confirmation' && booking.experience && booking.date && booking.time && booking.participants && booking.guestInfo && (
+        <ConfirmationStep
+          booking={booking as BookingData}
+          cobraEnLinea={cobraEnLinea}
+          submitting={submitting}
+          onConfirm={handleConfirm}
+          onBack={() => setStep('contact')}
+        />
+      )}
+    </>,
+    { showHeader: step !== 'experiences', banner: portada }
+  );
+}

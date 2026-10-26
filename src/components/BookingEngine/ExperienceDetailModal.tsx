@@ -1,8 +1,13 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { HiX, HiClock, HiUsers, HiLocationMarker, HiVideoCamera, HiCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
-import type { BookingExperience, BookingLocationAddress } from '@/app/book/[companyId]/page';
+import { HiX, HiClock, HiUsers, HiLocationMarker, HiCheck, HiChevronLeft, HiChevronRight, HiTranslate } from 'react-icons/hi';
+import { listaDeIdiomas } from '@/lib/idiomas';
+import type { BookingExperience, BookingLocationAddress } from '@/components/BookingEngine/MotorReservas';
+import MapaUbicacion from '@/components/MapaUbicacion';
+import MediosDeSede from '@/components/BookingEngine/MediosDeSede';
+import { urlDeImagen } from '@/lib/images';
+import { ciudadesQueCubre, cuposMaximos, precioDesde } from '@/lib/experiencias/condicionesDeSede';
 
 const CATEGORY_LABEL: Record<string, string> = {
   cooking: 'Cocina', mixology: 'Mixología', tasting: 'Degustación',
@@ -10,15 +15,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   workshops: 'Talleres', other: 'Otro',
 };
 
-function sanityImageUrl(assetRef: string): string {
-  const withoutPrefix = assetRef.replace(/^image-/, '');
-  const lastDash = withoutPrefix.lastIndexOf('-');
-  const ext = withoutPrefix.slice(lastDash + 1);
-  const id = withoutPrefix.slice(0, lastDash);
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${id}.${ext}`;
-}
 
 function formatAddress(address: BookingLocationAddress | string | undefined): string {
   if (!address) return '';
@@ -48,14 +44,18 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
     ? experience.featuredImage
     : (experience.featuredImage as unknown as { asset?: { _ref?: string } })?.asset?._ref;
 
+  // Se acepta cualquier imagen que se pueda resolver. Antes solo entraban
+  // las que empezaban por "image-", el formato viejo de Sanity, asi que las
+  // que se suben hoy (URL de CloudFront) quedaban fuera y la galeria salia
+  // vacia aunque la experiencia tuviera fotos.
   const allImages: Array<{ url: string; alt?: string; caption?: string }> = [];
-  if (featuredRef && featuredRef.startsWith('image-')) {
-    allImages.push({ url: sanityImageUrl(featuredRef), alt: experience.title });
+  const urlDestacada = urlDeImagen(featuredRef);
+  if (urlDestacada) {
+    allImages.push({ url: urlDestacada, alt: experience.title });
   }
   gallery.forEach(g => {
-    if (g.assetId && g.assetId.startsWith('image-')) {
-      allImages.push({ url: sanityImageUrl(g.assetId), alt: g.alt, caption: g.caption });
-    }
+    const url = urlDeImagen(g.assetId);
+    if (url) allImages.push({ url, alt: g.alt, caption: g.caption });
   });
 
   const [current, setCurrent] = useState(0);
@@ -77,7 +77,9 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
   }, [handleKey]);
 
   const locations = experience.locations ?? [];
-  const isVirtual = experience.experienceType === 'virtual' || experience.isVirtual === true;
+  // A domicilio no hay sede que enseñar ni mapa que pintar: se va donde diga
+  // quien reserva.
+  const aDomicilio = experience.atHome === true;
 
   return (
     <div
@@ -140,7 +142,7 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
             )}
           </div>
         ) : (
-          <div className="w-full h-56 bg-linear-to-br from-[#F26726]/10 via-[#E23694]/10 to-[#334C5D]/10" />
+          <div className="w-full h-56 bg-linear-to-br from-marca-tenue via-acento-tenue to-[#334C5D]/10" />
         )}
 
         {/* Contenido */}
@@ -148,18 +150,16 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
           <div className="flex items-start justify-between gap-4 mb-3">
             <h2 className="text-2xl font-bold text-gray-900 leading-tight">{experience.title}</h2>
             <span className={`text-xs px-3 py-1 rounded-full font-medium shrink-0 ${
-              isVirtual ? 'bg-blue-100 text-blue-700' :
-              experience.experienceType === 'hybrid' ? 'bg-purple-100 text-purple-700' :
-              'bg-green-100 text-green-700'
+              aDomicilio ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
             }`}>
-              {isVirtual ? 'Virtual' : experience.experienceType === 'hybrid' ? 'Híbrida' : 'Presencial'}
+              {aDomicilio ? 'A domicilio' : 'En sede'}
             </span>
           </div>
 
           {experience.categories?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-5">
               {experience.categories.map(c => (
-                <span key={c} className="text-xs bg-orange-50 text-[#F26726] px-2.5 py-1 rounded-full">
+                <span key={c} className="text-xs bg-marca-tenue text-marca px-2.5 py-1 rounded-full">
                   {CATEGORY_LABEL[c] ?? c}
                 </span>
               ))}
@@ -185,15 +185,21 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                 <HiUsers className="w-3.5 h-3.5" /> Capacidad
               </div>
               <p className="text-sm font-semibold text-gray-900">
-                {experience.minCapacity ? `${experience.minCapacity}–` : ''}{experience.capacity} personas
+                {(() => {
+                  const tope = cuposMaximos(experience.availabilitySchedules ?? []);
+                  if (tope) return `${experience.minCapacity ? `${experience.minCapacity}–` : ''}${tope} personas`;
+                  return experience.minCapacity ? `Desde ${experience.minCapacity} personas` : '—';
+                })()}
               </p>
             </div>
-            {isVirtual ? (
+            {aDomicilio ? (
               <div className="bg-gray-50 rounded-xl px-4 py-3">
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
-                  <HiVideoCamera className="w-3.5 h-3.5" /> Plataforma
+                  <HiLocationMarker className="w-3.5 h-3.5" /> Dónde
                 </div>
-                <p className="text-sm font-semibold text-gray-900 capitalize">{experience.virtualPlatform ?? 'En línea'}</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  A domicilio{ciudadesQueCubre(experience).length > 0 ? ` · ${ciudadesQueCubre(experience).join(', ')}` : ''}
+                </p>
               </div>
             ) : experience.presentialCity ? (
               <div className="bg-gray-50 rounded-xl px-4 py-3">
@@ -203,6 +209,18 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                 <p className="text-sm font-semibold text-gray-900">{experience.presentialCity}</p>
               </div>
             ) : null}
+            {/* Solo si se declararon. Vacío no es "en español": nadie lo
+                dijo, y afirmarlo aquí sería prometer por el anfitrión. */}
+            {(experience.languages?.length ?? 0) > 0 && (
+              <div className="bg-gray-50 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+                  <HiTranslate className="w-3.5 h-3.5" /> Idiomas
+                </div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {listaDeIdiomas(experience.languages ?? [])}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Incluye */}
@@ -217,6 +235,63 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Menús. Va pegado a "Qué incluye" porque responde a lo mismo:
+              que se lleva quien reserva. */}
+          {experience.menus && experience.menus.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                {experience.menus.length === 1 ? 'Menú' : 'Menús'}
+              </h3>
+              <div className="space-y-4">
+                {experience.menus.map((menu) => (
+                  // Plegado de entrada: un menú largo empujaba hacia abajo todo
+                  // lo demás (requisitos, fechas, reservar). Quien lo quiere ver lo abre.
+                  <details key={menu._ref} className="group bg-gray-50 rounded-xl px-4 py-3">
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900">{menu.name}</p>
+                        {menu.description && (
+                          <p className="text-xs text-gray-500 mt-0.5">{menu.description}</p>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-xs font-medium text-marca">
+                        <span className="group-open:hidden">Ver menú</span>
+                        <span className="hidden group-open:inline">Ocultar</span>
+                      </span>
+                    </summary>
+                    {menu.sections?.map((seccion, i) => (
+                      <div key={seccion._key ?? i} className="mt-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          {seccion.name}
+                        </p>
+                        <ul className="mt-1 space-y-1">
+                          {seccion.items?.map((plato, j) => (
+                            <li
+                              key={plato._key ?? j}
+                              className="flex items-start justify-between gap-3"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm text-gray-700">{plato.name}</p>
+                                {plato.description && (
+                                  <p className="text-xs text-gray-500">{plato.description}</p>
+                                )}
+                              </div>
+                              {plato.price != null && (
+                                <span className="text-sm text-[#334C5D] shrink-0">
+                                  {formatPrice(plato.price, experience.currency)}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </details>
+                ))}
+              </div>
             </div>
           )}
 
@@ -256,7 +331,7 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
           )}
 
           {/* Sedes */}
-          {!isVirtual && locations.length > 0 && (
+          {!aDomicilio && locations.length > 0 && (
             <div className="mb-2">
               <h3 className="text-sm font-semibold text-gray-900 mb-2">
                 {locations.length === 1 ? 'Sede' : 'Sedes disponibles'}
@@ -267,6 +342,26 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                   return (
                     <div key={loc._id} className="bg-gray-50 rounded-xl px-4 py-3">
                       <p className="text-sm font-medium text-gray-900">{loc.name}</p>
+                      {(() => {
+                        // Lo que cambia en esta sede, y solo eso: la misma
+                        // experiencia puede valer otra cosa aquí, o venderse
+                        // solo para grupo completo. Repetir el precio de la
+                        // experiencia en cada sede no diría nada.
+                        const f = (experience.locationListings ?? []).find(
+                          (x) => x.locationId === loc._id,
+                        );
+                        const propio = [
+                          f?.kind === 'PRIVADA' ? 'Solo para grupo completo' : '',
+                          f?.basePrice != null
+                            ? `${formatPrice(f.basePrice, experience.currency ?? 'COP')} por persona`
+                            : '',
+                        ].filter(Boolean);
+                        return propio.length ? (
+                          <p className="text-xs text-marca font-medium mt-0.5">
+                            {propio.join(' · ')}
+                          </p>
+                        ) : null;
+                      })()}
                       {experience.hideAddress ? (
                         cityOnly && (
                           <p className="text-xs text-gray-500 mt-0.5">{cityOnly}</p>
@@ -276,6 +371,29 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
                           <p className="text-xs text-gray-500 mt-0.5">{formatAddress(loc.address)}</p>
                         )
                       )}
+                      {/* Las fotos y el video SI se enseñan aunque la
+                          direccion este oculta: son material comercial, no
+                          ubicacion. Ensenan como es el sitio, que es
+                          justamente lo que ayuda a decidir. */}
+                      <MediosDeSede
+                        fotos={loc.photos}
+                        video={loc.videoUrl}
+                        nombreSede={loc.name}
+                      />
+
+                      {/* El mapa sigue a hideAddress. Enseñarlo cuando la
+                          direccion esta oculta la revelaria igual: un pin es
+                          mas preciso que la calle escrita. */}
+                      {!experience.hideAddress &&
+                        typeof loc.latitude === 'number' &&
+                        typeof loc.longitude === 'number' && (
+                          <div className="mt-2">
+                            <MapaUbicacion
+                              valor={{ lat: loc.latitude, lng: loc.longitude }}
+                              altura="h-40"
+                            />
+                          </div>
+                        )}
                     </div>
                   );
                 })}
@@ -292,14 +410,23 @@ export default function ExperienceDetailModal({ experience, onClose, onBook }: P
         {/* Footer sticky */}
         <div className="border-t border-gray-100 bg-white px-6 sm:px-8 py-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs text-gray-400">Precio por persona</p>
-            <p className="text-xl font-bold text-[#334C5D]">
-              {experience.basePrice != null && experience.currency ? formatPrice(experience.basePrice, experience.currency) : 'Consultar'}
-            </p>
+            {(() => {
+              const { precio, varía } = precioDesde(experience);
+              return (
+                <>
+                  <p className="text-xs text-gray-400">
+                    {varía ? 'Desde, por persona' : 'Precio por persona'}
+                  </p>
+                  <p className="text-xl font-bold text-[#334C5D]">
+                    {precio != null && experience.currency ? formatPrice(precio, experience.currency) : 'Consultar'}
+                  </p>
+                </>
+              );
+            })()}
           </div>
           <button
             onClick={() => onBook(experience)}
-            className="px-6 py-3 bg-[#F26726] hover:bg-[#d9571f] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+            className="px-6 py-3 bg-marca hover:bg-marca-fuerte text-marca-contraste text-sm font-semibold rounded-xl transition-colors shadow-sm"
           >
             Reservar
           </button>

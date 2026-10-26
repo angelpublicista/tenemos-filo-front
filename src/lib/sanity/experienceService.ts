@@ -2,6 +2,7 @@
 // para no romper los callers (dashboard/experiences, crm, reservas, etc.).
 // El shape de Experience se mantiene "Sanity-like" via mapeo.
 import { api } from '@/lib/api/client';
+import { conClaves, type ApiMenu } from './menuService';
 import {
   Experience,
   CreateExperienceData,
@@ -11,29 +12,30 @@ import {
 
 // ─── Tipos del API (Postgres) ──────────────────────────────────────────────
 
-type ApiExperienceType = 'VIRTUAL' | 'PRESENTIAL' | 'HYBRID';
-type ApiExperienceStatus = 'DRAFT' | 'PENDING' | 'ACTIVE' | 'PAUSED' | 'INACTIVE';
+type ApiExperienceStatus = 'DRAFT' | 'PENDING' | 'ACTIVE' | 'INACTIVE';
 
-interface ApiExperience {
+export interface ApiExperience {
   id: string;
   companyId: string;
   title: string;
   slug: string;
   description: string | null;
   categories: string[];
+  languages: string[];
   duration: number | null;
-  capacity: number | null;
+  prepTime?: number | null;
+  cleanupTime?: number | null;
+  minimumNotice?: number | null;
   minCapacity: number | null;
   basePrice: string | number | null;
   currency: string;
   featuredImage: string | null;
   gallery: Array<{ assetId: string; alt?: string; caption?: string }> | null;
-  experienceType: ApiExperienceType;
-  isVirtual: boolean;
-  virtualPlatform: string | null;
+  atHome: boolean;
   presentialLocation: string | null;
   presentialAddress: string | null;
   presentialCity: string | null;
+  presentialState: string | null;
   hideAddress: boolean;
   requirements: string | null;
   includes: string[] | string | null;
@@ -45,8 +47,7 @@ interface ApiExperience {
   status: ApiExperienceStatus;
   isFeatured: boolean;
   rating: number | null;
-  totalBookings: number;
-  totalRevenue: string | number;
+
   createdAt: string;
   updatedAt: string;
   company?: { id: string; companyName: string; companyEmail?: string; companyPhone?: string };
@@ -55,7 +56,27 @@ interface ApiExperience {
     name: string;
     isMain: boolean;
     address?: Experience['locations'] extends Array<infer L> ? L extends { address?: infer A } ? A : unknown : unknown;
-    capacity?: unknown;
+    maxCapacity?: number | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    photos?: string[] | null;
+    videoUrl?: string | null;
+  }>;
+  menus?: ApiMenu[];
+  // Las condiciones propias de cada sede, cuando las tiene.
+  locationListings?: Array<{
+    locationId: string | null;
+    /** La URL propia de la publicación. */
+    slug?: string | null;
+    kind: 'ABIERTA' | 'PRIVADA' | null;
+    minCapacity: number | null;
+    basePrice: string | number | null;
+    prepTime: number | null;
+    cleanupTime: number | null;
+    minimumNotice: number | null;
+    isPublished?: boolean;
+    notes?: string | null;
+    cities?: string[];
   }>;
   availabilities?: Array<{
     id: string;
@@ -63,7 +84,7 @@ interface ApiExperience {
     weeklySchedule: unknown;
     bufferTime: number;
     minimumNotice: number;
-    blockedDates: string[];
+    dateOverrides: Record<string, unknown> | null;
     locationId: string | null;
   }>;
 }
@@ -74,31 +95,19 @@ const STATUS_TO_API: Record<NonNullable<Experience['status']>, ApiExperienceStat
   draft: 'DRAFT',
   pending: 'PENDING',
   active: 'ACTIVE',
-  paused: 'PAUSED',
   inactive: 'INACTIVE',
 };
 const STATUS_FROM_API: Record<ApiExperienceStatus, Experience['status']> = {
   DRAFT: 'draft',
   PENDING: 'pending',
   ACTIVE: 'active',
-  PAUSED: 'paused',
   INACTIVE: 'inactive',
 };
 
-const TYPE_TO_API: Record<NonNullable<Experience['experienceType']>, ApiExperienceType> = {
-  virtual: 'VIRTUAL',
-  presential: 'PRESENTIAL',
-  hybrid: 'HYBRID',
-};
-const TYPE_FROM_API: Record<ApiExperienceType, Experience['experienceType']> = {
-  VIRTUAL: 'virtual',
-  PRESENTIAL: 'presential',
-  HYBRID: 'hybrid',
-};
 
 // ─── Mapper API → Experience (Sanity-like) ─────────────────────────────────
 
-function toExperience(e: ApiExperience): Experience {
+export function toExperience(e: ApiExperience): Experience {
   const includesArr =
     e.includes == null
       ? []
@@ -114,8 +123,11 @@ function toExperience(e: ApiExperience): Experience {
     company: { _ref: e.companyId, _type: 'reference' },
     description: e.description ?? '',
     categories: (e.categories ?? []) as Experience['categories'],
+    languages: e.languages ?? [],
     duration: e.duration ?? 0,
-    capacity: e.capacity ?? 0,
+    prepTime: e.prepTime ?? null,
+    cleanupTime: e.cleanupTime ?? null,
+    minimumNotice: e.minimumNotice ?? null,
     minCapacity: e.minCapacity ?? undefined,
     basePrice: typeof e.basePrice === 'string' ? Number(e.basePrice) : (e.basePrice ?? 0),
     currency: e.currency as Experience['currency'],
@@ -129,7 +141,25 @@ function toExperience(e: ApiExperience): Experience {
       name: l.name,
       address: l.address as { street?: string; city?: string; state?: string; postalCode?: string; country?: string } | undefined,
       isMain: l.isMain,
-      capacity: l.capacity as { minGuests?: number; maxGuests?: number } | undefined,
+      maxCapacity: l.maxCapacity ?? undefined,
+      // El mapa del catalogo se pinta con esto.
+      latitude: l.latitude ?? null,
+      longitude: l.longitude ?? null,
+      photos: l.photos ?? [],
+      videoUrl: l.videoUrl ?? null,
+    })),
+    // Lo que cambia en cada sede. El precio llega como string del Decimal.
+    locationListings: e.locationListings?.map((f) => ({
+      ...f,
+      basePrice: f.basePrice === null || f.basePrice === undefined ? null : Number(f.basePrice),
+    })),
+    menus: e.menus?.map((m) => ({
+      _ref: m.id,
+      _type: 'reference' as const,
+      _id: m.id,
+      name: m.name,
+      description: m.description ?? undefined,
+      sections: conClaves(m.sections ?? []),
     })),
     availabilities: e.availabilities?.map((a) => ({ _ref: a.id, _type: 'reference' as const })),
     availabilitySchedules: e.availabilities?.map((a) => ({
@@ -139,19 +169,18 @@ function toExperience(e: ApiExperience): Experience {
       weeklySchedule: a.weeklySchedule as import('@/types').WeeklySchedule,
       bufferTime: a.bufferTime,
       minimumNotice: a.minimumNotice,
-      blockedDates: (a.blockedDates ?? []).map((d) => ({ date: d })),
+      dateOverrides: (a.dateOverrides ?? undefined) as import('@/types').AvailabilitySchedule['dateOverrides'],
       isMain: false,
       isActive: true,
       location: a.locationId ? { _ref: a.locationId, _type: 'reference' as const } : undefined,
       createdAt: '',
       updatedAt: '',
     })),
-    experienceType: TYPE_FROM_API[e.experienceType],
-    isVirtual: e.isVirtual,
-    virtualPlatform: (e.virtualPlatform ?? undefined) as Experience['virtualPlatform'],
+    atHome: e.atHome ?? false,
     presentialLocation: e.presentialLocation ?? undefined,
     presentialAddress: e.presentialAddress ?? undefined,
     presentialCity: e.presentialCity ?? undefined,
+    presentialState: e.presentialState ?? undefined,
     hideAddress: e.hideAddress,
     requirements: e.requirements ? [e.requirements] : undefined,
     includes: includesArr,
@@ -163,8 +192,6 @@ function toExperience(e: ApiExperience): Experience {
     status: STATUS_FROM_API[e.status],
     isFeatured: e.isFeatured,
     rating: e.rating ?? undefined,
-    totalBookings: e.totalBookings,
-    totalRevenue: typeof e.totalRevenue === 'string' ? Number(e.totalRevenue) : e.totalRevenue,
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
   };
@@ -178,21 +205,24 @@ function buildCreatePayload(data: CreateExperienceData): Record<string, unknown>
     company: data.company,
     description: data.description,
     categories: data.categories,
+    languages: data.languages ?? [],
     duration: data.duration,
-    capacity: data.capacity,
+    prepTime: data.prepTime ?? null,
+    cleanupTime: data.cleanupTime ?? null,
+    minimumNotice: data.minimumNotice ?? null,
     minCapacity: data.minCapacity,
     basePrice: data.basePrice,
     currency: data.currency,
     featuredImage: data.featuredImage,
     gallery: data.gallery,
     locations: data.locations ?? [],
+    menus: data.menus ?? [],
     availabilities: data.availabilities ?? [],
-    experienceType: TYPE_TO_API[data.experienceType],
-    isVirtual: data.isVirtual,
-    virtualPlatform: data.virtualPlatform,
+    atHome: data.atHome ?? false,
     presentialLocation: data.presentialLocation,
     presentialAddress: data.presentialAddress,
     presentialCity: data.presentialCity,
+    presentialState: data.presentialState,
     hideAddress: data.hideAddress,
     requirements: Array.isArray(data.requirements) ? data.requirements.join('\n') : data.requirements,
     includes: data.includes,
@@ -211,21 +241,24 @@ function buildUpdatePayload(data: UpdateExperienceData): Record<string, unknown>
   if (data.title !== undefined) out.title = data.title;
   if (data.description !== undefined) out.description = data.description;
   if (data.categories !== undefined) out.categories = data.categories;
+  if (data.languages !== undefined) out.languages = data.languages;
   if (data.duration !== undefined) out.duration = data.duration;
-  if (data.capacity !== undefined) out.capacity = data.capacity;
+  if (data.prepTime !== undefined) out.prepTime = data.prepTime;
+  if (data.cleanupTime !== undefined) out.cleanupTime = data.cleanupTime;
+  if (data.minimumNotice !== undefined) out.minimumNotice = data.minimumNotice;
   if (data.minCapacity !== undefined) out.minCapacity = data.minCapacity;
   if (data.basePrice !== undefined) out.basePrice = data.basePrice;
   if (data.currency !== undefined) out.currency = data.currency;
   if (data.featuredImage !== undefined) out.featuredImage = data.featuredImage;
   if (data.gallery !== undefined) out.gallery = data.gallery;
   if (data.locations !== undefined) out.locations = data.locations;
+  if (data.menus !== undefined) out.menus = data.menus;
   if (data.availabilities !== undefined) out.availabilities = data.availabilities;
-  if (data.experienceType !== undefined) out.experienceType = TYPE_TO_API[data.experienceType];
-  if (data.isVirtual !== undefined) out.isVirtual = data.isVirtual;
-  if (data.virtualPlatform !== undefined) out.virtualPlatform = data.virtualPlatform;
+  if (data.atHome !== undefined) out.atHome = data.atHome;
   if (data.presentialLocation !== undefined) out.presentialLocation = data.presentialLocation;
   if (data.presentialAddress !== undefined) out.presentialAddress = data.presentialAddress;
   if (data.presentialCity !== undefined) out.presentialCity = data.presentialCity;
+  if (data.presentialState !== undefined) out.presentialState = data.presentialState;
   if (data.hideAddress !== undefined) out.hideAddress = data.hideAddress;
   if (data.requirements !== undefined)
     out.requirements = Array.isArray(data.requirements)
@@ -260,7 +293,7 @@ export const getExperiences = async (
     status: filters.status ? STATUS_TO_API[filters.status as Experience['status']] : undefined,
     minPrice: filters.minPrice,
     maxPrice: filters.maxPrice,
-    experienceType: filters.experienceType ? TYPE_TO_API[filters.experienceType] : undefined,
+    atHome: filters.atHome,
     isFeatured: filters.isFeatured,
     sortBy,
     sortOrder,
@@ -304,8 +337,23 @@ export const updateExperienceInSanity = async (data: UpdateExperienceData) => {
   return toExperience(updated);
 };
 
-export const deleteExperienceInSanity = async (experienceId: string) => {
-  await api.delete(`/experiences/${encodeURIComponent(experienceId)}`);
+/**
+ * Eliminar una experiencia (TR-11).
+ *
+ * Sin `cancelarReservas`, el API se niega si tiene reservas por venir y dice
+ * cuántas. Con él, se cancelan —cada una con su aviso y su reembolso
+ * apuntado— y después se elimina. Devuelve cuántas canceló.
+ */
+export const deleteExperienceInSanity = async (
+  experienceId: string,
+  opts: { cancelarReservas?: boolean } = {},
+): Promise<{ reservasCanceladas: number }> => {
+  const r = await api.delete<{ reservasCanceladas?: number } | null>(
+    `/experiences/${encodeURIComponent(experienceId)}${
+      opts.cancelarReservas ? '?cancelarReservas=true' : ''
+    }`,
+  );
+  return { reservasCanceladas: r?.reservasCanceladas ?? 0 };
 };
 
 export const updateExperienceStatus = async (
@@ -330,10 +378,9 @@ export const getExperienceStatsByCompany = async (companyId: string) => {
     active: number;
     draft: number;
     pending: number;
-    paused: number;
+    /** Cuántas tienen alguna publicación en pausa. */
+    pausadas: number;
     inactive: number;
-    totalBookings: number;
-    totalRevenue: number;
     averageRating: number;
   }>(`/experiences/stats/by-company/${encodeURIComponent(companyId)}`);
 };

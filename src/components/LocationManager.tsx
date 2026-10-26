@@ -1,5 +1,6 @@
 "use client";
 
+import Image from 'next/image';
 import React, { useState } from 'react';
 import { 
   Location
@@ -21,20 +22,32 @@ import {
 import { BiMap, BiPhone, BiEnvelope, BiUser } from 'react-icons/bi';
 import LocationModal from './LocationModal';
 import { getCountryName } from '@/lib/constants/countries';
+import { TITULOS } from '@/lib/company/contactos';
+import { etiquetaDeCaracteristica } from '@/lib/company/caracteristicas';
+import { urlDeImagen } from '@/lib/images';
 
 interface LocationManagerProps {
   locations: Location[];
   onLocationsChange: (locations: Location[]) => void;
   companyId: string;
+  /**
+   * Titulo de la pantalla. Se recibe en vez de dejarlo fuera para poder
+   * ponerlo en la misma linea que "Nueva sede", como en el resto de
+   * pantallas. Sin sedes no se usa: ahi el boton es el centro del estado
+   * vacio y el titulo ya lo pinta la pagina.
+   */
+  encabezado?: React.ReactNode;
 }
 
-const LocationManager: React.FC<LocationManagerProps> = ({ 
-  locations, 
-  onLocationsChange, 
-  companyId 
+const LocationManager: React.FC<LocationManagerProps> = ({
+  locations,
+  onLocationsChange,
+  companyId,
+  encabezado,
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+  const sinSedes = locations.length === 0;
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
 
   const handleCreateLocation = () => {
@@ -124,14 +137,27 @@ const LocationManager: React.FC<LocationManagerProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-center items-center">
+      {/* Accion principal.
+          El mismo componente se usa en dos sitios: sobre la lista y dentro
+          del estado vacio. Centrado tiene sentido cuando es el unico
+          elemento de la tarjeta vacia, pero sobre la lista quedaba
+          flotando en medio de la pantalla, lejos del titulo y sin
+          alinearse con ninguna columna. Con sedes va a la derecha, como la
+          accion principal del resto de pantallas. */}
+      <div
+        className={
+          sinSedes
+            ? 'flex justify-center'
+            : 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'
+        }
+      >
+        {encabezado}
         <button
           onClick={handleCreateLocation}
-          className="flex items-center px-4 py-2 bg-[#F26726] text-white rounded-lg hover:bg-[#d9571f] transition-colors"
+          className="flex items-center justify-center px-5 py-2.5 bg-[#F26726] text-white text-sm font-medium rounded-full hover:bg-[#E05617] transition-colors shrink-0"
         >
           <AiOutlinePlus className="mr-2" />
-          Nueva Sede
+          Nueva sede
         </button>
       </div>
 
@@ -191,19 +217,8 @@ const LocationCard: React.FC<LocationCardProps> = ({
     return parts.join(', ');
   };
 
-  const getCapacityText = (capacity?: Location['capacity']) => {
-    if (!capacity) return 'Sin especificar';
-    if (capacity.minGuests && capacity.maxGuests) {
-      return `${capacity.minGuests} - ${capacity.maxGuests} invitados`;
-    }
-    if (capacity.maxGuests) {
-      return `Hasta ${capacity.maxGuests} invitados`;
-    }
-    if (capacity.minGuests) {
-      return `Mínimo ${capacity.minGuests} invitados`;
-    }
-    return 'Sin especificar';
-  };
+  const getCapacityText = (maxCapacity?: number) =>
+    maxCapacity ? `Hasta ${maxCapacity} personas` : 'Sin especificar';
 
   return (
     <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
@@ -263,26 +278,123 @@ const LocationCard: React.FC<LocationCardProps> = ({
           )}
         </div>
 
-        {/* Capacity */}
-        <div className="mb-4">
+        {/* La principal, que es la primera: identifica la sede de un vistazo
+            mucho mejor que su nombre. */}
+        {location.photos && location.photos.length > 0 && (
+          <div className="relative mb-4 aspect-video overflow-hidden rounded-lg bg-gray-100">
+            <Image
+              src={urlDeImagen(location.photos[0]) ?? ''}
+              alt={`Foto de ${location.name}`}
+              fill
+              className="object-cover"
+              unoptimized
+              sizes="(max-width: 768px) 100vw, 33vw"
+            />
+            {location.photos.length > 1 && (
+              <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                {location.photos.length} fotos
+              </span>
+            )}
+          </div>
+        )}
+
+        {location.importantInfo && (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-xs font-medium text-amber-900">Condiciones importantes</p>
+            {/* Se recorta: pueden ser varios parrafos y aqui solo hace falta
+                saber que existen. Enteras, al editar la sede. */}
+            <p className="line-clamp-2 text-xs text-amber-800">{location.importantInfo}</p>
+          </div>
+        )}
+
+        {/* Las caracteristicas, como etiquetas: se ojean, no se leen. */}
+        {(location.amenities?.length ?? 0) > 0 && (
+          <div className="mb-4 flex flex-wrap gap-1">
+            {location.amenities?.map((a) => (
+              <span
+                key={a}
+                className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+              >
+                {etiquetaDeCaracteristica(a)}
+              </span>
+            ))}
+            {typeof location.bathroomsCount === 'number' && (
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                {location.bathroomsCount} baños
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Los salones, con su capacidad. Los inactivos no se listan: no se
+            pueden usar, y enseñarlos infla lo que la sede parece ofrecer. */}
+        {location.hasRooms && (location.rooms?.length ?? 0) > 0 && (
+          <div className="mb-4 border-t border-gray-100 pt-3">
+            <p className="text-xs uppercase tracking-wide text-gray-400">Salones</p>
+            <ul className="mt-1 space-y-0.5">
+              {location.rooms
+                ?.filter((r) => r.isActive)
+                .map((r) => (
+                  <li key={r.id} className="flex justify-between gap-2 text-sm">
+                    <span className="truncate text-gray-900">{r.name}</span>
+                    <span className="shrink-0 text-gray-500">{r.maxCapacity} personas</span>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Responsable. Debajo de los datos de la sede y visiblemente
+            separado: son dos cosas distintas y confundirlas es justo lo que
+            hacia el bloque de "contacto" de antes. */}
+        {location.responsibleContact && (
+          <div className="mb-4 border-t border-gray-100 pt-3">
+            <p className="text-xs uppercase tracking-wide text-gray-400">Responsable</p>
+            <p className="text-sm text-gray-900">{location.responsibleContact.name}</p>
+            <p className="text-xs text-gray-500">
+              {[
+                location.responsibleContact.type === 'otro'
+                  ? location.responsibleContact.label
+                  : TITULOS[location.responsibleContact.type],
+                location.responsibleContact.phone,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+        )}
+
+        {/* Capacidad y si esta abierta al publico */}
+        <div className="mb-4 space-y-1">
           <div className="flex items-center gap-2">
             <BiUser className="text-gray-400 text-sm" />
-            <span className="text-sm text-gray-600">{getCapacityText(location.capacity)}</span>
+            <span className="text-sm text-gray-600">{getCapacityText(location.maxCapacity)}</span>
           </div>
+          {/* Solo si lo declaro: null significa que nadie lo dijo, y pintar
+              "No" seria afirmar algo que no consta. */}
+          {location.isPublic !== null && location.isPublic !== undefined && (
+            <p className="text-xs text-gray-500">
+              {location.isPublic
+                ? 'Abierta al público'
+                : 'Solo con reserva previa'}
+            </p>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex justify-between items-center pt-4 border-t border-gray-100">
           <div className="flex gap-2">
-            {!location.isMain && location.isActive && (
-              <button
-                onClick={onSetMain}
-                className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                title="Establecer como principal"
-              >
-                <AiOutlineStar className="text-lg" />
-              </button>
-            )}
+            {/* Siempre presente, aunque no se pueda pulsar: al ocultarla en
+                la sede principal, el resto de iconos se corria y la misma
+                accion caia en un sitio distinto en cada tarjeta. */}
+            <button
+              onClick={onSetMain}
+              disabled={location.isMain || !location.isActive}
+              className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-default"
+              title={location.isMain ? 'Ya es la sede principal' : 'Establecer como principal'}
+            >
+              <AiOutlineStar className="text-lg" />
+            </button>
             <button
               onClick={onToggleActive}
               className={`p-2 rounded-lg transition-colors ${

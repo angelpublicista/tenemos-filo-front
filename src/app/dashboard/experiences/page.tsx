@@ -1,25 +1,28 @@
 "use client";
 
+import ImportarCatalogo from '@/components/Experiences/ImportarCatalogo';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperiencesByCompany, getExperienceStatsByCompany, updateExperienceStatus, deleteExperienceInSanity } from '@/lib/sanity/experienceService';
-import { getCompanyByUserId } from '@/lib/sanity/companyService';
+import { getCompanyById, getCompanyByUserId } from '@/lib/sanity/companyService';
 import { Experience, Company } from '@/types';
+import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
 
 interface ExperienceStats {
   total: number;
   active: number;
   draft: number;
   pending: number;
-  paused: number;
+  /** Cuántas tienen alguna publicación en pausa. Pausar es de la publicación. */
+  pausadas: number;
   inactive: number;
-  totalBookings: number;
-  totalRevenue: number;
   averageRating: number;
 }
 import { Button, Select } from 'flowbite-react';
 import { 
   HiPlus, 
+  HiOutlineSparkles,
   HiStar,
   HiExclamationCircle,
   HiViewGrid,
@@ -31,10 +34,11 @@ import ExperienceStats from '@/components/ExperienceStats';
 import { SkeletonStatCard, SkeletonCard } from '@/components/Skeleton';
 import { ManageExperienceCard } from '@/components/ManageExperienceCard';
 
-export default function ExperiencesPage() {
-  const { user } = useAuth();
+function ExperiencesPageContenido() {
+  const [importando, setImportando] = useState(false);
+  const { user, sanityUser } = useAuth();
   const router = useRouter();
-  const { showSuccess, showError, showConfirmation } = useSweetAlert();
+  const { showSuccess, showError, showDestructiveConfirmation } = useSweetAlert();
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
   const [stats, setStats] = useState<ExperienceStats | null>(null);
@@ -49,7 +53,15 @@ export default function ExperiencesPage() {
 
     try {
       setIsLoading(true);
-      const companyData = await getCompanyByUserId(user.uid);
+      // La empresa activa la manda AuthContext, que es lo que respeta el
+      // selector de empresa y lo que usa el resto del panel (disponibilidad,
+      // sedes, CRM...). `/companies/me` no sirve como unica fuente aqui: a un
+      // ADMIN en modo plataforma le responde null a proposito, y esta
+      // pantalla se quedaba vacia mientras disponibilidad —que si lee
+      // sanityUser— listaba las experiencias de esa misma empresa.
+      const companyData = sanityUser?.companyId
+        ? await getCompanyById(sanityUser.companyId)
+        : await getCompanyByUserId(user.uid);
 
       if (!companyData) {
         showError('No se encontró información de empresa. Completa el registro de empresa primero.');
@@ -78,7 +90,7 @@ export default function ExperiencesPage() {
   useEffect(() => {
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, sanityUser?.companyId]);
 
   // Filtrar experiencias por estado
   const filteredExperiences = experiences.filter(experience => {
@@ -110,7 +122,20 @@ export default function ExperiencesPage() {
       showSuccess('Estado actualizado exitosamente');
     } catch (error) {
       console.error('Error updating status:', error);
-      showError('Error al actualizar el estado');
+      // TR-23. Si está incompleta, el API dice exactamente qué falta. Un
+      // "Error al actualizar el estado" mandaría a adivinar.
+      const d =
+        error instanceof ApiHttpError
+          ? (error.details as { motivo?: string; falta?: string[] } | undefined)
+          : undefined;
+      if (d?.motivo === 'INCOMPLETA') {
+        showError(
+          'Todavía no se puede publicar',
+          `Falta ${d.falta?.join(', ')}. Complétala y vuelve a intentarlo.`,
+        );
+        return;
+      }
+      showError('Error al actualizar el estado', mensajeDeError(error));
     } finally {
       setIsUpdating(null);
     }
@@ -118,30 +143,60 @@ export default function ExperiencesPage() {
 
   // Eliminar experiencia
   const handleDelete = async (experienceId: string, experienceTitle: string) => {
-    const confirmed = await showConfirmation(
+    const confirmed = await showDestructiveConfirmation(
       'Eliminar Experiencia',
       `¿Estás seguro de que quieres eliminar "${experienceTitle}"? Esta acción no se puede deshacer.`
     );
 
     if (!confirmed) return;
 
+    setIsUpdating(experienceId);
     try {
-      setIsUpdating(experienceId);
-      await deleteExperienceInSanity(experienceId);
-      
-      // Actualizar estado local
+      let canceladas = 0;
+      try {
+        canceladas = (await deleteExperienceInSanity(experienceId)).reservasCanceladas;
+      } catch (err) {
+        // TR-11. El API se niega si hay reservas por venir y dice cuántas. No
+        // se borra nada hasta que el anfitrión sepa qué va a cancelar: al
+        // otro lado hay gente que ya pagó y espera una fecha.
+        const d =
+          err instanceof ApiHttpError
+            ? (err.details as { motivo?: string; reservas?: number; conPago?: number } | undefined)
+            : undefined;
+        if (d?.motivo !== 'TIENE_RESERVAS') throw err;
+
+        const cuantas = d.reservas ?? 0;
+        const confirmaCancelar = await showDestructiveConfirmation(
+          'Hay reservas por venir',
+          `"${experienceTitle}" tiene ${cuantas} ${cuantas === 1 ? 'reserva' : 'reservas'} por venir` +
+            `${d.conPago ? `, ${d.conPago} con dinero cobrado` : ''}. ` +
+            'Si la eliminas se cancelarán, se avisará a cada comensal y tendrás que devolver lo cobrado.',
+          'Sí, cancelarlas y eliminar',
+        );
+        if (!confirmaCancelar) return;
+
+        canceladas = (
+          await deleteExperienceInSanity(experienceId, { cancelarReservas: true })
+        ).reservasCanceladas;
+      }
+
       setExperiences(prev => prev.filter(exp => exp._id !== experienceId));
 
-      // Recargar estadísticas
       if (company) {
         const newStats = await getExperienceStatsByCompany(company._id);
         setStats(newStats);
       }
 
-      showSuccess('Experiencia eliminada exitosamente');
+      showSuccess(
+        canceladas > 0
+          ? `Experiencia eliminada y ${canceladas} ${
+              canceladas === 1 ? 'reserva cancelada' : 'reservas canceladas'
+            }`
+          : 'Experiencia eliminada exitosamente',
+      );
     } catch (error) {
       console.error('Error deleting experience:', error);
-      showError('Error al eliminar la experiencia');
+      showError(mensajeDeError(error));
     } finally {
       setIsUpdating(null);
     }
@@ -189,16 +244,26 @@ export default function ExperiencesPage() {
             </p>
           </div>
 
-          <Button
-            color="primary"
-            href="/dashboard/experiences/create"
-            className="w-full sm:w-auto px-4 py-2"
-          >
-            <HiPlus className="w-5 h-5 mr-2" />
-            Crear Nueva Experiencia
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            {/* Importar va antes de crear: quien llega con su catálogo hecho no
+                debería tener que teclearlo ficha a ficha. */}
+            <Button color="gray" onClick={() => setImportando(true)} className="w-full sm:w-auto">
+              <HiOutlineSparkles className="w-5 h-5 mr-2" />
+              Importar mi catálogo
+            </Button>
+            <Button color="primary" href="/dashboard/experiences/create" className="w-full sm:w-auto">
+              <HiPlus className="w-5 h-5 mr-2" />
+              Crear experiencia
+            </Button>
+          </div>
         </div>
       </div>
+
+      <ImportarCatalogo
+        abierto={importando}
+        onCerrar={() => setImportando(false)}
+        onImportado={() => { void loadData(); }}
+      />
 
       {/* Estadísticas */}
       {isLoading ? (
@@ -226,14 +291,13 @@ export default function ExperiencesPage() {
               <option value="active">Activas</option>
               <option value="draft">Borradores</option>
               <option value="pending">Pendientes</option>
-              <option value="paused">Pausadas</option>
               <option value="inactive">Inactivas</option>
             </Select>
 
             {/* Toggle de vista */}
             <div className="flex items-center gap-1 shrink-0">
               <Button
-                color={viewMode === 'grid' ? 'primary' : 'gray'}
+                color={viewMode === 'grid' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
                 className="!p-2"
@@ -241,7 +305,7 @@ export default function ExperiencesPage() {
                 <HiViewGrid className="w-4 h-4" />
               </Button>
               <Button
-                color={viewMode === 'list' ? 'primary' : 'gray'}
+                color={viewMode === 'list' ? 'selected' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('list')}
                 className="!p-2"
@@ -299,5 +363,20 @@ export default function ExperiencesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Pantalla de anfitrion: un revendedor no tiene experiencias que gestionar.
+ *
+ * El menu ya no se la enseña a un revendedor, pero por URL se llegaba igual
+ * y lo que salia era una pantalla rota —el titulo de su empresa, botones que
+ * dan 403 y un error al cargar—. ProtectedRoute lo devuelve al dashboard.
+ */
+export default function ExperiencesPage() {
+  return (
+    <ProtectedRoute roles={['host', 'admin']}>
+      <ExperiencesPageContenido />
+    </ProtectedRoute>
   );
 }

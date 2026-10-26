@@ -1,11 +1,12 @@
 "use client";
 
 import React from 'react';
+import TelefonoInput from '@/components/TelefonoInput';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { HiArrowLeft, HiArrowRight } from 'react-icons/hi';
-import type { BookingData } from '@/app/book/[companyId]/page';
+import type { BookingData } from '@/components/BookingEngine/MotorReservas';
 
 const schema = z.object({
   name: z.string().min(2, 'Ingresa tu nombre completo'),
@@ -19,11 +20,29 @@ type FormValues = z.infer<typeof schema>;
 interface Props {
   onNext: (guestInfo: BookingData['guestInfo']) => void;
   onBack: () => void;
+  /**
+   * Lo que el anfitrión ya sabe de quien llega por su enlace. Se rellena, no
+   * se bloquea: es su información y puede corregirla.
+   */
+  conocido?: { name: string; email: string; phone: string } | null;
+  /** Lo que ya escribió, al volver desde la confirmación. Manda sobre `conocido`. */
+  inicial?: BookingData['guestInfo'];
 }
 
-export default function ContactStep({ onNext, onBack }: Props) {
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+export default function ContactStep({ onNext, onBack, conocido, inicial }: Props) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitted },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    defaultValues: inicial
+      ? { name: inicial.name, email: inicial.email, phone: inicial.phone, notes: inicial.notes }
+      : conocido
+        ? { name: conocido.name, email: conocido.email, phone: conocido.phone }
+        : undefined,
   });
 
   const onSubmit = (values: FormValues) => {
@@ -38,7 +57,11 @@ export default function ContactStep({ onNext, onBack }: Props) {
 
       <div className="mb-6">
         <h2 className="text-xl font-bold text-gray-900 leading-tight">Tus datos de contacto</h2>
-        <p className="text-sm text-gray-500 mt-1.5">El anfitrión usará esta información para confirmar tu reserva.</p>
+        <p className="text-sm text-gray-500 mt-1.5">
+          {conocido
+            ? 'Ya los teníamos. Revísalos y corrige lo que haga falta.'
+            : 'El anfitrión usará esta información para confirmar tu reserva.'}
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -47,7 +70,7 @@ export default function ContactStep({ onNext, onBack }: Props) {
           <input
             {...register('name')}
             placeholder="Ej: María García"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#F26726] focus:ring-2 focus:ring-[#F26726]/20"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-marca focus:ring-2 focus:ring-marca-borde"
           />
           {errors.name && <p className="text-xs text-red-500 mt-1.5">{errors.name.message}</p>}
         </div>
@@ -58,20 +81,23 @@ export default function ContactStep({ onNext, onBack }: Props) {
             {...register('email')}
             type="email"
             placeholder="tu@email.com"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#F26726] focus:ring-2 focus:ring-[#F26726]/20"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-marca focus:ring-2 focus:ring-marca-borde"
           />
           {errors.email && <p className="text-xs text-red-500 mt-1.5">{errors.email.message}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2.5">Teléfono *</label>
-          <input
-            {...register('phone')}
-            type="tel"
-            placeholder="+57 300 000 0000"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#F26726] focus:ring-2 focus:ring-[#F26726]/20"
+          <TelefonoInput
+            value={watch('phone') || ''}
+            // Se valida solo despues de intentar enviar, como el nombre y el
+            // correo. Validando siempre, el campo nacia en rojo: el selector de
+            // pais emite "+57" al montarse y eso ya no llega a 7 digitos, asi
+            // que el cliente veia "Ingresa un telefono valido" antes de
+            // escribir nada.
+            onChange={(v) => setValue('phone', v, { shouldValidate: isSubmitted, shouldDirty: true })}
+            error={errors.phone?.message}
           />
-          {errors.phone && <p className="text-xs text-red-500 mt-1.5">{errors.phone.message}</p>}
         </div>
 
         <div>
@@ -80,14 +106,14 @@ export default function ContactStep({ onNext, onBack }: Props) {
             {...register('notes')}
             rows={3}
             placeholder="Ej: alergias alimentarias, accesibilidad, celebraciones especiales..."
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#F26726] focus:ring-2 focus:ring-[#F26726]/20 resize-none"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-marca focus:ring-2 focus:ring-marca-borde resize-none"
           />
         </div>
 
         <div className="pt-4 mt-3 border-t border-gray-100">
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-2 py-4 bg-[#F26726] hover:bg-[#d9571f] text-white font-semibold text-base rounded-xl transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-2 py-4 bg-marca hover:bg-marca-fuerte text-marca-contraste font-semibold text-base rounded-xl transition-colors shadow-sm"
           >
             Continuar <HiArrowRight className="w-5 h-5" />
           </button>

@@ -5,12 +5,18 @@ import { Experience, Location, AvailabilitySchedule } from '@/types';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
 import { getAvailabilityScheduleById } from '@/lib/sanity/availabilityService';
 import { createReservationManually } from '@/lib/sanity/reservationService';
+import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
 import { searchExperiencesForQuote } from '@/lib/sanity/quoteService';
+import {
+  condicionesDeSede,
+  cuposDelDia,
+  cuposDeLaHora,
+  horariosDeSede,
+} from '@/lib/experiencias/condicionesDeSede';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { AiOutlineClose, AiOutlineUser, AiOutlineUserAdd } from 'react-icons/ai';
 import { BiTime, BiMap } from 'react-icons/bi';
-import { PhoneInput } from 'react-international-phone';
-import 'react-international-phone/style.css';
+import TelefonoInput from './TelefonoInput';
 import { useAuth } from '@/lib/auth/AuthContext';
 import CalendarPicker from '@/components/CalendarPicker';
 import TimePicker from '@/components/TimePicker';
@@ -38,7 +44,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   const { sanityUser } = useAuth();
   const [step, setStep] = useState(0); // Ahora empieza en 0 (búsqueda)
   const [saving, setSaving] = useState(false);
-  const { showSuccess, showError, showLoading, hideLoading } = useSweetAlert();
+  const { showSuccess, showError, showLoading, hideLoading, showConfirmation } = useSweetAlert();
 
   // Paso 0: modo de selección (búsqueda por disponibilidad o selección directa)
   const [pickMode, setPickMode] = useState<'search' | 'direct'>('search');
@@ -133,7 +139,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   // Nota: Las cantidades de addons "por persona" ahora se pueden seleccionar manualmente
   // No se auto-ajustan cuando cambian los participantes para permitir flexibilidad al usuario
 
-  // Obtener slots disponibles según la experiencia y el día seleccionado
+  // Las horas en que se puede empezar, según las franjas del día
   useEffect(() => {
     const getAvailableSlots = () => {
       if (!selectedExperience || !selectedDate) {
@@ -176,23 +182,26 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
       const dayOfWeek = daysOfWeek[date.getDay()];
       const experienceDuration = selectedExp?.duration || 60;
 
-      // Procesar cada calendario y combinar los slots disponibles
-      availableSchedules.forEach(schedule => {
+      // Solo los calendarios de la sede elegida: los sábados que únicamente
+      // abre la finca no tienen por qué ofrecerse en el local del centro.
+      horariosDeSede(availableSchedules, selectedLocation).forEach(schedule => {
         if (!schedule.weeklySchedule) return;
         
         const daySchedule = schedule.weeklySchedule[dayOfWeek];
         
-        if (!daySchedule || !daySchedule.isActive || !daySchedule.timeSlots) return;
+        if (!daySchedule || !daySchedule.isActive) return;
 
-        // Generar slots de tiempo basados en los timeSlots del día
-        daySchedule.timeSlots.forEach((timeSlot: { startTime: string; endTime: string }) => {
-          const [startHour, startMin] = timeSlot.startTime.split(':').map(Number);
-          const [endHour, endMin] = timeSlot.endTime.split(':').map(Number);
+        // `franjas` es el nombre de ahora; `timeSlots` son los horarios
+        // guardados antes del renombre, que se siguen leyendo.
+        const franjas = daySchedule.franjas ?? daySchedule.timeSlots ?? [];
+        franjas.forEach((franja: { startTime: string; endTime: string }) => {
+          const [startHour, startMin] = franja.startTime.split(':').map(Number);
+          const [endHour, endMin] = franja.endTime.split(':').map(Number);
           
           const startMinutes = startHour * 60 + startMin;
           const endMinutes = endHour * 60 + endMin;
           
-          // Generar slots cada 30 minutos dentro del rango
+          // Una hora de inicio cada 30 minutos dentro de la franja
           for (let minutes = startMinutes; minutes + experienceDuration <= endMinutes; minutes += 30) {
             const hours = Math.floor(minutes / 60);
             const mins = minutes % 60;
@@ -208,7 +217,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     };
 
     getAvailableSlots();
-  }, [selectedExperience, selectedDate, availableSchedules, searchResults, experiences]);
+  }, [selectedExperience, selectedDate, selectedLocation, availableSchedules, searchResults, experiences]);
 
   // Función para buscar experiencias disponibles
   const handleSearch = async (e: React.FormEvent) => {
@@ -262,6 +271,28 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
   };
 
   const selectedExp = searchResults.find(exp => exp._id === selectedExperience) || experiences.find(exp => exp._id === selectedExperience);
+  /**
+   * Las condiciones de la sede elegida: la misma experiencia puede tener otro
+   * precio y otra anticipación en cada sede. Sin esto se cobraba un precio
+   * distinto del que se acababa de enseñar.
+   */
+  const condiciones = condicionesDeSede(
+    selectedExp ?? { minCapacity: 1, basePrice: 0, cleanupTime: 0, minimumNotice: 0 },
+    selectedLocation,
+  );
+
+  /**
+   * Cuánta gente cabe a la hora elegida. Los cupos son de la franja, así que
+   * el tope no se sabe hasta que hay hora; antes de eso, el mayor del día.
+   */
+  const tope = (() => {
+    if (!selectedDate) return null;
+    const fecha = new Date(`${selectedDate}T12:00:00`);
+    const horarios = horariosDeSede(availableSchedules, selectedLocation);
+    return selectedTime
+      ? cuposDeLaHora(horarios, new Date(`${selectedDate}T${selectedTime}:00`), selectedTime)
+      : cuposDelDia(horarios, fecha);
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -316,7 +347,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         } : undefined,
       });
 
-      const result = await createReservationManually({
+      const datos = {
         experience: selectedExperience,
         location: selectedLocation,
         reservationDate: reservationDateTime,
@@ -330,7 +361,35 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
           phone: guestPhone.trim(),
         } : undefined,
         selectedAddons: selectedAddons.length > 0 ? selectedAddons : undefined,
-      });
+      } as const;
+
+      let result;
+      try {
+        result = await createReservationManually(datos);
+      } catch (error) {
+        // TR-42. Si a esa hora ya hay algo en OTRA sede, no es un error: es
+        // un aviso. Un anfitrión con dos equipos lo hace todos los días, así
+        // que se le cuenta y decide. El choque sobre la MISMA sede no llega
+        // aquí: ese no se puede saltar y se muestra como error.
+        const d =
+          error instanceof ApiHttpError
+            ? (error.details as { motivo?: string } | undefined)
+            : undefined;
+        if (d?.motivo !== 'SOLAPE_EN_OTRA_SEDE') throw error;
+
+        hideLoading();
+        const seguir = await showConfirmation(
+          'Ya tienes algo a esa hora',
+          `${mensajeDeError(error)}`,
+          'Programar de todas formas',
+        );
+        if (!seguir) {
+          setSaving(false);
+          return;
+        }
+        showLoading('Creando reserva...');
+        result = await createReservationManually({ ...datos, permitirSolape: true });
+      }
 
       console.log('✅ Reserva creada con éxito:', result);
 
@@ -341,15 +400,10 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     } catch (error) {
       hideLoading();
       console.error('❌ Error completo al crear la reserva:', error);
-      showError(error instanceof Error ? error.message : 'Error al crear la reserva');
+      showError(mensajeDeError(error));
     } finally {
       setSaving(false);
     }
-  };
-
-  const getMinDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
   };
 
   return (
@@ -507,10 +561,9 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <BiMap className="w-3 h-3" />
-                                    {exp.experienceType === 'presential' ? 'Presencial' : 
-                                     exp.experienceType === 'virtual' ? 'Virtual' : 'Híbrida'}
+                                    {exp.atHome ? 'A domicilio' : 'En sede'}
                                   </div>
-                                  <div>Capacidad: {exp.minCapacity || 1}-{exp.capacity} personas</div>
+                                  <div>Mínimo {exp.minCapacity || 1} personas</div>
                                   {exp.presentialCity && <div>📍 {exp.presentialCity}</div>}
                                 </div>
 
@@ -583,10 +636,9 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                               </span>
                               <span className="flex items-center gap-1">
                                 <BiMap className="w-3 h-3" />
-                                {exp.experienceType === 'presential' ? 'Presencial' :
-                                 exp.experienceType === 'virtual' ? 'Virtual' : 'Híbrida'}
+                                {exp.atHome ? 'A domicilio' : 'En sede'}
                               </span>
-                              <span>Capacidad: {exp.minCapacity || 1}–{exp.capacity}</span>
+                              <span>Mínimo {exp.minCapacity || 1}</span>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
@@ -639,8 +691,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                           <div className="flex items-center gap-2">
                             <BiMap className="text-gray-500" />
                             <span className="text-gray-700">
-                              {selectedExp.experienceType === 'presential' ? 'Presencial' : 
-                               selectedExp.experienceType === 'virtual' ? 'Virtual' : 'Híbrida'}
+                              {selectedExp.atHome ? 'A domicilio' : 'En sede'}
                             </span>
                           </div>
                           <div className="text-right">
@@ -728,13 +779,15 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                         value={participants}
                         onChange={(e) => setParticipants(parseInt(e.target.value) || 1)}
                         min="1"
-                        max={selectedExp?.capacity || 100}
+                        max={tope || 100}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F26726] focus:border-transparent"
                         required
                       />
                       {selectedExp && (
                         <p className="text-xs text-gray-500 mt-1">
-                          Capacidad: {selectedExp.minCapacity || 1}–{selectedExp.capacity} personas
+                          {tope
+                            ? `Caben ${condiciones.minCapacity}–${tope} a esa hora`
+                            : `Mínimo ${condiciones.minCapacity} personas`}
                         </p>
                       )}
                     </div>
@@ -926,13 +979,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
                           Teléfono *
                         </label>
-                        <PhoneInput
-                          defaultCountry="co"
-                          value={guestPhone}
-                          onChange={(phone) => setGuestPhone(phone)}
-                          placeholder="Teléfono"
-                          className="w-full [&>input]:w-full [&>input]:px-4 [&>input]:py-2 [&>input]:border [&>input]:border-gray-300 [&>input]:rounded-lg [&>input]:focus:ring-2 [&>input]:focus:ring-[#F26726] [&>input]:focus:border-transparent [&>button]:border [&>button]:border-gray-300 [&>button]:rounded-l-lg [&>button]:bg-white [&>button]:hover:bg-gray-50"
-                        />
+                        <TelefonoInput value={guestPhone} onChange={setGuestPhone} placeholder="Teléfono" />
                       </div>
 
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1001,7 +1048,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                       <div className="border-t border-gray-300 pt-2 mt-2 space-y-1">
                         <div className="flex justify-between text-gray-600">
                           <span>Subtotal ({participants} {participants === 1 ? 'persona' : 'personas'}):</span>
-                          <span>${(selectedExp.basePrice * participants).toLocaleString()} {selectedExp.currency}</span>
+                          <span>${(condiciones.basePrice * participants).toLocaleString()} {selectedExp.currency}</span>
                         </div>
                         
                         {selectedAddons.length > 0 && (
@@ -1019,7 +1066,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                           <span className="text-gray-700 font-bold">Total:</span>
                           <span className="font-bold text-[#F26726] text-lg">
                             ${(
-                              (selectedExp.basePrice * participants) + 
+                              (condiciones.basePrice * participants) + 
                               selectedAddons.reduce((sum, addon) => sum + (addon.price * addon.quantity), 0)
                             ).toLocaleString()} {selectedExp.currency}
                           </span>

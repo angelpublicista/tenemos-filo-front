@@ -6,6 +6,9 @@ export interface DashboardStats {
   pendingReservations: number;
   monthlyRevenue: number;
   growth: number;
+  /** Solo llegan en modo plataforma (ADMIN sin companyId). */
+  totalCompanies?: number;
+  totalUsers?: number;
 }
 
 export interface RecentActivity {
@@ -17,7 +20,11 @@ export interface RecentActivity {
   timestamp: string;
 }
 
-export const getDashboardStats = async (companyId: string): Promise<DashboardStats> => {
+/**
+ * Sin companyId el API responde en modo plataforma (agregado de todo), algo
+ * que solo el ADMIN puede pedir. Un host siempre pasa el suyo.
+ */
+export const getDashboardStats = async (companyId?: string): Promise<DashboardStats> => {
   return api.get<DashboardStats>('/dashboard/stats', { companyId });
 };
 
@@ -30,7 +37,7 @@ interface ApiActivity {
 }
 
 export const getRecentActivities = async (
-  companyId: string,
+  companyId?: string,
   limit: number = 5,
 ): Promise<RecentActivity[]> => {
   const items = await api.get<ApiActivity[]>('/dashboard/recent-activities', {

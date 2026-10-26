@@ -50,8 +50,37 @@ const STATUS_FROM_API: Record<ApiStatus, OpportunityStatus> = {
   PAUSED: 'paused',
 };
 
+/**
+ * CRM-12/13. Otro compromiso ya tomó el día que mira esta oportunidad.
+ *
+ * Solo informa: una pre-reserva bloquea el espacio, y sin esto el comercial
+ * seguiría persiguiendo una fecha que ya no existe.
+ */
+export interface EspacioTomado {
+  fecha: string;
+  experiencia: string | null;
+  estado: string;
+}
+
 interface ApiOpportunity {
   id: string;
+  experienceKind?: 'ABIERTA' | 'PRIVADA' | null;
+  buyerKind?: 'SOCIAL' | 'CORPORATIVO' | null;
+  paymentConditionNote?: string | null;
+  /** Solo el titular de la empresa autoriza una condición de pago. */
+  puedeAutorizarCondicion?: boolean;
+  espacioTomado?: EspacioTomado | null;
+  // Las reservas vivas: dicen si el espacio esta apartado y cuanto se cobro.
+  reservations?: Array<{
+    id: string;
+    reservationNumber: string;
+    status: string;
+    reservationDate: string;
+    participants: number;
+    paidAmount: string | number;
+    paymentStatus: string;
+    pricing?: { total?: number } | null;
+  }>;
   name: string;
   hostCompanyId: string;
   crmCompanyId: string | null;
@@ -92,6 +121,12 @@ interface ApiOpportunity {
 }
 
 function toOpportunity(o: ApiOpportunity): Opportunity & {
+  experienceKind?: 'ABIERTA' | 'PRIVADA' | null;
+  buyerKind?: 'SOCIAL' | 'CORPORATIVO' | null;
+  paymentConditionNote?: string | null;
+  puedeAutorizarCondicion?: boolean;
+  espacioTomado?: EspacioTomado | null;
+  reservations?: ApiOpportunity['reservations'];
   crmCompanyName?: string;
   contactName?: string;
   assignedToName?: string;
@@ -100,6 +135,13 @@ function toOpportunity(o: ApiOpportunity): Opportunity & {
   return {
     _id: o.id,
     _type: 'opportunity',
+    // Lo que gobierna el tramo final del embudo.
+    experienceKind: o.experienceKind ?? null,
+    buyerKind: o.buyerKind ?? null,
+    paymentConditionNote: o.paymentConditionNote ?? null,
+    puedeAutorizarCondicion: o.puedeAutorizarCondicion ?? false,
+    espacioTomado: o.espacioTomado ?? null,
+    reservations: o.reservations ?? [],
     name: o.name,
     hostCompany: { _ref: o.hostCompanyId, _type: 'reference' },
     crmCompany: o.crmCompanyId ? { _ref: o.crmCompanyId, _type: 'reference' } : undefined,
@@ -233,4 +275,22 @@ export const updateOpportunity = async (
 
 export const deleteOpportunity = async (opportunityId: string): Promise<void> => {
   await api.delete(`/opportunities/${encodeURIComponent(opportunityId)}`);
+};
+
+
+/**
+ * Registrar que la propuesta ya salio, aunque no haya salido de FILO.
+ *
+ * Mucha propuesta se manda por WhatsApp o por el correo propio. Si el CRM solo
+ * supiera de lo que envia el, el embudo estaria siempre desfasado y nadie se
+ * fiaria de el.
+ */
+export const marcarPropuestaEnviada = async (
+  opportunityId: string,
+  nota?: string,
+): Promise<void> => {
+  await api.post(
+    `/opportunities/${encodeURIComponent(opportunityId)}/propuesta-enviada`,
+    { nota },
+  );
 };

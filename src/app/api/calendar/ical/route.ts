@@ -17,8 +17,8 @@ type FeedReservation = {
   clientName?: string;
   clientEmail?: string;
   locationName?: string;
-  isVirtual?: boolean;
-  meetingLink?: string;
+  /** Dónde hay que ir, cuando la experiencia es a domicilio. */
+  serviceAddress?: string;
 };
 
 export async function GET(request: NextRequest) {
@@ -43,16 +43,16 @@ export async function GET(request: NextRequest) {
         const start = new Date(r.reservationDate as string);
         const end = new Date(start.getTime() + ((r.duration as number) || 60) * 60 * 1000);
 
-        const locationStr: string = r.isVirtual
-          ? (r.meetingLink as string) || 'Evento virtual'
-          : (r.locationName as string) || '';
+        // A domicilio, el lugar del calendario es la dirección del cliente:
+        // es a donde el anfitrión tiene que ir.
+        const locationStr: string =
+          (r.serviceAddress as string) || (r.locationName as string) || '';
 
         const description = [
           `Reserva: ${r.reservationNumber || r._id}`,
           `Cliente: ${r.clientName || 'Sin nombre'}`,
           r.clientEmail ? `Email: ${r.clientEmail}` : '',
           `Participantes: ${r.participants || 1}`,
-          r.isVirtual && r.meetingLink ? `Enlace: ${r.meetingLink}` : '',
         ]
           .filter(Boolean)
           .join('\\n');

@@ -51,6 +51,11 @@ secrets.zip
 credentials.json
 service-account*.json
 
+# Credenciales de los usuarios de prueba locales (ver npm run db:local:seed
+# en tenemosfilo-api). Nunca deben entrar al repo.
+/accesos-dev.xls
+accesos-dev.*
+
 # vercel
 .vercel
 
@@ -61,3 +66,6 @@ next-env.d.ts
 /.claude/
 SECURITY_INCIDENT_REPORT.md
 *md
+
+# Artefactos del empaquetado para el despliegue
+/paquete

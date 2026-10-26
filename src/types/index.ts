@@ -1,7 +1,15 @@
+import type { TipoDeEmpresa, TipoDePersona } from '@/lib/company/tipos';
+import type { ContactoDeEmpresa } from '@/lib/company/contactos';
+import type { HorarioSemanal } from '@/lib/company/horarios';
+
 // Tipos para formularios de configuración de empresa por pasos
 export interface CompanyBasicInfo {
   companyName: string;
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  /** Decide que documentacion legal se pide en el paso siguiente. */
+  personType: TipoDePersona;
+  companyType: TipoDeEmpresa;
+  /** Cadena vacia = ninguno. Es lo que entrega el <select>. */
+  companyTypeSecondary?: TipoDeEmpresa | '';
   description?: string;
   companyEmail: string;
   companyPhone: string;
@@ -9,6 +17,12 @@ export interface CompanyBasicInfo {
 }
 
 export interface CompanyFiscalInfo {
+  /** Actividad economica, codigo CIIU de cuatro digitos (RUT casilla 46). */
+  ciiuCode?: string;
+  /** Representante legal. Solo aplica a una persona juridica. */
+  legalRepName?: string;
+  legalRepDocType?: 'cedula' | 'pasaporte' | 'other';
+  legalRepDocNumber?: string;
   documentType: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
   businessName: string; // Razón social
@@ -54,7 +68,12 @@ export interface CreateUserData {
   firebaseId: string;
   name: string;
   email: string;
-  role: 'guest' | 'host' | 'admin' | 'reseller';
+  /**
+   * Roles auto-registrables. NO incluye 'admin': registerSchema del API solo
+   * acepta HOST/GUEST/RESELLER, y permitir que alguien se registre como
+   * administrador seria una escalada de privilegios.
+   */
+  role: 'guest' | 'host';
   phone: string;
   typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber: string;
@@ -67,12 +86,13 @@ export interface SanityUser {
   firebaseId?: string;
   name: string;
   email: string;
-  avatar?: {
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  /**
+   * Foto de perfil. Es la URL publica que devuelve la subida, no un objeto de
+   * Sanity: el campo `image` del API siempre fue una cadena, y el shape con
+   * `asset._ref` que habia aqui no lo rellenaba nadie.
+   */
+  image?: string;
+  /** Espeja el enum UserRole del API (HOST | GUEST | ADMIN | RESELLER). */
   role: 'guest' | 'host' | 'admin' | 'reseller';
   phone: string;
   typeDocument: 'nit' | 'cedula' | 'pasaporte' | 'other';
@@ -115,10 +135,32 @@ export interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  register: (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>) => Promise<{ user: { uid: string } }>;
+  /**
+   * `recaptchaToken` lo valida el API contra Google. El front ya comprobaba
+   * que existiera antes de enviar, pero eso pasa en el navegador y se lo salta
+   * cualquiera llamando al API directamente.
+   */
+  register: (email: string, password: string, userData: Omit<CreateUserData, 'firebaseId'>, recaptchaToken?: string | null) => Promise<{ user: { uid: string } }>;
+  /** Empresa sobre la que actua un ADMIN. null = modo plataforma. */
+  activeCompanyId: string | null;
+  setActiveCompany: (companyId: string | null) => void;
+  /**
+   * El panel debe pintarse como el de un revendedor.
+   *
+   * No es lo mismo que `sanityUser.role === 'reseller'`: un admin actuando
+   * como una empresa de revendedor tambien lo necesita. Su rol sigue siendo
+   * admin —conserva sus pantallas de plataforma— pero lo que opera es un
+   * canal de venta, no un negocio con experiencias propias.
+   */
+  esPanelRevendedor: boolean;
+  /** Paso 1: pide al API que envie el correo con el enlace de recuperacion. */
   resetPassword: (email: string) => Promise<void>;
+  /** Paso 2: canjea el token del enlace por una contrasena nueva. */
+  confirmPasswordReset: (token: string, newPassword: string) => Promise<void>;
   sendVerificationEmail: () => Promise<{ success: boolean; message: string }>;
   // Funciones de company setup
+  /** Relee el perfil del API tras cambiarlo (la foto, por ejemplo). */
+  refrescarPerfil: () => Promise<void>;
   markSetupCompleted: (companyId?: string) => void;
   clearSetupState: () => void;
   isSetupCompleted: () => boolean;
@@ -129,12 +171,28 @@ export interface AuthContextType {
 // Tipos para componentes
 export interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** Si se pasa, solo estos roles entran; el resto va al dashboard. */
+  roles?: SanityUser['role'][];
 }
 
 // Tipos para Company
 export interface Company {
   _id: string;
   _type: 'company';
+  /** Usuario titular. Es el único que puede editarla. */
+  ownerId?: string;
+  /**
+   * Rol del titular. Dice qué clase de negocio es la empresa: la de un
+   * anfitrión, que vende sus propias experiencias, o la de un revendedor,
+   * que vende las de otros. El panel se pinta distinto según cuál sea.
+   */
+  ownerRole?: SanityUser['role'];
+  /**
+   * Nombre del titular, para poder decir de quién es la empresa cuando se
+   * mira desde fuera. Puede no estar: el API lo devuelve en la ficha de la
+   * empresa, pero no en todos los listados.
+   */
+  ownerName?: string;
   companyName: string;
   slug: {
     current: string;
@@ -148,11 +206,13 @@ export interface Company {
       _type: 'reference';
     };
   };
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  companyType: TipoDeEmpresa;
   companyEmail: string;
   companyPhone: string;
   documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber?: string;
+  /** Digito de verificacion del NIT. Se deduce del numero. */
+  documentDv?: string;
   website?: string;
   address?: {
     street?: string;
@@ -164,6 +224,49 @@ export interface Company {
   employeeCount?: '1-10' | '11-50' | '51-200' | '201-500' | '500+';
   annualRevenue?: '0-100k' | '100k-500k' | '500k-1M' | '1M-5M' | '5M+';
   businessYears?: '0-1' | '1-3' | '3-5' | '5-10' | '10+';
+  /** Orígenes autorizados a insertar el catálogo. Vacío = cualquiera. */
+  embedDomains?: string[];
+  /** Frase corta de la empresa. */
+  tagline?: string;
+  /**
+   * Colores de marca, en hexadecimal (#RRGGBB). Sin ellos se usan los de la
+   * plataforma. El secundario es decorativo —degradados, etiquetas, portada—;
+   * nunca se usa para texto corrido.
+   */
+  brandPrimary?: string;
+  brandSecondary?: string;
+  /** Decide que documentacion legal se le pide. */
+  personType?: TipoDePersona;
+  /** Actividad economica, codigo CIIU de cuatro digitos. */
+  ciiuCode?: string;
+  /** Representante legal. Solo aplica a una persona juridica. */
+  legalRepName?: string;
+  legalRepDocType?: 'cedula' | 'pasaporte' | 'other';
+  legalRepDocNumber?: string;
+  /** A quien escribir para cada asunto. Ver lib/company/contactos. */
+  contacts?: ContactoDeEmpresa[];
+  /** Segundo tipo de negocio, opcional. Nunca igual al principal. */
+  companyTypeSecondary?: TipoDeEmpresa;
+  /** Id del restaurante en OpenTable, para enlazar su ficha. */
+  openTableRid?: string;
+  /** Portada del catálogo público. */
+  coverType?: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER';
+  coverImages?: string[];
+  coverVideo?: string;
+  /** Las reservas nuevas nacen confirmadas en vez de pendientes. */
+  autoConfirmReservations?: boolean;
+  /** Rechaza reservas que pasarían del aforo de la experiencia. */
+  blockWhenFull?: boolean;
+  /** null = hereda el valor por defecto de la plataforma. */
+  requirePayment?: boolean | null;
+  /**
+   * Documentos legales. Son CLAVES de S3, no URLs: viven en el prefijo privado
+   * y para abrirlos hay que pedir un enlace firmado que caduca.
+   */
+  rutKey?: string;
+  rutSubidoEl?: string;
+  camaraKey?: string;
+  camaraSubidaEl?: string;
   locations?: Array<{
     _ref: string;
     _type: 'reference';
@@ -199,13 +302,103 @@ export interface Location {
     phone?: string;
     email?: string;
   };
-  capacity?: {
-    minGuests?: number;
-    maxGuests?: number;
-  };
+  /** Cuanta gente cabe a la vez. */
+  maxCapacity?: number;
+  /** Si es un local abierto al publico. null/undefined = sin declarar. */
+  isPublic?: boolean | null;
+  /** Donde cae en el mapa. Van juntas o no van. */
+  latitude?: number | null;
+  longitude?: number | null;
+  /** Fotos en orden. La primera es la principal. */
+  photos?: string[];
+  /** Lo que ofrece la sede, como claves. Ver lib/company/caracteristicas. */
+  amenities?: string[];
+  /** Qué incluyen los audiovisuales. Solo si está esa característica. */
+  avEquipmentDetail?: string | null;
+  bathroomsCount?: number | null;
+  /** Condiciones que hay que conocer para montar algo aqui. Texto abierto. */
+  importantInfo?: string | null;
+  /** Horario semanal. Ver lib/company/horarios. */
+  openingHours?: HorarioSemanal | null;
+  /** Respuesta a "¿tiene espacios diferenciados?". null = sin contestar. */
+  hasRooms?: boolean | null;
+  rooms?: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    maxCapacity: number;
+    photos?: string[];
+    isActive: boolean;
+  }>;
+  /** Enlace del video. YouTube y Vimeo se incrustan; otros se enlazan. */
+  videoUrl?: string | null;
+  /** Quien responde por la sede: un contacto de la empresa, no datos sueltos. */
+  responsibleContactId?: string | null;
+  responsibleContact?: {
+    id: string;
+    name: string;
+    type: 'reservas' | 'contabilidad' | 'otro';
+    label?: string | null;
+    phone?: string | null;
+    position?: string | null;
+  } | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Un plato. El precio es opcional a proposito: en un menu de degustacion
+ * incluido en la experiencia no pinta nada, y en una carta si. Cuando falta,
+ * simplemente no se pinta.
+ */
+export interface MenuItem {
+  /** Clave local para las listas de React, como en los `addons`. */
+  _key?: string;
+  name: string;
+  description?: string;
+  price?: number;
+  /** URL publica de la foto, la que devuelve la subida. */
+  image?: string;
+}
+
+export interface MenuSection {
+  _key?: string;
+  name: string;
+  description?: string;
+  items: MenuItem[];
+}
+
+export interface Menu {
+  _id: string;
+  _type: 'menu';
+  name: string;
+  slug: {
+    current: string;
+    _type: 'slug';
+  };
+  company: {
+    _ref: string;
+    _type: 'reference';
+  };
+  description?: string;
+  sections: MenuSection[];
+  /** En que experiencias se usa: cambiar la carta las afecta a todas. */
+  experiences?: Array<{ _id: string; title: string }>;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMenuData {
+  name: string;
+  description?: string;
+  sections?: MenuSection[];
+  isActive?: boolean;
+}
+
+export interface UpdateMenuData extends Partial<CreateMenuData> {
+  _id: string;
 }
 
 // Tipos para formularios de registro por pasos
@@ -223,7 +416,7 @@ export interface HostStep1Data {
 
 export interface HostStep2Data {
   companyName: string;
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  companyType: TipoDeEmpresa;
   description?: string;
   companyEmail: string;
   companyPhone: string;
@@ -238,11 +431,39 @@ export interface HostStep3Data {
   country?: string;
   locationPhone?: string;
   locationEmail?: string;
-  minGuests?: number;
-  maxGuests?: number;
+  maxCapacity?: number;
+  isPublic?: boolean | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 // Tipos para experiencias
+/**
+ * Lo que una sede cambia respecto a la experiencia.
+ *
+ * Cada campo en null significa «aqui vale lo que diga la experiencia», que es
+ * la respuesta mas comun: lo normal es que una sede cambie una cosa.
+ */
+export interface LocationListing {
+  /** Nulo en la publicación a domicilio, que no tiene sede. */
+  locationId: string | null;
+  /** La URL propia de la publicación: /book/<empresa>/<slug>. */
+  slug?: string | null;
+  /** Cupos sueltos (abierta) o el sitio completo para un grupo (privada). */
+  kind?: 'ABIERTA' | 'PRIVADA' | null;
+  minCapacity?: number | null;
+  basePrice?: number | null;
+  prepTime?: number | null;
+  cleanupTime?: number | null;
+  /** Horas. */
+  minimumNotice?: number | null;
+  isPublished?: boolean;
+  /** Apuntes internos del anfitrion. No sale en el catalogo publico. */
+  notes?: string | null;
+  /** Ciudades donde presta una publicación a domicilio (la de sede nula). */
+  cities?: string[];
+}
+
 export interface Experience {
   _id: string;
   _type: 'experience';
@@ -257,8 +478,30 @@ export interface Experience {
   };
   description: string;
   categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
+  /**
+   * En qué idiomas se da. Códigos ISO 639-1; vacío es «no se declaró», no
+   * «solo español»: nadie lo ha dicho.
+   */
+  languages?: string[];
   duration: number; // minutos
-  capacity: number;
+  /**
+   * TR-19. Lo que ocupa además de sí misma: preparar antes y recoger después.
+   * En ese rato no cabe otra cosa, y la agenda del anfitrión lo cuenta.
+   *
+   * `prepTime` absorbió el viejo «buffer» del horario, que era lo mismo visto
+   * desde el otro lado —tiempo entre reservas— y vivía en el sitio equivocado.
+   */
+  prepTime?: number | null;
+  cleanupTime?: number | null;
+  /**
+   * Anticipación mínima para reservarla, en horas.
+   *
+   * Es de la experiencia y no del horario: un mismo calendario sirve a una
+   * cata que se reserva el mismo día y a una cena de quince que hay que
+   * comprar con dos días de antelación.
+   */
+  minimumNotice?: number | null;
+  /** El mínimo para que la experiencia se haga. Los cupos son del horario. */
   minCapacity?: number;
   basePrice: number;
   currency: 'COP' | 'USD';
@@ -297,20 +540,51 @@ export interface Experience {
       country?: string;
     };
     isMain?: boolean;
-    capacity?: { minGuests?: number; maxGuests?: number };
+    maxCapacity?: number;
+    /** Donde cae en el mapa. El catalogo publico lo usa para el pin. */
+    latitude?: number | null;
+    longitude?: number | null;
+    /** Fotos en orden; la primera es la principal. */
+    photos?: string[];
+    videoUrl?: string | null;
   }>;
+  /** Las cartas que ofrece. Mismo doble shape que `locations`. */
+  menus?: Array<{
+    _ref: string;
+    _type: 'reference';
+    _id?: string;
+    name?: string;
+    description?: string;
+    sections?: MenuSection[];
+  }>;
+  /**
+   * Las condiciones con que se ofrece en cada sede.
+   *
+   * Una experiencia es una pieza con la que se arma el catalogo: la misma
+   * puede estar en el local del centro como abierta —cupos que se compran
+   * sueltos— y en la finca como privada, con otro aforo, otro precio y otra
+   * anticipacion. Solo aparece la sede que tiene condiciones PROPIAS; las
+   * demas van con las de la experiencia.
+   */
+  locationListings?: LocationListing[];
   availabilities?: Array<{
     _ref: string;
     _type: 'reference';
   }>;
   // Expansion de availabilities con datos completos (heredado del GROQ original).
   availabilitySchedules?: AvailabilitySchedule[];
-  experienceType: 'virtual' | 'presential' | 'hybrid';
-  isVirtual?: boolean;
-  virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  /**
+   * Si va a casa de quien reserva.
+   *
+   * Un chef que va a casa del cliente no tiene sede donde publicarse: la
+   * dirección la pone quien reserva y cambia en cada reserva. Todo lo demás es
+   * presencial en un sitio del anfitrión; lo virtual se fue porque no se usaba.
+   */
+  atHome?: boolean;
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
+  presentialState?: string;
   hideAddress?: boolean;
   requirements?: string[];
   includes?: string[];
@@ -325,11 +599,14 @@ export interface Experience {
   endDate?: string;     // ISO date string (YYYY-MM-DD), opcional
   startTime?: string;   // HH:mm, opcional
   endTime?: string;     // HH:mm, opcional
-  status: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
+  /** Sin 'paused': pausar es de la publicación, no de la pieza. */
+  status: 'draft' | 'pending' | 'active' | 'inactive';
   isFeatured: boolean;
   rating?: number;
-  totalBookings: number;
-  totalRevenue: number;
+  // Sin `totalBookings` ni `totalRevenue`: una experiencia no lleva cifras de
+  // reservas ni de dinero. Las reservas viven en Reservas y el dinero en
+  // Ingresos, que además lo desglosa por experiencia. Tenerlo en los dos
+  // sitios significaba mantener dos cifras de lo mismo.
   reservations?: Array<{
     _ref: string;
     _type: 'reference';
@@ -344,8 +621,17 @@ export interface CreateExperienceData {
   company: string; // company ID
   description: string;
   categories: ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[];
+  /**
+   * En qué idiomas se da. Códigos ISO 639-1; vacío es «no se declaró», no
+   * «solo español»: nadie lo ha dicho.
+   */
+  languages?: string[];
   duration: number;
-  capacity: number;
+  /** Preparación y limpieza, en minutos; anticipación mínima, en horas. */
+  prepTime?: number | null;
+  cleanupTime?: number | null;
+  minimumNotice?: number | null;
+  /** El mínimo para que la experiencia se haga. Los cupos son del horario. */
   minCapacity?: number;
   basePrice: number;
   currency: 'COP' | 'USD';
@@ -357,13 +643,20 @@ export interface CreateExperienceData {
     caption?: string;
   }>; // Array de imágenes de la galería
   locations?: string[]; // Array de location IDs (múltiples sedes)
+  menus?: string[]; // Array de menu IDs (la experiencia puede ofrecer varias cartas)
   availabilities?: string[]; // Array de IDs de calendarios de disponibilidad (múltiples calendarios)
-  experienceType: 'virtual' | 'presential' | 'hybrid';
-  isVirtual?: boolean;
-  virtualPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  /**
+   * Si va a casa de quien reserva.
+   *
+   * Un chef que va a casa del cliente no tiene sede donde publicarse: la
+   * dirección la pone quien reserva y cambia en cada reserva. Todo lo demás es
+   * presencial en un sitio del anfitrión; lo virtual se fue porque no se usaba.
+   */
+  atHome?: boolean;
   presentialLocation?: string;
   presentialAddress?: string;
   presentialCity?: string;
+  presentialState?: string;
   hideAddress?: boolean;
   requirements?: string[];
   includes?: string[];
@@ -377,7 +670,7 @@ export interface CreateExperienceData {
   endDate?: string;
   startTime?: string;
   endTime?: string;
-  status?: 'draft' | 'pending' | 'active' | 'paused' | 'inactive';
+  status?: 'draft' | 'pending' | 'active' | 'inactive';
   isFeatured?: boolean;
 }
 
@@ -392,14 +685,14 @@ export interface ExperienceFilters {
   minPrice?: number;
   maxPrice?: number;
   duration?: number;
-  experienceType?: 'virtual' | 'presential' | 'hybrid';
+  atHome?: boolean;
   isFeatured?: boolean;
 }
 
 export interface ExperienceSearchParams {
   query?: string;
   filters?: ExperienceFilters;
-  sortBy?: 'title' | 'price' | 'rating' | 'createdAt' | 'totalBookings';
+  sortBy?: 'title' | 'price' | 'rating' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
@@ -431,7 +724,7 @@ export interface GuestStep1Data {
 
 export interface GuestStep2Data {
   companyName: string;
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other' | null;
+  companyType: TipoDeEmpresa | null;
   companyEmail: string;
   companyPhone: string;
   jobTitle?: string;
@@ -478,13 +771,6 @@ export interface ReservationPaymentDetails {
   paymentReference?: string;
 }
 
-export interface ReservationVirtualDetails {
-  platform?: 'zoom' | 'google_meet' | 'teams' | 'other';
-  meetingLink?: string;
-  meetingId?: string;
-  password?: string;
-}
-
 export interface ReservationCancellation {
   cancelledAt?: string;
   cancelledBy?: 'client' | 'host' | 'system';
@@ -515,7 +801,6 @@ export interface Reservation {
     title: string;
     category: string;
     duration: number;
-    capacity: number;
   };
   company: {
     _id: string;
@@ -529,7 +814,24 @@ export interface Reservation {
   reservationDate: string;
   duration: number;
   participants: number;
-  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'rescheduled';
+  // TR-08. Cinco estados y no mas. "En proceso" no lo marcaba nadie, y
+  // "reagendada" no es un estado: una reserva movida sigue viva y con el
+  // estado que tenia; lo que cambia es la fecha.
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  /**
+   * TR-26. El contacto del CRM al que corresponde el comprador. Null cuando
+   * no dejó correo ni teléfono: sin eso no se puede cruzar con nadie sin
+   * arriesgarse a confundir a dos personas.
+   */
+  contactoCrm?: { _id: string; nombre: string } | null;
+  /** TR-09. Cuánta gente apareció. Null mientras no se haya cerrado. */
+  attendedCount?: number | null;
+  /**
+   * TR-04. El canal por el que entró la venta, congelado al crearla. De él
+   * depende si genera comisión de FILO, y es distinto del origen del lead:
+   * alguien puede llegar por Instagram y acabar comprando por el catálogo.
+   */
+  canal?: 'MANUAL' | 'CHECKOUT' | 'RESELLER' | 'CRM';
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded' | 'failed';
   pricing: ReservationPricing;
   paymentMethod?: 'advance' | 'deferred' | 'corporate_credit' | 'cash';
@@ -545,8 +847,10 @@ export interface Reservation {
       country?: string;
     };
   };
-  isVirtual?: boolean;
-  virtualDetails?: ReservationVirtualDetails;
+  /** Dónde se presta, cuando la experiencia es a domicilio. */
+  serviceAddress?: string;
+  /** El idioma que pidió, de los que la experiencia ofrece. */
+  language?: string;
   specialRequirements?: string;
   cancellation?: ReservationCancellation;
   rescheduling?: ReservationRescheduling;
@@ -569,8 +873,10 @@ export interface CreateReservationData {
   paymentMethod?: Reservation['paymentMethod'];
   paymentDetails?: ReservationPaymentDetails;
   location?: string;
-  isVirtual?: boolean;
-  virtualDetails?: ReservationVirtualDetails;
+  /** Dónde se presta, cuando la experiencia es a domicilio. */
+  serviceAddress?: string;
+  /** El idioma que pidió, de los que la experiencia ofrece. */
+  language?: string;
   specialRequirements?: string;
   notes?: string;
 }
@@ -585,7 +891,6 @@ export interface ReservationFilters {
   dateFrom?: string;
   dateTo?: string;
   experience?: string;
-  isVirtual?: boolean;
 }
 
 export interface ReservationSearchParams {
@@ -667,14 +972,27 @@ export interface IntegrationSyncJob {
 // Tipos para disponibilidad
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
-export interface TimeSlot {
+/**
+ * Una franja horaria: el rango del día en que pueden empezar sesiones.
+ *
+ * `cupos` es el inventario de ESA franja, y es lo único que dice cuánta gente
+ * cabe: el almuerzo y la cena de un sábado son dos cosas distintas y se llenan
+ * por separado. La experiencia ya no lleva aforo.
+ *
+ * Opcional en el tipo solo por los horarios anteriores a la regla; al guardar
+ * es obligatorio.
+ */
+export interface Franja {
   startTime: string; // formato HH:mm (24h)
   endTime: string; // formato HH:mm (24h)
+  cupos?: number | null;
 }
 
 export interface DaySchedule {
   isActive: boolean; // Si el día está activo o no
-  timeSlots: TimeSlot[];
+  franjas: Franja[];
+  /** Horarios guardados antes del renombre. Se leen, no se escriben. */
+  timeSlots?: Franja[];
 }
 
 export interface WeeklySchedule {
@@ -709,10 +1027,28 @@ export interface AvailabilitySchedule {
   isActive: boolean; // Si este calendario está activo
   description?: string;
   weeklySchedule: WeeklySchedule;
-  bufferTime: number; // Tiempo de buffer entre reservas (minutos)
-  minimumNotice: number; // Aviso mínimo para reservas (horas)
+  // La preparación y el aviso mínimo ya no viven aquí: son de la experiencia.
+  // Un mismo horario sirve a experiencias que necesitan preparaciones y
+  // anticipaciones muy distintas, y tenerlos aquí obligaba a elegir una.
+  /**
+   * TR-35. Desde y hasta cuándo se repite este horario, en "YYYY-MM-DD".
+   *
+   * Sin fecha final, el calendario ofrece sábados de 2031 que nadie decidió
+   * abrir. `validUntil` vacío significa «sin fecha final» y es el caso de los
+   * horarios creados antes de esta regla.
+   */
+  validFrom?: string;
+  validUntil?: string | null;
   notes?: string;
-  blockedDates: BlockedDate[];
+  /**
+   * Lo que pasa en una FECHA concreta, por encima del patrón semanal.
+   *
+   * `{ "2026-12-24": { isActive: false }, "2026-12-31": { isActive: true, franjas: [...] } }`
+   *
+   * Un día suelto se cierra —el 24 no se abre aunque sea jueves— o se abre con
+   * otras franjas. Misma forma que un día de la semana, a propósito.
+   */
+  dateOverrides?: Record<string, DaySchedule>;
   createdAt: string;
   updatedAt: string;
 }
@@ -725,14 +1061,19 @@ export interface CreateAvailabilityScheduleData {
   isActive?: boolean;
   description?: string;
   weeklySchedule: WeeklySchedule;
-  bufferTime?: number;
-  minimumNotice?: number;
+
+  /** TR-35. Obligatorias al crear: un horario sin corte no caduca nunca. */
+  validFrom: string;
+  validUntil: string;
   notes?: string;
-  blockedDates?: BlockedDate[];
+  dateOverrides?: Record<string, DaySchedule>;
 }
 
-export interface UpdateAvailabilityScheduleData extends Partial<CreateAvailabilityScheduleData> {
+export interface UpdateAvailabilityScheduleData
+  extends Partial<Omit<CreateAvailabilityScheduleData, 'validUntil'>> {
   _id: string;
+  /** Null explícito vuelve a «sin fecha final». */
+  validUntil?: string | null;
 }
 
 // Tipos para CRM Company
@@ -798,6 +1139,17 @@ export interface CRMCompany {
   };
   lastContactDate?: string;
   nextFollowUp?: string;
+  /**
+   * Cliente o cliente recurrente, derivado de sus ventas. Igual que en los
+   * contactos: se calcula al leer, no se marca a mano. En una empresa solo
+   * cuenta lo que llegó por una oportunidad suya —la reserva la hace una
+   * persona, y por el correo no se le puede atribuir a la empresa—.
+   */
+  condicion?: CondicionDeCliente;
+  /** Cuántas ventas suyas hay. */
+  ventas?: number;
+  /** La última, para poder decir cuánto hace que no vuelve. */
+  ultimaVenta?: string | null;
   isActive: boolean;
   deletedAt?: string;
   createdAt: string;
@@ -837,6 +1189,8 @@ export interface UpdateCRMCompanyData extends Partial<CreateCRMCompanyData> {
 
 export interface CRMCompanyFilters {
   companyType?: CRMCompanyType;
+  /** CRM-20. Filtra por lo que compró, no por lo que diga su ficha. */
+  condicion?: CondicionDeCliente;
   status?: CRMCompanyStatus;
   industry?: CRMCompanyIndustry;
   source?: CRMCompanySource;
@@ -873,6 +1227,13 @@ export interface ContactSocialMedia {
   instagram?: string;
 }
 
+/**
+ * La condición comercial de un contacto o una empresa, según lo que compró.
+ *
+ * Prospecto todavía no compró; cliente compró una vez; recurrente, dos o más.
+ */
+export type CondicionDeCliente = 'PROSPECTO' | 'CLIENTE' | 'RECURRENTE';
+
 export interface Contact {
   _id: string;
   _type: 'contact';
@@ -893,6 +1254,25 @@ export interface Contact {
   };
   contactType: ContactType;
   status: ContactStatus;
+  /**
+   * Cliente o cliente recurrente, derivado de sus ventas.
+   *
+   * No se guarda ni se marca a mano: se calcula al leer. Así perder una
+   * oportunidad no le quita la condición a quien ya compró, que es justo lo
+   * que pasaría con un campo que alguien tiene que mantener al día.
+   */
+  condicion?: CondicionDeCliente;
+  /** Cuántas ventas suyas hay. */
+  ventas?: number;
+  /** La última, para poder decir desde cuándo o cuánto hace que no vuelve. */
+  ultimaVenta?: string | null;
+  /**
+   * Pidio no recibir seguimiento comercial.
+   *
+   * Va aparte de `status` porque es una peticion suya, no un estado del
+   * negocio: se puede estar activo y aun asi haber pedido que no te escriban.
+   */
+  doNotContact?: boolean;
   source?: ContactSource;
   address?: ContactAddress;
   avatar?: {
@@ -951,11 +1331,15 @@ export interface CreateContactData {
 }
 
 export interface UpdateContactData extends Partial<CreateContactData> {
+  /** Pidio no recibir seguimiento comercial. */
+  doNotContact?: boolean;
   _id: string;
 }
 
 export interface ContactFilters {
   contactType?: ContactType;
+  /** CRM-20. Filtra por lo que compró, no por lo que diga su ficha. */
+  condicion?: CondicionDeCliente;
   status?: ContactStatus;
   source?: ContactSource;
   company?: string; // crmCompany ID

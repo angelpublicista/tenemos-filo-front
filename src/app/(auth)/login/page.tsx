@@ -7,15 +7,25 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { LoginFormData } from "@/types";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Loader from "@/components/Loader";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user, loading: sesionCargando } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  // Si el usuario inicia sesión aquí, el propio login decide a dónde va (el
+  // panel, la configuración de empresa o la aprobación de un asistente). Solo
+  // se redirige a quien llega ya con sesión.
+  const iniciandoSesion = useRef(false);
+
+  useEffect(() => {
+    if (!sesionCargando && user && !iniciandoSesion.current) router.replace("/dashboard");
+  }, [sesionCargando, user, router]);
 
   const {
     register,
@@ -44,15 +54,23 @@ export default function Login() {
   const onSubmit = async (data: LoginFormData) => {
     setError(null);
     setLoading(true);
-    
+    iniciandoSesion.current = true;
+
     try {
       await login(data.email, data.password);
     } catch (error) {
+      // Falló: sigue en el formulario y puede volver a intentar.
+      iniciandoSesion.current = false;
       setError(getTranslatedFirebaseError(error));
     } finally {
       setLoading(false);
     }
   };
+
+  // Con sesión abierta no se enseña el formulario ni un instante.
+  if (sesionCargando || (user && !iniciandoSesion.current)) {
+    return <Loader message="Cargando..." className="min-h-screen" />;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen space-y-4 w-full max-w-md mx-auto py-10 px-4">

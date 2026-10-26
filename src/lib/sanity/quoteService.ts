@@ -1,5 +1,5 @@
 // Reescrito sobre el API. Mismas firmas para no romper callers.
-import { api } from '@/lib/api/client';
+import { api, apiEnvelope } from '@/lib/api/client';
 import { Experience } from '@/types';
 
 interface SearchParams {
@@ -11,11 +11,20 @@ interface SearchParams {
 }
 
 export interface QuoteData {
+  /**
+   * De que oportunidad sale.
+   *
+   * Con esto, el cliente y sus datos se heredan y no hay que reescribirlos; y
+   * la cotizacion entra en la serie de versiones de esa oportunidad.
+   */
+  opportunityId?: string;
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
-  eventDate: string;
-  eventTime: string;
+  // Sin fecha ni hora se puede cotizar: la propuesta queda sujeta a
+  // disponibilidad. Exigirlas obligaba a inventarse una para poder cotizar.
+  eventDate?: string;
+  eventTime?: string;
   guests: number;
   location?: string;
   experiences: string[];
@@ -30,13 +39,10 @@ interface ApiExperienceForQuote {
   description: string | null;
   categories: string[];
   duration: number | null;
-  capacity: number | null;
   minCapacity: number | null;
   basePrice: string | number | null;
   currency: string;
-  experienceType: 'VIRTUAL' | 'PRESENTIAL' | 'HYBRID';
-  isVirtual: boolean;
-  virtualPlatform: string | null;
+  atHome: boolean;
   presentialCity: string | null;
   presentialAddress: string | null;
   presentialLocation: string | null;
@@ -50,12 +56,6 @@ interface ApiExperienceForQuote {
   availabilities?: Array<{ id: string; name: string; weeklySchedule: unknown; locationId: string | null }>;
 }
 
-const TYPE_FROM_API: Record<'VIRTUAL' | 'PRESENTIAL' | 'HYBRID', Experience['experienceType']> = {
-  VIRTUAL: 'virtual',
-  PRESENTIAL: 'presential',
-  HYBRID: 'hybrid',
-};
-
 function toExperienceLite(e: ApiExperienceForQuote): Experience & { companyName?: string; availabilitySchedules?: unknown[] } {
   return {
     _id: e.id,
@@ -66,14 +66,11 @@ function toExperienceLite(e: ApiExperienceForQuote): Experience & { companyName?
     description: e.description ?? '',
     categories: (e.categories ?? []) as Experience['categories'],
     duration: e.duration ?? 0,
-    capacity: e.capacity ?? 0,
     minCapacity: e.minCapacity ?? undefined,
     basePrice: typeof e.basePrice === 'string' ? Number(e.basePrice) : (e.basePrice ?? 0),
     currency: e.currency as Experience['currency'],
     featuredImage: e.featuredImage ?? undefined,
-    experienceType: TYPE_FROM_API[e.experienceType],
-    isVirtual: e.isVirtual,
-    virtualPlatform: (e.virtualPlatform ?? undefined) as Experience['virtualPlatform'],
+    atHome: e.atHome ?? false,
     presentialCity: e.presentialCity ?? undefined,
     presentialAddress: e.presentialAddress ?? undefined,
     presentialLocation: e.presentialLocation ?? undefined,
@@ -82,8 +79,6 @@ function toExperienceLite(e: ApiExperienceForQuote): Experience & { companyName?
     addons: (e.addons as Experience['addons']) ?? undefined,
     status: 'active',
     isFeatured: false,
-    totalBookings: 0,
-    totalRevenue: 0,
     createdAt: '',
     updatedAt: '',
     locations: e.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),
@@ -119,11 +114,12 @@ export const searchExperiencesForQuote = async (params: SearchParams): Promise<E
 
 export const createQuote = async (quoteData: QuoteData): Promise<{ _id: string }> => {
   const created = await api.post<{ id: string }>('/quotes', {
+    opportunityId: quoteData.opportunityId,
     customerName: quoteData.customerName,
     customerEmail: quoteData.customerEmail,
     customerPhone: quoteData.customerPhone,
-    eventDate: quoteData.eventDate,
-    eventTime: quoteData.eventTime,
+    eventDate: quoteData.eventDate || undefined,
+    eventTime: quoteData.eventTime || undefined,
     guests: quoteData.guests,
     location: quoteData.location,
     experiences: quoteData.experiences,
@@ -197,4 +193,91 @@ export const updateQuoteStatus = async (quoteId: string, status: string) => {
   const apiStatus =
     QUOTE_STATUS_TO_API[status as keyof typeof QUOTE_STATUS_TO_API] ?? status.toUpperCase();
   return api.patch(`/quotes/${encodeURIComponent(quoteId)}/status`, { status: apiStatus });
+};
+
+
+/** Una cotizacion dentro del historial de su oportunidad. */
+/**
+ * TR-14. Una de las (hasta tres) opciones de una cotización.
+ *
+ * No son versiones —eso es el historial de lo que se le fue mandando— sino
+ * alternativas vivas a la vez entre las que el cliente elige: «el sábado 12 en
+ * la terraza, el domingo 13 en el salón, o el sábado 19 más barato».
+ */
+export interface OpcionDeCotizacion {
+  id: string;
+  position: number;
+  label: string | null;
+  eventDate: string | null;
+  eventTime: string | null;
+  guests: number | null;
+  total: string | number | null;
+  notes: string | null;
+  chosenAt: string | null;
+  experience?: { id: string; title: string; basePrice: string | number | null } | null;
+}
+
+export interface CotizacionDeOportunidad {
+  id: string;
+  version: number;
+  guests: number | null;
+  eventDate: string | null;
+  sentAt: string | null;
+  sentVia: 'FILO' | 'EXTERNO' | null;
+  status: string;
+  createdAt: string;
+  options?: OpcionDeCotizacion[];
+}
+
+/** TR-14. Reemplaza las opciones de una cotización: hasta tres. */
+export const guardarOpcionesDeCotizacion = (
+  quoteId: string,
+  opciones: Array<{
+    label?: string;
+    experienceId?: string;
+    eventDate?: string;
+    eventTime?: string;
+    guests?: number;
+    total?: number;
+    notes?: string;
+  }>,
+) => api.put(`/quotes/${encodeURIComponent(quoteId)}/opciones`, { opciones });
+
+/**
+ * El cliente elige una opción. Puede elegir varias: un corporativo que acepta
+ * dos de las tres compra dos cenas, y entonces la oportunidad admite dos
+ * reservas.
+ */
+export const elegirOpcionDeCotizacion = (
+  quoteId: string,
+  optionId: string,
+  elegida: boolean,
+) => api.post(`/quotes/${encodeURIComponent(quoteId)}/opciones/elegir`, { optionId, elegida });
+
+/**
+ * El historial de cotizaciones de una oportunidad.
+ *
+ * `vigenteId` lo calcula el API: es la enviada de version mas alta. No se
+ * deduce aqui para que no haya dos criterios de "cual manda".
+ */
+export const cotizacionesDeOportunidad = async (
+  opportunityId: string,
+): Promise<{ items: CotizacionDeOportunidad[]; vigenteId: string | null }> => {
+  // apiEnvelope y no api.get: `vigenteId` viaja en `meta`, que api.get
+  // descarta al desenvolver.
+  const res = await apiEnvelope<CotizacionDeOportunidad[]>(
+    `/quotes/por-oportunidad/${encodeURIComponent(opportunityId)}`,
+  );
+  return {
+    items: res?.data ?? [],
+    vigenteId: (res?.meta?.vigenteId as string | null | undefined) ?? null,
+  };
+};
+
+/** Marca una cotizacion como enviada; el API mueve la oportunidad. */
+export const marcarCotizacionEnviada = async (
+  quoteId: string,
+  via: 'FILO' | 'EXTERNO' = 'FILO',
+): Promise<void> => {
+  await api.post(`/quotes/${encodeURIComponent(quoteId)}/enviada`, { via });
 };

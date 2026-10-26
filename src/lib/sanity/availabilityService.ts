@@ -17,10 +17,10 @@ interface ApiAvailability {
   isMain: boolean;
   isActive: boolean;
   weeklySchedule: WeeklySchedule;
-  bufferTime: number;
-  minimumNotice: number;
   notes: string | null;
-  blockedDates: string[];
+  dateOverrides: Record<string, { isActive?: boolean; franjas?: unknown[]; timeSlots?: unknown[] }> | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
   createdAt: string;
   updatedAt: string;
   location?: { id: string; name: string; slug: string | null; companyId: string };
@@ -35,14 +35,36 @@ function toSchedule(a: ApiAvailability): AvailabilitySchedule {
     isMain: a.isMain,
     isActive: a.isActive,
     description: a.description ?? undefined,
-    weeklySchedule: a.weeklySchedule,
-    bufferTime: a.bufferTime,
-    minimumNotice: a.minimumNotice,
+    // Lo que llega puede traer `franjas` o, si es un horario de antes del
+    // renombre, `timeSlots`. Se normaliza aquí para que el resto del front
+    // tenga una sola forma que mirar.
+    weeklySchedule: aFranjas(a.weeklySchedule),
+    // Solo el día: la vigencia se piensa y se escribe en días, y la hora que
+    // trae el ISO no significa nada aquí.
+    validFrom: a.validFrom ? a.validFrom.slice(0, 10) : undefined,
+    validUntil: a.validUntil ? a.validUntil.slice(0, 10) : null,
     notes: a.notes ?? undefined,
-    blockedDates: (a.blockedDates ?? []).map((d) => ({ date: d })),
+    dateOverrides: (a.dateOverrides ?? undefined) as AvailabilitySchedule['dateOverrides'],
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
   };
+}
+
+const dia = (d: Date) => d.toISOString().slice(0, 10);
+
+/**
+ * TR-35. La vigencia de un horario que se crea solo, sin que nadie la pida.
+ *
+ * Pasa cuando se crea una experiencia y se le genera un calendario por
+ * defecto. Un año: suficiente para que nadie choque con el corte mientras
+ * monta su catálogo, y poco para que no quede una agenda abierta por décadas
+ * si se olvida de revisarla. El anfitrión la extiende cuando quiera.
+ */
+export function vigenciaPorDefecto(): { validFrom: string; validUntil: string } {
+  const hoy = new Date();
+  const enUnAno = new Date(hoy);
+  enUnAno.setFullYear(enUnAno.getFullYear() + 1);
+  return { validFrom: dia(hoy), validUntil: dia(enUnAno) };
 }
 
 export const createAvailabilitySchedule = async (
@@ -56,11 +78,11 @@ export const createAvailabilitySchedule = async (
     isMain: data.isMain,
     isActive: data.isActive,
     weeklySchedule: data.weeklySchedule,
-    bufferTime: data.bufferTime,
-    minimumNotice: data.minimumNotice,
+    validFrom: data.validFrom,
+    validUntil: data.validUntil,
     notes: data.notes,
     // El API acepta tanto strings ISO como objetos { date }
-    blockedDates: data.blockedDates,
+    dateOverrides: data.dateOverrides,
   });
   return toSchedule(created);
 };
@@ -93,10 +115,38 @@ export const getAvailabilitySchedulesByCompany = async (
   return items.map(toSchedule);
 };
 
+/**
+ * TR-21. La agenda propia del anfitrión: los horarios que no son de ninguna
+ * sede ni de ninguna experiencia.
+ *
+ * Hace falta porque un cocinero que va a casa del cliente no tiene dónde
+ * colgar su calendario, y sin esto su catálogo ofrecía las horas por defecto
+ * —de ocho a ocho, todos los días—, que no son las suyas.
+ */
+export const getAgendaDelAnfitrion = async (): Promise<AvailabilitySchedule[]> => {
+  const items = await api.get<ApiAvailability[]>('/availabilities', { soloPropias: true });
+  return items.map(toSchedule);
+};
+
 export const getAvailabilitySchedulesByExperience = async (
   experienceId: string,
 ): Promise<AvailabilitySchedule[]> => {
   const items = await api.get<ApiAvailability[]>('/availabilities', { experienceId });
+  return items.map(toSchedule);
+};
+
+/**
+ * Los horarios de una experiencia EN una sede concreta.
+ *
+ * La misma pieza puede abrir los sábados en el local del centro y los viernes
+ * en la finca, así que su horario no es uno: es uno por escenario. Esto es lo
+ * que lee el panel de publicaciones.
+ */
+export const getHorariosDeLaPublicacion = async (
+  experienceId: string,
+  locationId: string,
+): Promise<AvailabilitySchedule[]> => {
+  const items = await api.get<ApiAvailability[]>('/availabilities', { experienceId, locationId });
   return items.map(toSchedule);
 };
 
@@ -112,10 +162,10 @@ export const updateAvailabilitySchedule = async (
       isMain: rest.isMain,
       isActive: rest.isActive,
       weeklySchedule: rest.weeklySchedule,
-      bufferTime: rest.bufferTime,
-      minimumNotice: rest.minimumNotice,
+      validFrom: rest.validFrom,
+      validUntil: rest.validUntil,
       notes: rest.notes,
-      blockedDates: rest.blockedDates,
+      dateOverrides: rest.dateOverrides,
     },
   );
   return toSchedule(updated);
@@ -146,42 +196,55 @@ export const getPrimaryScheduleByLocation = async (
   return items[0] ? toSchedule(items[0]) : null;
 };
 
+/** Normaliza un horario a `franjas`, venga como venga. */
+function aFranjas(semana: WeeklySchedule): WeeklySchedule {
+  const salida = {} as WeeklySchedule;
+  for (const [dia, valor] of Object.entries(semana ?? {})) {
+    const d = valor as { isActive?: boolean; franjas?: unknown[]; timeSlots?: unknown[] };
+    salida[dia as keyof WeeklySchedule] = {
+      isActive: d?.isActive ?? false,
+      franjas: (d?.franjas ?? d?.timeSlots ?? []) as WeeklySchedule['monday']['franjas'],
+    };
+  }
+  return salida;
+}
+
 export const generateDefaultSchedule = (): WeeklySchedule => ({
   monday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
   tuesday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
   wednesday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
   thursday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
   friday: {
     isActive: true,
-    timeSlots: [
+    franjas: [
       { startTime: '09:00', endTime: '13:00' },
       { startTime: '14:00', endTime: '18:00' },
     ],
   },
-  saturday: { isActive: false, timeSlots: [] },
-  sunday: { isActive: false, timeSlots: [] },
+  saturday: { isActive: false, franjas: [] },
+  sunday: { isActive: false, franjas: [] },
 });

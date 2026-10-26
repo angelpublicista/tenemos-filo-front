@@ -1,5 +1,6 @@
 // Reescrito sobre el API. Conserva firmas para no tocar callers.
-import { api, apiFetch } from '@/lib/api/client';
+import { api, apiFetch, apiPostEnvelope } from '@/lib/api/client';
+import type { DatosCheckout } from '@/components/BookingEngine/BotonDePago';
 import {
   Reservation,
   CreateReservationData,
@@ -9,14 +10,7 @@ import {
 
 // ─── Mapeos enum ───────────────────────────────────────────────────────────
 
-type ApiStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW'
-  | 'RESCHEDULED';
+type ApiStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 type ApiPayStatus = 'PENDING' | 'PAID' | 'REFUNDED' | 'PARTIAL' | 'FAILED';
 type ApiClientType = 'GUEST' | 'REGISTERED';
 type ApiSource = 'MANUAL' | 'BOOKING_ENGINE' | 'QUOTE';
@@ -24,20 +18,16 @@ type ApiSource = 'MANUAL' | 'BOOKING_ENGINE' | 'QUOTE';
 const STATUS_TO_API: Record<Reservation['status'], ApiStatus> = {
   pending: 'PENDING',
   confirmed: 'CONFIRMED',
-  in_progress: 'IN_PROGRESS',
   completed: 'COMPLETED',
   cancelled: 'CANCELLED',
   no_show: 'NO_SHOW',
-  rescheduled: 'RESCHEDULED',
 };
 const STATUS_FROM_API: Record<ApiStatus, Reservation['status']> = {
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
-  IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
   NO_SHOW: 'no_show',
-  RESCHEDULED: 'rescheduled',
 };
 const PAY_TO_API: Record<Reservation['paymentStatus'], ApiPayStatus> = {
   pending: 'PENDING',
@@ -63,6 +53,8 @@ interface ApiReservation {
   clientType: ApiClientType;
   userId: string | null;
   source: ApiSource;
+  /** TR-04. El canal por el que entró la venta. De él depende el fee. */
+  channel?: 'MANUAL' | 'CHECKOUT' | 'RESELLER' | 'CRM';
   reservationDate: string;
   duration: number | null;
   participants: number;
@@ -72,8 +64,8 @@ interface ApiReservation {
   paymentMethod: string | null;
   paymentDetails: Record<string, unknown> | null;
   locationId: string | null;
-  isVirtual: boolean;
-  virtualDetails: string | null;
+  serviceAddress: string | null;
+  language: string | null;
   specialRequirements: string | null;
   cancellation: Reservation['cancellation'] | null;
   rescheduling: Reservation['rescheduling'] | null;
@@ -81,10 +73,15 @@ interface ApiReservation {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
-  experience?: { id: string; title: string; duration: number | null; capacity: number | null };
+  experience?: { id: string; title: string; duration: number | null };
   company?: { id: string; companyName: string; companyEmail: string | null; companyPhone: string | null };
   user?: { id: string; name: string | null; email: string; phone: string | null };
   location?: { id: string; name: string; address: unknown };
+  /** TR-26. El contacto del CRM al que corresponde el comprador, si lo hay. */
+  contactId?: string | null;
+  contact?: { id: string; firstName: string; lastName: string | null } | null;
+  /** TR-09. Cuánta gente apareció. null mientras no se haya cerrado. */
+  attendedCount?: number | null;
 }
 
 function toReservation(r: ApiReservation): Reservation {
@@ -98,9 +95,8 @@ function toReservation(r: ApiReservation): Reservation {
           title: r.experience.title,
           category: '',
           duration: r.experience.duration ?? 0,
-          capacity: r.experience.capacity ?? 0,
         }
-      : { _id: r.experienceId, title: '', category: '', duration: 0, capacity: 0 },
+      : { _id: r.experienceId, title: '', category: '', duration: 0 },
     company: r.company
       ? {
           _id: r.company.id,
@@ -111,6 +107,15 @@ function toReservation(r: ApiReservation): Reservation {
       : { _id: r.companyId, companyName: '', companyEmail: '', companyPhone: '' },
     client: r.client,
     clientInfo: r.client,
+    canal: r.channel ?? 'MANUAL',
+    // TR-26. Para poder llegar a su ficha del CRM, donde está su historial.
+    contactoCrm: r.contact
+      ? {
+          _id: r.contact.id,
+          nombre: [r.contact.firstName, r.contact.lastName].filter(Boolean).join(' '),
+        }
+      : null,
+    attendedCount: r.attendedCount ?? null,
     clientType: ((r.clientType ?? 'GUEST') as string).toLowerCase() as Reservation['clientType'],
     reservationDate: r.reservationDate,
     duration: r.duration ?? 0,
@@ -131,18 +136,8 @@ function toReservation(r: ApiReservation): Reservation {
             : never) ?? { street: '', city: '' },
         }
       : undefined,
-    isVirtual: r.isVirtual,
-    virtualDetails: r.virtualDetails
-      ? typeof r.virtualDetails === 'string'
-        ? (() => {
-            try {
-              return JSON.parse(r.virtualDetails) as Reservation['virtualDetails'];
-            } catch {
-              return undefined;
-            }
-          })()
-        : (r.virtualDetails as Reservation['virtualDetails'])
-      : undefined,
+    serviceAddress: r.serviceAddress ?? undefined,
+    language: r.language ?? undefined,
     specialRequirements: r.specialRequirements ?? undefined,
     cancellation: r.cancellation ?? undefined,
     rescheduling: r.rescheduling ?? undefined,
@@ -169,8 +164,8 @@ export const createReservationInSanity = async (data: CreateReservationData) => 
     paymentMethod: data.paymentMethod,
     paymentDetails: data.paymentDetails,
     location: data.location,
-    isVirtual: data.isVirtual,
-    virtualDetails: data.virtualDetails,
+    serviceAddress: data.serviceAddress,
+    language: data.language,
     specialRequirements: data.specialRequirements,
     notes: data.notes,
   });
@@ -188,7 +183,6 @@ export const getReservations = async (
       ? PAY_TO_API[filters.paymentStatus as Reservation['paymentStatus']]
       : undefined,
     experienceId: filters.experience,
-    isVirtual: filters.isVirtual,
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
     sortBy,
@@ -229,8 +223,8 @@ export const updateReservationInSanity = async (data: UpdateReservationData) => 
   if (rest.paymentMethod !== undefined) body.paymentMethod = rest.paymentMethod;
   if (rest.paymentDetails !== undefined) body.paymentDetails = rest.paymentDetails;
   if (rest.location !== undefined) body.location = rest.location;
-  if (rest.isVirtual !== undefined) body.isVirtual = rest.isVirtual;
-  if (rest.virtualDetails !== undefined) body.virtualDetails = rest.virtualDetails;
+  if (rest.serviceAddress !== undefined) body.serviceAddress = rest.serviceAddress;
+  if (rest.language !== undefined) body.language = rest.language;
   if (rest.specialRequirements !== undefined) body.specialRequirements = rest.specialRequirements;
   if (rest.notes !== undefined) body.notes = rest.notes;
 
@@ -263,18 +257,112 @@ export const updateReservationPaymentStatus = async (
   return toReservation(updated);
 };
 
+/**
+ * Cancelar una reserva, entera o en parte (TR-07).
+ *
+ * `participants` es cuánta gente se cae; sin él se cae la reserva completa.
+ * El reembolso lo decide el API cuando no se manda: si cancela el anfitrión
+ * corresponde devolver lo cobrado, y si cancela el comensal depende de los
+ * términos del anfitrión.
+ */
 export const cancelReservation = async (
   reservationId: string,
   cancelledBy: 'client' | 'host' | 'system',
   reason: string,
   refundAmount?: number,
+  participants?: number,
 ) => {
   const updated = await api.post<ApiReservation>(
     `/reservations/${encodeURIComponent(reservationId)}/cancel`,
-    { cancelledBy, reason, refundAmount },
+    { cancelledBy, reason, refundAmount, participants },
   );
   return toReservation(updated);
 };
+
+// ─── Reembolsos (TR-30) ────────────────────────────────────────────────────
+
+export interface ReembolsoDeReserva {
+  id: string;
+  fecha: string;
+  importe: number;
+  motivo: string;
+  origen: 'CANCELACION' | 'BAJA_PARCIAL' | 'AJUSTE';
+  estado: 'pendiente' | 'pagado';
+  pagadoEl?: string | null;
+}
+
+export interface ReembolsosDeReserva {
+  reembolsos: ReembolsoDeReserva[];
+  totalReembolsado: number;
+  cobrado: number;
+  vendido: number;
+}
+
+export const getReembolsos = (reservationId: string) =>
+  api.get<ReembolsosDeReserva>(
+    `/reservations/${encodeURIComponent(reservationId)}/reembolsos`,
+  );
+
+/**
+ * Devolver dinero de una reserva que sigue en pie.
+ *
+ * No es una cancelación: la experiencia se dio, pero hubo que devolver algo.
+ * El API baja lo vendido y recalcula las comisiones, así que FILO deja de
+ * cobrar fee sobre un dinero devuelto.
+ */
+export const registrarReembolso = (reservationId: string, amount: number, reason: string) =>
+  api.post(`/reservations/${encodeURIComponent(reservationId)}/reembolsos`, { amount, reason });
+
+/** El dinero salió de verdad. */
+export const marcarReembolsoPagado = (reservationId: string, refundId: string) =>
+  api.post(
+    `/reservations/${encodeURIComponent(reservationId)}/reembolsos/${encodeURIComponent(refundId)}/pagado`,
+    {},
+  );
+
+// ─── Historial y cargos adicionales (TR-39, TR-12) ─────────────────────────
+
+export interface CambioDeReserva {
+  fecha: string;
+  quien: string | null;
+  campo: string;
+  antes: string | null;
+  despues: string | null;
+  motivo?: string | null;
+}
+
+export interface CargoAdicional {
+  id: string;
+  fecha: string;
+  importe: number;
+  concepto: string;
+  estado: 'pendiente' | 'cobrado';
+}
+
+export interface HistorialDeReserva {
+  creada: string;
+  cambios: CambioDeReserva[];
+  cargosAdicionales: CargoAdicional[];
+  reembolsos: ReembolsoDeReserva[];
+  bajasParciales: Array<{ fecha: string; personas: number; motivo: string; reembolso: number }>;
+  reprogramacion: { originalDate: string; newDate: string; reason: string } | null;
+  cancelacion: { cancelledAt: string; cancelledBy: string; cancellationReason: string } | null;
+}
+
+export const getHistorial = (reservationId: string) =>
+  api.get<HistorialDeReserva>(`/reservations/${encodeURIComponent(reservationId)}/historial`);
+
+/**
+ * Un cargo adicional acordado después de vender (TR-12).
+ *
+ * El precio original no se toca: lo vendido es lo vendido, y un cambio de
+ * fecha o de cantidad no mueve el dinero por su cuenta. Esto suma aparte.
+ */
+export const registrarCargoAdicional = (
+  reservationId: string,
+  amount: number,
+  concept: string,
+) => api.post(`/reservations/${encodeURIComponent(reservationId)}/cargos`, { amount, concept });
 
 export const rescheduleReservation = async (
   reservationId: string,
@@ -298,11 +386,9 @@ export const getReservationStatsByCompany = async (companyId: string) => {
     total: number;
     pending: number;
     confirmed: number;
-    inProgress: number;
     completed: number;
     cancelled: number;
     noShow: number;
-    rescheduled: number;
     totalRevenue: number;
     totalParticipants: number;
     averageParticipants: number;
@@ -315,6 +401,11 @@ export const getReservationStatsByCompany = async (companyId: string) => {
 
 export interface CreateManualReservationData {
   experience: string;
+  /**
+   * TR-42. El «programar de todas formas» cuando el anfitrión ya tiene algo a
+   * esa hora en otra sede. Sobre la misma sede no sirve: el sitio es uno.
+   */
+  permitirSolape?: boolean;
   location: string;
   reservationDate: string;
   participants: number;
@@ -332,13 +423,20 @@ interface ApiExperienceLite {
   currency: string;
   duration: number | null;
   companyId: string;
+  /** Lo que cambia en cada sede; solo las que tienen condiciones propias. */
+  locationListings?: Array<{ locationId: string; basePrice: number | string | null }>;
 }
 
 export const createReservationManually = async (data: CreateManualReservationData) => {
   const exp = await api.get<ApiExperienceLite>(`/experiences/${encodeURIComponent(data.experience)}`);
   if (!exp) throw new Error('Experiencia no encontrada');
 
-  const basePrice = typeof exp.basePrice === 'string' ? Number(exp.basePrice) : (exp.basePrice ?? 0);
+  // El precio es el de LA SEDE donde se carga la reserva: la misma
+  // experiencia puede valer una cosa en el local del centro y otra en la
+  // finca. Sin esto se cobraba el de la experiencia en las dos.
+  const deLaSede = (exp.locationListings ?? []).find((f) => f.locationId === data.location);
+  const precioCrudo = deLaSede?.basePrice ?? exp.basePrice;
+  const basePrice = typeof precioCrudo === 'string' ? Number(precioCrudo) : (precioCrudo ?? 0);
   const subtotal = basePrice * data.participants;
   const addonsTotal =
     data.selectedAddons?.reduce((sum, a) => sum + a.price * a.quantity, 0) ?? 0;
@@ -369,6 +467,7 @@ export const createReservationManually = async (data: CreateManualReservationDat
       hostEarnings: total,
     },
     specialRequirements: data.specialRequests,
+    ...(data.permitirSolape ? { permitirSolape: true } : {}),
     notes: `Reserva creada manualmente. Cliente tipo: ${data.clientType === 'guest' ? 'Invitado' : 'Registrado'}`,
   });
   return toReservation(created);
@@ -378,47 +477,106 @@ export const createReservationManually = async (data: CreateManualReservationDat
 
 export interface CreatePublicReservationData {
   experience: string;
+  /** Slug del revendedor, si la reserva entra por su catálogo. */
+  reseller?: string;
   location?: string;
+  /** Dónde hay que ir, cuando la experiencia es a domicilio. */
+  serviceAddress?: string;
+  /** El idioma que pidió, de los que la experiencia declara. */
+  language?: string;
   reservationDate: string;
   participants: number;
   specialRequests?: string;
   selectedAddons?: Array<{ name: string; price: number; quantity: number }>;
   guestInfo: { name: string; email: string; phone: string };
+  /**
+   * Token del enlace que el anfitrión generó desde su CRM. Cuelga la reserva
+   * de esa oportunidad, para que el comercial vea en ella la reserva que su
+   * propio enlace acaba de producir.
+   */
+  solicitudToken?: string;
+  /**
+   * TR-43. Clave que hace que un reintento no cree una segunda reserva.
+   *
+   * La pone quien llama y la conserva mientras los datos no cambien: si el
+   * API responde con un error de red o el cliente vuelve a pulsar
+   * "Confirmar", la misma clave devuelve la reserva que ya existe en vez de
+   * vender el cupo dos veces y cobrarlo dos veces.
+   */
+  idempotencyKey?: string;
 }
 
 export const createPublicReservation = async (
   data: CreatePublicReservationData,
-): Promise<{ reservationNumber: string }> => {
-  // Para public no podemos pegar a /experiences/:id (requiere auth).
-  // El front debe pasar el basePrice y duration ya conocidos del catalogo,
-  // o bien podriamos abrir un endpoint /experiences/public/:id.
-  // Por ahora calculamos con basePrice=0 y dejamos que el API lo recalcule
-  // cuando exista la version publica. TODO endurecer.
-  const subtotal = 0;
-  const addonsTotal = data.selectedAddons?.reduce((sum, a) => sum + a.price * a.quantity, 0) ?? 0;
-  const total = subtotal + addonsTotal;
+): Promise<{
+  reservationNumber: string;
+  /** El que le van a pedir al llegar. Lo trae el API desde que existe. */
+  confirmationCode?: string | null;
+  payment?: DatosCheckout | null;
+}> => {
+  // El precio lo calcula el API desde la experiencia: en el catalogo
+  // publico no hay sesion y un precio enviado por el cliente seria
+  // manipulable. Aqui solo se manda QUE adicionales eligio.
 
-  return apiFetch<{ reservationNumber: string }>('/reservations/public', {
+  return apiFetch<{
+    reservationNumber: string;
+    confirmationCode?: string | null;
+    payment?: DatosCheckout | null;
+  }>(
+    '/reservations/public',
+    {
     method: 'POST',
+    ...(data.idempotencyKey ? { headers: { 'Idempotency-Key': data.idempotencyKey } } : {}),
     json: {
       experience: data.experience,
+      // Slug del revendedor cuando la reserva entra por su catalogo. El
+      // API lo valida y de el depende que se genere la comision.
+      ...(data.reseller ? { reseller: data.reseller } : {}),
+      ...(data.solicitudToken ? { solicitudToken: data.solicitudToken } : {}),
       location: data.location,
+      ...(data.serviceAddress ? { serviceAddress: data.serviceAddress } : {}),
+      ...(data.language ? { language: data.language } : {}),
       client: data.guestInfo,
       reservationDate: data.reservationDate,
       participants: data.participants,
       pricing: {
-        basePrice: 0,
-        subtotal,
+        // Solo la seleccion de adicionales; los importes los pone el API.
         addons: data.selectedAddons ?? [],
-        addonsTotal,
-        discount: 0,
-        tax: 0,
-        commission: 0,
-        total,
-        hostEarnings: total,
+        basePrice: 0,
+        subtotal: 0,
+        total: 0,
       },
       specialRequirements: data.specialRequests || '',
       notes: 'Reserva realizada desde el catalogo digital publico.',
     },
-  });
+    },
+  );
 };
+
+/** Una reserva como la ve el anfitrión al validarla en la puerta. */
+export interface ReservaValidada {
+  id: string;
+  reservationNumber: string;
+  reservationDate: string;
+  participants: number;
+  checkedInAt: string | null;
+  experience?: { title?: string } | null;
+  resellerCompany?: { id: string; companyName: string } | null;
+  client?: { name?: string } | null;
+}
+
+/**
+ * Validar en la puerta el código que trae el cliente, y marcar su llegada.
+ *
+ * Un 404 aquí no es un fallo de la pantalla: significa que esa venta no entró
+ * por FILO. Es justo la señal que hay que ver, así que el mensaje del API se
+ * enseña tal cual.
+ *
+ * Conserva el `meta` porque ahí viene si la persona ya había llegado, y eso
+ * no cabe dentro de la reserva.
+ */
+export const validarCodigoDeReserva = (codigo: string) =>
+  apiPostEnvelope<ReservaValidada, { yaHabiaLlegado?: boolean }>(
+    '/reservations/validar-codigo',
+    { codigo },
+  );

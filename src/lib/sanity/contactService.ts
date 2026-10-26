@@ -25,6 +25,7 @@ const STATUS_FROM_API: Record<ApiStatus, ContactStatus> = {
 };
 
 interface ApiContact {
+  doNotContact?: boolean;
   id: string;
   hostCompanyId: string;
   firstName: string;
@@ -37,6 +38,10 @@ interface ApiContact {
   crmCompanyId: string | null;
   contactType: string | null;
   status: ApiStatus;
+  // CRM-20. Derivados de las ventas, no guardados en la ficha.
+  condicion?: Contact['condicion'];
+  ventas?: number;
+  ultimaVenta?: string | null;
   source: string | null;
   address: Contact['address'] | null;
   avatar: string | null;
@@ -59,6 +64,7 @@ interface ApiContact {
 
 function toContact(c: ApiContact): Contact {
   return {
+    doNotContact: c.doNotContact ?? false,
     _id: c.id,
     _type: 'contact',
     hostCompany: { _ref: c.hostCompanyId, _type: 'reference' },
@@ -72,6 +78,9 @@ function toContact(c: ApiContact): Contact {
     company: c.crmCompanyId ? { _ref: c.crmCompanyId, _type: 'reference' } : undefined,
     contactType: (c.contactType ?? 'other') as Contact['contactType'],
     status: STATUS_FROM_API[c.status],
+    condicion: c.condicion,
+    ventas: c.ventas,
+    ultimaVenta: c.ultimaVenta ?? null,
     source: (c.source ?? undefined) as Contact['source'],
     address: c.address ?? undefined,
     avatar: c.avatar ? { asset: { _ref: c.avatar, _type: 'reference' } } : undefined,
@@ -124,6 +133,7 @@ function buildCreatePayload(data: CreateContactData): Record<string, unknown> {
 function buildUpdatePayload(data: UpdateContactData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (data.firstName !== undefined) out.firstName = data.firstName;
+  if (data.doNotContact !== undefined) out.doNotContact = data.doNotContact;
   if (data.lastName !== undefined) out.lastName = data.lastName;
   if (data.email !== undefined) out.email = data.email;
   if (data.phone !== undefined) out.phone = data.phone;
@@ -171,6 +181,7 @@ export const getContactsByHost = async (
   const items = await api.get<ApiContact[]>('/contacts', {
     hostCompanyId,
     contactType: filters?.contactType,
+    condicion: filters?.condicion,
     status: filters?.status ? STATUS_TO_API[filters.status as ContactStatus] : undefined,
     source: filters?.source,
     company: filters?.company,

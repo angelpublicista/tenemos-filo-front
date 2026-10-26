@@ -9,7 +9,9 @@ import { SanityUser } from '@/types';
 
 // ─── Mapeos enum (front lower ↔ API upper) ─────────────────────────────────
 
-const ROLE_TO_API: Record<NonNullable<SanityUser['role']>, 'HOST' | 'GUEST' | 'ADMIN' | 'RESELLER'> = {
+type ApiRole = 'HOST' | 'GUEST' | 'ADMIN' | 'RESELLER';
+
+const ROLE_TO_API: Record<NonNullable<SanityUser['role']>, ApiRole> = {
   host: 'HOST',
   guest: 'GUEST',
   admin: 'ADMIN',
@@ -20,7 +22,7 @@ interface ApiUser {
   id: string;
   email: string;
   name: string | null;
-  role: 'HOST' | 'GUEST' | 'ADMIN' | 'RESELLER';
+  role: ApiRole;
   image: string | null;
   phone: string | null;
   documentType: string | null;
@@ -56,6 +58,8 @@ export const updateUserProfile = async (
   const body: Record<string, unknown> = {};
   if (updateData.name !== undefined) body.name = updateData.name;
   if (updateData.phone !== undefined) body.phone = updateData.phone;
+  // '' borra la foto; el API acepta null para dejar el campo vacio.
+  if (updateData.image !== undefined) body.image = updateData.image || null;
   if (updateData.role !== undefined) body.role = ROLE_TO_API[updateData.role];
   if (updateData.typeDocument !== undefined) body.documentType = updateData.typeDocument;
   if (updateData.documentNumber !== undefined) body.documentNumber = updateData.documentNumber;

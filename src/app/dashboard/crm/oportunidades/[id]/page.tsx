@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Badge, Card } from 'flowbite-react';
 import { 
@@ -16,13 +15,30 @@ import {
   HiXCircle,
 } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
-import { getOpportunityById, deleteOpportunity } from '@/lib/sanity/opportunityService';
-import { Opportunity } from '@/types';
+import {
+  getOpportunityById,
+  deleteOpportunity,
+  marcarPropuestaEnviada,
+} from '@/lib/sanity/opportunityService';
+import CotizacionesDeOportunidad from '@/components/CRM/CotizacionesDeOportunidad';
+import GestionDeVenta from '@/components/CRM/GestionDeVenta';
+import DatosDeFacturacion from '@/components/CRM/DatosDeFacturacion';
+import type { ReservaDeOportunidad } from '@/lib/crm/venta';
+import type { EspacioTomado } from '@/lib/sanity/opportunityService';
+import { getExperiencesByCompany } from '@/lib/sanity/experienceService';
+import { useAuth } from '@/lib/auth/AuthContext';
+import Swal from 'sweetalert2';
+import { Opportunity, Experience } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from '@/components/Loader';
 
 // Tipo extendido para oportunidad con propiedades expandidas
 type OpportunityWithExpanded = Opportunity & {
+  experienceKind?: 'ABIERTA' | 'PRIVADA' | null;
+  paymentConditionNote?: string | null;
+  puedeAutorizarCondicion?: boolean;
+  espacioTomado?: EspacioTomado | null;
+  reservations?: ReservaDeOportunidad[];
   crmCompanyName?: string;
   contactName?: string;
   assignedToName?: string;
@@ -37,13 +53,13 @@ const statusColors: Record<string, string> = {
 };
 
 const stageLabels: Record<string, string> = {
-  prospecting: 'Prospección',
+  prospecting: 'Cliente potencial',
   qualification: 'Calificación',
-  proposal: 'Propuesta',
+  proposal: 'Propuesta enviada',
   negotiation: 'Negociación',
   approval: 'Aprobación',
-  closed_won: 'Cerrado Ganado',
-  closed_lost: 'Cerrado Perdido',
+  closed_won: 'Ganado cerrado',
+  closed_lost: 'Perdido cerrado',
 };
 
 const sourceLabels: Record<string, string> = {
@@ -75,11 +91,22 @@ const wonReasonLabels: Record<string, string> = {
 };
 
 export default function OportunidadDetailPage() {
-  const { sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
   const opportunityId = params.id as string;
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
+  const { sanityUser } = useAuth();
+
+  /** Para poder elegir cual se aparta al mandar los medios de pago. */
+  const [experienciasDisponibles, setExperienciasDisponibles] = useState<Experience[]>([]);
+
+  useEffect(() => {
+    if (!sanityUser?.companyId) return;
+    getExperiencesByCompany(sanityUser.companyId)
+      .then((e) => setExperienciasDisponibles(e ?? []))
+      // Sin experiencias, el bloque de venta lo dice al intentar apartar.
+      .catch(() => setExperienciasDisponibles([]));
+  }, [sanityUser?.companyId]);
   const [opportunity, setOpportunity] = useState<OpportunityWithExpanded | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -89,6 +116,34 @@ export default function OportunidadDetailPage() {
       loadOpportunity();
     }
   }, [opportunityId]);
+
+  /**
+   * Registrar que la propuesta salio por un canal externo.
+   *
+   * Se pide una nota corta: sin saber por donde se mando, dentro de un mes
+   * nadie sabra si el cliente recibio algo o no.
+   */
+  const registrarEnvioExterno = async () => {
+    if (!opportunity) return;
+    const { value: nota, isConfirmed } = await Swal.fire({
+      title: '¿Por dónde se la enviaste?',
+      input: 'text',
+      inputPlaceholder: 'Ej: cotización por WhatsApp',
+      showCancelButton: true,
+      confirmButtonText: 'Marcar como enviada',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#F26726',
+    });
+    if (!isConfirmed) return;
+    try {
+      await marcarPropuestaEnviada(opportunity._id, (nota as string) || undefined);
+      await loadOpportunity();
+      showSuccess('Propuesta enviada', 'La oportunidad avanzó de etapa.');
+    } catch (err) {
+      console.error('Error registrando el envío:', err);
+      showError('No pudimos registrarlo', 'Inténtalo de nuevo.');
+    }
+  };
 
   const loadOpportunity = async () => {
     setIsLoading(true);
@@ -145,7 +200,7 @@ export default function OportunidadDetailPage() {
 
   if (isLoading) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <Loader message="Cargando oportunidad..." />
         </div>
@@ -222,7 +277,7 @@ export default function OportunidadDetailPage() {
                 Editar
               </Button>
               <Button
-                color="failure"
+                color="danger"
                 onClick={handleDelete}
                 disabled={isDeleting}
               >
@@ -487,6 +542,78 @@ export default function OportunidadDetailPage() {
                 )}
               </div>
             </Card>
+
+            {/* CRM-12/13. Una reserva comprometida SI bloquea, asi que cuando
+                una de varias oportunidades sobre la misma fecha pasa a
+                intencion de pago, las demas se quedan sin sitio. Esto lo dice;
+                no cierra nada: quien lleva la venta decide si ofrece otra
+                fecha. */}
+            {opportunity.espacioTomado && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-semibold">Ese día ya está tomado</p>
+                <p className="mt-1">
+                  {opportunity.espacioTomado.estado === 'PENDING'
+                    ? 'Hay un espacio comprometido'
+                    : 'Hay una reserva confirmada'}{' '}
+                  para el{' '}
+                  {new Date(opportunity.espacioTomado.fecha).toLocaleDateString('es-CO', {
+                    day: 'numeric',
+                    month: 'long',
+                  })}
+                  {opportunity.espacioTomado.experiencia &&
+                    ` · ${opportunity.espacioTomado.experiencia}`}
+                  . Si choca con lo que estabas cotizando, ofrécele otra fecha antes de
+                  seguir.
+                </p>
+              </div>
+            )}
+
+            {/* El tramo final: apartar el espacio, cobrar y cerrar. */}
+            <GestionDeVenta
+              opportunityId={opportunity._id}
+              experienceKind={opportunity.experienceKind ?? null}
+              status={String(opportunity.status)}
+              reservations={opportunity.reservations}
+              condicionDePago={opportunity.paymentConditionNote}
+              puedeAutorizarCondicion={opportunity.puedeAutorizarCondicion}
+              opciones={opportunity.experiences?.length ?? 0}
+              experiencias={experienciasDisponibles}
+              onCambio={() => void loadOpportunity()}
+            />
+
+            {/* CRM-31: los datos fiscales no se piden al abrir el lead, sino
+                cuando ya hay una reserva y la venta se esta concretando. */}
+            <DatosDeFacturacion
+              opportunityId={opportunity._id}
+              hayReserva={(opportunity.reservations?.length ?? 0) > 0}
+            />
+
+            {/* Cotizaciones de esta oportunidad, con su historial de
+                versiones. Crear una no mueve la etapa; marcarla enviada si. */}
+            <CotizacionesDeOportunidad
+              opportunityId={opportunity._id}
+              onCambio={() => void loadOpportunity()}
+            />
+
+            {/* CRM-11: la propuesta se manda mas veces por WhatsApp que desde
+                aqui, y el embudo tiene que poder reflejarlo. */}
+            {['prospecting', 'qualification'].includes(opportunity.stage) && (
+              <Card>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                  ¿Ya le enviaste la propuesta por fuera?
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Si le mandaste la cotización o el enlace del catálogo por
+                  WhatsApp o por tu propio correo, márcalo aquí para que el
+                  embudo no se quede atrás.
+                </p>
+                <div className="mt-3">
+                  <Button color="secondary" size="sm" onClick={registrarEnvioExterno}>
+                    Marcar como propuesta enviada
+                  </Button>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>

@@ -70,7 +70,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
       case 'active': return 'success';
       case 'draft': return 'gray';
       case 'pending': return 'warning';
-      case 'paused': return 'info';
       case 'inactive': return 'failure';
       default: return 'gray';
     }
@@ -82,7 +81,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
       case 'active': return 'Activa';
       case 'draft': return 'Borrador';
       case 'pending': return 'Pendiente';
-      case 'paused': return 'Pausada';
       case 'inactive': return 'Inactiva';
       default: return status;
     }
@@ -130,8 +128,8 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
             </div>
             <div className="flex items-center text-sm text-gray-600">
               <HiUsers className="w-4 h-4 mr-2" />
-              {experience.capacity} personas máximo
-              {experience.minCapacity && ` (${experience.minCapacity} mínimo)`}
+              {/* Los cupos son del horario; aquí solo cabe el mínimo. */}
+              {experience.minCapacity ? `Mínimo ${experience.minCapacity} personas` : 'Sin mínimo'}
             </div>
             <div className="flex items-center text-sm text-gray-600">
               <HiCurrencyDollar className="w-4 h-4 mr-2" />
@@ -139,9 +137,9 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
             </div>
           </div>
 
-          {/* Estadísticas */}
+          {/* La nota del comensal. Las reservas no van aquí: son de Reservas,
+              y el dinero de Ingresos, que lo desglosa por experiencia. */}
           <div className="flex items-center justify-between text-xs text-gray-500 mb-3 pt-3 border-t border-gray-200">
-            <span>{experience.totalBookings || 0} reservas</span>
             <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
           </div>
 
@@ -159,7 +157,7 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
                 Editar
               </Button>
               <Button
-                color="red"
+                color="danger"
                 size="sm"
                 onClick={() => onDelete(experience._id, experience.title)}
                 disabled={isUpdating}
@@ -179,7 +177,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
               <option value="draft">Borrador</option>
               <option value="pending">Pendiente</option>
               <option value="active">Activa</option>
-              <option value="paused">Pausada</option>
               <option value="inactive">Inactiva</option>
             </Select>
           </div>
@@ -223,8 +220,7 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
               </div>
               <div className="flex items-center gap-1">
                 <HiUsers className="w-3 h-3" />
-                {experience.capacity} max
-                {experience.minCapacity && ` (${experience.minCapacity} min)`}
+                {experience.minCapacity ? `mín. ${experience.minCapacity}` : 'sin mínimo'}
               </div>
               <div className="flex items-center gap-1">
                 <HiCurrencyDollar className="w-3 h-3" />
@@ -233,7 +229,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
             </div>
 
             <div className="flex items-center gap-4 text-xs text-gray-500">
-              <span>{experience.totalBookings || 0} reservas</span>
               <span>{experience.rating ? `${experience.rating.toFixed(1)} ⭐` : 'Sin calificaciones'}</span>
             </div>
           </div>
@@ -249,7 +244,6 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
               <option value="draft">Borrador</option>
               <option value="pending">Pendiente</option>
               <option value="active">Activa</option>
-              <option value="paused">Pausada</option>
               <option value="inactive">Inactiva</option>
             </Select>
             
@@ -263,7 +257,7 @@ export const ManageExperienceCard: React.FC<ManageExperienceCardProps> = ({
               <HiPencilAlt className="w-3 h-3" />
             </Button>
             <Button
-              color="red"
+              color="danger"
               size="xs"
               onClick={() => onDelete(experience._id, experience.title)}
               disabled={isUpdating}

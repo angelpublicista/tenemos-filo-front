@@ -1,13 +1,23 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { HiBell, HiCheckCircle, HiTrash, HiFilter } from 'react-icons/hi';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { AppNotification, NotificationType } from '@/types';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { SkeletonCard } from '@/components/Skeleton';
+import { destinoDeNotificacion } from '@/lib/notifications/destino';
 
-const TYPE_LABEL: Record<NotificationType, string> = {
+/**
+ * Las mismas notificaciones se leen al reves segun quien las mire.
+ *
+ * Un anfitrion RECIBE reservas, cobros y reseñas. Un comensal HACE la
+ * reserva, PAGA y ESCRIBE la reseña: decirle "Nueva reserva" o "Pago
+ * recibido" es contarle lo que pasa en el negocio de otro.
+ */
+const ETIQUETA_ANFITRION: Record<NotificationType, string> = {
   new_reservation:         'Nueva reserva',
   reservation_confirmed:   'Reserva confirmada',
   reservation_cancelled:   'Reserva cancelada',
@@ -16,6 +26,33 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   review_received:         'Nueva reseña',
   system:                  'Sistema',
 };
+
+const ETIQUETA_COMENSAL: Record<NotificationType, string> = {
+  new_reservation:         'Reserva creada',
+  reservation_confirmed:   'Reserva confirmada',
+  reservation_cancelled:   'Reserva cancelada',
+  reservation_rescheduled: 'Cambio de fecha',
+  payment_received:        'Pago confirmado',
+  review_received:         'Reseña',
+  system:                  'Sistema',
+};
+
+/**
+ * Categorias que se ofrecen como filtro.
+ *
+ * Al comensal si le llegan avisos de reserva creada — la suya —, pero no
+ * de reseñas recibidas: eso es del lado del anfitrion y su bandeja no lo
+ * tendria nunca. Un filtro que siempre sale vacio hace dudar de si algo
+ * falla.
+ */
+const FILTROS_COMENSAL: NotificationType[] = [
+  'new_reservation',
+  'reservation_confirmed',
+  'reservation_cancelled',
+  'reservation_rescheduled',
+  'payment_received',
+  'system',
+];
 
 const TYPE_COLOR: Record<NotificationType, string> = {
   new_reservation:         'bg-blue-100 text-blue-700',
@@ -49,6 +86,29 @@ export default function NotificationsPage() {
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, deleteNotification, deleteAll } =
     useNotifications();
   const [filter, setFilter] = useState<FilterState>('all');
+  const { sanityUser } = useAuth();
+
+  const router = useRouter();
+
+  const esComensal = sanityUser?.role === 'guest';
+
+  /**
+   * Pulsar una notificacion la marca como leida y lleva a lo que anuncia.
+   *
+   * Se marca aunque no haya a donde ir: leerla ya es haberla atendido. Y se
+   * navega aunque ya estuviera leida, porque volver a la reserva de la que
+   * habla sigue siendo util despues.
+   */
+  const abrir = (n: AppNotification) => {
+    if (!n.read) markAsRead(n.id);
+    const destino = destinoDeNotificacion(n, esComensal);
+    if (destino) router.push(destino);
+  };
+  const etiqueta = (t: NotificationType) =>
+    (esComensal ? ETIQUETA_COMENSAL : ETIQUETA_ANFITRION)[t];
+  const tiposVisibles = esComensal
+    ? FILTROS_COMENSAL
+    : (Object.keys(ETIQUETA_ANFITRION) as NotificationType[]);
 
   const filtered = notifications.filter((n) => {
     if (filter === 'unread') return !n.read;
@@ -96,7 +156,7 @@ export default function NotificationsPage() {
         {/* Filtros */}
         <div className="flex items-center gap-2 mb-6 flex-wrap">
           <HiFilter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          {(['all', 'unread', ...Object.keys(TYPE_LABEL)] as FilterState[]).map((f) => (
+          {(['all', 'unread', ...tiposVisibles] as FilterState[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -106,7 +166,11 @@ export default function NotificationsPage() {
                   : 'bg-white text-gray-600 border-gray-200 hover:border-[#F26726] hover:text-[#F26726]'
               }`}
             >
-              {f === 'all' ? 'Todas' : f === 'unread' ? `Sin leer (${unreadCount})` : TYPE_LABEL[f as NotificationType]}
+              {f === 'all'
+                ? 'Todas'
+                : f === 'unread'
+                  ? `Sin leer (${unreadCount})`
+                  : etiqueta(f as NotificationType)}
             </button>
           ))}
         </div>
@@ -125,9 +189,23 @@ export default function NotificationsPage() {
         ) : (
           <div className="space-y-2">
             {filtered.map((n) => (
+              // Pulsar la notificacion la marca como leida y lleva a la
+              // reserva. Antes lo primero lo hacia un boton escondido tras el
+              // hover —que en tactil no aparece nunca, dejando "marcar todo
+              // como leido" como unica salida— y lo segundo no lo hacia nadie.
               <div
                 key={n.id}
-                className={`flex items-start gap-4 p-4 rounded-xl border group transition-colors ${
+                onClick={() => abrir(n)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    abrir(n);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                title={destinoDeNotificacion(n, esComensal) ? 'Ver detalle' : 'Marcar como leída'}
+                className={`flex items-start gap-4 p-4 rounded-xl border transition-colors cursor-pointer hover:bg-gray-50 ${
                   n.read
                     ? 'bg-white border-gray-100'
                     : 'bg-white border-l-4 shadow-sm'
@@ -143,7 +221,7 @@ export default function NotificationsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TYPE_COLOR[n.type]}`}>
-                      {TYPE_LABEL[n.type]}
+                      {etiqueta(n.type)}
                     </span>
                     <span className="text-xs text-gray-400">{formatDate(n.createdAt)}</span>
                   </div>
@@ -154,18 +232,14 @@ export default function NotificationsPage() {
                 </div>
 
                 {/* Acciones */}
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  {!n.read && (
-                    <button
-                      onClick={() => markAsRead(n.id)}
-                      className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                      title="Marcar como leída"
-                    >
-                      <HiCheckCircle className="w-4 h-4" />
-                    </button>
-                  )}
+                <div className="flex gap-1 flex-shrink-0">
                   <button
-                    onClick={() => deleteNotification(n.id)}
+                    onClick={(e) => {
+                      // Sin esto, borrar tambien dispararia el clic de la fila:
+                      // una sola intencion pidiendo dos escrituras.
+                      e.stopPropagation();
+                      deleteNotification(n.id);
+                    }}
                     className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Eliminar"
                   >

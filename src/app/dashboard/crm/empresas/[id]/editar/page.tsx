@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import DepartamentoCiudad from '@/components/DepartamentoCiudad';
+import TelefonoInput from '@/components/TelefonoInput';
 import { Button, Label, TextInput, Select, Textarea, Card } from 'flowbite-react';
 import { HiArrowLeft, HiSave } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
@@ -137,12 +138,16 @@ const countries = [
 ];
 
 export default function EditarEmpresaPage() {
-  const { sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
   const companyId = params.id as string;
   const { showSuccess, showError } = useSweetAlert();
   const [isLoading, setIsLoading] = useState(false);
+  // Departamento y ciudad, controlados: el selector compartido los necesita
+  // asi. El envio los sigue leyendo del DOM por sus ids.
+  const [depto, setDepto] = useState('');
+  const [ciudad, setCiudad] = useState('');
+  const [pais] = useState('CO');
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [company, setCompany] = useState<CRMCompany | null>(null);
   const [tags, setTags] = useState<string[]>([]);
@@ -154,6 +159,7 @@ export default function EditarEmpresaPage() {
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm<CompanyFormData>();
 
   useEffect(() => {
@@ -175,6 +181,10 @@ export default function EditarEmpresaPage() {
       setTags(data.tags || []);
       
       // Resetear formulario con los datos
+      // Sin esto los selectores arrancarian vacios y, como el envio lee del
+      // DOM, guardar borraria la ciudad y el departamento que ya tenia.
+      setDepto(data.address?.state || '');
+      setCiudad(data.address?.city || '');
       reset({
         companyName: data.companyName,
         businessName: data.businessName || '',
@@ -270,7 +280,7 @@ export default function EditarEmpresaPage() {
 
   if (isLoadingData) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <Loader message="Cargando empresa..." />
         </div>
@@ -416,12 +426,12 @@ export default function EditarEmpresaPage() {
               </div>
 
               <div>
-                <Label htmlFor="phone">Teléfono</Label>
-                <TextInput
+                {/* El id se conserva por si algo lo lee del DOM. */}
+                <TelefonoInput
+                  label="Teléfono"
                   id="phone"
-                  {...register('phone')}
-                  placeholder="+57 300 000 0000"
-                  className="mt-1"
+                  value={watch('phone') || ''}
+                  onChange={(v) => setValue('phone', v, { shouldDirty: true })}
                 />
               </div>
 
@@ -498,26 +508,25 @@ export default function EditarEmpresaPage() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="address-city">Ciudad</Label>
-                <TextInput
-                  id="address-city"
-                  defaultValue={company.address?.city || ''}
-                  placeholder="Ciudad"
-                  className="mt-1"
-                />
-              </div>
+              {/* Los ids se conservan: el envio lee su valor del DOM. */}
 
-              <div>
-                <Label htmlFor="address-state">Departamento/Estado</Label>
-                <TextInput
-                  id="address-state"
-                  defaultValue={company.address?.state || ''}
-                  placeholder="Departamento o estado"
-                  className="mt-1"
-                />
-              </div>
+              <div className="sm:col-span-2">
 
+                <DepartamentoCiudad
+
+                  departamento={depto}
+
+                  ciudad={ciudad}
+
+                  onDepartamentoChange={setDepto}
+
+                  onCiudadChange={setCiudad}
+
+                  pais={pais}
+
+                />
+
+              </div>
               <div>
                 <Label htmlFor="address-postalCode">Código Postal</Label>
                 <TextInput

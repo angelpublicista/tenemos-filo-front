@@ -3,8 +3,7 @@
 import React, { useState, useRef } from "react";
 import { Button, TextInput, Label, Select } from "flowbite-react";
 import Link from "next/link";
-import { PhoneInput } from "react-international-phone";
-import "react-international-phone/style.css";
+import TelefonoInput from "./TelefonoInput";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { GuestStep1Data } from "@/types";
@@ -13,14 +12,8 @@ import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
 import RecaptchaComponent from "@/components/Recaptcha";
 
 interface RegistrationFormProps {
-  role: 'guest' | 'host' | 'reseller';
+  role: 'guest' | 'host';
 }
-
-const ROLE_LABELS: Record<RegistrationFormProps['role'], string> = {
-  guest: 'Comensal',
-  host: 'Anfitrión',
-  reseller: 'Revendedor',
-};
 
 export default function RegistrationForm({ role }: RegistrationFormProps) {
   const [error, setError] = useState<string | null>(null);
@@ -87,9 +80,9 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
       };
 
       // Registrar usuario en Firebase Auth y Sanity
-      await authRegister(data.email, data.password, userData);
+      await authRegister(data.email, data.password, userData, recaptchaToken);
 
-      console.log(`${ROLE_LABELS[role]} registrado exitosamente en Firebase y Sanity`);
+      console.log(`${role === 'host' ? 'Anfitrión' : 'Comensal'} registrado exitosamente en Firebase y Sanity`);
       
       // Resetear reCAPTCHA después del registro exitoso
       if (recaptchaRef.current) {
@@ -136,7 +129,7 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
   };
 
   const getTitle = () => {
-    return `Registro de ${ROLE_LABELS[role]}`;
+    return role === 'host' ? 'Registro de Anfitrión' : 'Registro de Comensal';
   };
 
   return (
@@ -175,13 +168,10 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
         </div>
 
         <div className="flex flex-col w-full space-y-1">
-          <Label color="gray" className="w-full">
-            Teléfono <span className="text-red-500">*</span>
-          </Label>
-          <PhoneInput
-            defaultCountry="co"
-            placeholder="Teléfono"
-            className="block w-full [&>input]:bg-white [&>input]:w-full [&>input]:text-gray-500 [&>input]:border-gray-300 [&>input]:p-2.5 [&>input]:h-3 [&>input]:text-sm [&>input]:rounded-sm [&>button]:bg-white [&>button]:text-gray-500"
+          <TelefonoInput
+            label="Teléfono"
+            requerido
+            value={phone}
             onChange={handlePhoneChange}
           />
         </div>
@@ -245,9 +235,11 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
               placeholder="Contraseña"
               {...form.register("password", {
                 required: true,
+                // Debe coincidir con registerSchema del API (min 8): con 6 el
+                // formulario pasaba y el registro moria con un 400 del backend.
                 minLength: {
-                  value: 6,
-                  message: "La contraseña debe tener al menos 6 caracteres"
+                  value: 8,
+                  message: "La contraseña debe tener al menos 8 caracteres"
                 },
                 deps: ["confirmPassword"]
               })}

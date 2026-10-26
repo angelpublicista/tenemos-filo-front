@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Button, Badge, Card } from 'flowbite-react';
 import { 
@@ -12,8 +11,7 @@ import {
   HiPhone,
   HiGlobe,
   HiLocationMarker,
-  HiCalendar,
-  HiTag
+  HiCalendar
 } from 'react-icons/hi';
 import { useRouter, useParams } from 'next/navigation';
 import { getCRMCompanyById, deleteCRMCompany } from '@/lib/sanity/crmCompanyService';
@@ -29,10 +27,14 @@ const statusColors: Record<string, string> = {
   closed: 'failure',
 };
 
-const companyTypeLabels: Record<string, string> = {
-  customer: 'Cliente',
-  supplier: 'Proveedor',
-  other: 'Otro',
+/**
+ * CRM-20. La relación comercial sale del historial de ventas, no de un campo
+ * que alguien marca.
+ */
+const CONDICION: Record<string, { etiqueta: string; color: string }> = {
+  PROSPECTO: { etiqueta: 'Prospecto', color: 'gray' },
+  CLIENTE: { etiqueta: 'Cliente', color: 'info' },
+  RECURRENTE: { etiqueta: 'Cliente recurrente', color: 'success' },
 };
 
 const sourceLabels: Record<string, string> = {
@@ -76,7 +78,6 @@ const industryLabels: Record<string, string> = {
 };
 
 export default function EmpresaDetailPage() {
-  const { sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
   const companyId = params.id as string;
@@ -137,7 +138,7 @@ export default function EmpresaDetailPage() {
 
   if (isLoading) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <Loader message="Cargando empresa..." />
         </div>
@@ -202,7 +203,7 @@ export default function EmpresaDetailPage() {
                 Editar
               </Button>
               <Button
-                color="failure"
+                color="danger"
                 onClick={handleDelete}
                 disabled={isDeleting}
               >
@@ -223,11 +224,28 @@ export default function EmpresaDetailPage() {
               </h2>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
+                  {/* CRM-20: sale de lo que compró, no de un campo de la
+                      ficha. Por eso sigue diciendo "Cliente recurrente" aunque
+                      se le acabe de perder una oportunidad. */}
                   <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tipo de Empresa</p>
-                    <p className="text-gray-900 dark:text-gray-100 mt-1">
-                      {companyTypeLabels[company.companyType] || company.companyType}
-                    </p>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Relación</p>
+                    <Badge
+                      color={CONDICION[company.condicion ?? 'PROSPECTO'].color}
+                      className="mt-2 w-fit"
+                    >
+                      {CONDICION[company.condicion ?? 'PROSPECTO'].etiqueta}
+                    </Badge>
+                    {!!company.ventas && (
+                      <p className="mt-1 text-sm text-gray-500">
+                        {company.ventas === 1 ? '1 compra' : `${company.ventas} compras`}
+                        {company.ultimaVenta &&
+                          ` · última el ${new Date(company.ultimaVenta).toLocaleDateString('es-CO', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}`}
+                      </p>
+                    )}
                   </div>
                   {company.industry && (
                     <div>

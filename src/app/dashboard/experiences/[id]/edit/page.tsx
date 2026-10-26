@@ -1,19 +1,18 @@
 "use client";
 
+import ProtectedRoute from '@/components/ProtectedRoute';
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getExperienceById, updateExperienceInSanity } from '@/lib/sanity/experienceService';
-import { getCompanyByUserId } from '@/lib/sanity/companyService';
+import { getCompanyById, getCompanyByUserId } from '@/lib/sanity/companyService';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
-import { 
-  getAvailabilitySchedulesByLocation, 
-  createAvailabilitySchedule,
-  generateDefaultSchedule 
-} from '@/lib/sanity/availabilityService';
-import { UpdateExperienceData, Company, Location, AvailabilitySchedule, Experience } from '@/types';
+import { getMenusByCompany } from '@/lib/sanity/menuService';
+import { UpdateExperienceData, Company, Location, Experience, Menu } from '@/types';
 import LocationModal from '@/components/LocationModal';
+import MenuSelector from '@/components/MenuSelector';
+import Link from 'next/link';
 import { Button, Label, TextInput, Select, Textarea, Checkbox } from 'flowbite-react';
 import {
   HiArrowLeft,
@@ -27,6 +26,8 @@ import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { useRouter, useParams } from 'next/navigation';
 import Loader from '@/components/Loader';
 import { ImageUpload, GalleryUpload } from '@/components/ImageUpload';
+import PrecioInput from '@/components/PrecioInput';
+import IdiomasInput from '@/components/IdiomasInput';
 
 // Esquema de validación
 const experienceSchema = z.object({
@@ -34,22 +35,31 @@ const experienceSchema = z.object({
   description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres'),
   categories: z.array(z.enum(['cooking', 'mixology', 'tasting', 'catering', 'corporate', 'celebrations', 'workshops', 'other'])).min(1, 'Selecciona al menos una categoría'),
   duration: z.number().min(30, 'La duración mínima es 30 minutos').max(480, 'La duración máxima es 480 minutos'),
-  capacity: z.number().min(1, 'La capacidad debe ser al menos 1').max(100, 'La capacidad máxima es 100'),
+  // TR-19. Montaje y limpieza. Opcionales: no es lo mismo decir que no hace
+  // falta montaje que no haberlo pensado todavía.
+  prepTime: z.number().int().min(0).max(1440).optional(),
+  cleanupTime: z.number().int().min(0).max(1440).optional(),
+  // La anticipación mínima, en horas. Es de la experiencia: un mismo
+  // calendario sirve a una cata que se reserva el mismo día y a una cena de
+  // quince que hay que comprar con dos días.
+  minimumNotice: z.number().int().min(0).max(8760).optional(),
   minCapacity: z.number().min(1).optional(),
   basePrice: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
   currency: z.enum(['COP', 'USD']),
-  experienceType: z.enum(['virtual', 'presential', 'hybrid']),
-  virtualPlatform: z.enum(['zoom', 'google_meet', 'teams', 'other']).optional(),
+  // Todo es presencial; lo que cambia es si el anfitrión va a casa de quien
+  // reserva.
+  atHome: z.boolean().optional(),
   location: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
-  status: z.enum(['draft', 'pending', 'active', 'paused', 'inactive']),
+  state: z.string().optional(),
+  status: z.enum(['draft', 'pending', 'active', 'inactive']),
   isFeatured: z.boolean(),
 });
 
 type ExperienceFormData = z.infer<typeof experienceSchema>;
 
-export default function EditExperiencePage() {
+function EditExperiencePageContenido() {
   const { user, sanityUser } = useAuth();
   const router = useRouter();
   const params = useParams();
@@ -65,16 +75,13 @@ export default function EditExperiencePage() {
   const [addons, setAddons] = useState<Array<{name: string, price: number, priceType: 'per_person' | 'total', description: string}>>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [selectedMenus, setSelectedMenus] = useState<string[]>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [availableSchedules, setAvailableSchedules] = useState<AvailabilitySchedule[]>([]);
-  const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
-  const [showCustomSchedule, setShowCustomSchedule] = useState(false);
-  const [customScheduleName, setCustomScheduleName] = useState('');
-  const [customMinimumNotice, setCustomMinimumNotice] = useState(24);
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<Array<{ assetId: string; alt?: string; caption?: string }>>([]);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [idiomas, setIdiomas] = useState<string[]>([]);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const {
@@ -88,9 +95,7 @@ export default function EditExperiencePage() {
     mode: 'onChange',
   });
 
-  const experienceType = watch('experienceType');
-  const minCapacity = watch('minCapacity');
-  const capacity = watch('capacity');
+  const atHome = watch('atHome');
   const basePrice = watch('basePrice');
   const currency = watch('currency');
 
@@ -115,7 +120,13 @@ export default function EditExperiencePage() {
 
       try {
         // Cargar empresa
-        const companyData = await getCompanyByUserId(user.uid);
+        // La empresa activa la manda AuthContext: es la que respeta el selector
+        // de empresa y la que usa el resto del panel. /companies/me no vale
+        // como unica fuente —a un ADMIN en modo plataforma le responde null a
+        // proposito— y queda solo como respaldo.
+        const companyData = sanityUser?.companyId
+          ? await getCompanyById(sanityUser.companyId)
+          : await getCompanyByUserId(user.uid);
         if (!companyData) {
           setCompanyNotFound(true);
           setIsLoadingData(false);
@@ -141,15 +152,17 @@ export default function EditExperiencePage() {
           description: experienceData.description,
           categories: experienceData.categories || [],
           duration: experienceData.duration,
-          capacity: experienceData.capacity,
+          prepTime: experienceData.prepTime ?? undefined,
+          cleanupTime: experienceData.cleanupTime ?? undefined,
+          minimumNotice: experienceData.minimumNotice ?? undefined,
           minCapacity: experienceData.minCapacity,
           basePrice: experienceData.basePrice,
           currency: experienceData.currency,
-          experienceType: experienceData.experienceType,
-          virtualPlatform: experienceData.virtualPlatform,
+          atHome: experienceData.atHome ?? false,
           location: experienceData.presentialLocation || '',
           address: experienceData.presentialAddress || '',
           city: experienceData.presentialCity || '',
+          state: experienceData.presentialState || '',
           status: experienceData.status,
           isFeatured: experienceData.isFeatured,
         });
@@ -185,6 +198,8 @@ export default function EditExperiencePage() {
           setSelectedCategories([]);
         }
 
+        setIdiomas(experienceData.languages ?? []);
+
         // Cargar imágenes
         if (experienceData.featuredImage) {
           setFeaturedImageAssetId(experienceData.featuredImage);
@@ -198,6 +213,19 @@ export default function EditExperiencePage() {
         if (companyData._id) {
           const locationsData = await getLocationsByCompany(companyData._id);
           setLocations(locationsData || []);
+
+          const menusData = await getMenusByCompany(companyData._id);
+          setMenus(menusData || []);
+
+          if (Array.isArray(experienceData.menus)) {
+            setSelectedMenus(
+              experienceData.menus.map((m) => {
+                if (typeof m === 'object' && '_id' in m && m._id) return m._id;
+                if (typeof m === 'object' && '_ref' in m) return m._ref;
+                return m as unknown as string;
+              }),
+            );
+          }
           
           // Seleccionar sedes actuales si existen (compatibilidad con campo antiguo 'location')
           if (experienceData.locations && Array.isArray(experienceData.locations)) {
@@ -220,32 +248,7 @@ export default function EditExperiencePage() {
           }
         }
 
-        // Seleccionar calendarios actuales si existen (compatibilidad con campo antiguo 'availabilitySchedule')
-        // La query retorna "availabilitySchedules" (expandido)
-        if (expData.availabilitySchedules && Array.isArray(expData.availabilitySchedules)) {
-          // Calendarios expandidos desde la query
-          const scheduleIds = expData.availabilitySchedules.map((schedule: { _id: string }) => schedule._id);
-          setSelectedSchedules(scheduleIds);
-        } else if (experienceData.availabilities && Array.isArray(experienceData.availabilities)) {
-          // Nuevo formato: múltiples calendarios como referencias
-          const scheduleIds: string[] = experienceData.availabilities.map(avail => {
-            if (typeof avail === 'object' && '_id' in avail) {
-              return (avail as { _id: string })._id;
-            } else if (typeof avail === 'object' && '_ref' in avail) {
-              return (avail as { _ref: string })._ref;
-            }
-            return avail as string;
-          });
-          setSelectedSchedules(scheduleIds);
-        } else if (expData.availabilitySchedule) {
-          // Formato antiguo: un solo calendario
-          const scheduleId = typeof expData.availabilitySchedule === 'object' && '_ref' in expData.availabilitySchedule
-            ? expData.availabilitySchedule._ref
-            : expData.availabilitySchedule;
-          setSelectedSchedules([scheduleId]);
-        }
-
-      } catch (error) {
+            } catch (error) {
         console.error('Error loading data:', error);
         showError('Error al cargar los datos');
       } finally {
@@ -256,66 +259,9 @@ export default function EditExperiencePage() {
     };
 
     loadData();
-  }, [user, experienceId, router, showError, reset]);
-
-  // Cargar calendarios de todas las sedes seleccionadas
-  useEffect(() => {
-    const loadSchedules = async () => {
-      if (selectedLocations.length === 0) {
-        setAvailableSchedules([]);
-        if (!isInitialLoad) {
-          setSelectedSchedules([]);
-        }
-        return;
-      }
-
-      try {
-        // Cargar calendarios de todas las sedes seleccionadas
-        const allSchedules: AvailabilitySchedule[] = [];
-        
-        for (const locationId of selectedLocations) {
-          const schedules = await getAvailabilitySchedulesByLocation(locationId);
-          if (schedules && schedules.length > 0) {
-            allSchedules.push(...schedules);
-          }
-        }
-        
-        setAvailableSchedules(allSchedules);
-        
-        // Solo filtrar calendarios seleccionados si NO es la carga inicial
-        // Durante la carga inicial, los calendarios ya se establecieron desde la base de datos
-        if (!isInitialLoad) {
-          setSelectedSchedules(prev => 
-            prev.filter(scheduleId => allSchedules.some(s => s._id === scheduleId))
-          );
-        }
-        
-        if (allSchedules.length === 0) {
-          setShowCustomSchedule(true);
-        }
-        
-        // Marcar que terminó la carga inicial de calendarios
-        if (isInitialLoad) {
-          setIsInitialLoad(false);
-        }
-      } catch (error) {
-        console.error('Error loading schedules:', error);
-        setAvailableSchedules([]);
-        if (isInitialLoad) {
-          setIsInitialLoad(false);
-        }
-      }
-    };
-
-    loadSchedules();
-  }, [selectedLocations, isInitialLoad]);
+  }, [user, sanityUser?.companyId, experienceId, router, showError, reset]);
 
   // Validar capacidad mínima
-  useEffect(() => {
-    if (minCapacity && capacity && minCapacity > capacity) {
-      setValue('minCapacity', capacity);
-    }
-  }, [capacity, minCapacity, setValue]);
 
   // Manejar selección de categorías
   const handleCategoryChange = (category: string) => {
@@ -339,11 +285,7 @@ export default function EditExperiencePage() {
       const missing: string[] = [];
       if (selectedCategories.length === 0) missing.push('Categorías');
       if (!values.duration) missing.push('Duración');
-      if (!values.capacity) missing.push('Capacidad');
       if (!values.basePrice) missing.push('Precio base');
-      if ((values.experienceType === 'presential' || values.experienceType === 'hybrid') && !values.city?.trim()) {
-        missing.push('Ciudad');
-      }
       if (includes.filter((i) => i.trim()).length === 0) missing.push('Qué incluye');
       if (requirements.filter((r) => r.trim()).length === 0) missing.push('Requisitos');
 
@@ -367,11 +309,9 @@ export default function EditExperiencePage() {
           title: values.title,
           categories: selectedCategories,
           duration: values.duration,
-          capacity: values.capacity,
           minCapacity: values.minCapacity,
           basePrice: values.basePrice,
           currency: values.currency,
-          experienceType: values.experienceType,
           city: values.city,
           includes: includes.filter((i) => i.trim()),
           requirements: requirements.filter((r) => r.trim()),
@@ -458,41 +398,12 @@ export default function EditExperiencePage() {
       return;
     }
 
-    // Validar que se haya seleccionado al menos una sede para experiencias presenciales/híbridas
-    if ((data.experienceType === 'presential' || data.experienceType === 'hybrid') && selectedLocations.length === 0) {
-      showError('Por favor selecciona al menos una sede');
-      return;
-    }
+    // No se exige sede: dónde se ofrece la pieza se decide en Publicaciones, y
+    // exigirlo aquí dejaría sin poder guardar un cambio de título a quien
+    // todavía no la ha publicado.
 
     try {
       setIsLoading(true);
-
-      // eslint-disable-next-line prefer-const
-      let finalScheduleIds: string[] = [...selectedSchedules];
-
-      // Si necesita crear calendarios personalizados para las sedes sin calendario
-      if (showCustomSchedule && selectedLocations.length > 0 && finalScheduleIds.length === 0) {
-        try {
-          const scheduleName = customScheduleName || `Calendario - ${data.title}`;
-          // Crear un calendario para cada sede seleccionada
-          for (const locationId of selectedLocations) {
-            const newSchedule = await createAvailabilitySchedule({
-              name: `${scheduleName} - ${locations.find(l => l._id === locationId)?.name || 'Sede'}`,
-              location: locationId,
-              description: `Calendario personalizado para la experiencia: ${data.title}`,
-              weeklySchedule: generateDefaultSchedule(),
-              blockedDates: [],
-              notes: 'Calendario generado automáticamente. Personaliza los horarios según tus necesidades.',
-              bufferTime: 0,
-              minimumNotice: customMinimumNotice,
-            });
-            finalScheduleIds.push(newSchedule._id);
-          }
-        } catch (error) {
-          console.error('Error creating custom schedules:', error);
-          showError('Error al crear los calendarios personalizados.');
-        }
-      }
 
       // Preparar datos de actualización
       const updateData: UpdateExperienceData = {
@@ -500,23 +411,34 @@ export default function EditExperiencePage() {
         title: data.title,
         description: data.description,
         categories: selectedCategories as ('cooking' | 'mixology' | 'tasting' | 'catering' | 'corporate' | 'celebrations' | 'workshops' | 'other')[],
+        languages: idiomas,
         duration: data.duration,
-        capacity: data.capacity,
+        // TR-19. Nulo cuando se deja vacío: "no aplica" es una respuesta, y
+        // dejarlo sin mandar conservaría el valor viejo para siempre.
+        prepTime: data.prepTime ?? null,
+        cleanupTime: data.cleanupTime ?? null,
+        minimumNotice: data.minimumNotice ?? null,
         minCapacity: data.minCapacity,
         basePrice: data.basePrice,
         currency: data.currency,
-        experienceType: data.experienceType,
-        virtualPlatform: data.virtualPlatform,
+        atHome: data.atHome ?? false,
         presentialLocation: data.location,
         presentialAddress: data.address,
         presentialCity: data.city,
+        // Esta pantalla no edita el lugar puntual, pero tiene que devolverlo
+        // igual que lo recibio: si no, editar cualquier otra cosa lo borraria.
+        presentialState: data.state,
         status: data.status,
         isFeatured: data.isFeatured,
         requirements: requirements.filter(req => req && req.trim() !== ''),
         includes: includes.filter(inc => inc && inc.trim() !== ''),
         addons: addons.filter(addon => addon && addon.name && addon.name.trim() !== ''),
-        locations: selectedLocations.length > 0 ? selectedLocations : undefined,
-        availabilities: finalScheduleIds.length > 0 ? finalScheduleIds : undefined,
+        // Las sedes NO se mandan desde aquí: las escribe Publicaciones, que es
+        // donde se decide en qué escenarios se usa la pieza. Mandarlas también
+        // desde este formulario pisaría lo publicado allí.
+        menus: selectedMenus,
+        // Los horarios tampoco se mandan desde aquí: son de la experiencia EN
+        // una sede y se gestionan en Publicaciones, escenario por escenario.
         featuredImage: featuredImageAssetId || undefined,
         gallery: galleryImages.length > 0 ? galleryImages : undefined,
       };
@@ -672,6 +594,10 @@ export default function EditExperiencePage() {
               )}
             </div>
 
+            <div className="lg:col-span-2">
+              <IdiomasInput valor={idiomas} onChange={setIdiomas} />
+            </div>
+
             <div>
               <Label htmlFor="duration">Duración (minutos) *</Label>
               <TextInput
@@ -684,6 +610,58 @@ export default function EditExperiencePage() {
               {errors.duration && (
                 <p className="text-red-500 text-sm mt-1">{errors.duration.message}</p>
               )}
+            </div>
+
+            {/* TR-19. Lo que ocupa además de sí misma. La agenda lo cuenta:
+                una cena de tres horas no deja el sitio libre a las tres. */}
+            <div>
+              <Label htmlFor="prepTime">Preparación (minutos)</Label>
+              <TextInput
+                {...register('prepTime', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
+                type="number"
+                min="0"
+                max="1440"
+                className="mt-1"
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Lo que tardas en montar antes de empezar. Queda ocupado en tu
+                agenda, así que no se te cruza otra cosa.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="cleanupTime">Limpieza después (minutos)</Label>
+              <TextInput
+                {...register('cleanupTime', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
+                type="number"
+                min="0"
+                max="1440"
+                className="mt-1"
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Lo que tardas en recoger. Tampoco cabe otra cosa en ese rato.
+              </p>
+            </div>
+
+            {/* La anticipación es de la experiencia, no del horario: un mismo
+                calendario sirve a una cata que se reserva el mismo día y a una
+                cena de quince que hay que comprar con dos días. */}
+            <div>
+              <Label htmlFor="minimumNotice">Anticipación mínima (horas)</Label>
+              <TextInput
+                {...register('minimumNotice', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
+                type="number"
+                min="0"
+                max="8760"
+                className="mt-1"
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                No se aceptan reservas con menos, ni siquiera si se libera un
+                cupo a última hora.
+              </p>
             </div>
           </div>
         </div>
@@ -713,34 +691,36 @@ export default function EditExperiencePage() {
           </div>
         </div>
 
-        {/* Capacidad y Precios */}
+        {/* Cupos y precios */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
-            Capacidad y Precios
+            Cupos y precios
           </h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="capacity">Capacidad Máxima *</Label>
-              <TextInput
-                {...register('capacity', { valueAsNumber: true })}
-                type="number"
-                min="1"
-                max="100"
-                className="mt-1"
-              />
-              {errors.capacity && (
-                <p className="text-red-500 text-sm mt-1">{errors.capacity.message}</p>
-              )}
+            {/* Los cupos NO se piden aquí: son del horario, no de la pieza.
+                El almuerzo y la cena de un sábado son dos inventarios
+                distintos, y la misma experiencia puede admitir ocho en el
+                local y veinte en la terraza; un número único aquí no podía
+                decir eso. */}
+            <div className="sm:col-span-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-4">
+              <Label>Cupos por sesión</Label>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                Se ponen en cada franja del horario, en{' '}
+                <Link href="/dashboard/publicaciones" className="text-[#F26726] hover:underline font-medium">
+                  Publicaciones → Horario
+                </Link>
+                : el almuerzo y la cena pueden admitir distinta gente.
+              </p>
             </div>
 
             <div>
-              <Label htmlFor="minCapacity">Capacidad Mínima</Label>
+              <Label htmlFor="minCapacity">Cupos mínimos para realizarla</Label>
               <TextInput
                 {...register('minCapacity', { valueAsNumber: true })}
                 type="number"
                 min="1"
-                max={capacity || 100}
+                max="100"
                 className="mt-1"
               />
               {errors.minCapacity && (
@@ -750,14 +730,16 @@ export default function EditExperiencePage() {
 
             <div>
               <Label htmlFor="basePrice">Precio Base por Persona *</Label>
-              <TextInput
-                {...register('basePrice', { valueAsNumber: true })}
-                type="number"
-                min="0"
-                step="1000"
-                className="mt-1"
-                placeholder="0"
-              />
+              <div className="mt-1">
+                <PrecioInput
+                  id="basePrice"
+                  value={watch('basePrice')}
+                  onChange={(v) =>
+                    setValue('basePrice', v ?? 0, { shouldValidate: true, shouldDirty: true })
+                  }
+                  placeholder="0"
+                />
+              </div>
               {basePrice > 0 && (
                 <p className="text-[#F26726] text-sm mt-1 font-semibold">
                   {formatCurrency(basePrice, currency)}
@@ -788,194 +770,83 @@ export default function EditExperiencePage() {
           </h2>
           
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="experienceType">Tipo de Experiencia *</Label>
-              <Select {...register('experienceType')} className="mt-1">
-                <option value="presential">Presencial</option>
-                <option value="virtual">Virtual</option>
-                <option value="hybrid">Híbrida (Presencial + Virtual)</option>
-              </Select>
-              {errors.experienceType && (
-                <p className="text-red-500 text-sm mt-1">{errors.experienceType.message}</p>
-              )}
+            {/* Todo es presencial. Lo único que hay que decidir es si el
+                anfitrión va a casa de quien reserva: entonces no hay sede que
+                publicar y la dirección la pone el comensal en cada reserva. */}
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="atHome"
+                  {...register('atHome')}
+                  className="mt-1 text-[#F26726] focus:ring-[#F26726]"
+                />
+                <div>
+                  <Label htmlFor="atHome" className="cursor-pointer font-medium">
+                    Se hace a domicilio
+                  </Label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    El anfitrión va a donde diga quien reserva: un chef que cocina en casa del
+                    cliente. No se publica en sedes y la dirección se pide al reservar.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {(experienceType === 'virtual' || experienceType === 'hybrid') && (
-              <div>
-                <Label htmlFor="virtualPlatform">Plataforma Virtual</Label>
-                <Select {...register('virtualPlatform')} className="mt-1">
-                  <option value="zoom">Zoom</option>
-                  <option value="google_meet">Google Meet</option>
-                  <option value="teams">Microsoft Teams</option>
-                  <option value="other">Otra</option>
-                </Select>
-              </div>
-            )}
-
-            {(experienceType === 'presential' || experienceType === 'hybrid') && (
+            {!atHome && (
               <div className="space-y-4">
-                <div>
-                  <Label>Sedes * (Selecciona una o más)</Label>
-                  <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
-                    {locations.length > 0 ? (
-                      locations.map((loc) => (
-                        <div key={loc._id} className="flex items-center">
-                          <Checkbox
-                            id={`location-${loc._id}`}
-                            checked={selectedLocations.includes(loc._id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedLocations(prev => [...prev, loc._id]);
-                              } else {
-                                setSelectedLocations(prev => prev.filter(id => id !== loc._id));
-                              }
-                            }}
-                            className="text-[#F26726] focus:ring-[#F26726]"
-                          />
-                          <Label htmlFor={`location-${loc._id}`} className="ml-2 cursor-pointer">
-                            {loc.name}
-                            {loc.isMain && ' (Principal)'}
-                            <span className="text-gray-500 text-sm ml-2">
-                              - {loc.address.city}
-                            </span>
-                          </Label>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        No tienes sedes registradas.{' '}
-                        <button
-                          type="button"
-                          onClick={() => setShowLocationModal(true)}
-                          className="text-[#F26726] hover:underline font-medium"
-                        >
-                          Crear una sede
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                  {selectedLocations.length > 0 && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      {selectedLocations.length} sede{selectedLocations.length > 1 ? 's' : ''} seleccionada{selectedLocations.length > 1 ? 's' : ''}
+                {/* Dónde se ofrece ya NO se decide aquí.
+                    Este panel es para la PIEZA —qué se hace, cuánto dura, qué
+                    incluye—. Ponerla en un sitio es usarla, y la misma pieza
+                    puede ir a una sede como abierta y a otra como privada, con
+                    otro horario y otro precio: eso no cabe en una casilla. */}
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
+                  <Label>Dónde se ofrece</Label>
+                  {selectedLocations.length === 0 ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                      Todavía en ningún sitio. Se decide en{' '}
+                      <Link href="/dashboard/publicaciones" className="text-[#F26726] hover:underline font-medium">
+                        Publicaciones
+                      </Link>
+                      , donde también eliges la modalidad y el horario de cada sede.
                     </p>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">
+                        {locations
+                          .filter((l) => selectedLocations.includes(l._id))
+                          .map((l) => l.name)
+                          .join(' · ')}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        La modalidad, el precio y el horario de cada sede se gestionan en{' '}
+                        <Link href="/dashboard/publicaciones" className="text-[#F26726] hover:underline font-medium">
+                          Publicaciones
+                        </Link>
+                        .
+                      </p>
+                    </>
                   )}
                 </div>
 
-                {selectedLocations.length > 0 && (
-                  <div>
-                    <Label>Calendarios de Disponibilidad * (Selecciona uno o más)</Label>
-                    <p className="text-sm text-gray-600 mb-2">
-                      Selecciona los calendarios que definirán la disponibilidad de esta experiencia
-                    </p>
-                    {availableSchedules.length > 0 ? (
-                      <div className="space-y-2">
-                        <div className="mt-2 space-y-2 border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
-                          {availableSchedules.map((schedule) => {
-                            const locationName = locations.find(l => {
-                              const schedLocation = schedule.location as { _ref: string };
-                              return l._id === schedLocation?._ref;
-                            })?.name || 'Sede';
-                            
-                            return (
-                              <div key={schedule._id} className="flex items-center">
-                                <Checkbox
-                                  id={`schedule-${schedule._id}`}
-                                  checked={selectedSchedules.includes(schedule._id)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedSchedules(prev => [...prev, schedule._id]);
-                                    } else {
-                                      setSelectedSchedules(prev => prev.filter(id => id !== schedule._id));
-                                    }
-                                  }}
-                                  disabled={!schedule.isActive}
-                                  className="text-[#F26726] focus:ring-[#F26726]"
-                                />
-                                <Label htmlFor={`schedule-${schedule._id}`} className="ml-2 cursor-pointer">
-                                  {schedule.name}
-                                  {schedule.isMain && ' (Principal)'}
-                                  {!schedule.isActive && ' (Inactivo)'}
-                                  <span className="text-gray-500 text-sm ml-2">
-                                    - {locationName}
-                                  </span>
-                                </Label>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {selectedSchedules.length > 0 && (
-                          <p className="text-sm text-gray-600 mt-2">
-                            {selectedSchedules.length} calendario{selectedSchedules.length > 1 ? 's' : ''} seleccionado{selectedSchedules.length > 1 ? 's' : ''}
-                          </p>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setShowCustomSchedule(!showCustomSchedule)}
-                          className="text-sm text-[#F26726] hover:underline font-medium mt-2"
-                        >
-                          {showCustomSchedule ? 'Ocultar' : 'Crear nuevo'} calendario personalizado
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800 mb-2">
-                          Las sedes seleccionadas no tienen calendarios de disponibilidad configurados.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setShowCustomSchedule(!showCustomSchedule)}
-                          className="text-sm text-[#F26726] hover:underline font-medium"
-                        >
-                          {showCustomSchedule ? 'Ocultar' : 'Configurar'} disponibilidad personalizada
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+              </div>
+            )}
+            {/* A domicilio la ciudad no se pide aquí: una experiencia así puede
+                atender varias, y esa cobertura es de cada publicación. Se
+                define en Publicaciones, con el resto de condiciones. */}
+            {atHome && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
+                <Label>Dónde se presta</Label>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                  Las ciudades que atiendes se agregan en{' '}
+                  <Link href="/dashboard/publicaciones" className="text-[#F26726] hover:underline font-medium">
+                    Publicaciones
+                  </Link>
+                  , en las condiciones de esta experiencia. Sin al menos una no se puede vender.
+                </p>
               </div>
             )}
           </div>
         </div>
-
-        {/* Disponibilidad Personalizada */}
-        {(showCustomSchedule && selectedLocations.length > 0) && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
-              Configurar Disponibilidad Personalizada
-            </h2>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <p className="text-sm text-blue-800">
-                <strong>Nota:</strong> Se creará un calendario de disponibilidad específico para esta experiencia. 
-                Puedes configurar los horarios detallados después de actualizar la experiencia desde la sección de Disponibilidad.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Nombre del Calendario</Label>
-                <TextInput
-                  placeholder="Ej: Calendario de Clases de Cocina"
-                  value={customScheduleName || `Calendario - ${watch('title') || 'Experiencia'}`}
-                  onChange={(e) => setCustomScheduleName(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>Aviso Mínimo (horas)</Label>
-                <TextInput
-                  type="number"
-                  placeholder="24"
-                  value={customMinimumNotice}
-                  onChange={(e) => setCustomMinimumNotice(parseInt(e.target.value) || 24)}
-                  min="1"
-                  className="mt-1"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Anticipación mínima para reservas
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Requisitos */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -1005,7 +876,7 @@ export default function EditExperiencePage() {
                 />
                   <Button
                     type="button"
-                    color="red"
+                    color="danger"
                     size="sm"
                     onClick={() => removeRequirement(index)}
                     disabled={requirements.length === 1}
@@ -1045,7 +916,7 @@ export default function EditExperiencePage() {
                 />
                   <Button
                     type="button"
-                    color="red"
+                    color="danger"
                     size="sm"
                     onClick={() => removeInclude(index)}
                     disabled={includes.length === 1}
@@ -1055,6 +926,14 @@ export default function EditExperiencePage() {
                 </div>
             ))}
           </div>
+        </div>
+
+        {/* Menús */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-semibold text-[#334C5D] dark:text-gray-100 mb-6">
+            Menús
+          </h2>
+          <MenuSelector menus={menus} selected={selectedMenus} onChange={setSelectedMenus} />
         </div>
 
         {/* Addons */}
@@ -1081,7 +960,7 @@ export default function EditExperiencePage() {
                   <h3 className="font-medium text-gray-900">Servicio {index + 1}</h3>
                   <Button
                     type="button"
-                    color="red"
+                    color="danger"
                     size="sm"
                     onClick={() => removeAddon(index)}
                   >
@@ -1095,11 +974,11 @@ export default function EditExperiencePage() {
                     placeholder="Nombre del servicio"
                   />
                   <div>
-                    <TextInput
-                      type="number"
+                    <PrecioInput
                       value={addon.price}
-                      onChange={(e) => updateAddon(index, 'price', Number(e.target.value))}
+                      onChange={(v) => updateAddon(index, 'price', v ?? 0)}
                       placeholder="Precio"
+                      aria-label="Precio del servicio adicional"
                     />
                     {addon.price > 0 && (
                       <p className="text-[#F26726] text-xs mt-1 font-semibold">
@@ -1138,7 +1017,6 @@ export default function EditExperiencePage() {
                 <option value="draft">Borrador</option>
                 <option value="pending">Pendiente de Aprobación</option>
                 <option value="active">Activa</option>
-                <option value="paused">Pausada</option>
                 <option value="inactive">Inactiva</option>
               </Select>
               {errors.status && (
@@ -1203,3 +1081,17 @@ export default function EditExperiencePage() {
   );
 }
 
+/**
+ * Pantalla de anfitrion: quien edita una experiencia es el anfitrion que la hace.
+ *
+ * El menu ya no se la enseña a un revendedor, pero por URL se llegaba igual
+ * y lo que salia era una pantalla rota —el titulo de su empresa, botones que
+ * dan 403 y un error al cargar—. ProtectedRoute lo devuelve al dashboard.
+ */
+export default function EditExperiencePage() {
+  return (
+    <ProtectedRoute roles={['host', 'admin']}>
+      <EditExperiencePageContenido />
+    </ProtectedRoute>
+  );
+}

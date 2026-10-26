@@ -8,7 +8,6 @@ import {
   HiClock, 
   HiUsers, 
   HiLocationMarker,
-  HiVideoCamera,
   HiEye,
   HiPencilAlt
 } from 'react-icons/hi';
@@ -136,31 +135,26 @@ export default function ExperienceCard({
           </div>
           <div className="flex items-center">
             <HiUsers className="w-4 h-4 mr-1" />
-            {experience.capacity} personas
+            {experience.minCapacity ? `Mínimo ${experience.minCapacity}` : 'Sin mínimo'}
           </div>
           <div className="flex items-center">
-            {experience.experienceType === 'virtual' ? (
-              <HiVideoCamera className="w-4 h-4 mr-1" />
-            ) : (
-              <HiLocationMarker className="w-4 h-4 mr-1" />
-            )}
-            {experience.experienceType === 'virtual' ? 'Virtual' : 
-             experience.experienceType === 'hybrid' ? 'Híbrida' : 'Presencial'}
+            <HiLocationMarker className="w-4 h-4 mr-1" />
+            {/* Todo es presencial; lo que distingue es si el anfitrión va a
+                casa de quien reserva. */}
+            {experience.atHome ? 'A domicilio' : 'En sede'}
           </div>
         </div>
 
-        {/* Estadísticas */}
-        {experience.totalBookings > 0 && (
-          <div className="flex items-center justify-between text-sm text-gray-500 mb-4 pt-4 border-t border-gray-200">
-            <span>{experience.totalBookings} reservas</span>
-            {experience.rating && (
-              <span className="flex items-center">
-                <HiStar className="w-4 h-4 mr-1 text-yellow-500" />
-                {experience.rating.toFixed(1)}
-              </span>
-            )}
+        {/* La nota del comensal, si ya la hay. Cuántas reservas lleva no es
+            asunto de esta tarjeta: eso vive en Reservas. */}
+        {experience.rating ? (
+          <div className="flex items-center text-sm text-gray-500 mb-4 pt-4 border-t border-gray-200">
+            <span className="flex items-center">
+              <HiStar className="w-4 h-4 mr-1 text-yellow-500" />
+              {experience.rating.toFixed(1)}
+            </span>
           </div>
-        )}
+        ) : null}
 
         {/* Precio y Acciones */}
         <div className="flex items-center justify-between">

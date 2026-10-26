@@ -4,18 +4,29 @@
 // que ningun caller necesita cambiar mientras el tipo `Company` no cambie.
 import { api } from '@/lib/api/client';
 import { Company } from '@/types';
+import type { TipoDeEmpresa, TipoDePersona } from '@/lib/company/tipos';
+import type { ContactoDeEmpresa } from '@/lib/company/contactos';
 
 // ─── Tipos publicos (se conservan para compat) ─────────────────────────────
 
 export interface CreateCompanyData {
   companyName: string;
-  companyType: 'restaurant' | 'catering' | 'foodtruck' | 'other';
+  companyType: TipoDeEmpresa;
+  personType?: TipoDePersona;
+  companyTypeSecondary?: TipoDeEmpresa;
+  ciiuCode?: string;
+  legalRepName?: string;
+  legalRepDocType?: 'cedula' | 'pasaporte' | 'other';
+  legalRepDocNumber?: string;
+  contacts?: ContactoDeEmpresa[];
   description?: string;
   companyEmail: string;
   companyPhone: string;
   logo?: string;
   documentType?: 'nit' | 'cedula' | 'pasaporte' | 'other';
   documentNumber?: string;
+  /** Digito de verificacion del NIT; se calcula, no se escribe. */
+  documentDv?: string;
   businessName?: string;
   website?: string;
   address?: {
@@ -28,21 +39,51 @@ export interface CreateCompanyData {
   employeeCount?: '1-10' | '11-50' | '51-200' | '201-500' | '500+';
   annualRevenue?: '0-100k' | '100k-500k' | '500k-1M' | '1M-5M' | '5M+';
   businessYears?: '0-1' | '1-3' | '3-5' | '5-10' | '10+';
+  /** Claves de S3 del RUT y la Camara de Comercio, no URLs. */
+  rutKey?: string;
+  camaraKey?: string;
 }
 
 // `logo` admite null para borrarlo explicitamente (PATCH con logo:null deja
 // el campo en NULL en Postgres). Usamos Omit para que no se intersecte con
 // el `logo: string | undefined` de CreateCompanyData.
-export type UpdateCompanyData = Partial<Omit<CreateCompanyData, 'logo'>> & {
+export type UpdateCompanyData = Partial<
+  Omit<CreateCompanyData, 'logo' | 'rutKey' | 'camaraKey' | 'personType' | 'companyTypeSecondary' | 'ciiuCode' | 'contacts' | 'legalRepName' | 'legalRepDocType' | 'legalRepDocNumber'>
+> & {
   logo?: string | null;
+  tagline?: string | null;
+  brandPrimary?: string | null;
+  brandSecondary?: string | null;
+  personType?: TipoDePersona | null;
+  companyTypeSecondary?: TipoDeEmpresa | null;
+  ciiuCode?: string | null;
+  legalRepName?: string | null;
+  legalRepDocType?: 'cedula' | 'pasaporte' | 'other' | null;
+  legalRepDocNumber?: string | null;
+  contacts?: ContactoDeEmpresa[];
+  /** Id del restaurante en OpenTable (el "rid" de sus enlaces). */
+  openTableRid?: string | null;
+  coverType?: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER';
+  coverImages?: string[];
+  coverVideo?: string | null;
+  /** Ajustes de operacion: cambian como entran las reservas. */
+  autoConfirmReservations?: boolean;
+  blockWhenFull?: boolean;
+  /** null = usar el valor por defecto de la plataforma. */
+  requirePayment?: boolean | null;
+  /** null borra el vinculo con el documento. */
+  rutKey?: string | null;
+  camaraKey?: string | null;
 };
 
 // ─── Tipos del API (Postgres) ──────────────────────────────────────────────
 
-type ApiCompanyType = 'RESTAURANT' | 'CATERING' | 'FOODTRUCK' | 'OTHER';
+// Lo que el API acepta: los mismos valores en mayusculas. Se deriva de la
+// lista en vez de reescribirla, que es como llegaron a decir cosas distintas.
+type ApiCompanyType = Uppercase<TipoDeEmpresa>;
 type ApiDocumentType = 'NIT' | 'CEDULA' | 'PASAPORTE' | 'OTHER';
 
-interface ApiCompany {
+export interface ApiCompany {
   id: string;
   ownerId: string;
   companyName: string;
@@ -55,31 +96,59 @@ interface ApiCompany {
   logo: string | null;
   documentType: ApiDocumentType | null;
   documentNumber: string | null;
+  documentDv: string | null;
   website: string | null;
   address: Company['address'] | null;
   employeeCount: string | null;
+  embedDomains?: string[];
+  tagline: string | null;
+  brandPrimary: string | null;
+  brandSecondary: string | null;
+  personType: Uppercase<TipoDePersona> | null;
+  ciiuCode: string | null;
+  legalRepName: string | null;
+  legalRepDocType: 'CEDULA' | 'PASAPORTE' | 'OTHER' | null;
+  legalRepDocNumber: string | null;
+  companyContacts?: Array<{
+    id: string;
+    type: 'RESERVAS' | 'CONTABILIDAD' | 'OTRO';
+    label: string | null;
+    name: string;
+    email: string;
+    phone: string | null;
+    position: string | null;
+  }> | null;
+  companyTypeSecondary: ApiCompanyType | null;
+  openTableRid: string | null;
+  coverType: 'NONE' | 'IMAGE' | 'VIDEO' | 'SLIDER' | null;
+  coverImages: string[] | null;
+  coverVideo: string | null;
+  autoConfirmReservations: boolean;
+  blockWhenFull: boolean;
+  requirePayment?: boolean | null;
   annualRevenue: string | null;
   businessYears: string | null;
+  rutKey: string | null;
+  rutSubidoEl: string | null;
+  camaraKey: string | null;
+  camaraSubidaEl: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
   locations?: Array<{ id: string; name: string; isMain: boolean }>;
+  /** Titular: su rol y su nombre. El id ya viaja en ownerId. */
+  owner?: { id: string; name: string | null; role: 'HOST' | 'GUEST' | 'ADMIN' | 'RESELLER' } | null;
 }
 
 // ─── Mapeos enum (lower<->upper) ───────────────────────────────────────────
 
-const COMPANY_TYPE_TO_API: Record<NonNullable<CreateCompanyData['companyType']>, ApiCompanyType> = {
-  restaurant: 'RESTAURANT',
-  catering: 'CATERING',
-  foodtruck: 'FOODTRUCK',
-  other: 'OTHER',
-};
-const COMPANY_TYPE_FROM_API: Record<ApiCompanyType, Company['companyType']> = {
-  RESTAURANT: 'restaurant',
-  CATERING: 'catering',
-  FOODTRUCK: 'foodtruck',
-  OTHER: 'other',
-};
+// El front usa minusculas y el API mayusculas, y la correspondencia es
+// exacta: no hace falta una tabla que mantener a mano —ya se quedo atras una
+// vez— sino traducir la forma.
+const COMPANY_TYPE_TO_API = (t: TipoDeEmpresa): ApiCompanyType =>
+  t.toUpperCase() as ApiCompanyType;
+const COMPANY_TYPE_FROM_API = (t: ApiCompanyType): TipoDeEmpresa =>
+  t.toLowerCase() as TipoDeEmpresa;
 
 const DOC_TYPE_TO_API: Record<NonNullable<CreateCompanyData['documentType']>, ApiDocumentType> = {
   nit: 'NIT',
@@ -96,10 +165,15 @@ const DOC_TYPE_FROM_API: Record<ApiDocumentType, NonNullable<Company['documentTy
 
 // ─── Mapper API → Company shape (compatible con tipo `Company` Sanity-like) ─
 
-function toCompany(c: ApiCompany): Company {
+export function toCompany(c: ApiCompany): Company {
   return {
     _id: c.id,
     _type: 'company',
+    ownerId: c.ownerId,
+    ownerRole: c.owner
+      ? (c.owner.role.toLowerCase() as NonNullable<Company['ownerRole']>)
+      : undefined,
+    ownerName: c.owner?.name ?? undefined,
     companyName: c.companyName,
     slug: { _type: 'slug', current: c.slug },
     businessName: c.businessName ?? undefined,
@@ -107,16 +181,56 @@ function toCompany(c: ApiCompany): Company {
     logo: c.logo
       ? { asset: { _ref: c.logo, _type: 'reference' } }
       : undefined,
-    companyType: c.companyType ? COMPANY_TYPE_FROM_API[c.companyType] : 'other',
+    companyType: c.companyType ? COMPANY_TYPE_FROM_API(c.companyType) : 'other',
     companyEmail: c.companyEmail ?? '',
     companyPhone: c.companyPhone ?? '',
     documentType: c.documentType ? DOC_TYPE_FROM_API[c.documentType] : undefined,
     documentNumber: c.documentNumber ?? undefined,
+    documentDv: c.documentDv ?? undefined,
     website: c.website ?? undefined,
     address: c.address ?? undefined,
     employeeCount: (c.employeeCount as Company['employeeCount']) ?? undefined,
+    embedDomains: c.embedDomains ?? [],
+    tagline: c.tagline ?? undefined,
+    ciiuCode: c.ciiuCode ?? undefined,
+    legalRepName: c.legalRepName ?? undefined,
+    legalRepDocType: c.legalRepDocType
+      ? (c.legalRepDocType.toLowerCase() as 'cedula' | 'pasaporte' | 'other')
+      : undefined,
+    legalRepDocNumber: c.legalRepDocNumber ?? undefined,
+    contacts: (c.companyContacts ?? []).map((k) => ({
+      id: k.id,
+      type: k.type.toLowerCase() as ContactoDeEmpresa['type'],
+      label: k.label ?? undefined,
+      name: k.name,
+      email: k.email,
+      phone: k.phone ?? undefined,
+      position: k.position ?? undefined,
+    })),
+    personType: c.personType
+      ? (c.personType.toLowerCase() as TipoDePersona)
+      : undefined,
+    companyTypeSecondary: c.companyTypeSecondary
+      ? COMPANY_TYPE_FROM_API(c.companyTypeSecondary)
+      : undefined,
+    brandPrimary: c.brandPrimary ?? undefined,
+    brandSecondary: c.brandSecondary ?? undefined,
+    openTableRid: c.openTableRid ?? undefined,
+    coverType: c.coverType ?? 'NONE',
+    coverImages: c.coverImages ?? [],
+    coverVideo: c.coverVideo ?? undefined,
+    autoConfirmReservations: c.autoConfirmReservations ?? false,
+    // Por defecto true: es lo que hace el API si el campo no viaja.
+    blockWhenFull: c.blockWhenFull ?? true,
+    // Se conserva el null: significa "hereda de la plataforma", que no es
+    // lo mismo que un "no" explicito.
+    requirePayment: c.requirePayment ?? null,
     annualRevenue: (c.annualRevenue as Company['annualRevenue']) ?? undefined,
     businessYears: (c.businessYears as Company['businessYears']) ?? undefined,
+    rutKey: c.rutKey ?? undefined,
+    rutSubidoEl: c.rutSubidoEl ?? undefined,
+    camaraKey: c.camaraKey ?? undefined,
+    camaraSubidaEl: c.camaraSubidaEl ?? undefined,
     locations: c.locations?.map((l) => ({ _ref: l.id, _type: 'reference' as const })),
     isActive: c.isActive,
     createdAt: c.createdAt,
@@ -125,21 +239,56 @@ function toCompany(c: ApiCompany): Company {
 }
 
 function buildPayload(data: CreateCompanyData | UpdateCompanyData): Record<string, unknown> {
+  // Los ajustes de marca y operacion solo llegan por UpdateCompanyData.
+  const upd = data as UpdateCompanyData;
   const out: Record<string, unknown> = {};
   if (data.companyName !== undefined) out.companyName = data.companyName;
-  if (data.companyType !== undefined) out.companyType = COMPANY_TYPE_TO_API[data.companyType];
+  if (data.companyType !== undefined) out.companyType = COMPANY_TYPE_TO_API(data.companyType);
   if (data.description !== undefined) out.description = data.description;
   if (data.companyEmail !== undefined) out.companyEmail = data.companyEmail;
   if (data.companyPhone !== undefined) out.companyPhone = data.companyPhone;
   if (data.logo !== undefined) out.logo = data.logo === null ? null : data.logo;
   if (data.documentType !== undefined) out.documentType = DOC_TYPE_TO_API[data.documentType];
   if (data.documentNumber !== undefined) out.documentNumber = data.documentNumber;
+  if (data.documentDv !== undefined) out.documentDv = data.documentDv;
   if (data.businessName !== undefined) out.businessName = data.businessName;
   if (data.website !== undefined) out.website = data.website;
   if (data.address !== undefined) out.address = data.address;
   if (data.employeeCount !== undefined) out.employeeCount = data.employeeCount;
   if (data.annualRevenue !== undefined) out.annualRevenue = data.annualRevenue;
   if (data.businessYears !== undefined) out.businessYears = data.businessYears;
+  // null es significativo: desvincula el documento de la empresa.
+  if (upd.rutKey !== undefined) out.rutKey = upd.rutKey;
+  if (upd.camaraKey !== undefined) out.camaraKey = upd.camaraKey;
+  if (upd.tagline !== undefined) out.tagline = upd.tagline;
+  // null borra el color y devuelve el catalogo a los de la plataforma.
+  if (upd.ciiuCode !== undefined) out.ciiuCode = upd.ciiuCode;
+  if (upd.legalRepName !== undefined) out.legalRepName = upd.legalRepName;
+  if (upd.legalRepDocType !== undefined)
+    out.legalRepDocType = upd.legalRepDocType ? upd.legalRepDocType.toUpperCase() : null;
+  if (upd.legalRepDocNumber !== undefined) out.legalRepDocNumber = upd.legalRepDocNumber;
+  // El API los quiere en mayusculas, como el resto de enums.
+  if (upd.contacts !== undefined)
+    out.contacts = upd.contacts.map((k) => ({ ...k, type: k.type.toUpperCase() }));
+  if (upd.personType !== undefined)
+    out.personType = upd.personType ? upd.personType.toUpperCase() : null;
+  if (upd.companyTypeSecondary !== undefined)
+    out.companyTypeSecondary = upd.companyTypeSecondary
+      ? COMPANY_TYPE_TO_API(upd.companyTypeSecondary)
+      : null;
+  if (upd.brandPrimary !== undefined) out.brandPrimary = upd.brandPrimary;
+  if (upd.brandSecondary !== undefined) out.brandSecondary = upd.brandSecondary;
+  if (upd.openTableRid !== undefined) out.openTableRid = upd.openTableRid;
+  if (upd.coverType !== undefined) out.coverType = upd.coverType;
+  if (upd.coverImages !== undefined) out.coverImages = upd.coverImages;
+  if (upd.coverVideo !== undefined) out.coverVideo = upd.coverVideo;
+  if (upd.autoConfirmReservations !== undefined) {
+    out.autoConfirmReservations = upd.autoConfirmReservations;
+  }
+  if (upd.blockWhenFull !== undefined) out.blockWhenFull = upd.blockWhenFull;
+  // null es un valor con significado aqui —"usa el de la plataforma"—
+  // asi que se compara contra undefined, no por veracidad.
+  if (upd.requirePayment !== undefined) out.requirePayment = upd.requirePayment;
   return out;
 }
 
@@ -186,4 +335,19 @@ export const updateCompanyLocations = async (_companyId: string, _locationIds: s
   void _companyId;
   void _locationIds;
   throw new Error('updateCompanyLocations aun no migrado al nuevo backend.');
+};
+
+/**
+ * Dominios autorizados a insertar el catalogo en un iframe.
+ * Devuelve la lista ya normalizada por el API.
+ */
+export const setEmbedDomains = async (
+  companyId: string,
+  embedDomains: string[],
+): Promise<string[]> => {
+  const res = await api.patch<{ id: string; embedDomains: string[] }>(
+    `/companies/${encodeURIComponent(companyId)}/embed-domains`,
+    { embedDomains },
+  );
+  return res.embedDomains ?? [];
 };

@@ -1,12 +1,16 @@
 "use client";
 
 import { Dropdown, DropdownItem, DropdownDivider } from "flowbite-react";
+import Avatar from '@/components/Avatar';
 import { useAuth } from "@/lib/auth/AuthContext";
 import FiloLogo from "@/components/FiloLogo";
 import { useEffect, useState } from "react";
 import { HiPlus, HiMenu } from "react-icons/hi";
 import NotificationBell from "@/components/Notifications/NotificationBell";
+import NuevaSolicitudModal from "@/components/CRM/NuevaSolicitudModal";
+import CompanySwitcher from "@/components/Admin/CompanySwitcher";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -14,6 +18,8 @@ interface NavbarProps {
 
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const { user, sanityUser, logout } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   // El bloque de acciones depende de auth (sanityUser?.role) y monta el
   // Dropdown de flowbite (que usa useId via @floating-ui). Para evitar
@@ -32,13 +38,29 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
     }
   };
 
-  const getUserDisplayName = () => sanityUser?.name || user?.email || 'Usuario';
+  // El atajo del header sigue a la pantalla. Antes ofrecia siempre "Crear
+  // experiencia", incluso estando en Reservas, y en Experiencias competia
+  // con el boton principal de la propia pagina: dos naranjas identicos
+  // pidiendo lo mismo.
+  //
+  // Va en secundario a proposito: el CTA de la pantalla manda, este es un
+  // atajo desde cualquier otra parte.
+  const accionRapida = (() => {
+    if (sanityUser?.role !== 'host') return null;
+    // `new=true` es el parametro que ya escucha la pantalla de reservas
+    // para abrir su modal; reutilizarlo evita inventar una ruta que no
+    // hace nada.
+    if (pathname?.startsWith('/dashboard/reservations')) {
+      return { href: '/dashboard/reservations?new=true', label: 'Nueva reserva' };
+    }
+    // En experiencias sobra: la pantalla ya tiene su boton primario.
+    if (pathname?.startsWith('/dashboard/experiences')) return null;
+    return { href: '/dashboard/experiences/create', label: 'Crear experiencia' };
+  })();
 
-  const getUserInitial = () => {
-    if (sanityUser?.name) return sanityUser.name.charAt(0).toUpperCase();
-    if (user?.email) return user.email.charAt(0).toUpperCase();
-    return 'U';
-  };
+  const [solicitudAbierta, setSolicitudAbierta] = useState(false);
+
+  const getUserDisplayName = () => sanityUser?.name || user?.email || 'Usuario';
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center px-3 sm:px-4 gap-3 z-20 relative">
@@ -67,22 +89,44 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           <div className="w-8 h-8" aria-hidden />
         ) : (
         <>
-        {sanityUser?.role === 'host' && (
+        {/* Solo se pinta para ADMIN; el propio componente lo decide. */}
+        <CompanySwitcher />
+
+        {accionRapida && (
           <Link
-            href="/dashboard/experiences/create"
-            className="hidden sm:flex items-center gap-1 px-3 py-2 bg-[#F26726] text-white text-sm font-medium rounded-lg hover:bg-[#d9571f] transition-colors whitespace-nowrap"
+            href={accionRapida.href}
+            className="hidden sm:flex items-center gap-1 px-4 py-2 border border-gray-300 text-[#334C5D] text-sm font-medium rounded-full hover:bg-gray-50 hover:border-gray-400 transition-colors whitespace-nowrap"
           >
             <HiPlus className="w-4 h-4 shrink-0" />
-            Crear Experiencia
+            {accionRapida.label}
           </Link>
+        )}
+
+        {/* Nueva solicitud: el punto de entrada del CRM, desde cualquier
+            pantalla. Un lead llega por WhatsApp mientras se mira otra cosa, y
+            tener que navegar hasta el CRM es como se pierden. */}
+        {sanityUser?.role === 'host' && (
+          <button
+            type="button"
+            onClick={() => setSolicitudAbierta(true)}
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-[#F26726] px-3 py-1.5 text-sm text-[#F26726] transition-colors hover:bg-orange-50"
+          >
+            <HiPlus className="h-4 w-4 shrink-0" />
+            Nueva solicitud
+          </button>
         )}
 
         <NotificationBell />
 
         <Dropdown
           label={
-            <div className="w-8 h-8 bg-[#F26726] rounded-full flex items-center justify-center cursor-pointer">
-              <span className="text-white text-sm font-semibold">{getUserInitial()}</span>
+            <div className="cursor-pointer">
+              <Avatar
+                imagen={sanityUser?.image}
+                nombre={sanityUser?.name}
+                email={user?.email}
+                tamaño="sm"
+              />
             </div>
           }
           arrowIcon={false}
@@ -93,7 +137,8 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
               <span className="text-sm font-medium text-gray-900">{getUserDisplayName()}</span>
               <span className="text-xs text-gray-500">
                 {sanityUser?.role === 'host' ? 'Anfitrión' :
-                 sanityUser?.role === 'admin' ? 'Administrador' : 'Comensal'}
+                 sanityUser?.role === 'admin' ? 'Administrador' :
+                 sanityUser?.role === 'reseller' ? 'Revendedor' : 'Comensal'}
               </span>
             </div>
           </DropdownItem>
@@ -137,6 +182,12 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
         </>
         )}
       </div>
+
+      <NuevaSolicitudModal
+        abierto={solicitudAbierta}
+        onClose={() => setSolicitudAbierta(false)}
+        onCreada={(id) => router.push(`/dashboard/crm/oportunidades/${id}`)}
+      />
     </header>
   );
 }

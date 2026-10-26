@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Button, Label, TextInput, Select } from 'flowbite-react';
+import { Button, Label, TextInput } from 'flowbite-react';
 import { HiArrowLeft, HiSearch, HiCheckCircle } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
 import { searchExperiencesForQuote } from '@/lib/sanity/quoteService';
@@ -99,7 +99,7 @@ export default function CotizacionesPage() {
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute roles={['host', 'admin']}>
       <div className="p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <div className="mb-4">
@@ -252,7 +252,7 @@ export default function CotizacionesPage() {
                       
                       <div className="space-y-1 text-sm">
                         <p className="text-gray-700 dark:text-gray-300">
-                          <span className="font-medium">Capacidad:</span> {experience.minCapacity || 1} - {experience.capacity} personas
+                          <span className="font-medium">Mínimo:</span> {experience.minCapacity || 1} personas
                         </p>
                         <p className="text-gray-700 dark:text-gray-300">
                           <span className="font-medium">Duración:</span> {experience.duration} minutos

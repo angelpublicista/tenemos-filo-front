@@ -4,93 +4,114 @@ import { useState, useEffect, Suspense } from 'react'
 import RegistrationForm from '@/components/RegistrationForm'
 import FiloLogo from '@/components/FiloLogo'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@/lib/auth/AuthContext'
+import Loader from '@/components/Loader'
 import { RiInformationLine } from "react-icons/ri";
 import { Tooltip } from 'flowbite-react'
 
-type RoleType = 'host' | 'guest' | 'reseller'
-
-const ROLE_TABS: Array<{
-  value: RoleType
-  label: string
-  tooltip: string
-  description: string
-}> = [
-  {
-    value: 'host',
-    label: 'Anfitrión',
-    tooltip: 'Con este tipo de cuenta podrás crear experiencias y gestionarlas.',
-    description: 'Regístrate como anfitrión para gestionar tus experiencias.',
-  },
-  {
-    value: 'guest',
-    label: 'Comensal',
-    tooltip: 'Con este tipo de cuenta podrás consultar experiencias y reservar.',
-    description:
-      'Regístrate como comensal para consultar experiencias, cotizar y reservar.',
-  },
-  {
-    value: 'reseller',
-    label: 'Revendedor',
-    tooltip:
-      'Con este tipo de cuenta podrás revender experiencias de anfitriones y ganar comisiones.',
-    description:
-      'Regístrate como revendedor para acceder al catálogo y compartir experiencias con tus clientes.',
-  },
-]
+/**
+ * Si el registro de comensal esta abierto al publico.
+ *
+ * Apagado a proposito por ahora. Se deja como interruptor y no se borra el
+ * codigo porque volver a abrirlo es cambiar este `false`, no rehacer la
+ * pantalla.
+ *
+ * Ojo si se reabre por otra via: el alta con Google crea la cuenta con rol
+ * GUEST (ver loginWithGoogle en el API), asi que exponer ese boton volveria a
+ * abrir la puerta aunque esto siga en false.
+ */
+const REGISTRO_COMENSAL_ABIERTO = false
 
 function RegisterContent() {
-  const [role, setRole] = useState<RoleType>('host')
+  const [isHost, setIsHost] = useState(true)
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { user, loading: sesionCargando } = useAuth()
+
+  // Con sesión abierta no hay nada que registrar. Al crear la cuenta el propio
+  // registro inicia sesión y va al panel, que es el mismo destino.
+  useEffect(() => {
+    if (!sesionCargando && user) router.replace('/dashboard')
+  }, [sesionCargando, user, router])
 
   useEffect(() => {
-    const type = searchParams.get('type')
-    if (type === 'host' || type === 'guest' || type === 'reseller') {
-      setRole(type)
-    } else {
-      setRole('host')
+    // Con el registro de comensal cerrado, `?type=guest` se ignora: si no,
+    // ocultar la pestaña seria decorativo y bastaria con saberse la URL.
+    if (!REGISTRO_COMENSAL_ABIERTO) {
+      setIsHost(true)
+      return
+    }
+    if (!searchParams.get('type')) {
+      setIsHost(true)
+    } else if (searchParams.get('type') === 'host') {
+      setIsHost(true)
+    } else if (searchParams.get('type') === 'guest') {
+      setIsHost(false)
     }
   }, [searchParams])
 
-  const current = ROLE_TABS.find((r) => r.value === role) ?? ROLE_TABS[0]
+  // Ni un instante del formulario a quien ya tiene sesión.
+  if (sesionCargando || user) {
+    return <Loader message="Cargando..." className="min-h-screen" />
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen space-y-4 w-full max-w-md mx-auto py-10 px-4">
-      <FiloLogo className="w-full max-w-[200px]" />
+        <FiloLogo className='w-full max-w-[200px]' />
 
-      <div className="flex flex-wrap items-center border-b border-gray-200 w-full">
-        {ROLE_TABS.map((tab) => {
-          const active = role === tab.value
-          return (
-            <button
-              key={tab.value}
-              className={`flex items-center gap-2 text-sm p-4 hover:text-[#f26726] transition border-b ${
-                active
-                  ? 'border-[#f26726] text-[#f26726]'
-                  : 'border-transparent text-gray-500'
-              } cursor-pointer`}
-              onClick={() => setRole(tab.value)}
-            >
-              {tab.label}
-              <Tooltip content={tab.tooltip}>
-                <RiInformationLine className="w-4 h-4" />
-              </Tooltip>
-            </button>
-          )
-        })}
-      </div>
+        {/* Sin comensal solo queda una opcion, y una pestaña sola no es una
+            eleccion: se cambia por el titulo de lo que se va a rellenar. */}
+        {REGISTRO_COMENSAL_ABIERTO ? (
+          <div className="flex items-center border-b border-gray-200 w-full space-x-4">
+              <button className={`flex items-center gap-2 text-sm p-4 hover:text-[#f26726] transition border-b ${isHost ? 'border-[#f26726] text-[#f26726]' : 'border-transparent text-gray-500'} cursor-pointer`} onClick={() => setIsHost(true)}>
+                  Anfitrión
+                  <Tooltip content="Con este tipo de cuenta podrás crear experiencias y gestionarlas.">
+                      <RiInformationLine className='w-4 h-4' />
+                  </Tooltip>
+              </button>
+              <button className={`flex items-center gap-2 text-sm p-4 hover:text-[#f26726] transition border-b ${isHost ? 'border-transparent text-gray-500' : 'border-[#f26726] text-[#f26726]'} cursor-pointer`} onClick={() => setIsHost(false)}>
+                  Comensal
+                  <Tooltip content="Con este tipo de cuenta podrás consultar experiencias y reservar.">
+                      <RiInformationLine className='w-4 h-4' />
+                  </Tooltip>
+              </button>
+          </div>
+        ) : (
+          <h1 className="text-lg font-semibold text-[#334C5D] w-full text-center border-b border-gray-200 pb-4">
+            Crear cuenta de anfitrión
+          </h1>
+        )}
 
-      <div className="mb-4">
-        <p className="text-sm text-gray-500 text-center">{current.description}</p>
-      </div>
-      <RegistrationForm role={role} />
+        {isHost ?
+        <>
+          <div className='mb-4'>
+            <p className='text-sm text-gray-500 text-center'>
+              Registrate como anfitrión para gestionar tus experiencias.
+            </p>
+          </div>
+          <RegistrationForm role="host" />
+        </>
+        :
+        <>
+        <div className='mb-4'>
+          <p className='text-sm text-gray-500 text-center'>
+            Registrate como comensal para consultar experiencias, cotizar y reservar.
+          </p>
+        </div>
+        <RegistrationForm role="guest" />
+        </>}
 
-      <p className="text-sm text-gray-500">
-        ¿Ya tienes una cuenta?{' '}
-        <Link href="/login" className="hover:text-[#f26726] transition underline">
-          Inicia sesión
-        </Link>
-      </p>
+        {!REGISTRO_COMENSAL_ABIERTO && (
+          <p className='text-sm text-gray-500 text-center'>
+            Para reservar no hace falta cuenta: puedes hacerlo desde el
+            catálogo de cada anfitrión.
+          </p>
+        )}
+
+        <p className='text-sm text-gray-500'>
+          ¿Ya tienes una cuenta? <Link href="/login" className='hover:text-[#f26726] transition underline'>Inicia sesión</Link>
+        </p>
     </div>
   )
 }

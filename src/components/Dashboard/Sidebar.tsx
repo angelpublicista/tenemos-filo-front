@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Avatar from '@/components/Avatar';
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   AiOutlineHome,
@@ -11,19 +12,18 @@ import {
   AiOutlineUser,
   AiOutlineClockCircle,
   AiOutlineShareAlt,
-  AiOutlineLink,
   AiOutlineDollar,
-  AiOutlineAppstore,
-  AiOutlineApi
+  AiOutlineWarning
 } from 'react-icons/ai';
 import {
   BiMap,
+  BiRestaurant,
   BiStore,
   BiChevronLeft,
   BiChevronRight,
   BiX
 } from 'react-icons/bi';
-import { HiOutlineDocumentText } from 'react-icons/hi';
+import { HiOutlineBookOpen, HiOutlineMail,HiOutlineQuestionMarkCircle, HiOutlineCash,HiOutlineChip, HiOutlineClipboardList, HiOutlineCreditCard, HiOutlineDocumentText, HiOutlineGlobeAlt, HiOutlineKey, HiOutlineSparkles } from 'react-icons/hi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -33,9 +33,35 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { sanityUser } = useAuth();
+  const { sanityUser, activeCompanyId, esPanelRevendedor } = useAuth();
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Un admin "actuando como" una empresa usa las mismas pantallas que un
+  // anfitrion, asi que le mostramos las mismas secciones.
+  const operaComoEmpresa =
+    sanityUser?.role === 'host' || (sanityUser?.role === 'admin' && !!activeCompanyId);
+
+  // En modo plataforma el admin no tiene empresa, y estas pantallas resuelven
+  // su contenido con /companies/me: sin empresa terminan empujandolo a
+  // /company-setup, que no le corresponde. Para la vista global tiene la
+  // seccion de Administracion.
+  const esAdminSinEmpresa = sanityUser?.role === 'admin' && !activeCompanyId;
+
+  // Un revendedor pertenece a una empresa, pero no la opera: no tiene
+  // experiencias, ni sedes, ni reservas que gestionar. Enseñarle esas
+  // pantallas le muestra datos de un anfitrion que no es el, o le da un
+  // 403. Lo suyo son sus comisiones y sus claves de API.
+  //
+  // Vale igual para el admin que actua como una empresa de revendedor:
+  // esa empresa no tiene sedes ni experiencias por mucho que quien mire
+  // sea administrador. El menu lo decide el negocio, no quien lo abre.
+  const esReseller = esPanelRevendedor;
+
+  // Un comensal solo reserva. El menu de anfitrion no le sirve: la mitad
+  // de esas pantallas le responden 403 y la otra mitad le enseña datos de
+  // empresas que no son suyas.
+  const esComensal = sanityUser?.role === 'guest';
 
   type NavItem =
     | { type: 'section'; name: string }
@@ -49,9 +75,71 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: boolean;
       };
 
-  const isReseller = sanityUser?.role === 'reseller';
+  // Las entradas de Integraciones. Se arman aparte para poder preguntar si
+  // quedo alguna antes de pintar la cabecera.
+  const integraciones: NavItem[] = [
+    // Con que pasarela cobra el anfitrion. Solo quien opera experiencias
+    // propias: un revendedor no cobra, cobra el anfitrion de la experiencia.
+    ...(operaComoEmpresa && !esReseller
+      ? [
+          {
+            name: 'Pagos',
+            href: '/dashboard/integraciones/pagos',
+            icon: HiOutlineCreditCard,
+            current: pathname === '/dashboard/integraciones/pagos',
+            enabled: true,
+          },
+        ]
+      : []),
+    // El agente de IA y su WhatsApp. Es una integracion como las demas: conecta
+    // a FILO con algo de fuera.
+    ...(operaComoEmpresa && !esReseller
+      ? [
+          {
+            name: 'Agente IA',
+            href: '/dashboard/integraciones/agente',
+            icon: HiOutlineSparkles,
+            current: pathname === '/dashboard/integraciones/agente',
+            enabled: true,
+          },
+          // Conectar un asistente de IA propio (Claude, ChatGPT) a la cuenta.
+          {
+            name: 'MCP',
+            href: '/dashboard/integraciones/mcp',
+            icon: HiOutlineChip,
+            current: pathname === '/dashboard/integraciones/mcp',
+            enabled: true,
+          },
+        ]
+      : []),
+    ...(!esAdminSinEmpresa && !esReseller && !esComensal
+      ? [
+          {
+            name: 'Canales de venta',
+            href: '/dashboard/canales',
+            icon: HiOutlineGlobeAlt,
+            current: pathname === '/dashboard/canales',
+            enabled: true,
+          },
+        ]
+      : []),
+    // El admin entra siempre, opere o no como empresa: la clave cuelga de
+    // una empresa, pero desde la pantalla elige cual. Antes se le ocultaba
+    // la entrada por no tener empresa propia, y no habia forma de llegar.
+    ...(esReseller || sanityUser?.role === 'admin'
+      ? [
+          {
+            name: 'Claves de API',
+            href: '/dashboard/api-keys',
+            icon: HiOutlineKey,
+            current: pathname === '/dashboard/api-keys',
+            enabled: true,
+          },
+        ]
+      : []),
+  ];
 
-  const baseNav: NavItem[] = [
+  const navigationItems: NavItem[] = [
     {
       name: 'Dashboard',
       href: '/dashboard',
@@ -59,69 +147,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       current: pathname === '/dashboard',
       enabled: true
     },
-  ];
-
-  const resellerNav: NavItem[] = [
-    {
-      name: 'Catálogo',
-      href: '/dashboard/catalog',
-      icon: AiOutlineAppstore,
-      current: pathname === '/dashboard/catalog',
-      enabled: true
-    },
-    {
-      name: 'Mis Reventas',
-      href: '/dashboard/resales',
-      icon: AiOutlineDollar,
-      current: pathname === '/dashboard/resales',
-      enabled: true
-    },
-    {
-      name: 'Links de reventa',
-      href: '/dashboard/resale-links',
-      icon: AiOutlineLink,
-      current: pathname === '/dashboard/resale-links',
-      enabled: true
-    },
-    { type: 'section', name: 'Herramientas' },
-    {
-      name: 'Integraciones',
-      href: '/dashboard/integrations',
-      icon: AiOutlineApi,
-      current: pathname?.startsWith('/dashboard/integrations') ?? false,
-      enabled: true
-    },
-    { type: 'divider' },
-    {
-      name: 'Mi Perfil',
-      href: '/dashboard/profile',
-      icon: AiOutlineUser,
-      current: pathname === '/dashboard/profile',
-      enabled: true
-    },
-    {
-      name: 'Notificaciones',
-      href: '/dashboard/notifications',
-      icon: AiOutlineBell,
-      current: pathname === '/dashboard/notifications',
-      enabled: true
-    },
-    {
-      name: 'Configuración',
-      href: '/dashboard/settings',
-      icon: AiOutlineSetting,
-      current: pathname === '/dashboard/settings',
-      enabled: true
-    },
-  ];
-
-  const hostGuestNav: NavItem[] = [
-    ...(sanityUser?.role === 'host' ? [
+    ...(operaComoEmpresa && !esReseller ? [
       {
         name: 'Mis Sedes',
         href: '/dashboard/locations',
         icon: BiMap,
         current: pathname === '/dashboard/locations',
+        enabled: true
+      },
+      {
+        name: 'Menús',
+        href: '/dashboard/menus',
+        icon: BiRestaurant,
+        // startsWith y no ===: el modulo tiene subrutas (crear, editar) y el
+        // item debe quedarse marcado dentro de ellas.
+        current: pathname?.startsWith('/dashboard/menus') ?? false,
         enabled: true
       },
       {
@@ -132,41 +172,190 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         enabled: true
       }
     ] as NavItem[] : []),
-    {
-      name: 'Mis Experiencias',
-      href: '/dashboard/experiences',
-      icon: AiOutlineCalendar,
-      current: pathname === '/dashboard/experiences',
-      enabled: true
-    },
-    {
-      name: 'Reservas',
-      href: '/dashboard/reservations',
-      icon: AiOutlineTeam,
-      current: pathname === '/dashboard/reservations',
-      enabled: true
-    },
-    { type: 'section', name: 'Herramientas' },
-    {
-      name: 'Catálogo digital',
-      href: '/dashboard/booking-link',
-      icon: AiOutlineShareAlt,
-      current: pathname === '/dashboard/booking-link',
-      enabled: true
-    },
-    ...(sanityUser?.role === 'host' ? [
+    ...(esComensal ? [
+      {
+        name: 'Mis reservas',
+        href: '/dashboard/mis-reservas',
+        icon: AiOutlineCalendar,
+        current: pathname === '/dashboard/mis-reservas',
+        enabled: true
+      }
+    ] as NavItem[] : []),
+    ...(!esAdminSinEmpresa && !esReseller && !esComensal ? [
+      {
+        name: 'Mis Experiencias',
+        href: '/dashboard/experiences',
+        icon: AiOutlineCalendar,
+        current: pathname === '/dashboard/experiences',
+        enabled: true
+      },
+      {
+        // Las experiencias son piezas; aquí se ponen en uso. La misma puede
+        // ofrecerse en una sede como abierta y en otra como privada, con otro
+        // horario y otro precio, y eso no cabía en el panel de la pieza.
+        name: 'Publicaciones',
+        href: '/dashboard/publicaciones',
+        icon: AiOutlineShareAlt,
+        current: pathname === '/dashboard/publicaciones',
+        enabled: true
+      },
+      {
+        name: 'Reservas',
+        href: '/dashboard/reservations',
+        icon: AiOutlineTeam,
+        current: pathname === '/dashboard/reservations',
+        enabled: true
+      },
+      {
+        name: 'Mis ingresos',
+        href: '/dashboard/ingresos',
+        icon: HiOutlineCash,
+        current: pathname === '/dashboard/ingresos',
+        enabled: true
+      },
+      {
+        name: 'Suscripción',
+        href: '/dashboard/suscripcion',
+        icon: HiOutlineCreditCard,
+        current: pathname === '/dashboard/suscripcion',
+        enabled: true
+      },
+      { type: 'section', name: 'Herramientas' },
+      {
+        name: 'Catálogo digital',
+        href: '/dashboard/booking-link',
+        icon: AiOutlineShareAlt,
+        current: pathname === '/dashboard/booking-link',
+        enabled: true
+      }
+    ] as NavItem[] : []),
+    ...(operaComoEmpresa && !esReseller ? [
       {
         name: 'CRM',
         href: '/dashboard/crm',
         icon: HiOutlineDocumentText,
         current: pathname?.startsWith('/dashboard/crm') ?? false,
         enabled: true
+      }
+    ] as NavItem[] : []),
+    ...(esReseller ? [
+      {
+        name: 'Mi catálogo',
+        href: '/dashboard/mi-catalogo',
+        icon: AiOutlineShareAlt,
+        current: pathname === '/dashboard/mi-catalogo',
+        enabled: true
       },
       {
-        name: 'Integraciones',
-        href: '/dashboard/integrations',
-        icon: AiOutlineApi,
-        current: pathname?.startsWith('/dashboard/integrations') ?? false,
+        // TR-25. Lo vendido y quién apareció. Separado de "Mis ingresos"
+        // porque eso es dinero cobrado y esto es operación.
+        name: 'Ventas de mi canal',
+        href: '/dashboard/ventas-de-mi-canal',
+        icon: HiOutlineClipboardList,
+        current: pathname === '/dashboard/ventas-de-mi-canal',
+        enabled: true
+      },
+      {
+        name: 'Mis ingresos',
+        href: '/dashboard/ingresos',
+        icon: HiOutlineCash,
+        current: pathname === '/dashboard/ingresos',
+        enabled: true
+      }
+    ] as NavItem[] : []),
+    // Todo lo que conecta a FILO con algo de fuera, en un solo sitio: con
+    // quien se cobra, por donde se vende y con que se integra. Antes estaban
+    // repartidos —el cobro escondido dentro de Configuracion, los canales
+    // entre las herramientas propias— y no habia forma de saber donde buscar.
+    //
+    // La cabecera solo aparece si debajo hay algo: cada entrada tiene su
+    // propia condicion y un revendedor, por ejemplo, solo ve las claves.
+    ...(integraciones.length > 0
+      ? ([{ type: 'section', name: 'Integraciones' }, ...integraciones] as NavItem[])
+      : []),
+    // Panel de plataforma: solo para el equipo de Tenemos Filo.
+    ...(sanityUser?.role === 'admin' ? [
+      { type: 'section', name: 'Administración' },
+      {
+        name: 'Empresas',
+        href: '/dashboard/admin/empresas',
+        icon: BiStore,
+        current: pathname === '/dashboard/admin/empresas',
+        enabled: true
+      },
+      {
+        name: 'Usuarios',
+        href: '/dashboard/admin/usuarios',
+        icon: AiOutlineTeam,
+        current: pathname === '/dashboard/admin/usuarios',
+        enabled: true
+      },
+      {
+        name: 'Experiencias',
+        href: '/dashboard/admin/experiencias',
+        icon: AiOutlineCalendar,
+        current: pathname === '/dashboard/admin/experiencias',
+        enabled: true
+      },
+      {
+        name: 'Dispersiones',
+        href: '/dashboard/admin/dispersiones',
+        icon: AiOutlineDollar,
+        current: pathname === '/dashboard/admin/dispersiones',
+        enabled: true
+      },
+      {
+        // Lo contrario de Dispersiones: aquí el que paga es el anfitrión, por
+        // lo que FILO no pudo descontar de ventas que cobró en su cuenta.
+        name: 'Comisiones por cobrar',
+        href: '/dashboard/admin/comisiones',
+        icon: AiOutlineDollar,
+        current: pathname === '/dashboard/admin/comisiones',
+        enabled: true
+      },
+      {
+        name: 'Suscripciones',
+        href: '/dashboard/admin/suscripciones',
+        icon: HiOutlineCreditCard,
+        current: pathname === '/dashboard/admin/suscripciones',
+        enabled: true
+      },
+      {
+        // TR-44. La bandeja de cobros que llegaron sin reserva. Va aquí y no
+        // en Dispersiones porque no es dinero que haya que mover: es dinero
+        // que no debería estar donde está.
+        name: 'Cobros sin reserva',
+        href: '/dashboard/admin/cobros-sin-reserva',
+        icon: AiOutlineWarning,
+        current: pathname === '/dashboard/admin/cobros-sin-reserva',
+        enabled: true
+      },
+      {
+        name: 'Actividad',
+        href: '/dashboard/admin/actividad',
+        icon: HiOutlineDocumentText,
+        current: pathname === '/dashboard/admin/actividad',
+        enabled: true
+      },
+      {
+        name: 'Base de conocimiento',
+        href: '/dashboard/admin/ayuda',
+        icon: HiOutlineBookOpen,
+        current: pathname === '/dashboard/admin/ayuda',
+        enabled: true
+      },
+      {
+        name: 'Plantillas de correo',
+        href: '/dashboard/admin/plantillas-de-correo',
+        icon: HiOutlineMail,
+        current: pathname?.startsWith('/dashboard/admin/plantillas-de-correo') ?? false,
+        enabled: true
+      },
+      {
+        name: 'Ajustes de la plataforma',
+        href: '/dashboard/admin/ajustes',
+        icon: AiOutlineSetting,
+        current: pathname === '/dashboard/admin/ajustes',
         enabled: true
       }
     ] as NavItem[] : []),
@@ -178,7 +367,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       current: pathname === '/dashboard/profile',
       enabled: true
     },
-    ...(sanityUser?.role === 'host' ? [
+    ...(operaComoEmpresa && !esReseller ? [
       {
         name: 'Mi Empresa',
         href: '/dashboard/company',
@@ -195,17 +384,27 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       enabled: true
     },
     {
-      name: 'Configuración',
-      href: '/dashboard/settings',
-      icon: AiOutlineSetting,
-      current: pathname === '/dashboard/settings',
+      name: 'Centro de ayuda',
+      href: '/dashboard/ayuda',
+      icon: HiOutlineQuestionMarkCircle,
+      current: pathname?.startsWith('/dashboard/ayuda') ?? false,
       enabled: true
-    }
+    },
+    // La configuración es la de UNA empresa. El admin en modo plataforma no
+    // tiene empresa, y esa pantalla solo lo reenviaba a los ajustes de la
+    // plataforma: dos entradas con casi el mismo nombre para lo mismo. Cuando
+    // actua como una empresa si la tiene, y se dice de cual es para que no se
+    // confunda con los ajustes de la plataforma.
+    ...(esAdminSinEmpresa ? [] : [
+      {
+        name: sanityUser?.role === 'admin' ? 'Configuración de la empresa' : 'Configuración',
+        href: '/dashboard/settings',
+        icon: AiOutlineSetting,
+        current: pathname === '/dashboard/settings',
+        enabled: true
+      }
+    ] as NavItem[])
   ];
-
-  const navigationItems: NavItem[] = isReseller
-    ? [...baseNav, ...resellerNav]
-    : [...baseNav, ...hostGuestNav];
 
   const handleLinkClick = () => {
     // Close drawer on mobile when navigating
@@ -276,7 +475,7 @@ interface SidebarContentProps {
     | { type?: 'link'; name: string; href: string; icon: React.ComponentType<{ className?: string }>; current: boolean; enabled: boolean }
   >;
   isCollapsed: boolean;
-  sanityUser: { name?: string; role?: string } | null | undefined;
+  sanityUser: { name?: string; role?: string; image?: string; email?: string } | null | undefined;
   onLinkClick: () => void;
   collapseButton: React.ReactNode;
 }
@@ -350,11 +549,12 @@ function SidebarContent({ navigationItems, isCollapsed, sanityUser, onLinkClick,
       {/* User Info */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
         <div className="flex items-center min-w-0">
-          <div className="w-8 h-8 bg-[#f26726] rounded-full flex items-center justify-center shrink-0">
-            <span className="text-white text-sm font-semibold">
-              {sanityUser?.name?.charAt(0) || 'U'}
-            </span>
-          </div>
+          <Avatar
+            imagen={sanityUser?.image}
+            nombre={sanityUser?.name}
+            email={sanityUser?.email}
+            tamaño="sm"
+          />
           {!isCollapsed && (
             <div className="ml-3 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">

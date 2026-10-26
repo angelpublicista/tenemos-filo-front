@@ -2,6 +2,8 @@
 // Siempre va contra /api/proxy/* del propio Next; el proxy adjunta el JWT
 // y reenvia al backend (ver src/app/api/proxy/[...path]/route.ts).
 
+import { ACTING_COMPANY_HEADER, getActingCompany } from "./actingCompany";
+
 const PROXY_BASE = "/api/proxy";
 
 type QueryValue = string | number | boolean | null | undefined;
@@ -48,21 +50,37 @@ function buildQuery(query?: Query): string {
   return s ? `?${s}` : "";
 }
 
-export async function apiFetch<T = unknown>(path: string, opts: Options = {}): Promise<T> {
+/**
+ * Sobre completo que devuelve el API: { data, meta? }. `meta` es abierto
+ * porque no todos los endpoints devuelven paginacion; algunos traen totales
+ * propios, como el retenido por la plataforma en /payouts/balances.
+ */
+type Envelope<T> = {
+  data: T;
+  meta?: { total?: number; page?: number; pageSize?: number } & Record<string, unknown>;
+};
+
+/** Hace el request y devuelve el sobre sin desenvolver. */
+async function request<T>(path: string, opts: Options = {}): Promise<Envelope<T> | null> {
   const { json, query, headers, ...rest } = opts;
   const url = `${PROXY_BASE}${path.startsWith("/") ? path : `/${path}`}${buildQuery(query)}`;
+
+  // Si un ADMIN eligio una empresa activa, se la anunciamos al API: alli
+  // pasa a ser su companyId y todos los modulos operan sobre ella.
+  const acting = getActingCompany();
 
   const res = await fetch(url, {
     ...rest,
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
+      ...(acting ? { [ACTING_COMPANY_HEADER]: acting } : {}),
       ...headers,
     },
     body: json !== undefined ? JSON.stringify(json) : (rest as RequestInit).body,
   });
 
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) return null;
 
   const contentType = res.headers.get("content-type") ?? "";
   const payload = contentType.includes("application/json")
@@ -71,6 +89,17 @@ export async function apiFetch<T = unknown>(path: string, opts: Options = {}): P
 
   if (!res.ok) {
     const err = (payload as { error?: ApiError } | null)?.error;
+    // Suscripcion vencida: el panel esta cerrado y lo unico que sirve es renovar.
+    // Lleva a la pantalla de pago desde cualquier sitio, sin que cada llamada
+    // tenga que saberlo.
+    if (
+      res.status === 402 &&
+      err?.code === "SUBSCRIPTION_REQUIRED" &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/dashboard/suscripcion"
+    ) {
+      window.location.assign("/dashboard/suscripcion");
+    }
     throw new ApiHttpError(
       res.status,
       err?.code ?? "REQUEST_FAILED",
@@ -79,11 +108,83 @@ export async function apiFetch<T = unknown>(path: string, opts: Options = {}): P
     );
   }
 
-  return (payload as { data: T } | null)?.data as T;
+  return payload as Envelope<T> | null;
 }
+
+export async function apiFetch<T = unknown>(path: string, opts: Options = {}): Promise<T> {
+  const payload = await request<T>(path, opts);
+  return payload?.data as T;
+}
+
+/** Para endpoints cuyo `meta` no es paginacion y hay que leer entero. */
+export async function apiEnvelope<T>(path: string, query?: Query): Promise<Envelope<T> | null> {
+  return request<T>(path, { method: "GET", query });
+}
+
+/**
+ * POST que conserva el `meta`, que apiFetch descarta.
+ *
+ * Lo usa el alta de usuarios: la respuesta trae si la invitacion llego a
+ * enviarse, y eso no cabe dentro del usuario creado.
+ */
+export async function apiPostEnvelope<T, M = Record<string, unknown>>(
+  path: string,
+  json?: unknown,
+): Promise<{ data: T; meta: M | undefined }> {
+  const payload = (await request<T>(path, { method: "POST", json })) as
+    | (Envelope<T> & { meta?: M })
+    | null;
+  return { data: payload?.data as T, meta: payload?.meta };
+}
+
+/**
+ * Mensaje legible de un error del API, con el detalle por campo si lo hay.
+ *
+ * El API responde "Datos invalidos" y adjunta en `details` que campo falla,
+ * pero ese detalle se perdia: las pantallas mostraban solo el mensaje
+ * generico y quien lo leia no tenia forma de saber que corregir.
+ */
+export function mensajeDeError(err: unknown): string {
+  if (!(err instanceof ApiHttpError)) {
+    return err instanceof Error ? err.message : "Ocurrió un error. Inténtalo de nuevo.";
+  }
+
+  const d = err.details as
+    | { fieldErrors?: Record<string, string[]>; formErrors?: string[] }
+    | undefined;
+
+  const porCampo = Object.entries(d?.fieldErrors ?? {})
+    .map(([campo, msgs]) => `${campo}: ${msgs?.[0] ?? "valor no válido"}`)
+    .filter(Boolean);
+
+  const detalles = [...porCampo, ...(d?.formErrors ?? [])];
+  return detalles.length ? `${err.message} — ${detalles.join("; ")}` : err.message;
+}
+
+export type Paginated<T> = { items: T[]; total: number };
+
+/**
+ * Para endpoints paginados: conserva el `meta.total`, que apiFetch descarta
+ * al quedarse solo con `data`.
+ */
+export async function apiList<T>(path: string, query?: Query): Promise<Paginated<T>> {
+  const payload = await request<T[]>(path, { method: "GET", query });
+  const items = payload?.data ?? [];
+  return { items, total: payload?.meta?.total ?? items.length };
+}
+
+/**
+ * Prisma serializa Decimal como string, asi que el dinero llega como "12".
+ * Sin convertir, cualquier suma en el front concatena en vez de sumar.
+ */
+export const aNumero = (v: unknown): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
 
 export const api = {
   get: <T>(path: string, query?: Query) => apiFetch<T>(path, { method: "GET", query }),
+  list: apiList,
   post: <T>(path: string, json?: unknown) => apiFetch<T>(path, { method: "POST", json }),
   patch: <T>(path: string, json?: unknown) => apiFetch<T>(path, { method: "PATCH", json }),
   put: <T>(path: string, json?: unknown) => apiFetch<T>(path, { method: "PUT", json }),

@@ -13,8 +13,6 @@ import {
   HiTrash,
   HiMail,
   HiPhone,
-  HiGlobe,
-  HiLocationMarker,
   HiDownload
 } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
@@ -32,14 +30,19 @@ const statusColors: Record<string, string> = {
   closed: 'failure',
 };
 
-const companyTypeLabels: Record<string, string> = {
-  customer: 'Cliente',
-  supplier: 'Proveedor',
-  other: 'Otro',
+/**
+ * CRM-20. La relación comercial sale del historial de ventas, no de un campo
+ * que alguien marca: así quien ya compró sigue siendo cliente aunque se acabe
+ * de perder una oportunidad suya.
+ */
+const CONDICION: Record<string, { etiqueta: string; color: string }> = {
+  PROSPECTO: { etiqueta: 'Prospecto', color: 'gray' },
+  CLIENTE: { etiqueta: 'Cliente', color: 'info' },
+  RECURRENTE: { etiqueta: 'Recurrente', color: 'success' },
 };
 
 export default function EmpresasPage() {
-  const { user, sanityUser } = useAuth();
+  const { sanityUser } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showConfirmation } = useSweetAlert();
   const [companies, setCompanies] = useState<CRMCompany[]>([]);
@@ -141,7 +144,7 @@ export default function EmpresasPage() {
 
   if (!sanityUser?.companyId) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute roles={['host', 'admin']}>
         <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
           <div className="text-center py-12">
             <p className="text-gray-500 dark:text-gray-400">
@@ -244,17 +247,17 @@ export default function EmpresasPage() {
             </div>
 
             <div>
-              <Label htmlFor="companyType">Tipo</Label>
+              <Label htmlFor="condicion">Relación</Label>
               <Select
-                id="companyType"
-                value={filters.companyType || 'all'}
-                onChange={(e) => handleFilterChange('companyType', e.target.value)}
+                id="condicion"
+                value={filters.condicion || 'all'}
+                onChange={(e) => handleFilterChange('condicion', e.target.value)}
                 className="mt-1"
               >
-                <option value="all">Todos</option>
-                <option value="customer">Cliente</option>
-                <option value="supplier">Proveedor</option>
-                <option value="other">Otro</option>
+                <option value="all">Todas</option>
+                <option value="RECURRENTE">Clientes recurrentes</option>
+                <option value="CLIENTE">Clientes</option>
+                <option value="PROSPECTO">Prospectos</option>
               </Select>
             </div>
           </div>
@@ -292,11 +295,11 @@ export default function EmpresasPage() {
                   <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
                       <th scope="col" className="px-6 py-3">Empresa</th>
-                      <th scope="col" className="px-6 py-3">Tipo</th>
+                      <th scope="col" className="px-6 py-3">Relación</th>
                       <th scope="col" className="px-6 py-3">Contacto</th>
                       <th scope="col" className="px-6 py-3">Estado</th>
                       <th scope="col" className="px-6 py-3">Último Contacto</th>
-                      <th scope="col" className="px-6 py-3">Acciones</th>
+                      <th scope="col" className="px-6 py-3 sticky right-0 bg-gray-50 border-l border-gray-200 dark:bg-gray-700 dark:border-gray-600">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -312,10 +315,18 @@ export default function EmpresasPage() {
                             )}
                           </div>
                         </td>
+                        {/* CRM-20: no es un campo de la ficha, sale de lo que
+                            compró. Por eso puede decir "Recurrente" aunque
+                            acabe de perderse una oportunidad suya. */}
                         <td className="px-6 py-4">
-                          <Badge color="info">
-                            {companyTypeLabels[company.companyType] || company.companyType}
+                          <Badge color={CONDICION[company.condicion ?? 'PROSPECTO'].color} className="w-fit">
+                            {CONDICION[company.condicion ?? 'PROSPECTO'].etiqueta}
                           </Badge>
+                          {!!company.ventas && (
+                            <div className="mt-1 whitespace-nowrap text-xs text-gray-500">
+                              {company.ventas === 1 ? '1 compra' : `${company.ventas} compras`}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="space-y-1">
@@ -351,7 +362,7 @@ export default function EmpresasPage() {
                             <span className="text-sm text-gray-400">Nunca</span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 sticky right-0 bg-white border-l border-gray-200 dark:bg-gray-800 dark:border-gray-700">
                           <div className="flex items-center space-x-2">
                             <Button
                               size="xs"
@@ -369,7 +380,7 @@ export default function EmpresasPage() {
                             </Button>
                             <Button
                               size="xs"
-                              color="failure"
+                              color="danger"
                               onClick={() => handleDelete(company._id, company.companyName)}
                               disabled={isDeleting === company._id}
                             >

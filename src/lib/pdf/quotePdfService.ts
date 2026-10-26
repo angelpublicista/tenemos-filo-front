@@ -1,6 +1,52 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Experience } from '@/types';
+import filoLogo from '../../../public/filo-logo.png';
+import { colorValido, textoSobre } from '@/lib/marca';
+
+/** #RRGGBB a los tres canales que pide jsPDF. */
+function aRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/**
+ * Trae una imagen y la convierte en algo que jsPDF sepa dibujar.
+ *
+ * jsPDF no descarga nada por su cuenta: necesita los pixeles ya en mano, y el
+ * unico camino en el navegador es pintar en un canvas y sacar el data URL. De
+ * ahi el rodeo.
+ *
+ * Devuelve null ante cualquier tropiezo —la imagen no carga, el bucket no
+ * autoriza el origen, el canvas queda contaminado— porque una cotizacion sin
+ * logo se sigue pudiendo mandar, y quedarse sin cotizacion por un logo seria
+ * un mal negocio.
+ */
+async function cargarImagen(
+  url: string,
+): Promise<{ datos: string; ancho: number; alto: number } | null> {
+  try {
+    const img = await new Promise<HTMLImageElement | null>((resolve) => {
+      const el = new window.Image();
+      // Sin esto el canvas queda contaminado y toDataURL lanza.
+      el.crossOrigin = 'anonymous';
+      el.onload = () => resolve(el);
+      el.onerror = () => resolve(null);
+      el.src = url;
+    });
+    if (!img || !img.naturalWidth || !img.naturalHeight) return null;
+
+    const lienzo = document.createElement('canvas');
+    lienzo.width = img.naturalWidth;
+    lienzo.height = img.naturalHeight;
+    const ctx = lienzo.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    return { datos: lienzo.toDataURL('image/png'), ancho: lienzo.width, alto: lienzo.height };
+  } catch {
+    return null;
+  }
+}
 
 interface QuotePdfData {
   customerName: string;
@@ -14,9 +60,17 @@ interface QuotePdfData {
   guests: number;
   location?: string;
   notes?: string;
+  /**
+   * Logo de quien cotiza. Sin el —o si no se puede descargar— se cae al de
+   * Tenemos Filo, que es quien respalda la cotizacion en ese caso.
+   */
+  logoUrl?: string | null;
+  /** Colores de marca del anfitrion; sin ellos, los de Tenemos Filo. */
+  colorPrimario?: string | null;
+  colorSecundario?: string | null;
 }
 
-export const generateQuotePDF = (data: QuotePdfData): void => {
+export const generateQuotePDF = async (data: QuotePdfData): Promise<void> => {
   const {
     customerName,
     customerEmail,
@@ -29,6 +83,9 @@ export const generateQuotePDF = (data: QuotePdfData): void => {
     guests,
     location,
     notes,
+    logoUrl,
+    colorPrimario,
+    colorSecundario,
   } = data;
 
   // Crear documento PDF
@@ -36,8 +93,16 @@ export const generateQuotePDF = (data: QuotePdfData): void => {
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPosition = 20;
 
-  // Colores de marca
-  const primaryColor = [242, 103, 38] as [number, number, number]; // #F26726
+  // Colores de marca: los del anfitrion si los eligio, si no los de Filo.
+  const hexPrimario = colorValido(colorPrimario) ?? '#F26726';
+  const hexSecundario = colorValido(colorSecundario) ?? '#E23694';
+  const primaryColor = aRgb(hexPrimario);
+  const accentColor = aRgb(hexSecundario);
+  // El texto sobre la banda y sobre las cintas de cada opcion: blanco o negro
+  // segun cual se lea, porque el color lo eligio alguien sin pensar en esto.
+  const sobrePrimario = aRgb(textoSobre(hexPrimario));
+  // Gris azulado de siempre para los titulos del cuerpo. No se toca: es texto
+  // corrido, y dejarlo a eleccion acaba en cotizaciones ilegibles.
   const darkColor = [51, 76, 93] as [number, number, number]; // #334C5D
   const lightGray = [107, 114, 128] as [number, number, number]; // #6b7280
 
@@ -45,9 +110,41 @@ export const generateQuotePDF = (data: QuotePdfData): void => {
   // Fondo degradado simulado con rectángulos
   doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.rect(0, 0, pageWidth, 40, 'F');
-  
+
+  // El logo del anfitrion; si no tiene o no se puede traer, el de Filo.
+  const logo = (logoUrl ? await cargarImagen(logoUrl) : null) ?? (await cargarImagen(filoLogo.src));
+
+  if (logo) {
+    // Va sobre una tarjeta blanca y no suelto sobre el naranja: los logos se
+    // diseñan para fondo claro, y muchos son oscuros o tienen texto negro que
+    // sobre la banda no se leeria.
+    const MARGEN = 3;
+    const ALTO_TARJETA = 24;
+    const ANCHO_MAXIMO = 44;
+
+    let alto = ALTO_TARJETA - MARGEN * 2;
+    let ancho = alto * (logo.ancho / logo.alto);
+    if (ancho > ANCHO_MAXIMO) {
+      ancho = ANCHO_MAXIMO;
+      alto = ancho * (logo.alto / logo.ancho);
+    }
+
+    const anchoTarjeta = ancho + MARGEN * 2;
+    const yTarjeta = (40 - ALTO_TARJETA) / 2;
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(15, yTarjeta, anchoTarjeta, ALTO_TARJETA, 2, 2, 'F');
+    doc.addImage(
+      logo.datos,
+      'PNG',
+      15 + MARGEN,
+      yTarjeta + (ALTO_TARJETA - alto) / 2,
+      ancho,
+      alto,
+    );
+  }
+
   // Título
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(sobrePrimario[0], sobrePrimario[1], sobrePrimario[2]);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.text('COTIZACIÓN', pageWidth / 2, 20, { align: 'center' });
@@ -141,7 +238,7 @@ export const generateQuotePDF = (data: QuotePdfData): void => {
     doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.roundedRect(15, yPosition - 5, pageWidth - 30, 10, 2, 2, 'F');
     
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(sobrePrimario[0], sobrePrimario[1], sobrePrimario[2]);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(`OPCIÓN ${index + 1}`, 20, yPosition);
@@ -168,7 +265,7 @@ export const generateQuotePDF = (data: QuotePdfData): void => {
       head: [['Detalle', 'Información']],
       body: [
         ['Duración', `${exp.duration} minutos`],
-        ['Capacidad', `${exp.minCapacity || 1} - ${exp.capacity} personas`],
+        ['Mínimo', `${exp.minCapacity || 1} personas`],
         ['Precio por persona', `$${exp.basePrice.toLocaleString('es-CO')} ${exp.currency}`],
         ['Precio total', `$${(exp.basePrice * guests).toLocaleString('es-CO')} ${exp.currency}`],
       ],
@@ -195,7 +292,7 @@ export const generateQuotePDF = (data: QuotePdfData): void => {
     if (exp.includes && exp.includes.length > 0) {
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(16, 185, 129); // Verde
+      doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
       doc.text('✓ Esta opción incluye:', 15, yPosition);
       yPosition += 6;
 

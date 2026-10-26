@@ -5,28 +5,59 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { createCompanyInSanity, getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
+import { useSession } from 'next-auth/react';
+import { getSuscripcion } from '@/lib/api/subscription';
+import { createCompanyInSanity,getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
 import { associateUserWithCompany, markCompanySetupCompleted } from '@/lib/sanity/userService';
 import { Button, Label, TextInput, Select, Textarea } from 'flowbite-react';
 import { HiExclamationCircle, HiCheckCircle } from 'react-icons/hi';
-import { AiOutlineBuild, AiOutlineMail, AiOutlineInfoCircle, AiOutlineIdcard, AiOutlineHome, AiOutlineGlobal, AiOutlineTeam } from 'react-icons/ai';
-import { PhoneInput } from "react-international-phone";
-import "react-international-phone/style.css";
+import { AiOutlineBuild, AiOutlineMail, AiOutlineInfoCircle, AiOutlineIdcard, AiOutlineHome, AiOutlineGlobal, AiOutlineTeam, AiOutlineUser } from 'react-icons/ai';
+import TelefonoInput from "./TelefonoInput";
+import { aE164, telefonoVacio } from "@/lib/telefono";
 import StepIndicator from './StepIndicator';
 import { CompleteCompanyData, Company } from '@/types';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import CompanyInfoView from './CompanyInfoView';
+import CompanyDocuments from './CompanyDocuments';
+import type { CampoDetectado } from '@/lib/company/documentos';
+import {
+  TIPOS_DE_EMPRESA,
+  VALORES_DE_TIPO,
+  TIPOS_DE_PERSONA,
+  VALORES_DE_PERSONA,
+  documentoSugerido,
+  pideCamaraDeComercio,
+} from '@/lib/company/tipos';
 import Loader from './Loader';
 import { ImageUpload } from './ImageUpload';
-import { COLOMBIA_DEPARTMENTS, getCitiesByDepartment } from '@/data/colombiaRegions';
+import DepartamentoCiudad from './DepartamentoCiudad';
+import { digitoVerificacion } from '@/lib/company/nit';
+import { CIIU_SUGERIDOS, nombreDeCiiu } from '@/data/ciiu';
+import ContactosDeEmpresa from './ContactosDeEmpresa';
+import PaisFijo, { PAIS_FIJO } from './PaisFijo';
+import {
+  CONTACTOS_OBLIGATORIOS,
+  contactoVacio,
+  erroresDeContactos,
+  paraGuardar as contactosParaGuardar,
+  type ContactoDeEmpresa,
+} from '@/lib/company/contactos';
 
 // Esquemas de validación por pasos
 const basicInfoSchema = z.object({
   companyName: z.string()
     .min(2, 'El nombre de la empresa debe tener al menos 2 caracteres')
     .max(100, 'El nombre de la empresa no puede exceder 100 caracteres'),
-  companyType: z.enum(['restaurant', 'catering', 'foodtruck', 'other'], {
+  // Sale de la lista comun: escrita a mano se quedo atras y habria rechazado
+  // los tipos nuevos con un "selecciona un tipo valido" sobre uno que si lo era.
+  companyType: z.enum(VALORES_DE_TIPO, {
     message: 'Selecciona un tipo de empresa válido'
+  }),
+  // Vacio = sin segundo tipo. Se admite la cadena vacia porque es lo que
+  // entrega un <select> cuando se elige "Ninguno".
+  companyTypeSecondary: z.union([z.enum(VALORES_DE_TIPO), z.literal('')]).optional(),
+  personType: z.enum(VALORES_DE_PERSONA, {
+    message: 'Indica si eres persona natural o jurídica'
   }),
   description: z.string()
     .max(500, 'La descripción no puede exceder 500 caracteres')
@@ -54,17 +85,46 @@ const formatUrl = (url: string): string => {
   return `https://${trimmedUrl}`;
 };
 
+/**
+ * TR-32. Lo fiscal no bloquea el registro.
+ *
+ * El plan gratuito arranca con empresa o persona, nombre, tipo de negocio y el
+ * usuario que se acaba de registrar. El NIT, la razón social y la dirección se
+ * piden —hacen falta para facturar— pero no son la puerta: quien se registra a
+ * las once de la noche no tiene el RUT a mano, y obligarle a buscarlo es
+ * perderlo.
+ *
+ * Lo que sí se valida es el FORMATO de lo que escriba: un NIT con letras no se
+ * guarda a medias para "arreglarlo después".
+ */
 const fiscalInfoSchema = z.object({
-  documentType: z.enum(['nit', 'cedula', 'pasaporte', 'other'], {
-    message: 'Selecciona un tipo de documento válido'
-  }),
-  documentNumber: z.string()
+  documentType: z.enum(['nit', 'cedula', 'pasaporte', 'other']).optional(),
+  documentNumber: z
+    .string()
     .min(6, 'El número de documento debe tener al menos 6 caracteres')
     .max(20, 'El número de documento no puede exceder 20 caracteres')
-    .regex(/^[0-9]+$/, 'El número de documento solo puede contener números'),
-  businessName: z.string()
+    .regex(/^[0-9]+$/, 'El número de documento solo puede contener números')
+    .optional()
+    .or(z.literal('')),
+  ciiuCode: z
+    .string()
+    .regex(/^[0-9]{4}$/, 'El código CIIU son cuatro dígitos')
+    .optional()
+    .or(z.literal('')),
+  legalRepName: z.string().max(150).optional().or(z.literal('')),
+  legalRepDocType: z.enum(['cedula', 'pasaporte', 'other']).optional(),
+  legalRepDocNumber: z
+    .string()
+    .regex(/^[0-9]*$/, 'El documento solo puede contener números')
+    .max(20)
+    .optional()
+    .or(z.literal('')),
+  businessName: z
+    .string()
     .min(2, 'La razón social debe tener al menos 2 caracteres')
-    .max(200, 'La razón social no puede exceder 200 caracteres'),
+    .max(200, 'La razón social no puede exceder 200 caracteres')
+    .optional()
+    .or(z.literal('')),
   website: z.preprocess(
     (val) => {
       if (!val || val === '') return '';
@@ -72,29 +132,20 @@ const fiscalInfoSchema = z.object({
     },
     z.string().url('Ingresa una URL válida').optional().or(z.literal(''))
   ),
-  address: z.object({
-    street: z.string()
-      .min(5, 'La dirección debe tener al menos 5 caracteres')
-      .max(200, 'La dirección no puede exceder 200 caracteres'),
-    city: z.string()
-      .min(2, 'La ciudad debe tener al menos 2 caracteres')
-      .max(100, 'La ciudad no puede exceder 100 caracteres'),
-    state: z.string()
-      .min(2, 'Selecciona un departamento')
-      .max(100, 'El departamento no puede exceder 100 caracteres'),
-    postalCode: z.string()
-      .max(20, 'El código postal no puede exceder 20 caracteres')
-      .optional(),
-    country: z.string()
-      .min(2, 'El país debe tener al menos 2 caracteres')
-      .max(100, 'El país no puede exceder 100 caracteres'),
-  }),
+  address: z
+    .object({
+      street: z.string().max(200, 'La dirección no puede exceder 200 caracteres').optional(),
+      city: z.string().max(100, 'La ciudad no puede exceder 100 caracteres').optional(),
+      state: z.string().max(100, 'El departamento no puede exceder 100 caracteres').optional(),
+      postalCode: z.string().max(20, 'El código postal no puede exceder 20 caracteres').optional(),
+      country: z.string().max(100, 'El país no puede exceder 100 caracteres').optional(),
+    })
+    .optional(),
 });
 
+/** TR-32. El tamaño del negocio tampoco bloquea: se pregunta, no se exige. */
 const sizeInfoSchema = z.object({
-  employeeCount: z.enum(['1-10', '11-50', '51-200', '201-500', '500+'], {
-    message: 'Selecciona un rango de empleados válido'
-  }),
+  employeeCount: z.enum(['1-10', '11-50', '51-200', '201-500', '500+']).optional(),
   annualRevenue: z.enum(['0-100k', '100k-500k', '500k-1M', '1M-5M', '5M+'], {
     message: 'Selecciona un rango de ingresos válido'
   }).optional(),
@@ -103,12 +154,7 @@ const sizeInfoSchema = z.object({
   }).optional(),
 });
 
-const companyTypes = [
-  { value: 'restaurant', label: 'Restaurante' },
-  { value: 'catering', label: 'Catering' },
-  { value: 'foodtruck', label: 'Food Truck' },
-  { value: 'other', label: 'Otro' }
-];
+const companyTypes = TIPOS_DE_EMPRESA;
 
 const documentTypes = [
   { value: 'nit', label: 'NIT' },
@@ -141,15 +187,44 @@ const businessYears = [
   { value: '10+', label: 'Más de 10 años' }
 ];
 
-const steps = ['Información Básica', 'Información Fiscal', 'Tamaño de Empresa'];
+const steps = ['Información Básica', 'Información Fiscal', 'Contactos', 'Tamaño de Empresa'];
+
+/** Si un objeto de dirección tiene algo escrito. */
+function tieneAlgo(dir?: Record<string, string | undefined>): boolean {
+  return !!dir && Object.values(dir).some((v) => (v ?? '').trim() !== '');
+}
 
 export default function CompanySetupForm() {
   const router = useRouter();
-  const { user, sanityUser, markSetupCompleted, isSetupCompleted, hasCompany, companySetupState } = useAuth();
+  const { user, sanityUser, markSetupCompleted, isSetupCompleted, hasCompany } = useAuth();
+  // `update()` fuerza el callback jwt con trigger "update", que relee el
+  // usuario del API y reescribe el token. Sin esto, el companyId recien
+  // creado tardaba hasta cinco minutos en entrar en el token, y mientras
+  // tanto el API respondia 403 a todo lo que tuviera alcance de empresa.
+  const { update: refrescarSesion } = useSession();
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
   const [currentStep, setCurrentStep] = useState(1);
+
+  /**
+   * Los contactos viven fuera de react-hook-form.
+   *
+   * Es una lista de longitud variable con reglas propias —dos fijos, hasta
+   * tres libres—; meterla en el esquema de pasos obligaria a un array de
+   * campos anidados para no ganar nada. Igual que el telefono y el logo.
+   *
+   * Arranca con los dos obligatorios vacios para que se vean desde el
+   * principio: son parte del formulario, no algo que haya que ir a buscar.
+   */
+  const [contactos, setContactos] = useState<ContactoDeEmpresa[]>(() =>
+    CONTACTOS_OBLIGATORIOS.map((c) => contactoVacio(c.type)),
+  );
+  const [erroresContactos, setErroresContactos] = useState(false);
   const [companyPhone, setCompanyPhone] = useState("");
   const [logoAssetId, setLogoAssetId] = useState<string>("");
+  // Claves de S3, no URLs: los documentos son privados. Van en useState y no
+  // en react-hook-form, como el logo y el telefono.
+  const [rutKey, setRutKey] = useState<string>("");
+  const [camaraKey, setCamaraKey] = useState<string>("");
   const [existingCompany, setExistingCompany] = useState<Company | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
@@ -169,8 +244,10 @@ export default function CompanySetupForm() {
         const company = await getCompanyByUserId(user.uid);
         if (company) {
           setExistingCompany(company);
-          setCompanyPhone(company.companyPhone || '');
+          setCompanyPhone(aE164(company.companyPhone));
           setLogoAssetId(company.logo?.asset?._ref || '');
+          setRutKey(company.rutKey || '');
+          setCamaraKey(company.camaraKey || '');
         }
       } catch (error) {
         console.error('Error loading existing company data:', error);
@@ -195,10 +272,16 @@ export default function CompanySetupForm() {
     defaultValues: {
       companyName: '',
       companyType: 'restaurant',
+      companyTypeSecondary: '',
+      personType: 'juridica',
       description: '',
       companyEmail: '',
       companyPhone: '',
       documentType: 'nit',
+      ciiuCode: '',
+      legalRepName: '',
+      legalRepDocType: 'cedula',
+      legalRepDocNumber: '',
       documentNumber: '',
       businessName: '',
       website: '',
@@ -207,7 +290,7 @@ export default function CompanySetupForm() {
         city: '',
         state: '',
         postalCode: '',
-        country: 'Colombia'
+        country: PAIS_FIJO
       },
       employeeCount: '1-10',
       annualRevenue: '0-100k',
@@ -215,9 +298,47 @@ export default function CompanySetupForm() {
     }
   });
 
+  // El DV se deriva del NIT en vez de guardarse en estado: es una funcion pura
+  // del numero, asi que tener una copia editable solo abriria la puerta a que
+  // se desincronicen.
+  const documentTypeActual = watch('documentType');
+  const personTypeActual = watch('personType');
+  const companyTypeActual = watch('companyType');
+  const ciiuActual = watch('ciiuCode');
+  // Una persona natural es su propio representante: no se le pregunta.
+  const esJuridica = personTypeActual !== 'natural';
+
+  /**
+   * Al cambiar el tipo de persona se preselecciona el documento que le toca.
+   *
+   * Es una sugerencia, no una imposicion: una persona natural comerciante si
+   * tiene NIT. Por eso solo se toca si el campo sigue en el otro valor por
+   * defecto —nit o cedula—; si el anfitrion eligio pasaporte u otro, se
+   * respeta, porque eso ya es una decision suya.
+   */
+  useEffect(() => {
+    if (!personTypeActual) return;
+    const sugerido = documentoSugerido(personTypeActual);
+    const actual = getValues('documentType');
+    if (actual !== 'nit' && actual !== 'cedula') return;
+    if (actual !== sugerido) setValue('documentType', sugerido, { shouldValidate: true });
+  }, [personTypeActual, getValues, setValue]);
+
+  /**
+   * El segundo tipo no puede repetir al principal. Si al cambiar el principal
+   * coinciden, el segundo se vacia: dejarlo mostraria una opcion que el
+   * desplegable ya no ofrece.
+   */
+  useEffect(() => {
+    if (companyTypeActual && getValues('companyTypeSecondary') === companyTypeActual) {
+      setValue('companyTypeSecondary', '');
+    }
+  }, [companyTypeActual, getValues, setValue]);
+  const documentNumberActual = watch('documentNumber') || '';
+  const dvCalculado =
+    documentTypeActual === 'nit' ? digitoVerificacion(documentNumberActual) : null;
+
   const selectedDepartment = watch('address.state') || '';
-  const selectedCity = watch('address.city') || '';
-  const availableCities = selectedDepartment ? getCitiesByDepartment(selectedDepartment) : [];
 
   // Actualizar el formulario cuando se carguen los datos existentes
   useEffect(() => {
@@ -225,11 +346,17 @@ export default function CompanySetupForm() {
       reset({
         companyName: existingCompany.companyName || '',
         companyType: existingCompany.companyType || 'restaurant',
+        companyTypeSecondary: existingCompany.companyTypeSecondary || '',
+        personType: existingCompany.personType || 'juridica',
         description: existingCompany.description || '',
         companyEmail: existingCompany.companyEmail || '',
         companyPhone: existingCompany.companyPhone || '',
         documentType: existingCompany.documentType || 'nit',
         documentNumber: existingCompany.documentNumber || '',
+        ciiuCode: existingCompany.ciiuCode || '',
+        legalRepName: existingCompany.legalRepName || '',
+        legalRepDocType: existingCompany.legalRepDocType || 'cedula',
+        legalRepDocNumber: existingCompany.legalRepDocNumber || '',
         businessName: existingCompany.businessName || '',
         website: existingCompany.website || '',
         address: {
@@ -237,12 +364,26 @@ export default function CompanySetupForm() {
           city: existingCompany.address?.city || '',
           state: existingCompany.address?.state || '',
           postalCode: existingCompany.address?.postalCode || '',
-          country: existingCompany.address?.country || 'Colombia'
+          // No se lee lo guardado: el campo ya no se puede cambiar, asi que
+          // enseñar otro pais seria enseñar algo que nadie podria corregir.
+          country: PAIS_FIJO,
         },
         employeeCount: existingCompany.employeeCount || '1-10',
         annualRevenue: existingCompany.annualRevenue || '0-100k',
         businessYears: existingCompany.businessYears || '0-1'
       });
+
+      // Los contactos van aparte de react-hook-form. Los obligatorios se
+      // completan con uno vacio si faltan: las empresas anteriores a este
+      // campo no tienen ninguno, y sin esto el paso saldria en blanco sin
+      // dejar claro que hay dos que rellenar.
+      const guardados = existingCompany.contacts ?? [];
+      setContactos([
+        ...CONTACTOS_OBLIGATORIOS.map(
+          (o) => guardados.find((c) => c.type === o.type) ?? contactoVacio(o.type),
+        ),
+        ...guardados.filter((c) => c.type === 'otro'),
+      ]);
     }
   }, [existingCompany, reset]);
 
@@ -262,32 +403,25 @@ export default function CompanySetupForm() {
   const hasCompletedSetup = isSetupCompleted();
   const hasCompanyAssociated = hasCompany();
   
-  // Solo mostrar mensaje de "completado" si:
-  // 1. El setup está completado
-  // 2. Tiene empresa asociada en localStorage
-  console.log('Debug localStorage:', {
-    hasCompletedSetup,
-    hasCompanyAssociated,
-    existingCompany: !!existingCompany,
-    companySetupState: companySetupState
-  });
-  
-  // Si el usuario ya completó el setup Y tiene empresa asociada, mostrar mensaje de completado
-  // PERO solo si NO hay datos existentes para editar
   if (hasCompletedSetup && hasCompanyAssociated && !existingCompany) {
     return (
       <div className="max-w-4xl mx-auto p-6">
+        {/* Sin veredicto sobre si esta completa: aqui `existingCompany` es
+            null por definicion, asi que no hay datos que mirar. Quien los
+            tiene es el CompanyInfoView de abajo, y es el que dice si falta
+            algo. Antes se cantaba "Configuración Completada" desde una marca
+            en localStorage, que solo significaba que alguien paso por el
+            formulario alguna vez. */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center mb-6">
           <div className="mb-4">
             <HiCheckCircle className="w-16 h-16 text-blue-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-[#334C5D] mb-2">
-              Configuración Completada
+              Tu empresa ya está registrada
             </h2>
             <p className="text-gray-600 text-lg">
-              Ya has completado la configuración de empresa. 
-              {sanityUser?.role === 'host' 
-                ? ' Puedes crear experiencias desde tu dashboard.'
-                : ' Puedes cotizar experiencias desde tu dashboard.'
+              {sanityUser?.role === 'host'
+                ? 'Puedes crear experiencias desde tu dashboard.'
+                : 'Puedes cotizar experiencias desde tu dashboard.'
               }
             </p>
           </div>
@@ -316,18 +450,36 @@ export default function CompanySetupForm() {
 
     try {
       if (currentStep === 1) {
-        // Validar datos básicos + teléfono de empresa
-        if (!companyPhone) {
-          await showError('Campo requerido', 'El teléfono de la empresa es requerido');
-          return;
-        }
+        // TR-32. El minimo del plan gratuito: empresa o persona, nombre, tipo
+        // de negocio y el correo con el que se le escribe. El telefono se pide
+        // en el formulario pero no cierra la puerta: quien no lo pone, lo pone
+        // despues, y el catalogo funciona igual.
         basicInfoSchema.parse(currentData);
         isValid = true;
       } else if (currentStep === 2) {
         fiscalInfoSchema.parse(currentData);
         isValid = true;
       } else if (currentStep === 3) {
-        // En el paso 3, validar pero no avanzar (el botón cambiará a "Completar Registro")
+        // TR-32. Los contactos tampoco bloquean el registro: un anfitrion que
+        // empieza es el contacto de todo, y pedirle dos correos distintos
+        // antes de dejarle entrar es inventarle una estructura que no tiene.
+        //
+        // Lo que si se valida es lo que haya escrito a medias: un contacto con
+        // nombre y sin correo no sirve para nada y se le dice.
+        const fallos = erroresDeContactos(contactos, { exigirObligatorios: false });
+        if (fallos.size > 0) {
+          setErroresContactos(true);
+          await showError(
+            'Revisa los contactos',
+            'Los que empezaste a llenar necesitan nombre y correo. Puedes dejarlos vacíos y completarlos después.',
+          );
+          return;
+        }
+        setErroresContactos(false);
+        isValid = true;
+      } else if (currentStep === 4) {
+        // En el ultimo paso se valida pero no se avanza: el boton pasa a ser
+        // "Completar Registro".
         sizeInfoSchema.parse(currentData);
         isValid = true;
       }
@@ -348,6 +500,57 @@ export default function CompanySetupForm() {
     setCurrentStep(prev => prev - 1);
   };
 
+  /**
+   * TR-32. Terminar con el mínimo y entrar a trabajar.
+   *
+   * El plan gratuito pide empresa o persona, nombre, tipo de negocio y el
+   * usuario que se acaba de registrar. El resto —NIT, razón social,
+   * dirección, contactos, tamaño— se guarda si está, y si no se completa
+   * después desde el perfil: el panel ya dice qué falta y para qué sirve.
+   *
+   * Se valida igual lo que haya escrito a medias: guardar un NIT con letras
+   * para "arreglarlo luego" es dejar una factura mal hecha esperando.
+   */
+  const guardarYEmpezar = async () => {
+    const datos = getValues();
+    try {
+      basicInfoSchema.parse(datos);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        await showError(
+          'Falta lo mínimo',
+          'Para empezar hacen falta el nombre, si eres empresa o persona, el tipo de negocio y un correo de contacto.',
+        );
+      }
+      return;
+    }
+
+    try {
+      fiscalInfoSchema.parse(datos);
+      sizeInfoSchema.parse(datos);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        await showError(
+          'Revisa lo que escribiste',
+          'Algo de lo que llenaste no tiene el formato correcto. Puedes borrarlo y completarlo después.',
+        );
+      }
+      return;
+    }
+
+    const fallos = erroresDeContactos(contactos, { exigirObligatorios: false });
+    if (fallos.size > 0) {
+      setErroresContactos(true);
+      await showError(
+        'Revisa los contactos',
+        'Los que empezaste a llenar necesitan nombre y correo. Puedes dejarlos vacíos y completarlos después.',
+      );
+      return;
+    }
+
+    await onSubmit(datos);
+  };
+
   const onSubmit = async (data: CompleteCompanyData) => {
     if (!user || !sanityUser) {
       await showError('Error', 'No se encontró información del usuario');
@@ -364,18 +567,38 @@ export default function CompanySetupForm() {
         await updateCompanyInSanity(existingCompany._id, {
           companyName: data.companyName,
           companyType: data.companyType,
+          personType: data.personType,
+          // Vacio significa "ninguno": va como null para borrarlo, no como "".
+          companyTypeSecondary: data.companyTypeSecondary || null,
           description: data.description || undefined,
           companyEmail: data.companyEmail,
           companyPhone: companyPhone,
           logo: logoAssetId || null,
           documentType: data.documentType,
           documentNumber: data.documentNumber,
+          ciiuCode: data.ciiuCode || undefined,
+          // Una persona natural se representa a si misma: guardar un
+          // representante seria guardar una copia suya que despues puede
+          // quedarse vieja.
+          legalRepName: esJuridica ? data.legalRepName || undefined : undefined,
+          legalRepDocType: esJuridica ? data.legalRepDocType : undefined,
+          legalRepDocNumber: esJuridica ? data.legalRepDocNumber || undefined : undefined,
+          // TR-32. Solo los que tienen algo: un contacto vacio no se guarda,
+          // y mandarlo en blanco crearia fichas sin nombre ni correo.
+          contacts: contactosParaGuardar(contactos.filter((c) => c.name.trim() || c.email.trim())),
+          documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
-          address: data.address,
+          // Si no se llenó, no se manda: un objeto con cinco cadenas vacías
+          // es peor que no tener dirección, porque parece una dirección.
+          address: tieneAlgo(data.address) ? data.address : undefined,
           employeeCount: data.employeeCount,
           annualRevenue: data.annualRevenue,
           businessYears: data.businessYears,
+          // null y no undefined: al quitar un documento hay que desvincularlo,
+          // y undefined dejaria el anterior puesto.
+          rutKey: rutKey || null,
+          camaraKey: camaraKey || null,
         });
 
         company = { _id: existingCompany._id };
@@ -392,18 +615,36 @@ export default function CompanySetupForm() {
         const companyData = {
           companyName: data.companyName,
           companyType: data.companyType,
+          personType: data.personType,
+          // En un alta no hay nada que borrar: "ninguno" es no mandarlo.
+          companyTypeSecondary: data.companyTypeSecondary || undefined,
           description: data.description || undefined,
           companyEmail: data.companyEmail,
           companyPhone: companyPhone,
           logo: logoAssetId || undefined,
           documentType: data.documentType,
           documentNumber: data.documentNumber,
+          ciiuCode: data.ciiuCode || undefined,
+          // Una persona natural se representa a si misma: guardar un
+          // representante seria guardar una copia suya que despues puede
+          // quedarse vieja.
+          legalRepName: esJuridica ? data.legalRepName || undefined : undefined,
+          legalRepDocType: esJuridica ? data.legalRepDocType : undefined,
+          legalRepDocNumber: esJuridica ? data.legalRepDocNumber || undefined : undefined,
+          // TR-32. Solo los que tienen algo: un contacto vacio no se guarda,
+          // y mandarlo en blanco crearia fichas sin nombre ni correo.
+          contacts: contactosParaGuardar(contactos.filter((c) => c.name.trim() || c.email.trim())),
+          documentDv: dvCalculado ?? undefined,
           businessName: data.businessName,
           website: data.website || undefined,
-          address: data.address,
+          // Si no se llenó, no se manda: un objeto con cinco cadenas vacías
+          // es peor que no tener dirección, porque parece una dirección.
+          address: tieneAlgo(data.address) ? data.address : undefined,
           employeeCount: data.employeeCount,
           annualRevenue: data.annualRevenue,
-          businessYears: data.businessYears
+          businessYears: data.businessYears,
+          rutKey: rutKey || undefined,
+          camaraKey: camaraKey || undefined
         };
 
         company = await createCompanyInSanity(companyData);
@@ -419,15 +660,42 @@ export default function CompanySetupForm() {
       
       // Marcar el setup como completado en localStorage
       markSetupCompleted(company._id);
-      
+
+      // El token lleva dentro el companyId y es con el que autoriza el API.
+      // Se reescribe aqui, antes de salir de la pantalla: si se deja para
+      // despues, el dashboard carga con un token que todavia dice que esta
+      // persona no tiene empresa.
+      //
+      // Sustituye a una espera de un segundo "para que Sanity procese los
+      // cambios": Sanity ya no existe, y esto si espera a algo real — la
+      // vuelta del API con el usuario actualizado.
+      //
+      // El objeto vacio no es decorativo: `update()` sin argumentos hace un GET
+      // normal y no dispara `trigger: "update"` (next-auth/react.js, update()).
+      // Solo pasandole algo manda el POST que relee el usuario.
+      try {
+        await refrescarSesion({});
+      } catch {
+        // Si falla, el token se arregla solo en el siguiente refresco
+        // periodico. No vale perder la empresa recien creada por esto.
+      }
+
       hideLoading();
 
-      // Esperar un momento para asegurar que Sanity procese los cambios
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
+      // Si la plataforma exige suscripción y esta empresa no la tiene, el
+      // registro termina en el pago en vez de caer en un panel cerrado.
+      //
       // Forzar recarga completa de la página para actualizar el AuthContext
       // Esto asegura que sanityUser tenga el companyId actualizado
-      window.location.replace('/dashboard');
+      let destino = '/dashboard';
+      if (sanityUser?.role === 'host') {
+        try {
+          if ((await getSuscripcion()).bloqueada) destino = '/company-setup/suscripcion';
+        } catch {
+          // Sin respuesta se va al panel, que sabrá devolverlo a pagar.
+        }
+      }
+      window.location.replace(destino);
 
     } catch (error) {
       console.error('Error creating company:', error);
@@ -446,10 +714,14 @@ export default function CompanySetupForm() {
     }
 
     // Mostrar confirmación elegante antes de proceder
-    const warningTitle = '¿Saltar configuración de empresa?';
-    const warningText = sanityUser.role === 'host' 
-      ? 'Recuerda que no podrás crear experiencias hasta completar esta información.'
-      : 'Recuerda que no podrás cotizar experiencias hasta completar esta información.';
+    // TR-32. Saltar del todo significa quedarse sin empresa, y sin empresa no
+    // hay nada que vender. El punto medio es "Guardar y empezar": con el paso
+    // 1 ya hay empresa, y el resto se completa despues.
+    const warningTitle = '¿Saltar la configuración?';
+    const warningText =
+      sanityUser.role === 'host'
+        ? 'Sin empresa no podrás crear experiencias. Si prefieres empezar ya, llena el primer paso y usa "Guardar y empezar": lo demás lo completas después.'
+        : 'Sin empresa no podrás cotizar experiencias. Si prefieres empezar ya, llena el primer paso y usa "Guardar y empezar": lo demás lo completas después.';
 
     const confirmed = await showConfirmation(
       warningTitle,
@@ -502,9 +774,12 @@ export default function CompanySetupForm() {
         label="Logo de la empresa"
         value={logoAssetId || undefined}
         onChange={(assetId) => setLogoAssetId(assetId)}
-        helpText="Imagen cuadrada · mínimo 400 × 400 px · PNG o JPG hasta 10 MB."
+        helpText="PNG o JPG (fondo transparente recomendado) · hasta 10 MB. Se muestra sin recortar."
         compact
+        placeholder="Subir logo"
         circular
+        objectFit="contain"
+        scope="logos"
       />
 
       {/* Nombre de la Empresa */}
@@ -525,10 +800,47 @@ export default function CompanySetupForm() {
         )}
       </div>
 
-      {/* Tipo de Empresa */}
+      {/* Tipo de Persona. Va antes que el tipo de empresa porque decide que
+          documentacion se pedira en el paso siguiente. */}
       <div>
         <Label color="gray" className="mb-2 block">
-          Tipo de empresa <span className="text-red-500">*</span>
+          Tipo de persona <span className="text-red-500">*</span>
+        </Label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {TIPOS_DE_PERSONA.map((t) => (
+            <label
+              key={t.value}
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                personTypeActual === t.value
+                  ? 'border-[#F26726] bg-orange-50'
+                  : 'border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <input
+                type="radio"
+                value={t.value}
+                className="mt-1 accent-[#F26726]"
+                {...register('personType')}
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-gray-900">{t.label}</span>
+                <span className="block text-xs text-gray-500">{t.ayuda}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          Determina qué documentos legales te pediremos más adelante.
+        </p>
+        {errors.personType && (
+          <p className="mt-1 text-sm text-red-600">{errors.personType.message}</p>
+        )}
+      </div>
+
+      {/* Tipo de Empresa principal */}
+      <div>
+        <Label color="gray" className="mb-2 block">
+          Tipo de empresa principal <span className="text-red-500">*</span>
         </Label>
         <Select
           id="companyType"
@@ -544,6 +856,36 @@ export default function CompanySetupForm() {
         </Select>
         {errors.companyType && (
           <p className="mt-1 text-sm text-red-600">{errors.companyType.message}</p>
+        )}
+      </div>
+
+      {/* Tipo de Empresa secundario */}
+      <div>
+        <Label color="gray" className="mb-2 block">
+          Tipo de empresa secundario <span className="text-gray-400">(opcional)</span>
+        </Label>
+        <Select
+          id="companyTypeSecondary"
+          icon={AiOutlineInfoCircle}
+          color={errors.companyTypeSecondary ? 'failure' : 'white'}
+          {...register('companyTypeSecondary')}
+        >
+          <option value="">Ninguno</option>
+          {/* El principal se excluye: repetirlo no clasificaria nada. */}
+          {companyTypes
+            .filter((type) => type.value !== companyTypeActual)
+            .map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+        </Select>
+        <p className="mt-1 text-xs text-gray-500">
+          Si tu negocio es más de una cosa: un hotel que además hace catering,
+          una finca que además da clases.
+        </p>
+        {errors.companyTypeSecondary && (
+          <p className="mt-1 text-sm text-red-600">{errors.companyTypeSecondary.message}</p>
         )}
       </div>
 
@@ -584,22 +926,56 @@ export default function CompanySetupForm() {
 
       {/* Teléfono de la Empresa */}
       <div>
-        <Label color="gray" className="mb-2 block">
-          Teléfono de la empresa <span className="text-red-500">*</span>
-        </Label>
-        <PhoneInput
-          defaultCountry="co"
-          placeholder="Teléfono de la empresa"
+        <TelefonoInput
+          label="Teléfono de la empresa"
+          requerido
           value={companyPhone}
-          className="block w-full [&>input]:bg-white [&>input]:w-full [&>input]:text-gray-500 [&>input]:border-gray-300 [&>input]:p-2.5 [&>input]:h-3 [&>input]:text-sm [&>input]:rounded-sm [&>button]:bg-white [&>button]:text-gray-500"
           onChange={handleCompanyPhoneChange}
+          placeholder="Teléfono de la empresa"
+          error={telefonoVacio(companyPhone) ? 'El teléfono de la empresa es requerido' : undefined}
         />
-        {!companyPhone && (
-          <p className="mt-1 text-sm text-red-600">El teléfono de la empresa es requerido</p>
-        )}
       </div>
     </div>
   );
+
+  /**
+   * Vuelca al formulario lo que la IA leyo del documento.
+   *
+   * El orden importa: el departamento va antes que la ciudad porque el select
+   * de ciudad se alimenta de `getCitiesByDepartment(departamento)`, y si la
+   * ciudad llega primero no hay lista donde encajarla. El resto va en el orden
+   * que venga.
+   */
+  const aplicarDatosDelDocumento = (
+    campos: CampoDetectado[],
+    telefono: string,
+    nombre: string,
+  ) => {
+    const depto = campos.find((c) => c.campo === 'address.state');
+    if (depto) {
+      setValue('address.state', depto.valor, { shouldValidate: true, shouldDirty: true });
+    }
+
+    for (const c of campos) {
+      if (c.campo === 'address.state') continue;
+      setValue(c.campo as keyof CompleteCompanyData, c.valor as never, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+
+    // El pais no viene en el RUT, pero si el departamento es colombiano, el
+    // pais tambien lo es.
+    if (depto) setValue('address.country', PAIS_FIJO, { shouldValidate: true });
+
+    // Estos dos viven fuera de react-hook-form.
+    if (telefono) setCompanyPhone(aE164(telefono));
+    // El nombre solo si esta vacio: es lo unico que la persona pudo haber
+    // elegido a conciencia distinto de lo que dice el papel.
+    if (nombre && !getValues('companyName')?.trim()) {
+      setValue('companyName', nombre, { shouldValidate: true, shouldDirty: true });
+    }
+  };
 
   const renderStep2 = () => (
     <div className="space-y-6">
@@ -607,6 +983,17 @@ export default function CompanySetupForm() {
         <h3 className="text-xl font-semibold text-[#334C5D] mb-2">Información Fiscal</h3>
         <p className="text-gray-600">Completa los datos fiscales y de ubicación de tu empresa</p>
       </div>
+
+      {/* Va lo primero del paso: los campos que rellena estan justo debajo, en
+          esta misma pantalla, asi que se ve el efecto al instante. */}
+      <CompanyDocuments
+        rutKey={rutKey}
+        camaraKey={camaraKey}
+        onRutChange={setRutKey}
+        onCamaraChange={setCamaraKey}
+        onAplicar={aplicarDatosDelDocumento}
+              pideCamara={pideCamaraDeComercio(personTypeActual)}
+      />
       
       {/* Tipo de Documento */}
       <div>
@@ -630,19 +1017,48 @@ export default function CompanySetupForm() {
         )}
       </div>
 
-      {/* Número de Documento */}
+      {/* Número de Documento. Con el DV al lado cuando es NIT: asi se lee
+          igual que viene impreso en el RUT y en las facturas. */}
       <div>
         <Label color="gray" className="mb-2 block">
           Número de documento <span className="text-red-500">*</span>
         </Label>
-        <TextInput
-          id="documentNumber"
-          type="text"
-          placeholder="12345678"
-          icon={AiOutlineIdcard}
-          color={errors.documentNumber ? 'failure' : 'white'}
-          {...register('documentNumber')}
-        />
+        <div className="flex items-end gap-2">
+          <div className="flex-1 min-w-0">
+            <TextInput
+              id="documentNumber"
+              type="text"
+              placeholder="12345678"
+              icon={AiOutlineIdcard}
+              color={errors.documentNumber ? 'failure' : 'white'}
+              {...register('documentNumber')}
+            />
+          </div>
+          {documentTypeActual === 'nit' && (
+            <>
+              <span className="pb-2.5 text-gray-400 select-none">-</span>
+              <div className="w-16 shrink-0">
+                <TextInput
+                  id="documentDv"
+                  type="text"
+                  value={dvCalculado ?? ''}
+                  readOnly
+                  disabled
+                  placeholder="DV"
+                  color="white"
+                  aria-label="Dígito de verificación"
+                />
+              </div>
+            </>
+          )}
+        </div>
+        {documentTypeActual === 'nit' && (
+          <p className="mt-1 text-sm text-gray-500">
+            {dvCalculado
+              ? 'El dígito de verificación se calcula solo a partir del NIT.'
+              : 'Escribe el NIT y calcularemos su dígito de verificación.'}
+          </p>
+        )}
         {errors.documentNumber && (
           <p className="mt-1 text-sm text-red-600">{errors.documentNumber.message}</p>
         )}
@@ -663,6 +1079,104 @@ export default function CompanySetupForm() {
         />
         {errors.businessName && (
           <p className="mt-1 text-sm text-red-600">{errors.businessName.message}</p>
+        )}
+      </div>
+
+      {/* Representante legal. Solo para persona juridica: una persona natural
+          firma por si misma, y preguntarselo seria pedirle que repita sus
+          propios datos. */}
+      {esJuridica && (
+        <div className="rounded-xl border border-gray-200 p-4">
+          <h4 className="font-semibold text-[#334C5D]">Representante legal</h4>
+          <p className="mb-3 text-xs text-gray-500">
+            Quien firma por la empresa. Si subes el certificado de Cámara de
+            Comercio lo tomamos de ahí.
+          </p>
+
+          <div className="space-y-3">
+            <div>
+              <Label color="gray" className="mb-2 block">
+                Nombre completo
+              </Label>
+              <TextInput
+                id="legalRepName"
+                type="text"
+                placeholder="Nombre y apellidos"
+                icon={AiOutlineUser}
+                color={errors.legalRepName ? 'failure' : 'white'}
+                {...register('legalRepName')}
+              />
+              {errors.legalRepName && (
+                <p className="mt-1 text-sm text-red-600">{errors.legalRepName.message}</p>
+              )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,10rem)_1fr]">
+              <div>
+                <Label color="gray" className="mb-2 block">
+                  Tipo de documento
+                </Label>
+                <Select id="legalRepDocType" color="white" {...register('legalRepDocType')}>
+                  {/* Sin NIT: esto identifica a una persona, no a una empresa. */}
+                  <option value="cedula">Cédula</option>
+                  <option value="pasaporte">Pasaporte</option>
+                  <option value="other">Otro</option>
+                </Select>
+              </div>
+              <div>
+                <Label color="gray" className="mb-2 block">
+                  Número de documento
+                </Label>
+                <TextInput
+                  id="legalRepDocNumber"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="12345678"
+                  icon={AiOutlineIdcard}
+                  color={errors.legalRepDocNumber ? 'failure' : 'white'}
+                  {...register('legalRepDocNumber')}
+                />
+                {errors.legalRepDocNumber && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.legalRepDocNumber.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Actividad económica */}
+      <div>
+        <Label color="gray" className="mb-2 block">
+          Actividad económica <span className="text-gray-400">(código CIIU)</span>
+        </Label>
+        <TextInput
+          id="ciiuCode"
+          type="text"
+          inputMode="numeric"
+          maxLength={4}
+          placeholder="Ej: 5611"
+          list="ciiu-sugeridos"
+          color={errors.ciiuCode ? 'failure' : 'white'}
+          {...register('ciiuCode')}
+        />
+        {/* Sugerencias, no catalogo: el campo acepta cualquier codigo de
+            cuatro digitos porque la clasificacion es de la DIAN y cambia. */}
+        <datalist id="ciiu-sugeridos">
+          {CIIU_SUGERIDOS.map((c) => (
+            <option key={c.codigo} value={c.codigo}>
+              {c.nombre}
+            </option>
+          ))}
+        </datalist>
+        <p className="mt-1 text-sm text-gray-500">
+          {nombreDeCiiu(ciiuActual) ??
+            'Lo encuentras en la casilla 46 de tu RUT. Si subes el documento lo tomamos de ahí.'}
+        </p>
+        {errors.ciiuCode && (
+          <p className="mt-1 text-sm text-red-600">{errors.ciiuCode.message}</p>
         )}
       </div>
 
@@ -713,61 +1227,22 @@ export default function CompanySetupForm() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label color="gray" className="mb-2 block">
-              Departamento <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              id="address.state"
-              color={errors.address?.state ? 'failure' : 'white'}
-              {...register('address.state', {
-                onChange: () => setValue('address.city', '', { shouldValidate: false }),
-              })}
-            >
-              <option value="">Selecciona un departamento</option>
-              {COLOMBIA_DEPARTMENTS.map((dept) => (
-                <option key={dept.name} value={dept.name}>
-                  {dept.name}
-                </option>
-              ))}
-              {selectedDepartment &&
-                !COLOMBIA_DEPARTMENTS.some((d) => d.name === selectedDepartment) && (
-                  <option value={selectedDepartment}>{selectedDepartment}</option>
-                )}
-            </Select>
-            {errors.address?.state && (
-              <p className="mt-1 text-sm text-red-600">{errors.address.state.message}</p>
-            )}
-          </div>
-
-          <div>
-            <Label color="gray" className="mb-2 block">
-              Ciudad <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              id="address.city"
-              disabled={!selectedDepartment}
-              color={errors.address?.city ? 'failure' : 'white'}
-              {...register('address.city')}
-            >
-              <option value="">
-                {selectedDepartment ? 'Selecciona una ciudad' : 'Selecciona primero un departamento'}
-              </option>
-              {availableCities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-              {selectedCity && !availableCities.includes(selectedCity) && (
-                <option value={selectedCity}>{selectedCity}</option>
-              )}
-            </Select>
-            {errors.address?.city && (
-              <p className="mt-1 text-sm text-red-600">{errors.address.city.message}</p>
-            )}
-          </div>
-        </div>
+        <DepartamentoCiudad
+          departamento={selectedDepartment}
+          ciudad={watch('address.city') || ''}
+          onDepartamentoChange={(v) =>
+            setValue('address.state', v, { shouldValidate: true, shouldDirty: true })
+          }
+          onCiudadChange={(v) =>
+            setValue('address.city', v, { shouldValidate: true, shouldDirty: true })
+          }
+          pais={PAIS_FIJO}
+          idDepartamento="address.state"
+          idCiudad="address.city"
+          requerido
+          errorDepartamento={errors.address?.state?.message}
+          errorCiudad={errors.address?.city?.message}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -786,23 +1261,33 @@ export default function CompanySetupForm() {
             )}
           </div>
 
-          <div>
-            <Label color="gray" className="mb-2 block">
-              País <span className="text-red-500">*</span>
-            </Label>
-            <TextInput
-              id="address.country"
-              type="text"
-              placeholder="Colombia"
-              color={errors.address?.country ? 'failure' : 'white'}
-              {...register('address.country')}
-            />
-            {errors.address?.country && (
-              <p className="mt-1 text-sm text-red-600">{errors.address.country.message}</p>
-            )}
-          </div>
+          <PaisFijo id="address.country" requerido />
         </div>
       </div>
+    </div>
+  );
+
+  const renderStepContactos = () => (
+    <div className="space-y-6">
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold text-[#334C5D] mb-2">Contactos</h3>
+        <p className="text-gray-600">
+          A quién escribimos para cada asunto. Si tu empresa eres tú, usa el
+          botón para copiar tus datos.
+        </p>
+      </div>
+
+      <ContactosDeEmpresa
+        valor={contactos}
+        onChange={setContactos}
+        misDatos={{
+          name: sanityUser?.name,
+          email: sanityUser?.email,
+          // El del usuario (es "mis datos"); si no tiene, el de la empresa.
+          phone: aE164(sanityUser?.phone) || companyPhone,
+        }}
+        mostrarErrores={erroresContactos}
+      />
     </div>
   );
 
@@ -934,7 +1419,8 @@ export default function CompanySetupForm() {
         {/* Contenido del paso actual */}
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
+        {currentStep === 3 && renderStepContactos()}
+        {currentStep === 4 && renderStep3()}
 
         {/* Botones de navegación */}
         <div className="flex justify-between items-center pt-8 border-t border-gray-200">
@@ -944,7 +1430,7 @@ export default function CompanySetupForm() {
                 type="button"
                 color="gray"
                 onClick={prevStep}
-                className="px-8 py-3 text-white"
+                className="px-8 py-3"
               >
                 ← Anterior
               </Button>
@@ -960,6 +1446,10 @@ export default function CompanySetupForm() {
               >
                 Cancelar
               </button>
+            ) : sanityUser?.role === 'host' ? (
+              // Un anfitrión sin empresa no puede usar el panel (lo devuelve
+              // aquí), así que saltar este paso no lleva a ningún sitio.
+              <div></div>
             ) : (
               <button
                 type="button"
@@ -972,14 +1462,27 @@ export default function CompanySetupForm() {
           </div>
 
           {currentStep < steps.length ? (
-            <Button
-              type="button"
-              color="primary"
-              onClick={nextStep}
-              className="px-8 py-3"
-            >
-              Siguiente →
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* TR-32. Con el paso 1 hecho ya hay empresa y se puede
+                  trabajar: nombre, empresa o persona, tipo de negocio y el
+                  usuario que se acaba de registrar. Lo demás se completa
+                  después desde el perfil, y el panel dice qué falta. */}
+              <button
+                type="button"
+                onClick={guardarYEmpezar}
+                className="text-sm font-medium text-[#F26726] underline transition-colors hover:text-[#d9571f]"
+              >
+                Guardar y empezar
+              </button>
+              <Button
+                type="button"
+                color="primary"
+                onClick={nextStep}
+                className="px-8 py-3"
+              >
+                Siguiente →
+              </Button>
+            </div>
           ) : (
             <Button
               type="button"

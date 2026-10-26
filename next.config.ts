@@ -2,16 +2,35 @@ import type { NextConfig } from "next";
 import withFlowbiteReact from "flowbite-react/plugin/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Salida autocontenida: el build produce un servidor con solo las
+  // dependencias que de verdad usa, en vez de necesitar los ~500 MB de
+  // node_modules en la maquina destino. La instancia de produccion tiene
+  // menos de 1 GB de RAM y 6 GB de disco: se compila en CI y alli solo
+  // aterriza este paquete.
+  output: 'standalone',
+
   turbopack: {
     root: __dirname,
   },
   trailingSlash: false,
+  // La pantalla en la que se aprueba la conexión de un asistente no se puede
+  // meter en un iframe: una web ajena podría taparla y hacer que el anfitrión
+  // pulsara «Conectar» sin saberlo. Solo esa ruta: el motor de reservas sí
+  // está pensado para incrustarse.
+  async headers() {
+    return [
+      {
+        source: '/oauth/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+        ],
+      },
+    ];
+  },
   // Configuración de imágenes externas
   images: {
     remotePatterns: [
-      // Legacy: assets que aun viven en Sanity
-      { protocol: 'https', hostname: 'cdn.sanity.io', pathname: '/images/**' },
       // S3 (cualquier bucket de cualquier region) y CloudFront
       { protocol: 'https', hostname: '*.s3.amazonaws.com' },
       { protocol: 'https', hostname: '*.s3.*.amazonaws.com' },

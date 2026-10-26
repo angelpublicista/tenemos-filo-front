@@ -4,9 +4,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
+import { getCompanyById, getCompanyByUserId, updateCompanyInSanity } from '@/lib/sanity/companyService';
 import { uploadImage } from '@/lib/api/uploads';
 import { Company } from '@/types';
+import CompanyProgress from './CompanyProgress';
+import DocumentoGuardado from './DocumentoGuardado';
+import { calcularCompletitud } from '@/lib/company/completitud';
 import { Button } from 'flowbite-react';
 import {
   HiPencilAlt,
@@ -18,19 +21,18 @@ import {
 } from 'react-icons/hi';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import Loader from './Loader';
+import { urlDeImagen } from '@/lib/images';
+import { etiquetaDeTipo, etiquetaDePersona } from '@/lib/company/tipos';
+import { nombreDeCiiu } from '@/data/ciiu';
+import { TITULOS } from '@/lib/company/contactos';
 
-// Resuelve la URL del logo. Compat con assets viejos de Sanity:
-// - URL absoluta (S3/CloudFront): se usa tal cual
-// - "image-..." legacy: se construye URL del CDN de Sanity
-const getLogoUrl = (assetRef: string): string => {
-  if (assetRef.startsWith('http://') || assetRef.startsWith('https://')) return assetRef;
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
-  const cleanAssetId = assetRef.startsWith('image-')
-    ? assetRef.replace('image-', '').replace(/-([a-z]+)$/, '.$1')
-    : assetRef;
-  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${cleanAssetId}`;
+/** Como se llama cada documento de persona al enseñarlo. */
+const DOC_REPRESENTANTE: Record<string, string> = {
+  cedula: 'C.C.',
+  pasaporte: 'Pasaporte',
+  other: 'Doc.',
 };
+
 
 interface CompanyInfoViewProps {
   showEditButton?: boolean;
@@ -44,24 +46,36 @@ export default function CompanyInfoView({
   className = ""
 }: CompanyInfoViewProps) {
   const router = useRouter();
-  const { user, hasCompany } = useAuth();
+  const { user, sanityUser, hasCompany } = useAuth();
   const [existingCompany, setExistingCompany] = useState<Company | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const { showError, showSuccess, showConfirmation } = useSweetAlert();
+  const { showError, showSuccess, showDestructiveConfirmation } = useSweetAlert();
 
   useEffect(() => {
     const loadCompanyData = async () => {
-      if (!user || !hasCompany()) {
+      // La empresa a mostrar es la activa: para un admin "actuando como" es la
+      // que eligio en el selector; para un anfitrion, la suya.
+      //
+      // `hasCompany()` no vale como guarda: lee una marca de localStorage que
+      // solo se escribe cuando /users/me trae un companyId propio, y un admin
+      // no tiene empresa propia. Con ella delante, la pantalla se rendia antes
+      // de intentar cargar nada y enseñaba "No hay información de empresa"
+      // mientras el panel entero operaba sobre una.
+      const empresaActiva = sanityUser?.companyId;
+
+      if (!user || (!empresaActiva && !hasCompany())) {
         setIsLoadingData(false);
         return;
       }
 
       try {
         setIsLoadingData(true);
-        const companyData = await getCompanyByUserId(user.uid);
+        const companyData = empresaActiva
+          ? await getCompanyById(empresaActiva)
+          : await getCompanyByUserId(user.uid);
         setExistingCompany(companyData);
       } catch (error) {
         console.error('Error loading company data:', error);
@@ -72,7 +86,7 @@ export default function CompanyInfoView({
     };
 
     loadCompanyData();
-  }, [user, hasCompany, showError]);
+  }, [user, sanityUser?.companyId, hasCompany, showError]);
 
   const handleEdit = () => {
     if (onEdit) {
@@ -118,7 +132,7 @@ export default function CompanyInfoView({
 
   const handleRemoveLogo = async () => {
     if (!existingCompany?.logo) return;
-    const confirmed = await showConfirmation(
+    const confirmed = await showDestructiveConfirmation(
       '¿Eliminar logo?',
       'Se quitará el logo actual de la empresa.',
       'Sí, eliminar',
@@ -147,7 +161,8 @@ export default function CompanyInfoView({
     return <Loader message="Cargando información de la empresa..." className={className} />;
   }
 
-  if (!hasCompany() || !existingCompany) {
+  // Lo que decide es si hay datos que enseñar, no la marca de localStorage.
+  if (!existingCompany) {
     return (
       <div className={`bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-8 text-center ${className}`}>
         <div className="mb-4">
@@ -161,7 +176,7 @@ export default function CompanyInfoView({
           </p>
         </div>
         <Button
-          color="warning"
+          color="primary"
           onClick={() => router.push('/company-setup')}
           className="w-full sm:w-auto"
         >
@@ -171,6 +186,8 @@ export default function CompanyInfoView({
     );
   }
 
+  const completitud = calcularCompletitud(existingCompany);
+
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-8 ${className}`}>
       {/* Header */}
@@ -179,13 +196,15 @@ export default function CompanyInfoView({
           {/* Logo */}
           <div className="relative shrink-0">
             <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center">
-              {existingCompany.logo?.asset?._ref ? (
+              {urlDeImagen(existingCompany.logo?.asset?._ref) ? (
                 <Image
-                  src={getLogoUrl(existingCompany.logo.asset._ref)}
+                  src={urlDeImagen(existingCompany.logo?.asset?._ref)!}
                   alt={`Logo de ${existingCompany.companyName}`}
-                  width={96}
-                  height={96}
-                  className="w-full h-full object-cover"
+                  width={192}
+                  height={192}
+                  quality={95}
+                  sizes="96px"
+                  className="w-full h-full object-contain p-1.5"
                 />
               ) : (
                 <HiPhotograph className="w-10 h-10 text-gray-400" />
@@ -209,7 +228,7 @@ export default function CompanyInfoView({
                 onClick={() => logoInputRef.current?.click()}
                 disabled={isUploadingLogo}
                 aria-label={existingCompany.logo ? 'Cambiar logo' : 'Subir logo'}
-                title="Imagen cuadrada · mínimo 400 × 400 px · PNG o JPG hasta 10 MB"
+                title="PNG o JPG (fondo transparente recomendado) · hasta 10 MB"
                 className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#F26726] hover:bg-[#d9571f] text-white flex items-center justify-center shadow-md disabled:opacity-60"
               >
                 <HiUpload className="w-4 h-4" />
@@ -221,10 +240,22 @@ export default function CompanyInfoView({
             <h3 className="text-xl sm:text-2xl font-semibold text-[#334C5D] mb-2 truncate">
               {existingCompany.companyName}
             </h3>
-            <div className="flex items-center text-green-600">
-              <HiCheckCircle className="w-5 h-5 mr-2 shrink-0" />
-              <span className="text-sm font-medium">Configuración completada</span>
-            </div>
+            {/* El rotulo salia siempre, dijeran lo que dijeran los datos: una
+                empresa a la que le faltaba media ficha se anunciaba como
+                completada. Ahora sale de contarlos. */}
+            {completitud.completa ? (
+              <div className="flex items-center text-green-600">
+                <HiCheckCircle className="w-5 h-5 mr-2 shrink-0" />
+                <span className="text-sm font-medium">Información completa</span>
+              </div>
+            ) : (
+              <div className="flex items-center text-gray-500">
+                <HiExclamationCircle className="w-5 h-5 mr-2 shrink-0" />
+                <span className="text-sm font-medium">
+                  {completitud.porcentaje}% completado
+                </span>
+              </div>
+            )}
             {showEditButton && existingCompany.logo && (
               <button
                 type="button"
@@ -259,6 +290,14 @@ export default function CompanyInfoView({
         </div>
       )}
 
+      {/* Que falta por rellenar. Va antes de los datos porque es lo que hay
+          que hacer; los datos ya rellenados no piden nada. */}
+      <CompanyProgress
+        company={existingCompany}
+        onCompletar={handleEdit}
+        className="mb-6"
+      />
+
       {/* Company Information */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Información Básica */}
@@ -277,15 +316,80 @@ export default function CompanyInfoView({
               </p>
             </div>
 
+            {(existingCompany.contacts?.length ?? 0) > 0 && (
+              <div className="sm:col-span-2">
+                <label className="text-sm font-medium text-gray-500 block mb-2">
+                  Contactos
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {existingCompany.contacts?.map((c, i) => (
+                    <div key={i} className="rounded-lg border border-gray-200 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#F26726]">
+                        {c.type === 'otro' ? c.label : TITULOS[c.type]}
+                      </p>
+                      <p className="text-gray-900">{c.name}</p>
+                      {c.position && <p className="text-sm text-gray-500">{c.position}</p>}
+                      <p className="text-sm text-gray-600 break-all">{c.email}</p>
+                      {c.phone && <p className="text-sm text-gray-600">{c.phone}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {existingCompany.legalRepName && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 block mb-1">
+                  Representante legal
+                </label>
+                <p className="text-gray-900">{existingCompany.legalRepName}</p>
+                {existingCompany.legalRepDocNumber && (
+                  <p className="text-sm text-gray-500">
+                    {DOC_REPRESENTANTE[existingCompany.legalRepDocType ?? 'cedula']}{' '}
+                    {existingCompany.legalRepDocNumber}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {existingCompany.ciiuCode && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 block mb-1">
+                  Actividad económica (CIIU)
+                </label>
+                <p className="text-gray-900">
+                  {existingCompany.ciiuCode}
+                  {nombreDeCiiu(existingCompany.ciiuCode) && (
+                    <span className="text-gray-500">
+                      {' · '}
+                      {nombreDeCiiu(existingCompany.ciiuCode)}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label className="text-sm font-medium text-gray-500 block mb-1">
+                Tipo de persona
+              </label>
+              <p className="text-gray-900">
+                {etiquetaDePersona(existingCompany.personType)}
+              </p>
+            </div>
+
             <div>
               <label className="text-sm font-medium text-gray-500 block mb-1">
                 Tipo de Empresa
               </label>
               <p className="text-gray-900">
-                {existingCompany.companyType === 'restaurant' && 'Restaurante'}
-                {existingCompany.companyType === 'catering' && 'Catering'}
-                {existingCompany.companyType === 'foodtruck' && 'Food Truck'}
-                {existingCompany.companyType === 'other' && 'Otro'}
+                {etiquetaDeTipo(existingCompany.companyType)}
+                {existingCompany.companyTypeSecondary && (
+                  <span className="text-gray-500">
+                    {' · '}
+                    {etiquetaDeTipo(existingCompany.companyTypeSecondary)}
+                  </span>
+                )}
               </p>
             </div>
 
@@ -355,7 +459,13 @@ export default function CompanyInfoView({
               <label className="text-sm font-medium text-gray-500 block mb-1">
                 Número de Documento
               </label>
-              <p className="text-gray-900">{existingCompany.documentNumber}</p>
+              <p className="text-gray-900">
+                {existingCompany.documentNumber}
+                {/* Con el DV pegado, que es como se usa en una factura. */}
+                {existingCompany.documentType === 'nit' && existingCompany.documentDv && (
+                  <span className="text-gray-500">-{existingCompany.documentDv}</span>
+                )}
+              </p>
             </div>
 
             {existingCompany.businessName && (
@@ -364,6 +474,27 @@ export default function CompanyInfoView({
                   Razón Social
                 </label>
                 <p className="text-gray-900">{existingCompany.businessName}</p>
+              </div>
+            )}
+
+            {/* Documentos legales. Se enseñan aqui, con lo fiscal, porque es
+                lo que son; el enlace se firma al pulsar. */}
+            {(existingCompany.rutKey || existingCompany.camaraKey) && (
+              <div className="space-y-3">
+                {existingCompany.rutKey && (
+                  <DocumentoGuardado
+                    etiqueta="RUT"
+                    documentoKey={existingCompany.rutKey}
+                    subidoEl={existingCompany.rutSubidoEl}
+                  />
+                )}
+                {existingCompany.camaraKey && (
+                  <DocumentoGuardado
+                    etiqueta="Cámara de Comercio"
+                    documentoKey={existingCompany.camaraKey}
+                    subidoEl={existingCompany.camaraSubidaEl}
+                  />
+                )}
               </div>
             )}
 

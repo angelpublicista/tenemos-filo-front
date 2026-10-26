@@ -3,40 +3,115 @@
 import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CompanySetupAlert from "@/components/CompanySetupAlert";
+import CompanyProgress from "@/components/CompanyProgress";
+import { calcularCompletitud } from "@/lib/company/completitud";
+import { getCompanyById } from "@/lib/sanity/companyService";
+import type { Company } from "@/types";
 import ThemeToggleButton from "@/components/ThemeToggleButton";
-import ResellerDashboard from "@/components/Dashboard/ResellerDashboard";
 import { useCompanySetup } from "@/hooks/useCompanySetup";
-import {
+import { 
   AiOutlineCalendar,
   AiOutlineTeam,
   AiOutlineDollar,
   AiOutlineRise,
   AiOutlineFire
 } from 'react-icons/ai';
-import { BiBuildingHouse } from 'react-icons/bi';
+import { BiBuildingHouse, BiStore } from 'react-icons/bi';
 import { useState, useEffect } from 'react';
 import { getDashboardStats, getRecentActivities, DashboardStats, RecentActivity } from '@/lib/sanity/dashboardService';
 import { SkeletonStatCard, SkeletonActivityItem } from '@/components/Skeleton';
+import { getResumenIngresos, type ResumenIngresos } from '@/lib/api/earnings';
+import { listarMisReservas, ETIQUETA_ESTADO, type MiReserva } from '@/lib/api/misReservas';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+const pesos = (n: number) =>
+  new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(n);
 
 export default function Dashboard() {
-  const { user, sanityUser } = useAuth();
+  const { user, sanityUser, activeCompanyId, esPanelRevendedor } = useAuth();
   const { isSetupCompleted } = useCompanySetup();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [misReservas, setMisReservas] = useState<MiReserva[]>([]);
+  const esComensal = sanityUser?.role === 'guest';
+  const proximas = misReservas
+    .filter((r) => new Date(r.reservationDate).getTime() >= Date.now() && r.status !== 'CANCELLED')
+    .sort((a, b) => +new Date(a.reservationDate) - +new Date(b.reservationDate));
+
+  const [ingresosReseller, setIngresosReseller] = useState<ResumenIngresos | null>(null);
+  const esReseller = esPanelRevendedor;
+  // Solo la fila de revendedor: si su empresa ademas es anfitriona, sus
+  // ingresos como tal no son cosa suya.
+  const totalesReseller = (ingresosReseller?.balances ?? [])
+    .filter((b) => b.role === 'RESELLER')
+    .reduce(
+      (acc, b) => ({
+        accrued: acc.accrued + b.accrued,
+        paid: acc.paid + b.paid,
+        pending: acc.pending + b.pending,
+      }),
+      { accrued: 0, paid: 0, pending: 0 },
+    );
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // La empresa entera, solo para saber que le falta. El dashboard ya tenia el
+  // id, pero no los campos, y sin ellos no se puede decir que queda pendiente.
+  const [empresa, setEmpresa] = useState<Company | null>(null);
+  const router = useRouter();
+
+  // Un administrador mirando una empresa concreta. Con "Toda la plataforma"
+  // no hay empresa activa y esto es false, que es cuando la ficha de cuenta
+  // propia si tiene sentido.
+  const actuandoComoOtra = sanityUser?.role === 'admin' && !!activeCompanyId;
 
   useEffect(() => {
     const loadDashboardData = async () => {
-      // El reseller renderiza <ResellerDashboard /> mas abajo y consume su propio
-      // service mockeado; /dashboard/stats y /dashboard/recent-activities exigen
-      // HOST/ADMIN en el backend y devolverian 403 "Rol insuficiente".
-      if (sanityUser?.role === 'reseller') {
+      // El ADMIN no tiene empresa propia: pide las metricas de toda la
+      // plataforma (sin companyId). El resto necesita su empresa.
+      const esAdmin = sanityUser?.role === 'admin';
+      const esComensal = sanityUser?.role === 'guest';
+      if (!sanityUser?.companyId && !esAdmin && !esComensal) {
         setIsLoading(false);
         return;
       }
-      if (!sanityUser?.companyId) {
-        setIsLoading(false);
+
+      // Un comensal no tiene empresa ni estadisticas de negocio: lo suyo
+      // son las reservas que ha hecho.
+      if (sanityUser?.role === 'guest') {
+        try {
+          setIsLoading(true);
+          setError(null);
+          setMisReservas(await listarMisReservas());
+        } catch (err) {
+          console.error('Error cargando las reservas del comensal:', err);
+          setError('No se pudieron cargar tus reservas.');
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      // Un revendedor pertenece a una empresa anfitriona pero no la opera.
+      // /dashboard/stats le responde 403, y aunque respondiera le estaria
+      // enseñando las experiencias y los ingresos de otro. Lo suyo son sus
+      // comisiones, que vienen de /payouts/me. Un admin actuando como una
+      // empresa de revendedor mira ese mismo panel.
+      if (esReseller) {
+        try {
+          setIsLoading(true);
+          setError(null);
+          setIngresosReseller(await getResumenIngresos());
+        } catch (err) {
+          console.error('Error cargando los ingresos del revendedor:', err);
+          setError('No se pudieron cargar tus comisiones.');
+        } finally {
+          setIsLoading(false);
+        }
         return;
       }
 
@@ -44,9 +119,10 @@ export default function Dashboard() {
         setIsLoading(true);
         setError(null);
 
+        const companyId = sanityUser?.companyId ?? undefined;
         const [statsData, activitiesData] = await Promise.all([
-          getDashboardStats(sanityUser.companyId),
-          getRecentActivities(sanityUser.companyId, 5)
+          getDashboardStats(companyId),
+          getRecentActivities(companyId, 5)
         ]);
 
         setStats(statsData);
@@ -60,6 +136,35 @@ export default function Dashboard() {
     };
 
     loadDashboardData();
+  }, [sanityUser?.companyId, sanityUser?.role, esReseller]);
+
+  // Que le falta a la empresa por rellenar.
+  //
+  // Se trae aqui y no se reaprovecha de otra pantalla porque el dashboard es
+  // donde se entra cada dia: el aviso que vivia solo en Informacion de la
+  // Empresa no lo veia quien no entraba a esa pantalla, que es justo quien
+  // tiene la ficha a medias.
+  //
+  // Un administrador no entra: no tiene empresa propia, gestiona las de otros
+  // con el selector. Un comensal tampoco.
+  useEffect(() => {
+    // `sanityUser` ya es el usuario efectivo: a un admin que esta actuando
+    // como una empresa se le sustituye el companyId por el de esa empresa. Asi
+    // que basta con que haya companyId — un admin sin empresa activa (viendo
+    // toda la plataforma) no lo tiene, y un comensal tampoco.
+    const companyId = sanityUser?.companyId;
+    const aplica = !!companyId && sanityUser?.role !== 'guest';
+    if (!aplica) {
+      setEmpresa(null);
+      return;
+    }
+    let vigente = true;
+    getCompanyById(companyId)
+      .then((c) => { if (vigente) setEmpresa(c); })
+      // Si no se puede traer, no se dice nada: es un aviso de apoyo, no vale
+      // ensuciar el dashboard con un error por algo que no bloquea nada.
+      .catch(() => { if (vigente) setEmpresa(null); });
+    return () => { vigente = false; };
   }, [sanityUser?.companyId, sanityUser?.role]);
 
   const getActivityIcon = (type: string) => {
@@ -107,40 +212,78 @@ export default function Dashboard() {
       icon: AiOutlineRise,
       color: 'bg-[#E23694]', // Rosa/Magenta
       format: (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
-    }
+    },
+    // Solo en modo plataforma. Actuando como una empresa, un total global de
+    // empresas y usuarios no dice nada del contexto en el que estas.
+    ...(sanityUser?.role === 'admin' && !activeCompanyId
+      ? [
+          {
+            title: 'Empresas',
+            key: 'totalCompanies' as keyof DashboardStats,
+            icon: BiStore,
+            color: 'bg-[#2C6E7F]'
+          },
+          {
+            title: 'Usuarios',
+            key: 'totalUsers' as keyof DashboardStats,
+            icon: AiOutlineTeam,
+            color: 'bg-[#7C5CBF]'
+          }
+        ]
+      : [])
   ];
 
-  const quickActions = [
-    {
-      title: 'Crear Experiencia',
-      description: 'Organiza una nueva experiencia',
-      icon: BiBuildingHouse,
-      href: '/dashboard/experiences/create',
-      color: 'bg-[#F26726] hover:bg-[#F26726]/80' // Naranja principal
-    },
-    {
-      title: 'Ver Reservas',
-      description: 'Gestiona las reservas pendientes',
-      icon: AiOutlineTeam,
-      href: '/reservations',
-      color: 'bg-[#19A3A2] hover:bg-[#19A3A2]/80' // Teal/Cyan
-    },
-    {
-      title: 'Mis Experiencias',
-      description: 'Revisa tus experiencias activas',
-      icon: AiOutlineCalendar,
-      href: '/dashboard/experiences',
-      color: 'bg-[#334C5D] hover:bg-[#334C5D]/80' // Azul oscuro
-    }
-  ];
+  // En modo plataforma el admin no tiene empresa: estas acciones operan sobre
+  // una y acabarian mandandolo a /company-setup. Le ofrecemos las del panel.
+  const esAdminSinEmpresa = sanityUser?.role === 'admin' && !activeCompanyId;
 
-  if (sanityUser?.role === 'reseller') {
-    return (
-      <ProtectedRoute>
-        <ResellerDashboard />
-      </ProtectedRoute>
-    );
-  }
+  const quickActions = esAdminSinEmpresa
+    ? [
+        {
+          title: 'Empresas',
+          description: 'Revisa y gestiona las empresas',
+          icon: BiStore,
+          href: '/dashboard/admin/empresas',
+          destacada: true
+        },
+        {
+          title: 'Usuarios',
+          description: 'Administra las cuentas de la plataforma',
+          icon: AiOutlineTeam,
+          href: '/dashboard/admin/usuarios',
+          destacada: false
+        },
+        {
+          title: 'Actividad',
+          description: 'Quién cambió qué',
+          icon: AiOutlineCalendar,
+          href: '/dashboard/admin/actividad',
+          destacada: false
+        }
+      ]
+    : [
+        {
+          title: 'Crear Experiencia',
+          description: 'Organiza una nueva experiencia',
+          icon: BiBuildingHouse,
+          href: '/dashboard/experiences/create',
+          destacada: true
+        },
+        {
+          title: 'Ver Reservas',
+          description: 'Gestiona las reservas pendientes',
+          icon: AiOutlineTeam,
+          href: '/dashboard/reservations',
+          destacada: false
+        },
+        {
+          title: 'Mis Experiencias',
+          description: 'Revisa tus experiencias activas',
+          icon: AiOutlineCalendar,
+          href: '/dashboard/experiences',
+          destacada: false
+        }
+      ];
 
   return (
     <ProtectedRoute>
@@ -149,11 +292,18 @@ export default function Dashboard() {
         <div className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0 flex-1">
+              {/* Entrando en una empresa ajena, saludar al administrador por su
+                  nombre despistaba: lo que se esta mirando es la empresa, y el
+                  resumen de abajo es el de ella, no el de quien mira. */}
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                ¡Hola, {sanityUser?.name?.split(' ')[0] || 'Usuario'}! 👋
+                {actuandoComoOtra
+                  ? <>Estás viendo a {empresa?.ownerName || empresa?.companyName || 'esta empresa'}</>
+                  : <>¡Hola, {sanityUser?.name?.split(' ')[0] || 'Usuario'}! 👋</>}
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Bienvenido de vuelta. Aquí tienes un resumen de tu actividad.
+                {actuandoComoOtra
+                  ? 'Esto es lo que ve su anfitrión. Lo que hagas aquí queda a nombre de esta empresa.'
+                  : 'Bienvenido de vuelta. Aquí tienes un resumen de tu actividad.'}
               </p>
             </div>
             <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
@@ -183,12 +333,140 @@ export default function Dashboard() {
         </div>
 
         {/* Company Setup Alert */}
-        <CompanySetupAlert
-          userRole={(sanityUser?.role as 'host' | 'guest' | 'admin' | 'reseller') || 'guest'}
+        <CompanySetupAlert 
+          userRole={sanityUser?.role || 'guest'}
           hasCompletedSetup={isSetupCompleted()}
           hasCompanyId={!!sanityUser?.companyId}
         />
 
+        {/* Que falta de la empresa. Solo cuando falta algo: con la ficha
+            completa, un recuadro verde fijo en el dashboard seria ruido. */}
+        {empresa && !calcularCompletitud(empresa).completa && (
+          <CompanyProgress
+            company={empresa}
+            onCompletar={() => router.push('/company-setup')}
+            className="mb-6"
+          />
+        )}
+
+        {/* Panel del comensal: lo que ha reservado. */}
+        {esComensal ? (
+          <>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800">{error}</p>
+              </div>
+            )}
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  Tus próximas reservas
+                </h2>
+                <Link
+                  href="/dashboard/mis-reservas"
+                  className="text-sm text-[#F26726] hover:underline"
+                >
+                  Ver todas
+                </Link>
+              </div>
+
+              {isLoading ? (
+                <p className="text-sm text-gray-500">Cargando...</p>
+              ) : proximas.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="text-gray-600 dark:text-gray-300">
+                    No tienes ninguna reserva próxima.
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Cuando reserves una experiencia la verás aquí.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {proximas.slice(0, 3).map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-100 dark:border-gray-700 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                          {r.experience?.title ?? 'Experiencia'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(r.reservationDate).toLocaleDateString('es-CO', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                          })}{' '}
+                          · {r.company?.companyName}
+                        </p>
+                      </div>
+                      <span className="text-xs text-gray-500">{ETIQUETA_ESTADO[r.status]}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        ) : esReseller ? (
+          // Panel del revendedor: sus comisiones, no las de la empresa
+          // anfitriona a la que pertenece.
+          <>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800">{error}</p>
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-3 mb-4">
+              {[
+                { titulo: 'Comisiones generadas', valor: totalesReseller.accrued },
+                { titulo: 'Ya recibido', valor: totalesReseller.paid },
+                { titulo: 'Por recibir', valor: totalesReseller.pending, destacar: true },
+              ].map((t) => (
+                <div
+                  key={t.titulo}
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4"
+                >
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{t.titulo}</p>
+                  <p
+                    className={`text-2xl font-bold ${
+                      t.destacar ? 'text-[#F26726]' : 'text-gray-900 dark:text-gray-100'
+                    }`}
+                  >
+                    {isLoading ? '—' : pesos(t.valor)}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                Vender desde tu plataforma
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Crea una clave de API y conecta tu sistema. Cada reserva que hagas con ella se te
+                atribuye y genera comisión.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/dashboard/api-keys"
+                  className="px-4 py-2 rounded-full bg-[#F26726] text-white text-sm font-medium hover:bg-[#E05617] transition-colors"
+                >
+                  Claves de API
+                </Link>
+                <Link
+                  href="/dashboard/ingresos"
+                  className="px-4 py-2 rounded-full border border-gray-300 text-[#334C5D] text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Ver mis comisiones
+                </Link>
+              </div>
+            </div>
+          </>
+        ) : (
+        <>
         {/* Stats Grid */}
         {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -202,7 +480,8 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             {statsConfig.map((statConfig, index) => {
               const Icon = statConfig.icon;
-              const value = stats ? stats[statConfig.key] : 0;
+              // totalCompanies/totalUsers solo llegan en modo plataforma.
+              const value = stats?.[statConfig.key] ?? 0;
               const displayValue = statConfig.format ? statConfig.format(value) : value.toString();
 
               const isGrowthStat = statConfig.key === 'growth';
@@ -247,12 +526,18 @@ export default function Dashboard() {
                     <a
                       key={index}
                       href={action.href}
-                      className={`${action.color} text-white p-3 rounded-lg flex items-center space-x-3 transition-colors`}
+                      className={
+                        action.destacada
+                          ? 'bg-[#F26726] hover:bg-[#E05617] text-white p-3 rounded-lg flex items-center space-x-3 transition-colors'
+                          : 'bg-white hover:bg-gray-50 border border-gray-200 text-[#334C5D] p-3 rounded-lg flex items-center space-x-3 transition-colors dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-700'
+                      }
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className={action.destacada ? 'w-5 h-5' : 'w-5 h-5 text-[#F26726]'} />
                       <div>
                         <p className="font-medium text-sm">{action.title}</p>
-                        <p className="text-xs opacity-90">{action.description}</p>
+                        <p className={action.destacada ? 'text-xs opacity-90' : 'text-xs text-gray-500 dark:text-gray-400'}>
+                          {action.description}
+                        </p>
                       </div>
                     </a>
                   );
@@ -298,32 +583,63 @@ export default function Dashboard() {
           </div>
         </div>
 
+        </>
+        )}
+
         {/* User Info Card */}
         <div className="mt-4 bg-gradient-to-r from-[#f26726] to-[#f26726]/80 rounded-lg p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-semibold mb-2">Información de tu cuenta</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="opacity-90">Nombre completo</p>
-                  <p className="font-medium">{sanityUser?.name || 'No disponible'}</p>
+              {/* Actuando como otra empresa, esta ficha enseñaba la cuenta del
+                  administrador —su nombre, su correo, "Administrador"—, que no
+                  es lo que se ha venido a mirar: quien entra en una empresa
+                  quiere ver la empresa. */}
+              <h3 className="text-xl font-semibold mb-2">
+                {actuandoComoOtra ? 'Información del anfitrión' : 'Información de tu cuenta'}
+              </h3>
+              {actuandoComoOtra ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="opacity-90">Empresa</p>
+                    <p className="font-medium">{empresa?.companyName || 'No disponible'}</p>
+                  </div>
+                  <div>
+                    <p className="opacity-90">Email</p>
+                    <p className="font-medium">{empresa?.companyEmail || 'No disponible'}</p>
+                  </div>
+                  <div>
+                    <p className="opacity-90">Teléfono</p>
+                    <p className="font-medium">{empresa?.companyPhone || 'No disponible'}</p>
+                  </div>
+                  <div>
+                    <p className="opacity-90">Estás viendo esta empresa como</p>
+                    <p className="font-medium">Administrador</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="opacity-90">Email</p>
-                  <p className="font-medium">{user?.email}</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="opacity-90">Nombre completo</p>
+                    <p className="font-medium">{sanityUser?.name || 'No disponible'}</p>
+                  </div>
+                  <div>
+                    <p className="opacity-90">Email</p>
+                    <p className="font-medium">{user?.email}</p>
+                  </div>
+                  <div>
+                    <p className="opacity-90">Rol</p>
+                    <p className="font-medium">
+                      {sanityUser?.role === 'host' ? 'Anfitrión' :
+                       sanityUser?.role === 'admin' ? 'Administrador' :
+                       sanityUser?.role === 'reseller' ? 'Revendedor' : 'Comensal'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="opacity-90">Teléfono</p>
+                    <p className="font-medium">{sanityUser?.phone || 'No disponible'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="opacity-90">Rol</p>
-                  <p className="font-medium">
-                    {sanityUser?.role === 'host' ? 'Anfitrión' :
-                     sanityUser?.role === 'admin' ? 'Administrador' : 'Comensal'}
-                  </p>
-                </div>
-                <div>
-                  <p className="opacity-90">Teléfono</p>
-                  <p className="font-medium">{sanityUser?.phone || 'No disponible'}</p>
-                </div>
-              </div>
+              )}
             </div>
             <div className="hidden md:block">
               <AiOutlineFire className="w-16 h-16 opacity-20" />

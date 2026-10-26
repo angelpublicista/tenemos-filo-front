@@ -10,7 +10,7 @@ interface CompanySetupGuardProps {
 }
 
 export default function CompanySetupGuard({ children }: CompanySetupGuardProps) {
-  const { user, sanityUser, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {

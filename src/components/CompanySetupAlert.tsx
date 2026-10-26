@@ -3,14 +3,23 @@
 import React from 'react';
 import { HiExclamationTriangle, HiArrowRight } from 'react-icons/hi2';
 import Link from 'next/link';
+import type { SanityUser } from '@/types';
 
 interface CompanySetupAlertProps {
-  userRole: 'host' | 'guest' | 'admin' | 'reseller';
+  // Atado al tipo del usuario para no volver a desincronizarse al agregar roles.
+  userRole: SanityUser['role'];
   hasCompletedSetup: boolean;
   hasCompanyId: boolean;
 }
 
 export default function CompanySetupAlert({ userRole, hasCompletedSetup, hasCompanyId }: CompanySetupAlertProps) {
+  // Un administrador no tiene empresa propia por diseño: gestiona las de los
+  // anfitriones con el selector. Pedirle que "complete su empresa" no tiene
+  // sentido y ademas lo llevaba a un formulario que no le corresponde.
+  if (userRole === 'admin') {
+    return null;
+  }
+
   // Solo mostrar si el usuario saltó el setup anteriormente
   if (hasCompletedSetup && hasCompanyId) {
     return null; // Usuario ya completó realmente el setup

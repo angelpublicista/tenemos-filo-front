@@ -130,6 +130,7 @@ export default function AdminAjustesPage() {
       // blanco significa "no los toques", no "borralos".
       const actualizados = await updateSettings({
         wompiEnabled: ajustes.wompiEnabled,
+        reservationsProvider: ajustes.reservationsProvider,
         requirePaymentDefault: ajustes.requirePaymentDefault,
         wompiEnvironment: ajustes.wompiEnvironment,
         wompiPublicKey: ajustes.wompiPublicKey ?? '',
@@ -178,6 +179,10 @@ export default function AdminAjustesPage() {
       </ProtectedRoute>
     );
   }
+
+  // Si FILO puede cobrar reservas en línea: depende de cuál pasarela esté elegida.
+  const cobroDeReservasActivo =
+    ajustes.reservationsProvider === 'MERCADO_PAGO' ? ajustes.mercadopagoEnabled : ajustes.wompiEnabled;
 
   const filo = importe(ajustes.filoCommissionType, ajustes.filoCommissionValue, EJEMPLO);
   const filoPropia = importe(
@@ -409,13 +414,40 @@ export default function AdminAjustesPage() {
                 <LogoDePasarela pasarela="WOMPI" alto={12} />
               </div>
               <p className="text-sm text-gray-600">
-                Las experiencias se cobran a través de Wompi y el dinero entra a Tenemos Filo;
-                después se reparte desde Dispersiones.
+                Las experiencias se cobran con la pasarela que elijas aquí y el dinero entra a
+                Tenemos Filo; después se reparte desde Dispersiones. Los anfitriones que conectaron
+                la suya propia cobran con ella.
               </p>
             </div>
-            <Badge color={ajustes.wompiEnabled ? 'success' : 'gray'} className="shrink-0">
-              {ajustes.wompiEnabled ? 'Activa' : 'Inactiva'}
+            <Badge color={cobroDeReservasActivo ? 'success' : 'gray'} className="shrink-0">
+              {cobroDeReservasActivo ? 'Activa' : 'Inactiva'}
             </Badge>
+          </div>
+
+          <div className="rounded-lg border border-gray-100 p-3">
+            <p className="text-sm font-semibold text-[#334C5D] mb-2">Pasarela de las reservas</p>
+            <Select
+              value={ajustes.reservationsProvider}
+              onChange={(e) =>
+                setAjustes({
+                  ...ajustes,
+                  reservationsProvider: e.target.value as PlatformSettings['reservationsProvider'],
+                })
+              }
+              aria-label="Pasarela con la que se cobran las reservas"
+            >
+              <option value="WOMPI">Wompi</option>
+              <option value="MERCADO_PAGO" disabled={!ajustes.mercadopagoEnabled}>
+                Mercado Pago
+                {ajustes.mercadopagoEnabled ? '' : ' (configúralo en su tarjeta, abajo)'}
+              </option>
+            </Select>
+            <p className="text-xs text-gray-500 mt-2">
+              Una sola a la vez. Las reservas ya creadas se cobran con la que esté elegida cuando el
+              cliente paga. {ajustes.reservationsProvider === 'MERCADO_PAGO'
+                ? 'Las llaves de Wompi de abajo dejan de usarse para cobrar, pero se conservan.'
+                : ''}
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -474,13 +506,13 @@ export default function AdminAjustesPage() {
                 <p className="text-sm font-semibold text-[#334C5D] mb-2">Exigir pago al reservar</p>
                 <ToggleSwitch
                   checked={ajustes.requirePaymentDefault}
-                  disabled={!ajustes.wompiEnabled}
+                  disabled={!cobroDeReservasActivo}
                   label={ajustes.requirePaymentDefault ? 'Obligatorio' : 'Opcional'}
                   onChange={(valor) => setAjustes({ ...ajustes, requirePaymentDefault: valor })}
                   theme={TEMA_SWITCH}
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  {ajustes.wompiEnabled
+                  {cobroDeReservasActivo
                     ? 'Valor por defecto. Cada anfitrión puede cambiarlo en su configuración. Una reserva sin pagar no ocupa cupo.'
                     : 'Necesita la pasarela activa: sin forma de cobrar, exigir el pago dejaría el catálogo sin reservas posibles.'}
                 </p>
@@ -526,8 +558,9 @@ export default function AdminAjustesPage() {
                 <LogoDePasarela pasarela="MERCADO_PAGO" alto={12} />
               </div>
               <p className="text-sm text-gray-600">
-                Cobra la suscripción de los anfitriones de forma automática cada 30 días. No se usa
-                para las reservas, que siguen por Wompi.
+                Puede cobrar la suscripción de los anfitriones (de forma automática cada 30 días) y
+                las reservas. Elige para qué se usa en las secciones de suscripción y de pasarela de
+                pagos.
               </p>
             </div>
             <Badge color={ajustes.mercadopagoEnabled ? 'success' : 'gray'} className="shrink-0">

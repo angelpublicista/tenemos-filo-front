@@ -214,13 +214,15 @@ export type PlatformSettings = {
   wompiIntegritySecretConfigured: boolean;
   wompiEventsSecretConfigured: boolean;
 
-  /** Mercado Pago: solo cobra la suscripción de los anfitriones, por recurrencia. */
+  /** Mercado Pago: puede cobrar la suscripción (recurrente) y/o las reservas, según lo que se elija. */
   mercadopagoEnabled: boolean;
   mercadopagoEnvironment: WompiEnvironment;
   mercadopagoAccessTokenConfigured: boolean;
   mercadopagoWebhookSecretConfigured: boolean;
   /** Con cuál de las dos se cobra la suscripción. Una sola a la vez. */
   subscriptionProvider: 'WOMPI' | 'MERCADO_PAGO';
+  /** Con cuál se cobran las reservas que cobra FILO. Independiente de la anterior. */
+  reservationsProvider: 'WOMPI' | 'MERCADO_PAGO';
   /** Lo que hay que pegar en el panel de Mercado Pago. */
   mercadopagoWebhookUrl: string;
 };
@@ -244,6 +246,7 @@ export type SettingsUpdate = Partial<
     | 'mercadopagoEnabled'
     | 'mercadopagoEnvironment'
     | 'subscriptionProvider'
+    | 'reservationsProvider'
   >
 > & {
   mercadopagoAccessToken?: string;

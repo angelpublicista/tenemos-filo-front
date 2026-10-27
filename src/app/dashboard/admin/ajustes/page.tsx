@@ -64,6 +64,7 @@ export default function AdminAjustesPage() {
   const [guardandoWompi, setGuardandoWompi] = useState(false);
   const [guardandoSuscripcion, setGuardandoSuscripcion] = useState(false);
   const [guardandoMp, setGuardandoMp] = useState(false);
+  const [guardandoProveedores, setGuardandoProveedores] = useState(false);
   // Los secretos se escriben, nunca se leen: el API no los devuelve.
   const [secretos, setSecretos] = useState({ privateKey: '', integrity: '', events: '' });
   const [secretosMp, setSecretosMp] = useState({ accessToken: '', webhook: '' });
@@ -98,6 +99,23 @@ export default function AdminAjustesPage() {
     }
   };
 
+  const guardarProveedores = async () => {
+    if (!ajustes) return;
+    setGuardandoProveedores(true);
+    try {
+      const actualizados = await updateSettings({
+        subscriptionProvider: ajustes.subscriptionProvider,
+        reservationsProvider: ajustes.reservationsProvider,
+      });
+      setAjustes(actualizados);
+      showSuccess('Pasarelas actualizadas');
+    } catch (err) {
+      showError('No se pudo guardar', err instanceof Error ? err.message : undefined);
+    } finally {
+      setGuardandoProveedores(false);
+    }
+  };
+
   const guardarSuscripcion = async () => {
     if (!ajustes) return;
     setGuardandoSuscripcion(true);
@@ -106,7 +124,6 @@ export default function AdminAjustesPage() {
         subscriptionRequired: ajustes.subscriptionRequired,
         subscriptionPrice: ajustes.subscriptionPrice,
         subscriptionVat: ajustes.subscriptionVat,
-        subscriptionProvider: ajustes.subscriptionProvider,
       });
       setAjustes(actualizados);
       showSuccess(
@@ -130,7 +147,6 @@ export default function AdminAjustesPage() {
       // blanco significa "no los toques", no "borralos".
       const actualizados = await updateSettings({
         wompiEnabled: ajustes.wompiEnabled,
-        reservationsProvider: ajustes.reservationsProvider,
         requirePaymentDefault: ajustes.requirePaymentDefault,
         wompiEnvironment: ajustes.wompiEnvironment,
         wompiPublicKey: ajustes.wompiPublicKey ?? '',
@@ -199,6 +215,72 @@ export default function AdminAjustesPage() {
   return (
     <ProtectedRoute roles={['admin']}>
       <AdminHeader titulo="Ajustes" descripcion="Configuración general de la plataforma" />
+
+      <div className="max-w-4xl mb-4">
+        <Card>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Pasarela de cada cobro</h2>
+            <p className="text-sm text-gray-600">
+              Elige con cuál pasarela cobra FILO las suscripciones y con cuál las experiencias. Cada
+              una se elige por separado. Las llaves de cada pasarela se configuran más abajo.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-lg border border-gray-100 p-3">
+              <p className="text-sm font-semibold text-[#334C5D] mb-2">Suscripciones</p>
+              <Select
+                value={ajustes.subscriptionProvider}
+                onChange={(e) =>
+                  setAjustes({
+                    ...ajustes,
+                    subscriptionProvider: e.target.value as PlatformSettings['subscriptionProvider'],
+                  })
+                }
+                aria-label="Pasarela con la que se cobra la suscripción"
+              >
+                <option value="WOMPI">Wompi: el anfitrión paga cada mes a mano</option>
+                <option value="MERCADO_PAGO" disabled={!ajustes.mercadopagoEnabled}>
+                  Mercado Pago: cobro automático cada 30 días
+                  {ajustes.mercadopagoEnabled ? '' : ' (actívalo abajo)'}
+                </option>
+              </Select>
+              <p className="text-xs text-gray-500 mt-2">
+                Cambiarla no toca a quien ya autorizó el cobro automático: Mercado Pago le seguirá
+                cobrando con su monto de entonces hasta que cancele.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-gray-100 p-3">
+              <p className="text-sm font-semibold text-[#334C5D] mb-2">Experiencias (reservas)</p>
+              <Select
+                value={ajustes.reservationsProvider}
+                onChange={(e) =>
+                  setAjustes({
+                    ...ajustes,
+                    reservationsProvider: e.target.value as PlatformSettings['reservationsProvider'],
+                  })
+                }
+                aria-label="Pasarela con la que se cobran las reservas"
+              >
+                <option value="WOMPI">Wompi</option>
+                <option value="MERCADO_PAGO" disabled={!ajustes.mercadopagoEnabled}>
+                  Mercado Pago
+                  {ajustes.mercadopagoEnabled ? '' : ' (actívalo abajo)'}
+                </option>
+              </Select>
+              <p className="text-xs text-gray-500 mt-2">
+                La reserva se cobra con la que esté elegida cuando el cliente paga. Los anfitriones
+                con pasarela propia cobran con la suya.
+              </p>
+            </div>
+          </div>
+
+          <Button color="primary" onClick={guardarProveedores} disabled={guardandoProveedores} className="w-fit">
+            {guardandoProveedores ? 'Guardando...' : 'Guardar pasarelas'}
+          </Button>
+        </Card>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2 max-w-4xl">
         <Card>
@@ -361,30 +443,6 @@ export default function AdminAjustesPage() {
           </div>
 
           <div className="rounded-lg border border-gray-100 p-3">
-            <p className="text-sm font-semibold text-[#334C5D] mb-2">Pasarela de la suscripción</p>
-            <Select
-              value={ajustes.subscriptionProvider}
-              onChange={(e) =>
-                setAjustes({
-                  ...ajustes,
-                  subscriptionProvider: e.target.value as PlatformSettings['subscriptionProvider'],
-                })
-              }
-              aria-label="Pasarela con la que se cobra la suscripción"
-            >
-              <option value="WOMPI">Wompi: el anfitrión paga cada mes a mano</option>
-              <option value="MERCADO_PAGO" disabled={!ajustes.mercadopagoEnabled}>
-                Mercado Pago: cobro automático cada 30 días
-                {ajustes.mercadopagoEnabled ? '' : ' (configúralo abajo)'}
-              </option>
-            </Select>
-            <p className="text-xs text-gray-500 mt-2">
-              Una sola a la vez. Cambiarla no toca a quien ya autorizó el cobro automático: Mercado
-              Pago le seguirá cobrando con su monto de entonces hasta que cancele.
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-gray-100 p-3">
             <p className="text-sm font-semibold text-[#334C5D] mb-2">Exigir la suscripción</p>
             <ToggleSwitch
               checked={ajustes.subscriptionRequired}
@@ -422,32 +480,6 @@ export default function AdminAjustesPage() {
             <Badge color={cobroDeReservasActivo ? 'success' : 'gray'} className="shrink-0">
               {cobroDeReservasActivo ? 'Activa' : 'Inactiva'}
             </Badge>
-          </div>
-
-          <div className="rounded-lg border border-gray-100 p-3">
-            <p className="text-sm font-semibold text-[#334C5D] mb-2">Pasarela de las reservas</p>
-            <Select
-              value={ajustes.reservationsProvider}
-              onChange={(e) =>
-                setAjustes({
-                  ...ajustes,
-                  reservationsProvider: e.target.value as PlatformSettings['reservationsProvider'],
-                })
-              }
-              aria-label="Pasarela con la que se cobran las reservas"
-            >
-              <option value="WOMPI">Wompi</option>
-              <option value="MERCADO_PAGO" disabled={!ajustes.mercadopagoEnabled}>
-                Mercado Pago
-                {ajustes.mercadopagoEnabled ? '' : ' (configúralo en su tarjeta, abajo)'}
-              </option>
-            </Select>
-            <p className="text-xs text-gray-500 mt-2">
-              Una sola a la vez. Las reservas ya creadas se cobran con la que esté elegida cuando el
-              cliente paga. {ajustes.reservationsProvider === 'MERCADO_PAGO'
-                ? 'Las llaves de Wompi de abajo dejan de usarse para cobrar, pero se conservan.'
-                : ''}
-            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

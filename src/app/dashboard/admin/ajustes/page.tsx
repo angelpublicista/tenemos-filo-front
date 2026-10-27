@@ -63,8 +63,10 @@ export default function AdminAjustesPage() {
   const [guardando, setGuardando] = useState(false);
   const [guardandoWompi, setGuardandoWompi] = useState(false);
   const [guardandoSuscripcion, setGuardandoSuscripcion] = useState(false);
+  const [guardandoMp, setGuardandoMp] = useState(false);
   // Los secretos se escriben, nunca se leen: el API no los devuelve.
   const [secretos, setSecretos] = useState({ privateKey: '', integrity: '', events: '' });
+  const [secretosMp, setSecretosMp] = useState({ accessToken: '', webhook: '' });
 
   useEffect(() => {
     getSettings()
@@ -104,6 +106,7 @@ export default function AdminAjustesPage() {
         subscriptionRequired: ajustes.subscriptionRequired,
         subscriptionPrice: ajustes.subscriptionPrice,
         subscriptionVat: ajustes.subscriptionVat,
+        subscriptionProvider: ajustes.subscriptionProvider,
       });
       setAjustes(actualizados);
       showSuccess(
@@ -141,6 +144,27 @@ export default function AdminAjustesPage() {
       showError('No se pudo guardar', err instanceof Error ? err.message : undefined);
     } finally {
       setGuardandoWompi(false);
+    }
+  };
+
+  const guardarMp = async () => {
+    if (!ajustes) return;
+    setGuardandoMp(true);
+    try {
+      // Igual que con Wompi: un secreto en blanco significa "no lo toques".
+      const actualizados = await updateSettings({
+        mercadopagoEnabled: ajustes.mercadopagoEnabled,
+        mercadopagoEnvironment: ajustes.mercadopagoEnvironment,
+        ...(secretosMp.accessToken ? { mercadopagoAccessToken: secretosMp.accessToken } : {}),
+        ...(secretosMp.webhook ? { mercadopagoWebhookSecret: secretosMp.webhook } : {}),
+      });
+      setAjustes(actualizados);
+      setSecretosMp({ accessToken: '', webhook: '' });
+      showSuccess('Mercado Pago actualizado');
+    } catch (err) {
+      showError('No se pudo guardar', err instanceof Error ? err.message : undefined);
+    } finally {
+      setGuardandoMp(false);
     }
   };
 
@@ -288,8 +312,8 @@ export default function AdminAjustesPage() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Suscripción de anfitriones</h2>
               <p className="text-sm text-gray-600">
-                Un solo plan, pago mensual sin permanencia. Cada pago suma 30 días; sin pago vigente
-                el panel del anfitrión queda cerrado. Se cobra por la pasarela de FILO.
+                Un solo plan, sin permanencia. Cada pago suma 30 días; sin pago vigente el panel del
+                anfitrión queda cerrado. Se cobra por la pasarela que elijas abajo.
               </p>
             </div>
             <Badge color={ajustes.subscriptionRequired ? 'success' : 'gray'} className="shrink-0">
@@ -329,6 +353,30 @@ export default function AdminAjustesPage() {
               </p>
               <p className="text-xs text-gray-500">IVA incluido, cada 30 días</p>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-100 p-3">
+            <p className="text-sm font-semibold text-[#334C5D] mb-2">Pasarela de la suscripción</p>
+            <Select
+              value={ajustes.subscriptionProvider}
+              onChange={(e) =>
+                setAjustes({
+                  ...ajustes,
+                  subscriptionProvider: e.target.value as PlatformSettings['subscriptionProvider'],
+                })
+              }
+              aria-label="Pasarela con la que se cobra la suscripción"
+            >
+              <option value="WOMPI">Wompi: el anfitrión paga cada mes a mano</option>
+              <option value="MERCADO_PAGO" disabled={!ajustes.mercadopagoEnabled}>
+                Mercado Pago: cobro automático cada 30 días
+                {ajustes.mercadopagoEnabled ? '' : ' (configúralo abajo)'}
+              </option>
+            </Select>
+            <p className="text-xs text-gray-500 mt-2">
+              Una sola a la vez. Cambiarla no toca a quien ya autorizó el cobro automático: Mercado
+              Pago le seguirá cobrando con su monto de entonces hasta que cancele.
+            </p>
           </div>
 
           <div className="rounded-lg border border-gray-100 p-3">
@@ -465,6 +513,91 @@ export default function AdminAjustesPage() {
 
           <Button color="primary" onClick={guardarWompi} disabled={guardandoWompi} className="w-fit">
             {guardandoWompi ? 'Guardando...' : 'Guardar pasarela'}
+          </Button>
+        </Card>
+      </div>
+
+      <div className="max-w-4xl mt-4">
+        <Card>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-semibold text-gray-900">Mercado Pago</h2>
+                <LogoDePasarela pasarela="MERCADO_PAGO" alto={12} />
+              </div>
+              <p className="text-sm text-gray-600">
+                Cobra la suscripción de los anfitriones de forma automática cada 30 días. No se usa
+                para las reservas, que siguen por Wompi.
+              </p>
+            </div>
+            <Badge color={ajustes.mercadopagoEnabled ? 'success' : 'gray'} className="shrink-0">
+              {ajustes.mercadopagoEnabled ? 'Activo' : 'Inactivo'}
+            </Badge>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Entorno</label>
+              <Select
+                value={ajustes.mercadopagoEnvironment}
+                onChange={(e) =>
+                  setAjustes({ ...ajustes, mercadopagoEnvironment: e.target.value as WompiEnvironment })
+                }
+              >
+                <option value="SANDBOX">Pruebas</option>
+                <option value="PRODUCTION">Producción</option>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                Las credenciales de prueba empiezan por <code>TEST-</code>; las de producción, por{' '}
+                <code>APP_USR-</code>.
+              </p>
+            </div>
+
+            <div className="flex items-end">
+              <div className="w-full rounded-lg border border-gray-100 p-3">
+                <p className="text-sm font-semibold text-[#334C5D] mb-2">Cobrar con Mercado Pago</p>
+                <ToggleSwitch
+                  checked={ajustes.mercadopagoEnabled}
+                  label={ajustes.mercadopagoEnabled ? 'Activado' : 'Desactivado'}
+                  onChange={(valor) => setAjustes({ ...ajustes, mercadopagoEnabled: valor })}
+                  theme={TEMA_SWITCH}
+                />
+              </div>
+            </div>
+
+            <SecretInput
+              etiqueta="Access token"
+              ayuda="Credencial privada de tu aplicación. Imprescindible para cobrar."
+              configurado={ajustes.mercadopagoAccessTokenConfigured}
+              valor={secretosMp.accessToken}
+              onChange={(v) => setSecretosMp({ ...secretosMp, accessToken: v })}
+            />
+
+            <SecretInput
+              etiqueta="Clave secreta del webhook"
+              ayuda="Opcional. Con ella se valida que los avisos vengan de Mercado Pago."
+              configurado={ajustes.mercadopagoWebhookSecretConfigured}
+              valor={secretosMp.webhook}
+              onChange={(v) => setSecretosMp({ ...secretosMp, webhook: v })}
+            />
+          </div>
+
+          <div className="rounded bg-gray-50 p-3 text-xs text-gray-600">
+            <p className="font-medium text-gray-700 mb-1">Webhook a configurar en Mercado Pago</p>
+            <code className="break-all">{ajustes.mercadopagoWebhookUrl}</code>
+            <p className="mt-2">
+              En «Tus integraciones → Webhooks», suscríbelo a los eventos{' '}
+              <code>payment</code>, <code>subscription_preapproval</code> y{' '}
+              <code>subscription_authorized_payment</code>. Sin el último, los cobros mensuales
+              pueden no sumar los 30 días.
+            </p>
+            <p className="mt-2">
+              Para elegirlo como pasarela de la suscripción, actívalo aquí y guárdalo primero.
+            </p>
+          </div>
+
+          <Button color="primary" onClick={guardarMp} disabled={guardandoMp} className="w-fit">
+            {guardandoMp ? 'Guardando...' : 'Guardar Mercado Pago'}
           </Button>
         </Card>
       </div>

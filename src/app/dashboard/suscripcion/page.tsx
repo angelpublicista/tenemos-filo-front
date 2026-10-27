@@ -7,11 +7,13 @@ import { HiCheckCircle, HiLockClosed } from 'react-icons/hi';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import {
+  cancelarRenovacionAutomatica,
   crearCheckoutDeSuscripcion,
   getSuscripcion,
   irAPagar,
   type EstadoDeSuscripcion,
 } from '@/lib/api/subscription';
+import { mensajeDeError } from '@/lib/api/client';
 import { pesos } from '@/lib/dinero';
 
 const fecha = (iso: string) =>
@@ -24,16 +26,17 @@ const fechaCorta = (iso: string) =>
 const ESPERA_MAXIMA_MS = 90_000;
 
 export default function SuscripcionPage() {
-  const { showError } = useSweetAlert();
+  const { showError, showSuccess, showDestructiveConfirmation } = useSweetAlert();
   const router = useRouter();
   const params = useSearchParams();
-  // Wompi devuelve aquí al anfitrión tras pagar; el webhook es quien confirma,
-  // y puede tardar unos segundos en llegar.
+  // La pasarela devuelve aquí al anfitrión tras pagar; el webhook es quien
+  // confirma, y puede tardar unos segundos en llegar.
   const volvioDePagar = params.get('pago') !== null;
 
   const [estado, setEstado] = useState<EstadoDeSuscripcion | null>(null);
   const [cargando, setCargando] = useState(true);
   const [pagando, setPagando] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
   const [esperando, setEsperando] = useState(volvioDePagar);
   const finAnterior = useRef<string | null>(null);
 
@@ -83,6 +86,24 @@ export default function SuscripcionPage() {
     }
   };
 
+  const cancelarRenovacion = async () => {
+    const ok = await showDestructiveConfirmation(
+      '¿Dejar de renovar automáticamente?',
+      'Conservas los días que ya pagaste. Cuando se acaben, el panel se cierra hasta que vuelvas a autorizar el cobro.',
+      'Sí, dejar de renovar',
+    );
+    if (!ok) return;
+    setCancelando(true);
+    try {
+      setEstado(await cancelarRenovacionAutomatica());
+      showSuccess('Cobro automático cancelado');
+    } catch (err) {
+      showError('No se pudo cancelar', mensajeDeError(err));
+    } finally {
+      setCancelando(false);
+    }
+  };
+
   if (cargando || !estado) {
     return (
       <ProtectedRoute roles={['host', 'admin']}>
@@ -95,6 +116,10 @@ export default function SuscripcionPage() {
 
   const { bloqueada, requerida, exenta } = estado;
   const alDia = !bloqueada && estado.endsAt !== null;
+  // Con Mercado Pago el cobro es automático; con Wompi, cada mes se paga a mano.
+  const automatico = estado.proveedor === 'MERCADO_PAGO';
+  const renovacionActiva = automatico && estado.renovacion === 'ACTIVA';
+  const nombrePasarela = automatico ? 'Mercado Pago' : 'Wompi';
 
   return (
     <ProtectedRoute roles={['host', 'admin']}>
@@ -102,14 +127,14 @@ export default function SuscripcionPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Suscripción</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Un solo plan, pago mensual y sin permanencia: pagas mes a mes y dejas de renovar cuando
-            quieras.
+            Un solo plan y sin permanencia: dejas de renovar cuando quieras.
           </p>
         </div>
 
         {esperando && (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Estamos confirmando tu pago con Wompi. Esto toma unos segundos; no cierres esta página.
+            Estamos confirmando tu pago con {nombrePasarela}. Esto toma unos segundos; no cierres
+            esta página.
           </p>
         )}
 
@@ -158,8 +183,8 @@ export default function SuscripcionPage() {
             <p className="text-sm text-gray-600">
               <HiCheckCircle className="inline w-4 h-4 mr-1 text-green-600" />
               Activa hasta el <strong>{fecha(estado.endsAt)}</strong>
-              {estado.diasRestantes !== null && ` (${estado.diasRestantes} días)`}. Si renuevas ahora,
-              los 30 días nuevos se suman a los que te quedan.
+              {estado.diasRestantes !== null && ` (${estado.diasRestantes} días)`}.
+              {!automatico && ' Si renuevas ahora, los 30 días nuevos se suman a los que te quedan.'}
             </p>
           )}
 
@@ -175,19 +200,52 @@ export default function SuscripcionPage() {
             </p>
           )}
 
-          {(requerida || bloqueada) && (
+          {renovacionActiva && (
+            <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+              <p>
+                <strong>Cobro automático activo.</strong> Mercado Pago cobra {pesos(estado.total)}{' '}
+                cada 30 días y tu suscripción se renueva sola.
+              </p>
+              {bloqueada && (
+                <p className="mt-1">
+                  El último cobro no se pudo hacer. Mercado Pago lo reintenta; si no entra, revisa
+                  el medio de pago en tu cuenta de Mercado Pago.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={cancelarRenovacion}
+                disabled={cancelando}
+                className="mt-2 cursor-pointer text-xs font-medium underline disabled:opacity-50"
+              >
+                {cancelando ? 'Cancelando...' : 'Dejar de renovar automáticamente'}
+              </button>
+            </div>
+          )}
+
+          {automatico && estado.renovacion === 'PENDIENTE' && !esperando && (
+            <p className="text-sm text-gray-600">
+              Dejaste el cobro automático a medias. Si ya lo autorizaste en Mercado Pago, se
+              reflejará aquí en unos minutos; si no, puedes retomarlo.
+            </p>
+          )}
+
+          {(requerida || bloqueada) && !renovacionActiva && (
             <Button color="primary" onClick={pagar} disabled={pagando || esperando} className="w-fit">
               <HiLockClosed className="w-4 h-4 mr-2" />
               {pagando
                 ? 'Abriendo pasarela...'
-                : bloqueada
-                  ? `Pagar ${pesos(estado.total)} y activar`
-                  : `Renovar por ${pesos(estado.total)}`}
+                : automatico
+                  ? `Activar cobro automático de ${pesos(estado.total)}`
+                  : bloqueada
+                    ? `Pagar ${pesos(estado.total)} y activar`
+                    : `Renovar por ${pesos(estado.total)}`}
             </Button>
           )}
           <p className="text-xs text-gray-500">
-            Pago seguro por Wompi. No guardamos tu tarjeta ni cobramos de forma automática: cada
-            mes decides si renuevas. Te escribiremos antes de que venza.
+            {automatico
+              ? 'Pago seguro por Mercado Pago. Autorizas una vez y se cobra cada 30 días; puedes cancelarlo cuando quieras y conservas los días que ya pagaste.'
+              : 'Pago seguro por Wompi. No guardamos tu tarjeta ni cobramos de forma automática: cada mes decides si renuevas. Te escribiremos antes de que venza.'}
           </p>
         </Card>
 

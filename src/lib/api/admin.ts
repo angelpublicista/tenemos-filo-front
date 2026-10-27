@@ -213,6 +213,16 @@ export type PlatformSettings = {
   wompiPrivateKeyConfigured: boolean;
   wompiIntegritySecretConfigured: boolean;
   wompiEventsSecretConfigured: boolean;
+
+  /** Mercado Pago: solo cobra la suscripción de los anfitriones, por recurrencia. */
+  mercadopagoEnabled: boolean;
+  mercadopagoEnvironment: WompiEnvironment;
+  mercadopagoAccessTokenConfigured: boolean;
+  mercadopagoWebhookSecretConfigured: boolean;
+  /** Con cuál de las dos se cobra la suscripción. Una sola a la vez. */
+  subscriptionProvider: 'WOMPI' | 'MERCADO_PAGO';
+  /** Lo que hay que pegar en el panel de Mercado Pago. */
+  mercadopagoWebhookUrl: string;
 };
 
 /** Campos que se pueden enviar. Cadena vacía borra un secreto. */
@@ -231,8 +241,13 @@ export type SettingsUpdate = Partial<
     | 'subscriptionRequired'
     | 'subscriptionPrice'
     | 'subscriptionVat'
+    | 'mercadopagoEnabled'
+    | 'mercadopagoEnvironment'
+    | 'subscriptionProvider'
   >
 > & {
+  mercadopagoAccessToken?: string;
+  mercadopagoWebhookSecret?: string;
   wompiPublicKey?: string;
   wompiPrivateKey?: string;
   wompiIntegritySecret?: string;

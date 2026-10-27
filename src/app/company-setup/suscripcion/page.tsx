@@ -21,8 +21,9 @@ import { pesos } from '@/lib/dinero';
  * Último paso del registro de un anfitrión: pagar la suscripción.
  *
  * Se llega aquí al crear la empresa, solo si la plataforma exige suscripción y
- * la empresa no la tiene. Wompi devuelve a /dashboard/suscripcion, que ya sabe
- * esperar la confirmación del pago, así que aquí no se repite esa lógica.
+ * la empresa no la tiene. La pasarela (Wompi o Mercado Pago) devuelve a
+ * /dashboard/suscripcion, que ya sabe esperar la confirmación del pago, así que
+ * aquí no se repite esa lógica.
  */
 export default function PagoDeSuscripcionInicialPage() {
   const { showError } = useSweetAlert();
@@ -90,11 +91,16 @@ export default function PagoDeSuscripcionInicialPage() {
 
               <Button color="primary" onClick={pagar} disabled={pagando} className="w-full">
                 <HiLockClosed className="mr-2 h-4 w-4" />
-                {pagando ? 'Abriendo pasarela...' : `Pagar ${pesos(estado.total)} y activar`}
+                {pagando
+                  ? 'Abriendo pasarela...'
+                  : estado.proveedor === 'MERCADO_PAGO'
+                    ? `Activar cobro automático de ${pesos(estado.total)}`
+                    : `Pagar ${pesos(estado.total)} y activar`}
               </Button>
               <p className="text-xs text-gray-500">
-                Pago seguro por Wompi. No guardamos tu tarjeta ni cobramos de forma automática: cada
-                mes decides si renuevas.
+                {estado.proveedor === 'MERCADO_PAGO'
+                  ? 'Pago seguro por Mercado Pago. Autorizas una vez y se cobra cada 30 días; puedes cancelarlo cuando quieras desde tu panel.'
+                  : 'Pago seguro por Wompi. No guardamos tu tarjeta ni cobramos de forma automática: cada mes decides si renuevas.'}
               </p>
             </Card>
           )}

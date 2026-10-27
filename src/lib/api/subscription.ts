@@ -8,8 +8,11 @@ export type PagoDeSuscripcion = {
   amount: number;
   baseAmount: number;
   vatAmount: number;
-  /** WOMPI: lo pagó en línea. MANUAL: lo registró FILO (una transferencia). */
-  method: 'WOMPI' | 'MANUAL';
+  /**
+   * WOMPI y MERCADO_PAGO: lo pagó en línea. MANUAL: lo registró FILO (una
+   * transferencia).
+   */
+  method: 'WOMPI' | 'MERCADO_PAGO' | 'MANUAL';
   paidAt: string | null;
   periodStart: string | null;
   periodEnd: string | null;
@@ -30,10 +33,27 @@ export type EstadoDeSuscripcion = {
   iva: number;
   /** Lo que se cobra: precio + IVA. */
   total: number;
+  /** Con qué pasarela cobra la plataforma, la que eligió el administrador. */
+  proveedor: Pasarela;
+  /**
+   * El cobro automático del anfitrión. Solo Mercado Pago lo tiene; con Wompi
+   * cada mes se paga a mano. null = nunca lo ha autorizado.
+   */
+  renovacion: EstadoDeRenovacion | null;
   pagos: PagoDeSuscripcion[];
 };
 
-export type CheckoutDeSuscripcion = {
+export type Pasarela = 'WOMPI' | 'MERCADO_PAGO';
+
+export type EstadoDeRenovacion = 'PENDIENTE' | 'ACTIVA' | 'PAUSADA' | 'CANCELADA';
+
+/** Mercado Pago: basta con llevar al anfitrión a donde autoriza el cobro. */
+export type CheckoutDeMercadoPago = {
+  proveedor: 'MERCADO_PAGO';
+  checkoutUrl: string;
+};
+
+export type CheckoutDeWompi = {
   proveedor: 'WOMPI';
   checkoutUrl: string;
   publicKey: string;
@@ -44,6 +64,8 @@ export type CheckoutDeSuscripcion = {
   redirectUrl: string;
   environment: string;
 };
+
+export type CheckoutDeSuscripcion = CheckoutDeWompi | CheckoutDeMercadoPago;
 
 const aEstado = (e: EstadoDeSuscripcion): EstadoDeSuscripcion => ({
   ...e,
@@ -61,9 +83,13 @@ const aEstado = (e: EstadoDeSuscripcion): EstadoDeSuscripcion => ({
 
 export const getSuscripcion = async () => aEstado(await api.get<EstadoDeSuscripcion>('/subscription'));
 
-/** Un intento de pago nuevo, firmado, para llevar al anfitrión a Wompi. */
+/** Un intento de pago nuevo con la pasarela que haya elegido la plataforma. */
 export const crearCheckoutDeSuscripcion = () =>
   api.post<CheckoutDeSuscripcion>('/subscription/checkout');
+
+/** Deja de renovar solo. Los días ya pagados se conservan. */
+export const cancelarRenovacionAutomatica = async () =>
+  aEstado(await api.post<EstadoDeSuscripcion>('/subscription/renovacion/cancelar'));
 
 // ─── Administración ────────────────────────────────────────────────────────
 
@@ -91,8 +117,15 @@ export const registrarPagoManualDeSuscripcion = (
 export const definirExencionDeSuscripcion = (companyId: string, exenta: boolean) =>
   api.patch(`/subscription/admin/${encodeURIComponent(companyId)}/exenta`, { exenta });
 
-/** Lleva al anfitrión al checkout de Wompi con un formulario firmado por el servidor. */
+/**
+ * Lleva al anfitrión a pagar. Mercado Pago es una URL a la que se va sin más;
+ * Wompi, un formulario firmado por el servidor.
+ */
 export function irAPagar(c: CheckoutDeSuscripcion): void {
+  if (c.proveedor === 'MERCADO_PAGO') {
+    window.location.href = c.checkoutUrl;
+    return;
+  }
   const form = document.createElement('form');
   form.method = 'GET';
   form.action = c.checkoutUrl;

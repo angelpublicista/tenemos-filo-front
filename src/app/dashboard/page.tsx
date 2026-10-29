@@ -33,7 +33,7 @@ const pesos = (n: number) =>
   }).format(n);
 
 export default function Dashboard() {
-  const { user, sanityUser, activeCompanyId, esPanelRevendedor } = useAuth();
+  const { user, sanityUser, esPanelRevendedor } = useAuth();
   const { isSetupCompleted } = useCompanySetup();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [misReservas, setMisReservas] = useState<MiReserva[]>([]);
@@ -63,11 +63,6 @@ export default function Dashboard() {
   // id, pero no los campos, y sin ellos no se puede decir que queda pendiente.
   const [empresa, setEmpresa] = useState<Company | null>(null);
   const router = useRouter();
-
-  // Un administrador mirando una empresa concreta. Con "Toda la plataforma"
-  // no hay empresa activa y esto es false, que es cuando la ficha de cuenta
-  // propia si tiene sentido.
-  const actuandoComoOtra = sanityUser?.role === 'admin' && !!activeCompanyId;
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -213,9 +208,8 @@ export default function Dashboard() {
       color: 'bg-[#E23694]', // Rosa/Magenta
       format: (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
     },
-    // Solo en modo plataforma. Actuando como una empresa, un total global de
-    // empresas y usuarios no dice nada del contexto en el que estas.
-    ...(sanityUser?.role === 'admin' && !activeCompanyId
+    // Solo el admin ve el total de la plataforma.
+    ...(sanityUser?.role === 'admin'
       ? [
           {
             title: 'Empresas',
@@ -235,7 +229,7 @@ export default function Dashboard() {
 
   // En modo plataforma el admin no tiene empresa: estas acciones operan sobre
   // una y acabarian mandandolo a /company-setup. Le ofrecemos las del panel.
-  const esAdminSinEmpresa = sanityUser?.role === 'admin' && !activeCompanyId;
+  const esAdminSinEmpresa = sanityUser?.role === 'admin';
 
   const quickActions = esAdminSinEmpresa
     ? [
@@ -292,18 +286,11 @@ export default function Dashboard() {
         <div className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0 flex-1">
-              {/* Entrando en una empresa ajena, saludar al administrador por su
-                  nombre despistaba: lo que se esta mirando es la empresa, y el
-                  resumen de abajo es el de ella, no el de quien mira. */}
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {actuandoComoOtra
-                  ? <>Estás viendo a {empresa?.ownerName || empresa?.companyName || 'esta empresa'}</>
-                  : <>¡Hola, {sanityUser?.name?.split(' ')[0] || 'Usuario'}! 👋</>}
+                ¡Hola, {sanityUser?.name?.split(' ')[0] || 'Usuario'}! 👋
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {actuandoComoOtra
-                  ? 'Esto es lo que ve su anfitrión. Lo que hagas aquí queda a nombre de esta empresa.'
-                  : 'Bienvenido de vuelta. Aquí tienes un resumen de tu actividad.'}
+                Bienvenido de vuelta. Aquí tienes un resumen de tu actividad.
               </p>
             </div>
             <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
@@ -590,56 +577,29 @@ export default function Dashboard() {
         <div className="mt-4 bg-gradient-to-r from-[#f26726] to-[#f26726]/80 rounded-lg p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
-              {/* Actuando como otra empresa, esta ficha enseñaba la cuenta del
-                  administrador —su nombre, su correo, "Administrador"—, que no
-                  es lo que se ha venido a mirar: quien entra en una empresa
-                  quiere ver la empresa. */}
-              <h3 className="text-xl font-semibold mb-2">
-                {actuandoComoOtra ? 'Información del anfitrión' : 'Información de tu cuenta'}
-              </h3>
-              {actuandoComoOtra ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="opacity-90">Empresa</p>
-                    <p className="font-medium">{empresa?.companyName || 'No disponible'}</p>
-                  </div>
-                  <div>
-                    <p className="opacity-90">Email</p>
-                    <p className="font-medium">{empresa?.companyEmail || 'No disponible'}</p>
-                  </div>
-                  <div>
-                    <p className="opacity-90">Teléfono</p>
-                    <p className="font-medium">{empresa?.companyPhone || 'No disponible'}</p>
-                  </div>
-                  <div>
-                    <p className="opacity-90">Estás viendo esta empresa como</p>
-                    <p className="font-medium">Administrador</p>
-                  </div>
+              <h3 className="text-xl font-semibold mb-2">Información de tu cuenta</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="opacity-90">Nombre completo</p>
+                  <p className="font-medium">{sanityUser?.name || 'No disponible'}</p>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="opacity-90">Nombre completo</p>
-                    <p className="font-medium">{sanityUser?.name || 'No disponible'}</p>
-                  </div>
-                  <div>
-                    <p className="opacity-90">Email</p>
-                    <p className="font-medium">{user?.email}</p>
-                  </div>
-                  <div>
-                    <p className="opacity-90">Rol</p>
-                    <p className="font-medium">
-                      {sanityUser?.role === 'host' ? 'Anfitrión' :
-                       sanityUser?.role === 'admin' ? 'Administrador' :
-                       sanityUser?.role === 'reseller' ? 'Revendedor' : 'Comensal'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="opacity-90">Teléfono</p>
-                    <p className="font-medium">{sanityUser?.phone || 'No disponible'}</p>
-                  </div>
+                <div>
+                  <p className="opacity-90">Email</p>
+                  <p className="font-medium">{user?.email}</p>
                 </div>
-              )}
+                <div>
+                  <p className="opacity-90">Rol</p>
+                  <p className="font-medium">
+                    {sanityUser?.role === 'host' ? 'Anfitrión' :
+                     sanityUser?.role === 'admin' ? 'Administrador' :
+                     sanityUser?.role === 'reseller' ? 'Revendedor' : 'Comensal'}
+                  </p>
+                </div>
+                <div>
+                  <p className="opacity-90">Teléfono</p>
+                  <p className="font-medium">{sanityUser?.phone || 'No disponible'}</p>
+                </div>
+              </div>
             </div>
             <div className="hidden md:block">
               <AiOutlineFire className="w-16 h-16 opacity-20" />

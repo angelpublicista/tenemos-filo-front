@@ -33,29 +33,25 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { sanityUser, activeCompanyId, esPanelRevendedor } = useAuth();
+  const { sanityUser, esPanelRevendedor } = useAuth();
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Un admin "actuando como" una empresa usa las mismas pantallas que un
-  // anfitrion, asi que le mostramos las mismas secciones.
-  const operaComoEmpresa =
-    sanityUser?.role === 'host' || (sanityUser?.role === 'admin' && !!activeCompanyId);
+  // Solo el anfitrion opera una empresa; el admin gestiona la plataforma.
+  const operaComoEmpresa = sanityUser?.role === 'host';
 
   // En modo plataforma el admin no tiene empresa, y estas pantallas resuelven
   // su contenido con /companies/me: sin empresa terminan empujandolo a
   // /company-setup, que no le corresponde. Para la vista global tiene la
   // seccion de Administracion.
-  const esAdminSinEmpresa = sanityUser?.role === 'admin' && !activeCompanyId;
+  const esAdminSinEmpresa = sanityUser?.role === 'admin';
 
   // Un revendedor pertenece a una empresa, pero no la opera: no tiene
   // experiencias, ni sedes, ni reservas que gestionar. Enseñarle esas
   // pantallas le muestra datos de un anfitrion que no es el, o le da un
   // 403. Lo suyo son sus comisiones y sus claves de API.
   //
-  // Vale igual para el admin que actua como una empresa de revendedor:
-  // esa empresa no tiene sedes ni experiencias por mucho que quien mire
-  // sea administrador. El menu lo decide el negocio, no quien lo abre.
+  // El admin no actua como otra empresa, asi que esto solo depende de su rol.
   const esReseller = esPanelRevendedor;
 
   // Un comensal solo reserva. El menu de anfitrion no le sirve: la mitad
@@ -302,6 +298,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         href: '/dashboard/admin/dispersiones',
         icon: AiOutlineDollar,
         current: pathname === '/dashboard/admin/dispersiones',
+        enabled: true
+      },
+      {
+        name: 'Ventas',
+        href: '/dashboard/admin/ventas',
+        icon: AiOutlineDollar,
+        current: pathname === '/dashboard/admin/ventas',
         enabled: true
       },
       {

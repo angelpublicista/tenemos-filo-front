@@ -156,3 +156,45 @@ export const definirVencimientoDeSuscripcion = (
   companyId: string,
   data: { endsAt: string | null; notes?: string },
 ) => api.patch(`/subscription/admin/${encodeURIComponent(companyId)}/vencimiento`, data);
+
+// ─── Estadísticas de ventas ────────────────────────────────────────────────
+
+export type EstadisticasDeSuscripciones = {
+  meses: number;
+  totales: {
+    pagos: number;
+    total: number;
+    base: number;
+    iva: number;
+    empresasQuePagaron: number;
+    ticketPromedio: number;
+  };
+  porMes: {
+    /** "2026-10" */
+    period: string;
+    pagos: number;
+    total: number;
+    base: number;
+    iva: number;
+    empresas: number;
+    /** Empresas cuyo primer pago de siempre cayó en este mes. */
+    altas: number;
+  }[];
+  porMetodo: { method: string; pagos: number; total: number }[];
+  cartera: { alDia: number; vencidas: number; sinPagar: number; exentas: number; total: number };
+};
+
+/** Lo vendido en suscripciones, mes a mes y por método de pago. Solo el administrador. */
+export const getEstadisticasDeSuscripciones = async (meses = 12) => {
+  const e = await api.get<EstadisticasDeSuscripciones>('/subscription/admin/estadisticas', { meses });
+  return {
+    ...e,
+    totales: {
+      ...e.totales,
+      total: aNumero(e.totales.total),
+      base: aNumero(e.totales.base),
+      iva: aNumero(e.totales.iva),
+      ticketPromedio: aNumero(e.totales.ticketPromedio),
+    },
+  };
+};

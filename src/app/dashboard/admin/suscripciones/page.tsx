@@ -5,6 +5,7 @@ import { Badge, Button, Card, Modal, ModalBody, ModalFooter, ModalHeader, Select
 import { HiCash } from 'react-icons/hi';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminTable, { AdminHeader } from '@/components/Admin/AdminTable';
+import EstadisticasDeSuscripciones from '@/components/Admin/EstadisticasDeSuscripciones';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 import { getSettings } from '@/lib/api/admin';
 import {
@@ -148,6 +149,8 @@ export default function AdminSuscripcionesPage() {
         titulo="Suscripciones"
         descripcion="Quién tiene su suscripción al día, quién no, y los pagos que no pasaron por la pasarela"
       />
+
+      <EstadisticasDeSuscripciones />
 
       {exigida === false && (
         <p className="mb-4 max-w-3xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

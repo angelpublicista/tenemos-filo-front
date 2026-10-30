@@ -10,6 +10,7 @@ import {
   getResellerCatalog,
 } from '@/lib/api/catalog';
 import { createPublicReservation } from '@/lib/sanity/reservationService';
+import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
 import type { Company, AvailabilitySchedule } from '@/types';
 import { estiloDeMarca } from '@/lib/marca';
 import type { Experience } from '@/types';
@@ -336,7 +337,14 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       setStep('success');
     } catch (err) {
       console.error('Error creating reservation:', err);
-      alert('Ocurrió un error al crear la reserva. Por favor intenta de nuevo.');
+      // El motivo que da el API ("se reserva con 22 horas de anticipación",
+      // "no quedan lugares") es lo único que le dice a quien reserva qué
+      // cambiar. Con el texto genérico solo le quedaba reintentar a ciegas.
+      alert(
+        err instanceof ApiHttpError && err.status < 500
+          ? mensajeDeError(err)
+          : 'Ocurrió un error al crear la reserva. Por favor intenta de nuevo.',
+      );
     } finally {
       setSubmitting(false);
     }

@@ -52,9 +52,14 @@ export function condicionesDeSede(
   experience: ConLasCondiciones,
   locationId?: string | null,
 ): Condiciones {
-  const f = locationId
-    ? experience.locationListings?.find((x) => x.locationId === locationId)
-    : undefined;
+  // Sin sede también hay publicación: es la de a domicilio, cuya ficha lleva
+  // `locationId` nulo. Antes solo se buscaba con sede, así que a domicilio se
+  // ignoraba la ficha y el catálogo ofrecía horas con la anticipación de la
+  // experiencia (ninguna) mientras el API exigía la de la ficha (22 horas):
+  // la reserva se dejaba elegir y luego fallaba al confirmar.
+  const f = experience.locationListings?.find(
+    (x) => (x.locationId ?? null) === (locationId ?? null),
+  );
 
   return {
     kind: f?.kind ?? null,

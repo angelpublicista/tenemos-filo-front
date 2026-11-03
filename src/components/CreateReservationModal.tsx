@@ -3,7 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Experience, Location, AvailabilitySchedule } from '@/types';
 import { getLocationsByCompany } from '@/lib/sanity/locationService';
-import { getAvailabilityScheduleById } from '@/lib/sanity/availabilityService';
+import {
+  getAvailabilityScheduleById,
+  getAvailabilitySchedulesByLocation,
+  getAgendaDelAnfitrion,
+} from '@/lib/sanity/availabilityService';
 import { createReservationManually } from '@/lib/sanity/reservationService';
 import { ApiHttpError, mensajeDeError } from '@/lib/api/client';
 import { searchExperiencesForQuote } from '@/lib/sanity/quoteService';
@@ -107,24 +111,47 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
           setLocations([]);
         }
 
-        // Cargar los calendarios de disponibilidad de la experiencia
+        // Los horarios propios de la experiencia.
+        let propios: AvailabilitySchedule[] = [];
         if (experience.availabilitySchedules && Array.isArray(experience.availabilitySchedules)) {
           // Los calendarios ya vienen expandidos desde la query
-          setAvailableSchedules(experience.availabilitySchedules);
+          propios = experience.availabilitySchedules;
         } else if (experience.availabilities && Array.isArray(experience.availabilities)) {
           // Fallback si vienen como referencias
-          const schedules: AvailabilitySchedule[] = [];
           for (const availRef of experience.availabilities) {
             const ref = availRef as { _ref: string };
             if (ref._ref) {
               const schedule = await getAvailabilityScheduleById(ref._ref);
-              if (schedule) schedules.push(schedule);
+              if (schedule) propios.push(schedule);
             }
           }
-          setAvailableSchedules(schedules);
-        } else {
-          setAvailableSchedules([]);
         }
+
+        // Sin horario propio la experiencia vende con el de su sede, y sin
+        // sede con la agenda del anfitrión (igual que el API al reservar). Si
+        // no se completa aquí, el selector ofrecía las horas por defecto.
+        const sedes = (experience.locations ?? []).flatMap((l) => {
+          const ref = l as unknown as { _id?: string; _ref?: string } | string;
+          const id = typeof ref === 'string' ? ref : (ref._id ?? ref._ref);
+          return id ? [id] : [];
+        });
+        const cubreTodas = propios.some((h) => !h.location?._ref);
+        const sinPropio = sedes.filter(
+          (id) => !cubreTodas && !propios.some((h) => h.location?._ref === id),
+        );
+        const heredados = (
+          await Promise.all(
+            sinPropio.map((id) => getAvailabilitySchedulesByLocation(id).catch(() => [])),
+          )
+        )
+          .flat()
+          .filter((h) => h.isActive && (h.experienceIds?.length ?? 0) === 0);
+        const todos = [...propios, ...heredados];
+        if (todos.length === 0) {
+          const agenda = await getAgendaDelAnfitrion().catch(() => []);
+          todos.push(...agenda.filter((h) => h.isActive));
+        }
+        setAvailableSchedules(todos);
       } catch (error) {
         console.error('Error loading locations and availability:', error);
       }

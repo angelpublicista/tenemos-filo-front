@@ -229,11 +229,12 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
           const endMinutes = endHour * 60 + endMin;
           
           // Una hora de inicio cada 30 minutos dentro de la franja
-          // Una sesión fija solo empieza a la hora de la franja.
+          // Una sesión fija solo empieza a la hora de la franja, y su franja ya
+          // es la sesión: no se le exige que la duración quepa dentro.
           for (
             let minutes = startMinutes;
-            minutes + experienceDuration <= endMinutes;
-            minutes += franja.sesionFija ? endMinutes : 30
+            franja.sesionFija ? minutes === startMinutes : minutes + experienceDuration <= endMinutes;
+            minutes += franja.sesionFija ? 1 : 30
           ) {
             const hours = Math.floor(minutes / 60);
             const mins = minutes % 60;

@@ -106,8 +106,16 @@ function franjasDisponibles(
       // que acaba justo a la hora de cierre deja al equipo recogiendo fuera
       // de horario. El montaje no se descuenta aquí porque se hace antes de
       // abrir, y restarlo quitaría el primer turno del día.
-      // Una sesión fija empieza a la hora de la franja y no se ofrece otra.
-      for (let m = startMin; m + duration + limpieza <= endMin; m += slot.sesionFija ? endMin : 30) {
+      // Una sesión fija empieza a la hora de la franja y no se ofrece otra. Su
+      // franja ya ES la sesión: quien la fijó decidió cuándo empieza y acaba,
+      // así que no se le exige que la duración más la limpieza quepan dentro.
+      // Con esa exigencia, una franja de 90 min para una experiencia de 90
+      // quedaba vacía en cuanto la ficha heredaba un minuto de limpieza.
+      for (
+        let m = startMin;
+        slot.sesionFija ? m === startMin : m + duration + limpieza <= endMin;
+        m += slot.sesionFija ? 1 : 30
+      ) {
         const h = Math.floor(m / 60);
         const min = m % 60;
         if (avisoMs > 0) {

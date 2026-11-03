@@ -24,6 +24,7 @@ interface ApiAvailability {
   createdAt: string;
   updatedAt: string;
   location?: { id: string; name: string; slug: string | null; companyId: string };
+  experiences?: Array<{ id: string }>;
 }
 
 function toSchedule(a: ApiAvailability): AvailabilitySchedule {
@@ -32,6 +33,8 @@ function toSchedule(a: ApiAvailability): AvailabilitySchedule {
     _type: 'availability',
     name: a.name,
     location: a.locationId ? { _ref: a.locationId, _type: 'reference' } : undefined,
+    locationName: a.location?.name,
+    experienceIds: a.experiences?.map((e) => e.id),
     isMain: a.isMain,
     isActive: a.isActive,
     description: a.description ?? undefined,

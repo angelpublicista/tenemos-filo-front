@@ -74,6 +74,10 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<AvailabilitySchedule | null>(null);
+  // Los horarios de la sede que la experiencia usa mientras no tenga uno propio.
+  const [heredados, setHeredados] = useState<AvailabilitySchedule[]>([]);
+  // El horario de la sede desde el que se parte al crear uno propio.
+  const [plantilla, setPlantilla] = useState<AvailabilitySchedule | null>(null);
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
 
   const contextId =
@@ -116,7 +120,17 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
                 ? await getHorariosDeLaPublicacion(props.experienceId, props.locationId)
                 : await getAvailabilitySchedulesByExperience(props.experienceId)
               : await getAgendaDelAnfitrion();
-      setSchedules(data);
+      // Una sede muestra SU horario, no el que cada experiencia tiene en ella:
+      // mezclados parecía que el de una experiencia era el de toda la sede.
+      const propios =
+        props.mode === 'location'
+          ? data.filter((s) => (s.experienceIds?.length ?? 0) === 0)
+          : data;
+      setSchedules(propios);
+
+      // Sin horario propio, la experiencia vende con el de su sede: se enseña
+      // cuál es en vez de obligar a crear uno nuevo.
+      setHeredados(propios.length === 0 ? await cargarHeredados() : []);
     } catch (error) {
       showError('Error al cargar los calendarios de disponibilidad');
       console.error(error);
@@ -126,8 +140,42 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
     }
   };
 
+  /**
+   * Los horarios de la sede que cubren a esta experiencia: los que no son de
+   * ninguna experiencia en particular. El API los aplica así cuando la
+   * experiencia no tiene el suyo.
+   */
+  const cargarHeredados = async (): Promise<AvailabilitySchedule[]> => {
+    if (props.mode !== 'publicacion' && props.mode !== 'experience') return [];
+    const idsDeSedes =
+      props.mode === 'publicacion'
+        ? props.locationId
+          ? [props.locationId]
+          : []
+        : (props.experience.locations ?? []).flatMap((l) => {
+            const ref = l as unknown as { _ref?: string; _id?: string } | string;
+            const id = typeof ref === 'string' ? ref : (ref._ref ?? ref._id);
+            return id ? [id] : [];
+          });
+    try {
+      const porSede = await Promise.all(idsDeSedes.map(getAvailabilitySchedulesByLocation));
+      return porSede
+        .flat()
+        .filter((s) => s.isActive && (s.experienceIds?.length ?? 0) === 0);
+    } catch {
+      return [];
+    }
+  };
+
   const handleCreateSchedule = () => {
     setEditingSchedule(null);
+    setPlantilla(null);
+    setShowCreateModal(true);
+  };
+
+  const handlePersonalizar = (desde: AvailabilitySchedule) => {
+    setEditingSchedule(null);
+    setPlantilla(desde);
     setShowCreateModal(true);
   };
 
@@ -248,7 +296,53 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
       </div>
 
       {/* Schedules List */}
-      {schedules.length === 0 ? (
+      {schedules.length === 0 && heredados.length > 0 ? (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <p className="text-sm font-medium text-green-900">
+              No necesitas crear un horario: esta experiencia usa el de su sede.
+            </p>
+            <p className="text-sm text-green-800 mt-1">
+              Mientras no tenga uno propio, se vende con el horario de{' '}
+              {Array.from(new Set(heredados.map((h) => h.locationName).filter(Boolean))).join(', ') ||
+                'la sede'}
+              . Si cambia ese, cambia también aquí. Crea uno propio solo si debe abrir en otros
+              días u horas.
+            </p>
+          </div>
+          {heredados.map((h) => (
+            <div
+              key={h._id}
+              className="bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-[#334C5D]">
+                  {h.name}
+                  {h.locationName ? ` · ${h.locationName}` : ''}
+                </p>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  {daysOrder
+                    .filter((d) => h.weeklySchedule[d]?.isActive)
+                    .map((d) => {
+                      const franjas = h.weeklySchedule[d].franjas ?? [];
+                      return `${dayNames[d].substring(0, 3)} ${franjas
+                        .map((f) => `${f.startTime}–${f.endTime}`)
+                        .join(', ')}`;
+                    })
+                    .join(' · ') || 'Sin días activos'}
+                </p>
+              </div>
+              <button
+                onClick={() => handlePersonalizar(h)}
+                className="shrink-0 flex items-center justify-center px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                <AiOutlineCopy className="mr-2" />
+                Crear uno propio a partir de este
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : schedules.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <BiCalendar className="mx-auto text-6xl text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -288,6 +382,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
       {showCreateModal && (
         <ScheduleModal
           schedule={editingSchedule}
+          plantilla={plantilla}
           contextId={contextId}
           contextType={props.mode}
           locationId={sedeDeLaPublicacion}
@@ -295,10 +390,12 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = (props) => {
           onClose={() => {
             setShowCreateModal(false);
             setEditingSchedule(null);
+            setPlantilla(null);
           }}
           onSave={() => {
             setShowCreateModal(false);
             setEditingSchedule(null);
+            setPlantilla(null);
             loadSchedules();
           }}
         />
@@ -493,6 +590,8 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
 
 interface ScheduleModalProps {
   schedule: AvailabilitySchedule | null;
+  /** Horario de la sede del que se parte al crear uno propio. */
+  plantilla?: AvailabilitySchedule | null;
   contextId: string;
   contextType: 'location' | 'experience' | 'company' | 'publicacion';
   /**
@@ -507,20 +606,24 @@ interface ScheduleModalProps {
 
 const ScheduleModal: React.FC<ScheduleModalProps> = ({
   schedule,
+  plantilla,
   contextId,
   contextType,
   locationId,
   onClose,
   onSave,
 }) => {
-  const [name, setName] = useState(schedule?.name || '');
-  const [description, setDescription] = useState(schedule?.description || '');
+  // Al partir del horario de la sede se copian sus franjas y fechas; el
+  // nombre queda libre para que se note que es uno aparte.
+  const base = schedule ?? plantilla;
+  const [name, setName] = useState(schedule?.name || (plantilla ? `${plantilla.name} (propio)` : ''));
+  const [description, setDescription] = useState(base?.description || '');
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(
-    schedule?.weeklySchedule || generateDefaultSchedule()
+    base?.weeklySchedule || generateDefaultSchedule()
   );
   // Las fechas sueltas se tocan desde el calendario, no desde este formulario:
   // aqui se arrastran tal cual para no perderlas al guardar el patrón.
-  const [dateOverrides] = useState(schedule?.dateOverrides);
+  const [dateOverrides] = useState(base?.dateOverrides);
   const [notes, setNotes] = useState(schedule?.notes || '');
   // Los dos numericos se guardan como TEXTO mientras se escriben.
   //

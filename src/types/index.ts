@@ -1025,6 +1025,14 @@ export interface AvailabilitySchedule {
     _ref: string;
     _type: 'reference';
   };
+  /** Nombre de su sede, cuando la tiene. */
+  locationName?: string;
+  /**
+   * Las experiencias a las que pertenece. Vacío = es de la sede (o la agenda del
+   * anfitrión); con ids = es el horario propio de esas experiencias.
+   * Indefinido si el API no lo informa.
+   */
+  experienceIds?: string[];
   isMain: boolean; // Si es el calendario principal de la sede/experiencia
   isActive: boolean; // Si este calendario está activo
   description?: string;

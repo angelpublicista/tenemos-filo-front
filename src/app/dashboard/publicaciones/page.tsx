@@ -80,6 +80,8 @@ export default function PublicacionesPage() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [publicando, setPublicando] = useState(false);
+  // La pieza desde cuya tarjeta se publica; null cuando se abre desde el botón general.
+  const [piezaAPublicar, setPiezaAPublicar] = useState<string | null>(null);
   const [editando, setEditando] = useState<Publicacion | null>(null);
   const [horarioDe, setHorarioDe] = useState<Publicacion | null>(null);
 
@@ -140,6 +142,7 @@ export default function PublicacionesPage() {
     try {
       setPublicaciones(await publicar(experienceId, locationId, condiciones));
       setPublicando(false);
+      setPiezaAPublicar(null);
       setEditando(null);
       showSuccess('Publicación guardada');
     } catch (e) {
@@ -221,6 +224,16 @@ export default function PublicacionesPage() {
   // Piezas, no publicaciones: lo que cuenta aquí es el trabajo que queda por
   // hacer, y una pieza en dos sedes no son dos pendientes.
   const sinUsar = porPieza.filter((filas) => !filas.some(esPublicacion)).length;
+
+  // Dónde está ya cada pieza: publicar encima de una sede ocupada reemplazaría
+  // sus condiciones, así que el modal solo ofrece las libres.
+  const ocupadas = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    for (const p of publicaciones) {
+      if (p.locationId) (m[p.experienceId] ??= []).push(p.locationId);
+    }
+    return m;
+  }, [publicaciones]);
 
   if (cargando) {
     return (
@@ -387,12 +400,30 @@ export default function PublicacionesPage() {
                         </p>
                       )}
                     </div>
-                    <Link
-                      href={`/dashboard/experiences/${pieza.experienceId}/edit`}
-                      className="text-xs text-gray-500 hover:text-marca underline shrink-0"
-                    >
-                      Editar la pieza
-                    </Link>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {!pieza.atHome && (
+                        <Button
+                          size="xs"
+                          color="light"
+                          disabled={
+                            sedes.length === 0 ||
+                            (ocupadas[pieza.experienceId]?.length ?? 0) >= sedes.length
+                          }
+                          onClick={() => {
+                            setPiezaAPublicar(pieza.experienceId);
+                            setPublicando(true);
+                          }}
+                        >
+                          <AiOutlinePlus className="mr-1" /> Publicar en una sede
+                        </Button>
+                      )}
+                      <Link
+                        href={`/dashboard/experiences/${pieza.experienceId}/edit`}
+                        className="text-xs text-gray-500 hover:text-marca underline"
+                      >
+                        Editar la pieza
+                      </Link>
+                    </div>
                   </div>
 
                   {publicada.length === 0 ? (
@@ -510,10 +541,13 @@ export default function PublicacionesPage() {
           <PublicarModal
             piezas={piezas}
             sedes={sedes.map((s) => ({ id: s._id, name: s.name, isMain: s.isMain }))}
+            piezaInicial={piezaAPublicar}
+            ocupadas={ocupadas}
             publicacion={editando}
             guardando={guardando}
             onGuardar={guardar}
             onCerrar={() => {
+              setPiezaAPublicar(null);
               setPublicando(false);
               setEditando(null);
             }}

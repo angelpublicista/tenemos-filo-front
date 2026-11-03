@@ -37,6 +37,10 @@ interface Props {
   /** Las piezas entre las que elegir. Vacío cuando ya viene elegida. */
   piezas: PiezaPublicable[];
   sedes: SedeDisponible[];
+  /** La pieza que ya viene elegida al publicar desde su tarjeta. */
+  piezaInicial?: string | null;
+  /** Sedes donde cada pieza ya está publicada: publicar encima borraría sus condiciones. */
+  ocupadas?: Record<string, string[]>;
   /** Cuando se edita una publicación que ya existe. */
   publicacion?: Publicacion | null;
   guardando: boolean;
@@ -61,6 +65,8 @@ const texto = (v: number | string | null | undefined): string =>
 export default function PublicarModal({
   piezas,
   sedes,
+  piezaInicial,
+  ocupadas = {},
   publicacion,
   guardando,
   onGuardar,
@@ -68,14 +74,22 @@ export default function PublicarModal({
 }: Props) {
   const editando = !!publicacion;
   const [experienceId, setExperienceId] = useState(
-    publicacion?.experienceId ?? piezas[0]?.id ?? '',
+    publicacion?.experienceId ?? piezaInicial ?? piezas[0]?.id ?? '',
   );
+  // Al publicar solo se ofrecen las sedes donde la pieza aún no está.
+  const sedesLibres = sedes.filter((s) => !(ocupadas[experienceId] ?? []).includes(s.id));
   // Al editar se respeta la sede de esa publicación, y la falta de sede
   // también: una experiencia a domicilio tiene publicación sin sede, y
   // caer al primer local la mandaría a un sitio que nadie eligió.
-  const [locationId, setLocationId] = useState(
-    editando ? (publicacion?.locationId ?? '') : (sedes[0]?.id ?? ''),
+  const [sedeElegida, setLocationId] = useState(
+    editando ? (publicacion?.locationId ?? '') : '',
   );
+  // Si la elegida ya no está libre (se cambió de pieza), cae a la primera libre.
+  const locationId = editando
+    ? sedeElegida
+    : sedesLibres.some((s) => s.id === sedeElegida)
+      ? sedeElegida
+      : (sedesLibres[0]?.id ?? '');
 
   // Al editar se cargan SOLO las condiciones propias; lo heredado queda en
   // blanco para que se vea de un golpe qué cambia en este escenario y qué no.
@@ -173,7 +187,10 @@ export default function PublicarModal({
                   className="mt-1"
                 >
                   {sedes.length === 0 && <option value="">No tienes sedes registradas</option>}
-                  {sedes.map((s) => (
+                  {sedes.length > 0 && sedesLibres.length === 0 && (
+                    <option value="">Ya está publicada en todas tus sedes</option>
+                  )}
+                  {sedesLibres.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                       {s.isMain ? ' (Principal)' : ''}

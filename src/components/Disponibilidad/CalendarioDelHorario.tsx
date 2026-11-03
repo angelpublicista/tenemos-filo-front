@@ -105,7 +105,7 @@ export default function CalendarioDelHorario({ schedule, onGuardar }: Props) {
     }
   };
 
-  const cambiarFranja = (i: number, campo: keyof Franja, valor: string) => {
+  const cambiarFranja = (i: number, campo: 'startTime' | 'endTime' | 'cupos', valor: string) => {
     setBorrador((prev) => {
       if (!prev) return prev;
       const franjas = prev.franjas.map((f, j) =>
@@ -115,6 +115,14 @@ export default function CalendarioDelHorario({ schedule, onGuardar }: Props) {
       );
       return { ...prev, franjas };
     });
+  };
+
+  const fijarSesion = (i: number, fija: boolean) => {
+    setBorrador((prev) =>
+      prev
+        ? { ...prev, franjas: prev.franjas.map((f, j) => (j === i ? { ...f, sesionFija: fija } : f)) }
+        : prev,
+    );
   };
 
   const hoy = soloElDia(new Date());
@@ -275,6 +283,15 @@ export default function CalendarioDelHorario({ schedule, onGuardar }: Props) {
                       f.cupos ? 'border-gray-300' : 'border-red-400 bg-red-50'
                     }`}
                   />
+                  <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={f.sesionFija ?? false}
+                      onChange={(e) => fijarSesion(i, e.target.checked)}
+                      className="w-4 h-4 text-[#F26726] rounded focus:ring-[#F26726]"
+                    />
+                    Sesión fija
+                  </label>
                   {borrador.franjas.length > 1 && (
                     <button
                       type="button"

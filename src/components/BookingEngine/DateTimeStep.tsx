@@ -96,7 +96,7 @@ function franjasDisponibles(
     // `franjas` es el nombre de ahora; `timeSlots` son los horarios guardados
     // antes del renombre, que se siguen leyendo.
     const franjas = daySchedule.franjas ?? daySchedule.timeSlots ?? [];
-    franjas.forEach((slot: { startTime: string; endTime: string }) => {
+    franjas.forEach((slot: { startTime: string; endTime: string; sesionFija?: boolean }) => {
       const [sh, sm] = slot.startTime.split(':').map(Number);
       const [eh, em] = slot.endTime.split(':').map(Number);
       const startMin = sh * 60 + sm;
@@ -106,7 +106,8 @@ function franjasDisponibles(
       // que acaba justo a la hora de cierre deja al equipo recogiendo fuera
       // de horario. El montaje no se descuenta aquí porque se hace antes de
       // abrir, y restarlo quitaría el primer turno del día.
-      for (let m = startMin; m + duration + limpieza <= endMin; m += 30) {
+      // Una sesión fija empieza a la hora de la franja y no se ofrece otra.
+      for (let m = startMin; m + duration + limpieza <= endMin; m += slot.sesionFija ? endMin : 30) {
         const h = Math.floor(m / 60);
         const min = m % 60;
         if (avisoMs > 0) {

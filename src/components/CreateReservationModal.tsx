@@ -194,7 +194,7 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         // `franjas` es el nombre de ahora; `timeSlots` son los horarios
         // guardados antes del renombre, que se siguen leyendo.
         const franjas = daySchedule.franjas ?? daySchedule.timeSlots ?? [];
-        franjas.forEach((franja: { startTime: string; endTime: string }) => {
+        franjas.forEach((franja: { startTime: string; endTime: string; sesionFija?: boolean }) => {
           const [startHour, startMin] = franja.startTime.split(':').map(Number);
           const [endHour, endMin] = franja.endTime.split(':').map(Number);
           
@@ -202,7 +202,12 @@ const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
           const endMinutes = endHour * 60 + endMin;
           
           // Una hora de inicio cada 30 minutos dentro de la franja
-          for (let minutes = startMinutes; minutes + experienceDuration <= endMinutes; minutes += 30) {
+          // Una sesión fija solo empieza a la hora de la franja.
+          for (
+            let minutes = startMinutes;
+            minutes + experienceDuration <= endMinutes;
+            minutes += franja.sesionFija ? endMinutes : 30
+          ) {
             const hours = Math.floor(minutes / 60);
             const mins = minutes % 60;
             const timeString = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;

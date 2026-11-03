@@ -698,6 +698,16 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
     }));
   };
 
+  const fijarSesion = (day: DayOfWeek, i: number, fija: boolean) => {
+    setWeeklySchedule(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        franjas: prev[day].franjas.map((f, index) => (index === i ? { ...f, sesionFija: fija } : f)),
+      },
+    }));
+  };
+
   /**
    * Copia las franjas de un día a otros.
    *
@@ -879,6 +889,18 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                               franja.cupos ? 'border-gray-300' : 'border-red-400 bg-red-50'
                             }`}
                           />
+                          {/* Sesión fija: la franja es UNA sesión que empieza a
+                              su hora de inicio. Sin marcar, es una ventana donde
+                              se puede empezar cada 30 minutos. */}
+                          <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={franja.sesionFija ?? false}
+                              onChange={(e) => fijarSesion(dayKey as DayOfWeek, i, e.target.checked)}
+                              className="w-4 h-4 text-[#F26726] rounded focus:ring-[#F26726]"
+                            />
+                            Sesión fija
+                          </label>
                           {day.franjas.length > 1 && (
                             <button
                               type="button"
@@ -893,7 +915,9 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
                       ))}
                       <p className="text-xs text-gray-500">
                         Los cupos son de cada franja: cuánta gente cabe a esa hora. El almuerzo y
-                        la cena de un sábado se llenan por separado.
+                        la cena de un sábado se llenan por separado. Con «Sesión fija» la franja es
+                        una sola sesión que empieza a la hora de inicio; sin marcar, se puede
+                        reservar cada 30 minutos dentro de ella.
                       </p>
                     </div>
                   )}

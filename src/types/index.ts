@@ -986,6 +986,8 @@ export interface Franja {
   startTime: string; // formato HH:mm (24h)
   endTime: string; // formato HH:mm (24h)
   cupos?: number | null;
+  /** Una sola sesión que empieza a `startTime`, en vez de una ventana donde se puede empezar. */
+  sesionFija?: boolean;
 }
 
 export interface DaySchedule {

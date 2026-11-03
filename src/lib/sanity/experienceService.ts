@@ -86,6 +86,9 @@ export interface ApiExperience {
     minimumNotice: number;
     dateOverrides: Record<string, unknown> | null;
     locationId: string | null;
+    /** Desde y hasta cuándo rige el horario (el catálogo público los manda). */
+    validFrom?: string | null;
+    validUntil?: string | null;
   }>;
 }
 
@@ -170,6 +173,10 @@ export function toExperience(e: ApiExperience): Experience {
       bufferTime: a.bufferTime,
       minimumNotice: a.minimumNotice,
       dateOverrides: (a.dateOverrides ?? undefined) as import('@/types').AvailabilitySchedule['dateOverrides'],
+      // Sin la vigencia el motor de reservas ofrecía fechas y horas de
+      // horarios ya vencidos, o que aún no empiezan, como si valieran siempre.
+      validFrom: a.validFrom ? a.validFrom.slice(0, 10) : undefined,
+      validUntil: a.validUntil ? a.validUntil.slice(0, 10) : null,
       isMain: false,
       isActive: true,
       location: a.locationId ? { _ref: a.locationId, _type: 'reference' as const } : undefined,

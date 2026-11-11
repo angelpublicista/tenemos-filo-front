@@ -9,7 +9,6 @@ import { api, apiEnvelope } from './client';
 export interface VentaDeMiCanal {
   id: string;
   reservationNumber: string;
-  confirmationCode: string | null;
   reservationDate: string;
   experienceTitle: string | null;
   hostCompanyName: string | null;

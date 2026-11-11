@@ -1,6 +1,5 @@
 "use client";
 
-import ValidarCodigo from '@/components/Reservas/ValidarCodigo';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -1134,13 +1133,6 @@ function ReservationsPageContenido() {
             Nueva Reserva
           </Button>
         </div>
-      </div>
-
-      {/* Lo primero de la pantalla cuando hay gente llegando: comprobar el
-          código que traen. Y de paso, el único sitio donde se ve que una
-          venta no entró por FILO. */}
-      <div className="mb-4">
-        <ValidarCodigo />
       </div>
 
       {/* Estadísticas */}

@@ -105,7 +105,7 @@ Reglas que no se saltan:
 - "description" es para el cliente que va a reservar: dos o tres frases, en el tono del propio sitio, sin repetir el precio ni los horarios.
 - "includes" son cosas sueltas y cortas ("una copa de bienvenida", "recetario impreso"), no frases largas.
 - "sedeMencionada" es el nombre del sitio tal cual lo escribe el texto. No lo normalices ni lo inventes.
-- "imagenes" son URLs que aparezcan en el material asociadas a ESA experiencia. Si no sabes cuál va con cuál, déjalo vacío.
+- En el material, las fotos aparecen como "[IMAGEN: dirección]" justo donde están en la página. "imagenes" son SOLO las que están dentro del texto de ESA experiencia o en su propia página (el bloque que empieza en "### dirección"). Copia la dirección exacta. No uses fotos de otra experiencia ni de la portada general del sitio, y no inventes direcciones. Si no estás seguro de que una foto sea de esa experiencia, déjalo vacío: es mejor sin foto que con una equivocada.
 - "confianza" es tuya: "alta" si el texto da título, precio y una descripción clara; "baja" si estás reconstruyendo a partir de pistas sueltas.
 - "dudas" son frases cortas en español dirigidas al anfitrión, para que sepa qué revisar: "El precio no decía si es por persona".
 
@@ -259,9 +259,20 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const experiencias = await pedirAlModelo([
+      const candidatas = await pedirAlModelo([
         { type: 'input_text', text: `Catálogo leído de ${cuerpo.url}:\n\n${web.texto}` },
       ]);
+
+      // El modelo puede devolver una dirección que se inventó o que copió mal.
+      // Solo vale una que de verdad esté en la página: una foto que no existe no
+      // se podría copiar, y una de otra parte del sitio sería de otra cosa.
+      const existentes = new Set(web.todasLasImagenes);
+      const experiencias = candidatas.map((e) => ({
+        ...e,
+        imagenes: Array.isArray(e.imagenes)
+          ? (e.imagenes as unknown[]).filter((u): u is string => typeof u === 'string' && existentes.has(u))
+          : [],
+      }));
 
       return NextResponse.json({
         experiencias,

@@ -103,9 +103,75 @@ async function traerPagina(inicial: URL): Promise<{ url: URL; html: string }> {
 
 const SIN_CONTENIDO = /<(script|style|noscript|svg|iframe)[\s\S]*?<\/\1>/gi;
 
-/** El texto visible de una página, sin el andamiaje. */
-export function aTexto(html: string): string {
-  return html
+/**
+ * Lo que se repite en todas las páginas del sitio: encabezado, menú, pie y
+ * barras laterales. Sus imágenes —logos de aliados, banners, redes— no son de
+ * ninguna experiencia, y dejarlas pasaba por foto de la que tocara.
+ */
+const CROMO = /<(header|nav|footer|aside)\b[\s\S]*?<\/\1>/gi;
+
+/** Quita las imágenes del cromo del sitio; el texto del cromo se queda. */
+const sinImagenesDelCromo = (html: string): string =>
+  html.replace(CROMO, (bloque) => bloque.replace(/<img\b[^>]*>/gi, ' '));
+
+/** Nombres que delatan que no es una foto de una experiencia. */
+const DECORATIVA =
+  /logo|icon|favicon|sprite|pixel|avatar|placeholder|emoji|flag|spacer|blank|loading|loader|whatsapp|facebook|instagram|twitter|tiktok|youtube|linkedin|badge|sello|payment|visa|mastercard|pse\b/i;
+
+/** El valor de un atributo de una etiqueta, o null. */
+const atributo = (etiqueta: string, nombre: string): string | null =>
+  etiqueta.match(new RegExp(`\\s${nombre}=["']([^"']*)["']`, 'i'))?.[1] ?? null;
+
+/**
+ * La dirección de la foto de una etiqueta <img>, o null si no sirve.
+ *
+ * Los sitios con carga diferida dejan en `src` un marcador (`data:` o un gif de
+ * un píxel) y ponen la foto de verdad en `data-src`: mirar solo `src` se
+ * quedaba con los marcadores y sin las fotos.
+ */
+function urlDeImagen(etiqueta: string, base: URL): string | null {
+  const candidatas = [
+    atributo(etiqueta, 'data-src'),
+    atributo(etiqueta, 'data-lazy-src'),
+    atributo(etiqueta, 'data-original'),
+    atributo(etiqueta, 'src'),
+  ];
+  const src = candidatas.find((c) => c && !c.startsWith('data:'));
+  if (!src) return null;
+  if (DECORATIVA.test(src)) return null;
+  if (/\.svg(\?|$)/i.test(src)) return null;
+
+  // Una miniatura de 40 px es un icono, no la foto de nada.
+  const ancho = Number(atributo(etiqueta, 'width'));
+  const alto = Number(atributo(etiqueta, 'height'));
+  if ((ancho > 0 && ancho < 120) || (alto > 0 && alto < 120)) return null;
+
+  try {
+    const u = new URL(src, base);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * El texto visible de una página, sin el andamiaje.
+ *
+ * Con `base`, cada foto del contenido queda como `[IMAGEN: dirección]` en el
+ * sitio donde está. Antes se borraban con el resto de etiquetas, así que el
+ * modelo no tenía ninguna dirección que asociar a ninguna experiencia aunque se
+ * le pidiera, y la foto elegida acababa siendo la que el anfitrión adivinara de
+ * una lista sin contexto.
+ */
+export function aTexto(html: string, base?: URL): string {
+  const contenido = base
+    ? sinImagenesDelCromo(html).replace(/<img\b[^>]*>/gi, (etiqueta) => {
+        const url = urlDeImagen(etiqueta, base);
+        return url ? ` [IMAGEN: ${url}] ` : ' ';
+      })
+    : html;
+  return contenido
     .replace(SIN_CONTENIDO, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ')
     // Los saltos de bloque se conservan: en un catálogo, dónde termina una
@@ -163,25 +229,13 @@ export function enlacesCandidatos(html: string, base: URL): string[] {
   return salida;
 }
 
-/** Las imágenes de una página, en absoluto y sin las decorativas obvias. */
+/** Las fotos del contenido de una página, en absoluto y sin las del cromo ni las decorativas. */
 export function imagenes(html: string, base: URL): string[] {
   const vistas = new Set<string>();
-
-  for (const m of html.matchAll(/<img\b[^>]*?src=["']([^"']+)["'][^>]*>/gi)) {
-    const src = m[1];
-    if (!src || src.startsWith('data:')) continue;
-    // Iconos, logos y píxeles de seguimiento no son fotos de una experiencia.
-    if (/logo|icon|favicon|sprite|pixel|avatar|placeholder/i.test(src)) continue;
-
-    try {
-      const u = new URL(src, base);
-      if (u.protocol !== 'http:' && u.protocol !== 'https:') continue;
-      vistas.add(u.toString());
-    } catch {
-      /* src ilegible: se ignora */
-    }
+  for (const m of sinImagenesDelCromo(html).matchAll(/<img\b[^>]*>/gi)) {
+    const url = urlDeImagen(m[0], base);
+    if (url) vistas.add(url);
   }
-
   return [...vistas];
 }
 
@@ -194,7 +248,10 @@ export interface PaginaLeida {
 export interface LecturaDeWeb {
   paginas: PaginaLeida[];
   texto: string;
+  /** Las que se le enseñan a quien revisa: las primeras. */
   imagenes: string[];
+  /** Todas las del contenido. Con ellas se comprueba lo que devuelve el modelo. */
+  todasLasImagenes: string[];
   recortado: boolean;
 }
 
@@ -215,7 +272,7 @@ export async function leerCatalogoWeb(urlInicial: string): Promise<LecturaDeWeb>
 
   const primera = await traerPagina(base);
   const paginas: PaginaLeida[] = [
-    { url: primera.url.toString(), texto: aTexto(primera.html), imagenes: imagenes(primera.html, primera.url) },
+    { url: primera.url.toString(), texto: aTexto(primera.html, primera.url), imagenes: imagenes(primera.html, primera.url) },
   ];
 
   const candidatos = enlacesCandidatos(primera.html, primera.url).slice(0, MAX_PAGINAS);
@@ -224,7 +281,7 @@ export async function leerCatalogoWeb(urlInicial: string): Promise<LecturaDeWeb>
       const p = await traerPagina(new URL(u));
       return {
         url: p.url.toString(),
-        texto: aTexto(p.html),
+        texto: aTexto(p.html, p.url),
         imagenes: imagenes(p.html, p.url),
       };
     }),
@@ -242,6 +299,7 @@ export async function leerCatalogoWeb(urlInicial: string): Promise<LecturaDeWeb>
     paginas,
     texto: completo.slice(0, MAX_CARACTERES),
     imagenes: [...new Set(paginas.flatMap((p) => p.imagenes))].slice(0, 40),
+    todasLasImagenes: [...new Set(paginas.flatMap((p) => p.imagenes))],
     recortado: completo.length > MAX_CARACTERES,
   };
 }

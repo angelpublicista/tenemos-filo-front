@@ -2,14 +2,20 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card } from 'flowbite-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Loader from '@/components/Loader';
 import { listArticulos, type ArticuloResumen } from '@/lib/api/ayuda';
 import { mensajeDeError } from '@/lib/api/client';
+import { guardarOnboarding } from '@/lib/api/onboarding';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 /** Centro de ayuda: los artículos publicados para el rol de quien mira, por categoría. */
 export default function AyudaPage() {
+  const router = useRouter();
+  const { sanityUser, esPanelRevendedor } = useAuth();
+  const esAnfitrion = sanityUser?.role === 'host' && !!sanityUser.companyId && !esPanelRevendedor;
   const [articulos, setArticulos] = useState<ArticuloResumen[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [cargando, setCargando] = useState(true);
@@ -43,6 +49,21 @@ export default function AyudaPage() {
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-5">
           Guías para sacarle el mayor provecho a Tenemos Filo.
         </p>
+
+        {/* Vuelve a ofrecer el tour y la lista de primeros pasos desde el dashboard,
+            que es donde se muestran. */}
+        {esAnfitrion && (
+          <button
+            type="button"
+            onClick={async () => {
+              await guardarOnboarding({ reiniciar: true }).catch(() => undefined);
+              router.push('/dashboard');
+            }}
+            className="mb-5 text-sm font-medium text-[#F26726] hover:underline"
+          >
+            Volver a ver el recorrido por la plataforma
+          </button>
+        )}
 
         <input
           type="search"

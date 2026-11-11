@@ -5,10 +5,19 @@ import Sidebar from '@/components/Dashboard/Sidebar'
 import MobileFAB from '@/components/Dashboard/MobileFAB'
 import { EmailVerificationBanner } from '@/components/EmailVerificationBanner'
 import GuardiaDeSuscripcion from '@/components/Suscripcion/GuardiaDeSuscripcion'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { EVENTO_DEL_MENU } from '@/lib/onboarding/tour'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // El tour abre el cajón del menú en pantallas pequeñas: sin verlo, no hay
+  // nada que resaltar. Lo cierra al terminar.
+  useEffect(() => {
+    const alCambiar = (e: Event) => setSidebarOpen((e as CustomEvent<{ abierto: boolean }>).detail.abierto)
+    window.addEventListener(EVENTO_DEL_MENU, alCambiar)
+    return () => window.removeEventListener(EVENTO_DEL_MENU, alCambiar)
+  }, [])
 
   return (
     // Con la suscripción vencida el panel se cierra: solo queda la pantalla de

@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CompanySetupAlert from "@/components/CompanySetupAlert";
 import CompanyProgress from "@/components/CompanyProgress";
+import PrimerosPasos from "@/components/Onboarding/PrimerosPasos";
 import { calcularCompletitud } from "@/lib/company/completitud";
 import { getCompanyById } from "@/lib/sanity/companyService";
 import type { Company } from "@/types";
@@ -334,6 +335,12 @@ export default function Dashboard() {
             onCompletar={() => router.push('/company-setup')}
             className="mb-6"
           />
+        )}
+
+        {/* Primeros pasos y tour. Solo el anfitrión que opera su empresa: el
+            comensal, el revendedor y el administrador no tienen este camino. */}
+        {sanityUser?.role === 'host' && !!sanityUser.companyId && !esReseller && (
+          <PrimerosPasos empresa={empresa} className="mb-6" />
         )}
 
         {/* Panel del comensal: lo que ha reservado. */}

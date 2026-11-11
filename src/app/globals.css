@@ -96,3 +96,19 @@ body {
     cursor: not-allowed;
   }
 }
+/* Tour por la plataforma (driver.js): el color de marca en los botones. */
+.driver-popover.tour-filo .driver-popover-title {
+  color: #334c5d;
+}
+.driver-popover.tour-filo .driver-popover-next-btn,
+.driver-popover.tour-filo .driver-popover-done-btn {
+  background-color: #f26726;
+  border-color: #f26726;
+  color: #fff;
+  text-shadow: none;
+}
+.driver-popover.tour-filo .driver-popover-next-btn:hover,
+.driver-popover.tour-filo .driver-popover-done-btn:hover {
+  background-color: #d9561a;
+  border-color: #d9561a;
+}

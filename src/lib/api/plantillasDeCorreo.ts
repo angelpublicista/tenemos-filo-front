@@ -11,6 +11,10 @@ export interface PlantillaResumen {
   /** Tiene una versión propia; si no, se usa el texto por defecto. */
   personalizada: boolean;
   updatedAt: string | null;
+  /** Si se envía. Apagada, el texto se conserva pero el correo no sale. */
+  activa: boolean;
+  /** Sin ella la persona no puede entrar a su cuenta: no se puede apagar. */
+  esencial: boolean;
 }
 
 export interface VariableDePlantilla {
@@ -42,6 +46,10 @@ export const getPlantilla = (key: string) =>
 
 export const guardarPlantilla = (key: string, contenido: ContenidoDePlantilla) =>
   api.put<PlantillaDetalle>(`/plantillas-de-correo/${encodeURIComponent(key)}`, contenido);
+
+/** Enciende o apaga el envío de una plantilla. */
+export const cambiarActivaDePlantilla = (key: string, activa: boolean) =>
+  api.put<PlantillaDetalle>(`/plantillas-de-correo/${encodeURIComponent(key)}/activa`, { activa });
 
 /** Vuelve al texto por defecto. */
 export const restaurarPlantilla = (key: string) =>

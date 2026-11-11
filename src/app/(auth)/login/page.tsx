@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Loader from "@/components/Loader";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
 import InputContrasena from '@/components/InputContrasena';
+import { evento } from '@/lib/analytics';
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export default function Login() {
 
     try {
       await login(data.email, data.password);
+      evento('login', { method: 'email' });
     } catch (error) {
       // Falló: sigue en el formulario y puede volver a intentar.
       iniciandoSesion.current = false;

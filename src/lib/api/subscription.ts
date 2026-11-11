@@ -1,6 +1,7 @@
 // La suscripción del anfitrión a la plataforma: un plan, pago mensual sin
 // permanencia. Cada pago compra 30 días y se suman a los que ya queden.
 import { aNumero, api } from './client';
+import { evento } from '@/lib/analytics';
 
 export type PagoDeSuscripcion = {
   id: string;
@@ -84,8 +85,11 @@ const aEstado = (e: EstadoDeSuscripcion): EstadoDeSuscripcion => ({
 export const getSuscripcion = async () => aEstado(await api.get<EstadoDeSuscripcion>('/subscription'));
 
 /** Un intento de pago nuevo con la pasarela que haya elegido la plataforma. */
-export const crearCheckoutDeSuscripcion = () =>
-  api.post<CheckoutDeSuscripcion>('/subscription/checkout');
+export const crearCheckoutDeSuscripcion = async () => {
+  const checkout = await api.post<CheckoutDeSuscripcion>('/subscription/checkout');
+  evento('suscripcion_checkout_iniciado');
+  return checkout;
+};
 
 /** Deja de renovar solo. Los días ya pagados se conservan. */
 export const cancelarRenovacionAutomatica = async () =>

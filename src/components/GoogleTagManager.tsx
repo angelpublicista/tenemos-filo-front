@@ -6,8 +6,11 @@ interface GoogleTagManagerProps {
   gtmId: string;
 }
 
+/** El formato de un contenedor. Va dentro de un script: lo que no encaje no se escribe. */
+const FORMATO_DE_ID = /^GTM-[A-Z0-9]+$/;
+
 export default function GoogleTagManager({ gtmId }: GoogleTagManagerProps) {
-  if (!gtmId) {
+  if (!gtmId || !FORMATO_DE_ID.test(gtmId)) {
     return null;
   }
 

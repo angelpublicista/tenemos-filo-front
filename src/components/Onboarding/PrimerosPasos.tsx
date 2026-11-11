@@ -13,6 +13,7 @@ import {
 } from '@/lib/api/onboarding';
 import { PASOS_DE_INICIO, pasoHecho } from '@/lib/onboarding/pasos';
 import { iniciarTour } from '@/lib/onboarding/tour';
+import { evento } from '@/lib/analytics';
 
 interface Props {
   /** La empresa del anfitrión, para saber si su ficha está completa. */
@@ -45,7 +46,11 @@ export default function PrimerosPasos({ empresa, className = '' }: Props) {
   }, []);
 
   const verTour = useCallback(() => {
-    iniciarTour(() => void guardar({ tourVisto: true }));
+    iniciarTour((completo) => {
+      // Cerrarlo a medias también cuenta como visto, pero no como completado.
+      evento(completo ? 'tour_completado' : 'tour_cerrado');
+      void guardar({ tourVisto: true });
+    });
   }, [guardar]);
 
   useEffect(() => {
@@ -77,8 +82,10 @@ export default function PrimerosPasos({ empresa, className = '' }: Props) {
   const porcentaje = Math.round((resueltos / pasos.length) * 100);
   const siguiente = pasos.find((p) => !p.resuelto);
 
-  const saltar = (id: string) =>
-    guardar({ descartados: [...new Set([...datos.estado.descartados, id])] });
+  const saltar = (id: string) => {
+    evento('primer_paso_omitido', { paso: id });
+    return guardar({ descartados: [...new Set([...datos.estado.descartados, id])] });
+  };
 
   return (
     <section

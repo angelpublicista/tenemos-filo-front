@@ -4,6 +4,7 @@
 import { api } from '@/lib/api/client';
 import { horarioDesde, type HorarioSemanal } from '@/lib/company/horarios';
 import { Location } from '@/types';
+import { evento } from '@/lib/analytics';
 
 export interface CreateLocationData {
   name: string;
@@ -151,6 +152,7 @@ export const createLocationInSanity = async (data: CreateLocationData) => {
     rooms: data.rooms,
     isActive: data.isActive,
   });
+  evento('anfitrion_sede_creada');
   return toLocation(created);
 };
 

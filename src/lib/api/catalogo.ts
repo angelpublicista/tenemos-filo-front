@@ -8,6 +8,7 @@
 // Esa pareja experiencia–sede es la PUBLICACIÓN, y es la unidad con la que se
 // arma el catálogo público.
 import { api } from './client';
+import { evento } from '@/lib/analytics';
 
 export interface Publicacion {
   experienceId: string;
@@ -100,7 +101,9 @@ export async function publicar(
   const ruta = locationId
     ? `/catalogo/publicaciones/${experienceId}/${locationId}`
     : `/catalogo/publicaciones/${experienceId}`;
-  return (await api.put<Publicacion[]>(ruta, condiciones)) ?? [];
+  const publicaciones = (await api.put<Publicacion[]>(ruta, condiciones)) ?? [];
+  evento('anfitrion_publicacion_guardada', { a_domicilio: locationId === null });
+  return publicaciones;
 }
 
 /** Deja de venderla ahí sin perder sus condiciones ni su horario. */

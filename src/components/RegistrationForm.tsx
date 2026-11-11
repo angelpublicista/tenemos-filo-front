@@ -10,6 +10,7 @@ import { GuestStep1Data } from "@/types";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
 import RecaptchaComponent from "@/components/Recaptcha";
+import { evento } from '@/lib/analytics';
 
 interface RegistrationFormProps {
   role: 'guest' | 'host';
@@ -81,6 +82,8 @@ export default function RegistrationForm({ role }: RegistrationFormProps) {
 
       // Registrar usuario en Firebase Auth y Sanity
       await authRegister(data.email, data.password, userData, recaptchaToken);
+      // Solo el rol y el método: nada de quién se registró.
+      evento('sign_up', { method: 'email', rol: role });
 
       console.log(`${role === 'host' ? 'Anfitrión' : 'Comensal'} registrado exitosamente en Firebase y Sanity`);
       

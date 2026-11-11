@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { HiCheckCircle, HiClock, HiXCircle } from 'react-icons/hi';
 import { getEstadoReserva, type EstadoReserva } from '@/lib/api/catalog';
 import { estiloDeMarca } from '@/lib/marca';
+import { compraConfirmada } from '@/lib/analytics';
 
 /**
  * A donde vuelve el cliente desde la pasarela, sea cual sea.
@@ -56,6 +57,8 @@ export default function PaginaRetornoPago() {
         setEstado(datos);
         // Pagado o rechazado ya son definitivos: no hay que seguir mirando.
         if (datos.paymentStatus === 'PAID' || datos.paymentStatus === 'FAILED') {
+          // El dinero entró: aquí, y solo aquí, hay una venta que contar.
+          if (datos.paymentStatus === 'PAID') compraConfirmada(datos.reservationNumber ?? referencia);
           setSondeando(false);
           return;
         }

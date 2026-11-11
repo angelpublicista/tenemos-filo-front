@@ -25,12 +25,13 @@ function enlaceVisible(href: string): HTMLElement | null {
 }
 
 /**
- * Arranca el tour. `alTerminar` se llama tanto si lo completa como si lo cierra:
- * en ambos casos ya lo vio y no hay que volver a ofrecérselo solo.
+ * Arranca el tour. `alTerminar` se llama tanto si lo completa como si lo cierra
+ * (`completo` dice cuál): en ambos casos ya lo vio y no hay que volver a
+ * ofrecérselo solo.
  *
  * Los pasos cuyo enlace no está en su menú —según el plan o el rol— se saltan.
  */
-export function iniciarTour(alTerminar: () => void): void {
+export function iniciarTour(alTerminar: (completo: boolean) => void): void {
   const movil = esMovil();
   if (movil) abrirMenu(true);
 
@@ -62,7 +63,8 @@ export function iniciarTour(alTerminar: () => void): void {
         allowClose: true,
         onDestroyed: () => {
           if (movil) abrirMenu(false);
-          alTerminar();
+          // Sin siguiente paso es que llegó al último y pulsó «Terminar».
+          alTerminar(!guia.hasNextStep());
         },
       });
       guia.drive();

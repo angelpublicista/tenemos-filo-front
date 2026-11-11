@@ -1,4 +1,5 @@
 import { api } from '@/lib/api/client';
+import { evento } from '@/lib/analytics';
 
 /**
  * La pasarela de cobro propia del anfitrión.
@@ -54,5 +55,14 @@ export interface GuardarPasarela {
 export const getPasarela = (companyId: string) =>
   api.get<PasarelaDeCobro>(`/companies/${encodeURIComponent(companyId)}/pasarela`);
 
-export const guardarPasarela = (companyId: string, datos: GuardarPasarela) =>
-  api.put<PasarelaDeCobro>(`/companies/${encodeURIComponent(companyId)}/pasarela`, datos);
+export const guardarPasarela = async (companyId: string, datos: GuardarPasarela) => {
+  const guardada = await api.put<PasarelaDeCobro>(
+    `/companies/${encodeURIComponent(companyId)}/pasarela`,
+    datos,
+  );
+  // Solo cuando la deja encendida: guardar para apagarla no es conectar cobros.
+  if (datos.enabled !== false) {
+    evento('anfitrion_cobros_conectados', { proveedor: datos.provider ?? null });
+  }
+  return guardada;
+};

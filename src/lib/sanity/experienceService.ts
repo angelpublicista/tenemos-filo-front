@@ -3,6 +3,7 @@
 // El shape de Experience se mantiene "Sanity-like" via mapeo.
 import { api } from '@/lib/api/client';
 import { conClaves, type ApiMenu } from './menuService';
+import { evento } from '@/lib/analytics';
 import {
   Experience,
   CreateExperienceData,
@@ -286,6 +287,7 @@ function buildUpdatePayload(data: UpdateExperienceData): Record<string, unknown>
 
 export const createExperienceInSanity = async (data: CreateExperienceData) => {
   const created = await api.post<ApiExperience>('/experiences', buildCreatePayload(data));
+  evento('anfitrion_experiencia_creada');
   return toExperience(created);
 };
 

@@ -24,6 +24,7 @@ import { SkeletonCard } from '@/components/Skeleton';
 import { urlDeImagen } from '@/lib/images';
 import PortadaCatalogo from '@/components/BookingEngine/PortadaCatalogo';
 import ChatDelAgente from '@/components/BookingEngine/ChatDelAgente';
+import { elegirFecha, iniciarPago, recordarCompra, reservaCreada, verExperiencia } from '@/lib/analytics';
 
 
 export interface BookingLocationAddress {
@@ -47,6 +48,21 @@ export interface BookingExperience extends Omit<Experience, 'locations' | 'avail
     videoUrl?: string | null;
   }>;
 }
+
+/** Lo mínimo de una experiencia para medirla: sin nada de quien reserva. */
+const datosParaMedir = (e: BookingExperience, personas?: number) => ({
+  id: e._id,
+  titulo: e.title,
+  precio: Number(e.basePrice) || 0,
+  personas,
+});
+
+/**
+ * Lo que costaría, según lo que ve la pantalla. Es una estimación para el
+ * embudo: el importe de verdad lo calcula el API y llega con el cobro.
+ */
+const valorEstimado = (e: BookingExperience, personas: number, adicionales?: SelectedAddon[]) =>
+  (Number(e.basePrice) || 0) * personas + (adicionales ?? []).reduce((s, a) => s + a.price * a.quantity, 0);
 
 export interface SelectedAddon {
   name: string;
@@ -185,6 +201,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
         if (publicacion) {
           const abierta = conAgenda.find((e) => e._id === publicacion.experienceId);
           if (abierta) {
+            verExperiencia(datosParaMedir(abierta));
             setBooking({ experience: abierta, locationId: publicacion.locationId ?? undefined });
             setStep('datetime');
           }
@@ -203,6 +220,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
               : undefined;
             // Una URL de publicación ya dice cuál: lo que apunte el CRM no la pisa.
             if (elegida && !publicacion) {
+              verExperiencia(datosParaMedir(elegida));
               setBooking({ experience: elegida });
               setStep('datetime');
             }
@@ -238,6 +256,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   }, [slug, modoReseller, solicitud, publicacionSlug]);
 
   const handleSelectExperience = (exp: BookingExperience) => {
+    verExperiencia(datosParaMedir(exp));
     setBooking({ experience: exp });
     setStep('datetime');
   };
@@ -252,6 +271,9 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
     serviceAddress?: string,
     idioma?: string,
   ) => {
+    if (booking.experience) {
+      elegirFecha(datosParaMedir(booking.experience, participants), valorEstimado(booking.experience, participants, selectedAddons));
+    }
     setBooking(prev => ({
       ...prev, date, time, participants, locationId, locationName, selectedAddons, serviceAddress, idioma,
     }));
@@ -259,6 +281,12 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   };
 
   const handleContactNext = (guestInfo: BookingData['guestInfo']) => {
+    if (booking.experience && booking.participants) {
+      iniciarPago(
+        datosParaMedir(booking.experience, booking.participants),
+        valorEstimado(booking.experience, booking.participants, booking.selectedAddons),
+      );
+    }
     setBooking(prev => ({ ...prev, guestInfo }));
     setStep('confirmation');
   };
@@ -330,6 +358,22 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
       // correo) mandaba la misma clave y el API devolvía la reserva anterior
       // en vez de crear la nueva.
       claveDelIntento.current = null;
+
+      // Con cobro en línea el importe es el exacto de la pasarela; sin él, el
+      // estimado de la pantalla. `purchase` no sale aquí: es dinero que entró, y
+      // eso se sabe al volver de pagar (ver /pay/[reference]).
+      const medida = datosParaMedir(booking.experience, booking.participants);
+      const estimado = valorEstimado(booking.experience, booking.participants, booking.selectedAddons);
+      const pago = result.payment;
+      const cobrado = pago ? (pago.proveedor === 'WOMPI' ? pago.amountInCents / 100 : pago.amount) : null;
+      reservaCreada(medida, cobrado ?? estimado, result.reservationNumber);
+      if (cobrado !== null) {
+        recordarCompra(result.reservationNumber, {
+          valor: cobrado,
+          items: [{ item_id: medida.id, item_name: medida.titulo, price: medida.precio, quantity: medida.personas ?? 1 }],
+        });
+      }
+
       setReservationNumber(result.reservationNumber);
       setPago(result.payment ?? null);
       setStep('success');

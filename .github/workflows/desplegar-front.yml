@@ -29,6 +29,9 @@ env:
   NEXT_PUBLIC_API_URL: https://api.tenemosfilo.com
   NEXT_PUBLIC_APP_URL: https://app.tenemosfilo.com
   NEXT_PUBLIC_RECAPTCHA_SITE_KEY: 6LdTcsgsAAAAAE54uxEgg10y8JLsYe5F4_W6U3ax
+  # Google Tag Manager. Contenedor de la plataforma; los eventos estan en
+  # docs/analitica-gtm.md.
+  NEXT_PUBLIC_GTM_ID: GTM-MSZWGQH
   # Mapas de las sedes. Va como secreto y no en claro como las de arriba solo
   # por comodidad de rotarla; publica lo es igual, porque acaba dentro del
   # JavaScript del navegador. Lo que la protege es la restriccion por dominio

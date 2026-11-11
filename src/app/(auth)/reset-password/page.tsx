@@ -6,6 +6,7 @@ import FiloLogo from "@/components/FiloLogo";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
+import InputContrasena from '@/components/InputContrasena';
 
 // Debe coincidir con resetPasswordSchema del API (min 8), o el submit
 // se rechaza con 400 despues de que el usuario ya escribio la contraseña.
@@ -196,8 +197,7 @@ function NewPasswordForm({ token, invitacion }: { token: string; invitacion: boo
           <Label color="gray" className="w-full">
             {invitacion ? "Contraseña" : "Contraseña nueva"}
           </Label>
-          <TextInput
-            type="password"
+          <InputContrasena
             color="white"
             placeholder={invitacion ? "Contraseña" : "Contraseña nueva"}
             className="w-full"
@@ -211,8 +211,7 @@ function NewPasswordForm({ token, invitacion }: { token: string; invitacion: boo
           <Label color="gray" className="w-full">
             Confirmar contraseña
           </Label>
-          <TextInput
-            type="password"
+          <InputContrasena
             color="white"
             placeholder="Confirmar contraseña"
             className="w-full"

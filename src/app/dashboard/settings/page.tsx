@@ -33,6 +33,7 @@ import {
   Textarea,
   ToggleSwitch
 } from "flowbite-react";
+import InputContrasena from '@/components/InputContrasena';
 
 const COMPANY_TYPE_OPTIONS = TIPOS_DE_EMPRESA;
 
@@ -1258,9 +1259,8 @@ export default function SettingsPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="pass-actual">Contraseña actual</Label>
-              <TextInput
+              <InputContrasena
                 id="pass-actual"
-                type="password"
                 autoComplete="current-password"
                 value={passwordForm.actual}
                 onChange={(e) => setPasswordForm((f) => ({ ...f, actual: e.target.value }))}
@@ -1268,9 +1268,8 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="pass-nueva">Contraseña nueva</Label>
-              <TextInput
+              <InputContrasena
                 id="pass-nueva"
-                type="password"
                 autoComplete="new-password"
                 value={passwordForm.nueva}
                 onChange={(e) => setPasswordForm((f) => ({ ...f, nueva: e.target.value }))}
@@ -1279,9 +1278,8 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="pass-repetir">Repetir la nueva</Label>
-              <TextInput
+              <InputContrasena
                 id="pass-repetir"
-                type="password"
                 autoComplete="new-password"
                 value={passwordForm.repetir}
                 onChange={(e) => setPasswordForm((f) => ({ ...f, repetir: e.target.value }))}

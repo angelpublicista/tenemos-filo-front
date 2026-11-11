@@ -10,6 +10,7 @@ import { LoginFormData } from "@/types";
 import { useRouter, useSearchParams } from "next/navigation";
 import Loader from "@/components/Loader";
 import { getTranslatedFirebaseError } from "@/lib/firebase/firebaseErrors";
+import InputContrasena from '@/components/InputContrasena';
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
@@ -103,12 +104,11 @@ export default function Login() {
           <Label color="gray" className="w-full">
             Contraseña
           </Label>
-          <TextInput
+          <InputContrasena
             {...register("password", { required: true })}
             color="white"
             placeholder="Contraseña"
             className="w-full"
-            type="password"
           />
           {errors.password && (
             <p className="text-red-500 text-sm text-left w-full">

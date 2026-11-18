@@ -24,6 +24,7 @@ import { SkeletonCard } from '@/components/Skeleton';
 import { urlDeImagen } from '@/lib/images';
 import PortadaCatalogo from '@/components/BookingEngine/PortadaCatalogo';
 import ChatDelAgente from '@/components/BookingEngine/ChatDelAgente';
+import { registrarEvento } from '@/lib/api/estadisticasDeMiCanal';
 import { elegirFecha, iniciarPago, recordarCompra, reservaCreada, verExperiencia } from '@/lib/analytics';
 
 
@@ -179,6 +180,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
             : await getPublicCatalog(slug);
         if (controller.signal.aborted) return;
         setCompany(companyData);
+        if (modoReseller) registrarEvento(slug, 'VISITA');
         // El catálogo de un revendedor no trae chat: el agente es de un
         // anfitrión y habla de sus experiencias, no de las de toda la plataforma.
         setAgente(modoReseller ? null : agenteDelChat);
@@ -202,6 +204,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
           const abierta = conAgenda.find((e) => e._id === publicacion.experienceId);
           if (abierta) {
             verExperiencia(datosParaMedir(abierta));
+            if (modoReseller) registrarEvento(slug, 'VER_EXPERIENCIA', abierta._id);
             setBooking({ experience: abierta, locationId: publicacion.locationId ?? undefined });
             setStep('datetime');
           }
@@ -221,6 +224,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
             // Una URL de publicación ya dice cuál: lo que apunte el CRM no la pisa.
             if (elegida && !publicacion) {
               verExperiencia(datosParaMedir(elegida));
+              if (modoReseller) registrarEvento(slug, 'VER_EXPERIENCIA', elegida._id);
               setBooking({ experience: elegida });
               setStep('datetime');
             }
@@ -257,6 +261,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
 
   const handleSelectExperience = (exp: BookingExperience) => {
     verExperiencia(datosParaMedir(exp));
+    if (modoReseller) registrarEvento(slug, 'VER_EXPERIENCIA', exp._id);
     setBooking({ experience: exp });
     setStep('datetime');
   };
@@ -273,6 +278,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
   ) => {
     if (booking.experience) {
       elegirFecha(datosParaMedir(booking.experience, participants), valorEstimado(booking.experience, participants, selectedAddons));
+      if (modoReseller) registrarEvento(slug, 'ELEGIR_FECHA', booking.experience._id);
     }
     setBooking(prev => ({
       ...prev, date, time, participants, locationId, locationName, selectedAddons, serviceAddress, idioma,
@@ -282,6 +288,7 @@ export function MotorReservas({ modoReseller = false }: PropsMotor) {
 
   const handleContactNext = (guestInfo: BookingData['guestInfo']) => {
     if (booking.experience && booking.participants) {
+      if (modoReseller) registrarEvento(slug, 'INICIAR_RESERVA', booking.experience._id);
       iniciarPago(
         datosParaMedir(booking.experience, booking.participants),
         valorEstimado(booking.experience, booking.participants, booking.selectedAddons),

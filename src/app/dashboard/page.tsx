@@ -23,6 +23,7 @@ import { getDashboardStats, getRecentActivities, DashboardStats, RecentActivity 
 import { SkeletonStatCard, SkeletonActivityItem } from '@/components/Skeleton';
 import { getResumenIngresos, type ResumenIngresos } from '@/lib/api/earnings';
 import { listarMisReservas, ETIQUETA_ESTADO, type MiReserva } from '@/lib/api/misReservas';
+import PanelDeEstadisticas from '@/components/Revendedor/PanelDeEstadisticas';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -434,6 +435,8 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+
+            <PanelDeEstadisticas />
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
               <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">

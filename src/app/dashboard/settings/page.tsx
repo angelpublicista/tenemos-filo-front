@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getCompanyById, updateCompanyInSanity, type UpdateCompanyData } from "@/lib/sanity/companyService";
 import SelectorColorMarca from "@/components/SelectorColorMarca";
 import { estiloDeMarca } from "@/lib/marca";
-import { TIPOS_DE_EMPRESA, TIPOS_DE_PERSONA, etiquetaDeTipo } from "@/lib/company/tipos";
+import { tiposParaEmpresa, TIPOS_DE_PERSONA, etiquetaDeTipo } from "@/lib/company/tipos";
 import { CIIU_SUGERIDOS, ciiuValido, nombreDeCiiu } from "@/data/ciiu";
 import PaisFijo, { PAIS_FIJO } from "@/components/PaisFijo";
 
@@ -35,7 +35,8 @@ import {
 } from "flowbite-react";
 import InputContrasena from '@/components/InputContrasena';
 
-const COMPANY_TYPE_OPTIONS = TIPOS_DE_EMPRESA;
+// Los ajustes de empresa son de anfitrión: un revendedor no entra aquí.
+const COMPANY_TYPE_OPTIONS = tiposParaEmpresa(false);
 
 
 
@@ -978,7 +979,9 @@ export default function SettingsPage() {
             <div>
               <h2 className="text-xl font-semibold text-[#334C5D]">Portada del catálogo</h2>
               <p className="text-sm text-gray-500">
-                Lo primero que ve quien abre tu enlace, encima de tus experiencias.
+                {esReseller
+                  ? 'Lo primero que ve quien abre tu enlace, encima de las experiencias que compartes.'
+                  : 'Lo primero que ve quien abre tu enlace, encima de tus experiencias.'}
               </p>
             </div>
             <Button color="primary" onClick={guardarPortada} disabled={!company || guardandoPortada}>

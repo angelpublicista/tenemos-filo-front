@@ -23,8 +23,31 @@ export const TIPOS_DE_EMPRESA = [
   { value: 'culinary_school', label: 'Escuela / Academia gastronómica' },
   { value: 'independent_chef', label: 'Chef o anfitrión independiente' },
   { value: 'tour_operator', label: 'Operador de tours / experiencias' },
+  // Solo para revendedores: venden experiencias de otros.
+  { value: 'reseller', label: 'Agencia / revendedor' },
+  { value: 'loyalty_program', label: 'Programa de puntos' },
   { value: 'other', label: 'Otro' },
 ] as const;
+
+/** Los tipos que solo tienen sentido para quien vende experiencias de otros. */
+const SOLO_REVENDEDOR: readonly string[] = ['reseller', 'loyalty_program'];
+
+/**
+ * Lo que se ofrece al elegir, según quién se registra.
+ *
+ * Un anfitrión no es una agencia ni un programa de puntos, y un revendedor no
+ * es un restaurante: cada uno ve solo lo suyo. Un revendedor conserva operador
+ * de tours y hotel, que también venden experiencias de otros (una agencia, el
+ * concierge de un hotel). La lista completa sigue sirviendo para validar y
+ * para poner nombre a un tipo ya guardado.
+ */
+export function tiposParaEmpresa(revendedor: boolean) {
+  return TIPOS_DE_EMPRESA.filter((t) =>
+    revendedor
+      ? SOLO_REVENDEDOR.includes(t.value) || ['tour_operator', 'hotel', 'other'].includes(t.value)
+      : !SOLO_REVENDEDOR.includes(t.value),
+  );
+}
 
 export type TipoDeEmpresa = (typeof TIPOS_DE_EMPRESA)[number]['value'];
 

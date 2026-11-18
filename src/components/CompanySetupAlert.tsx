@@ -31,9 +31,11 @@ export default function CompanySetupAlert({ userRole, hasCompletedSetup, hasComp
 
   // Usuario saltó el setup anteriormente
   const isHost = userRole === 'host';
-  const limitationText = isHost 
-    ? 'no podrás crear experiencias' 
-    : 'no podrás cotizar experiencias';
+  const limitationText = isHost
+    ? 'no podrás crear experiencias'
+    : userRole === 'reseller'
+      ? 'no podrás vender desde tu catálogo'
+      : 'no podrás cotizar experiencias';
 
   return (
     <div className="mb-6 bg-gradient-to-r from-[#EBD52C] to-[#EBD52C]/80 border border-[#EBD52C] rounded-lg p-4">

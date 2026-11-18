@@ -70,7 +70,9 @@ export default function CompanyProgress({
                 para qué sirve cada cosa, no que estés en falta. */}
             {urge
               ? 'Hay datos necesarios sin rellenar. Complétalos para que tu empresa quede en orden.'
-              : 'Nada de esto te frena: ya puedes crear experiencias y vender. Lo que queda sirve para facturar y para que tu catálogo se vea completo.'}
+              : revendedor
+                ? 'Nada de esto te frena: ya puedes compartir tu catálogo y vender. Lo que queda sirve para tus pagos y para que tu catálogo salga con tu marca.'
+                : 'Nada de esto te frena: ya puedes crear experiencias y vender. Lo que queda sirve para facturar y para que tu catálogo se vea completo.'}
           </p>
         </div>
       </div>

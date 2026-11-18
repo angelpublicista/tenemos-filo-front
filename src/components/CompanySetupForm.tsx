@@ -21,7 +21,7 @@ import CompanyInfoView from './CompanyInfoView';
 import CompanyDocuments from './CompanyDocuments';
 import type { CampoDetectado } from '@/lib/company/documentos';
 import {
-  TIPOS_DE_EMPRESA,
+  tiposParaEmpresa,
   VALORES_DE_TIPO,
   TIPOS_DE_PERSONA,
   VALORES_DE_PERSONA,
@@ -154,7 +154,6 @@ const sizeInfoSchema = z.object({
   }).optional(),
 });
 
-const companyTypes = TIPOS_DE_EMPRESA;
 
 const documentTypes = [
   { value: 'nit', label: 'NIT' },
@@ -206,6 +205,7 @@ export default function CompanySetupForm() {
   // Un revendedor no atiende reservas: de contactos solo se le pide el de
   // contabilidad, para que Tenemos Filo pueda escribirle por sus pagos.
   const esRevendedor = sanityUser?.role === 'reseller';
+  const companyTypes = tiposParaEmpresa(esRevendedor);
   const [currentStep, setCurrentStep] = useState(1);
 
   /**
@@ -424,7 +424,9 @@ export default function CompanySetupForm() {
             <p className="text-gray-600 text-lg">
               {sanityUser?.role === 'host'
                 ? 'Puedes crear experiencias desde tu dashboard.'
-                : 'Puedes cotizar experiencias desde tu dashboard.'
+                : esRevendedor
+                  ? 'Puedes compartir tu catálogo desde tu dashboard.'
+                  : 'Puedes cotizar experiencias desde tu dashboard.'
               }
             </p>
           </div>
@@ -724,7 +726,9 @@ export default function CompanySetupForm() {
     const warningText =
       sanityUser.role === 'host'
         ? 'Sin empresa no podrás crear experiencias. Si prefieres empezar ya, llena el primer paso y usa "Guardar y empezar": lo demás lo completas después.'
-        : 'Sin empresa no podrás cotizar experiencias. Si prefieres empezar ya, llena el primer paso y usa "Guardar y empezar": lo demás lo completas después.';
+        : esRevendedor
+          ? 'Sin empresa no podrás vender desde tu catálogo. Si prefieres empezar ya, llena el primer paso y usa "Guardar y empezar": lo demás lo completas después.'
+          : 'Sin empresa no podrás cotizar experiencias. Si prefieres empezar ya, llena el primer paso y usa "Guardar y empezar": lo demás lo completas después.';
 
     const confirmed = await showConfirmation(
       warningTitle,
@@ -752,7 +756,9 @@ export default function CompanySetupForm() {
         'Configuración saltada',
         sanityUser.role === 'host' 
           ? 'Has saltado la configuración de empresa. Recuerda que no podrás crear experiencias hasta completar esta información.'
-          : 'Has saltado la configuración de empresa. Recuerda que no podrás cotizar experiencias hasta completar esta información.'
+          : esRevendedor
+            ? 'Has saltado la configuración de empresa. Recuerda que no podrás vender desde tu catálogo hasta completar esta información.'
+            : 'Has saltado la configuración de empresa. Recuerda que no podrás cotizar experiencias hasta completar esta información.'
       );
 
       // Redirigir al dashboard
@@ -793,7 +799,7 @@ export default function CompanySetupForm() {
         <TextInput
           id="companyName"
           type="text"
-          placeholder="Ej: Restaurante El Bueno"
+          placeholder={esRevendedor ? 'Ej: Agencia de Viajes Andina' : 'Ej: Restaurante El Bueno'}
           icon={AiOutlineBuild}
           color={errors.companyName ? 'failure' : 'white'}
           {...register('companyName')}
@@ -1404,7 +1410,9 @@ export default function CompanySetupForm() {
                 Anteriormente saltaste la configuración de empresa. 
                 {sanityUser?.role === 'host' 
                   ? ' Para crear experiencias, completa la información a continuación.'
-                  : ' Para cotizar experiencias, completa la información a continuación.'
+                  : esRevendedor
+                    ? ' Para vender desde tu catálogo, completa la información a continuación.'
+                    : ' Para cotizar experiencias, completa la información a continuación.'
                 }
               </p>
             </div>

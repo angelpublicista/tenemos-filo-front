@@ -33,7 +33,7 @@ const fecha = (iso: string) =>
 const POR_PAGINA = 20;
 
 export default function IngresosPage() {
-  const { sanityUser } = useAuth();
+  const { sanityUser, esPanelRevendedor } = useAuth();
   const { showError } = useSweetAlert();
 
   const [saldos, setSaldos] = useState<Saldo[]>([]);
@@ -110,7 +110,9 @@ export default function IngresosPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mis ingresos</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Lo que han generado tus reservas cobradas y lo que Tenemos Filo ya te transfirió
+          {esPanelRevendedor
+            ? 'Lo que han generado las reservas cobradas de tu canal y lo que Tenemos Filo ya te transfirió'
+            : 'Lo que han generado tus reservas cobradas y lo que Tenemos Filo ya te transfirió'}
         </p>
       </div>
 

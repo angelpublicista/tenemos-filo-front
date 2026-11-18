@@ -186,7 +186,12 @@ export default function CompanyInfoView({
     );
   }
 
-  const completitud = calcularCompletitud(existingCompany);
+  const esRevendedor = sanityUser?.role === 'reseller';
+  const completitud = calcularCompletitud(existingCompany, { revendedor: esRevendedor });
+  // Un revendedor solo da contacto de contabilidad; si tenía otros guardados, no se enseñan.
+  const contactosVisibles = (existingCompany.contacts ?? []).filter(
+    (c) => !esRevendedor || c.type === 'contabilidad',
+  );
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-8 ${className}`}>
@@ -294,6 +299,7 @@ export default function CompanyInfoView({
           que hacer; los datos ya rellenados no piden nada. */}
       <CompanyProgress
         company={existingCompany}
+        revendedor={esRevendedor}
         onCompletar={handleEdit}
         className="mb-6"
       />
@@ -316,13 +322,13 @@ export default function CompanyInfoView({
               </p>
             </div>
 
-            {(existingCompany.contacts?.length ?? 0) > 0 && (
+            {contactosVisibles.length > 0 && (
               <div className="sm:col-span-2">
                 <label className="text-sm font-medium text-gray-500 block mb-2">
                   Contactos
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {existingCompany.contacts?.map((c, i) => (
+                  {contactosVisibles.map((c, i) => (
                     <div key={i} className="rounded-lg border border-gray-200 p-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-[#F26726]">
                         {c.type === 'otro' ? c.label : TITULOS[c.type]}

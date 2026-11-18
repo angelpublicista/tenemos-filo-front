@@ -42,6 +42,16 @@ export const CONTACTOS_OBLIGATORIOS = [
   },
 ];
 
+/**
+ * Los contactos que pide cada tipo de empresa.
+ *
+ * Un revendedor no atiende reservas ni tiene a quien avisar de ellas: vende
+ * las de otros. Lo único que necesita la plataforma de él es un contacto de
+ * contabilidad, para poder escribirle por sus comisiones y pagos.
+ */
+export const contactosObligatoriosPara = (revendedor: boolean) =>
+  revendedor ? CONTACTOS_OBLIGATORIOS.filter((c) => c.type === 'contabilidad') : CONTACTOS_OBLIGATORIOS;
+
 /** Cuantos contactos libres caben. */
 export const MAXIMO_LIBRES = 3;
 

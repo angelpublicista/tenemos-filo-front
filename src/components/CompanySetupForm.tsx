@@ -36,7 +36,7 @@ import { CIIU_SUGERIDOS, nombreDeCiiu } from '@/data/ciiu';
 import ContactosDeEmpresa from './ContactosDeEmpresa';
 import PaisFijo, { PAIS_FIJO } from './PaisFijo';
 import {
-  CONTACTOS_OBLIGATORIOS,
+  contactosObligatoriosPara,
   contactoVacio,
   erroresDeContactos,
   paraGuardar as contactosParaGuardar,
@@ -203,6 +203,9 @@ export default function CompanySetupForm() {
   // tanto el API respondia 403 a todo lo que tuviera alcance de empresa.
   const { update: refrescarSesion } = useSession();
   const { showSuccess, showError, showConfirmation, showLoading, hideLoading } = useSweetAlert();
+  // Un revendedor no atiende reservas: de contactos solo se le pide el de
+  // contabilidad, para que Tenemos Filo pueda escribirle por sus pagos.
+  const esRevendedor = sanityUser?.role === 'reseller';
   const [currentStep, setCurrentStep] = useState(1);
 
   /**
@@ -216,7 +219,7 @@ export default function CompanySetupForm() {
    * principio: son parte del formulario, no algo que haya que ir a buscar.
    */
   const [contactos, setContactos] = useState<ContactoDeEmpresa[]>(() =>
-    CONTACTOS_OBLIGATORIOS.map((c) => contactoVacio(c.type)),
+    contactosObligatoriosPara(esRevendedor).map((c) => contactoVacio(c.type)),
   );
   const [erroresContactos, setErroresContactos] = useState(false);
   const [companyPhone, setCompanyPhone] = useState("");
@@ -379,13 +382,13 @@ export default function CompanySetupForm() {
       // dejar claro que hay dos que rellenar.
       const guardados = existingCompany.contacts ?? [];
       setContactos([
-        ...CONTACTOS_OBLIGATORIOS.map(
+        ...contactosObligatoriosPara(esRevendedor).map(
           (o) => guardados.find((c) => c.type === o.type) ?? contactoVacio(o.type),
         ),
-        ...guardados.filter((c) => c.type === 'otro'),
+        ...(esRevendedor ? [] : guardados.filter((c) => c.type === 'otro')),
       ]);
     }
-  }, [existingCompany, reset]);
+  }, [existingCompany, reset, esRevendedor]);
 
   // Si está cargando datos, mostrar indicador de carga
   if (isLoadingData) {
@@ -1272,8 +1275,9 @@ export default function CompanySetupForm() {
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-[#334C5D] mb-2">Contactos</h3>
         <p className="text-gray-600">
-          A quién escribimos para cada asunto. Si tu empresa eres tú, usa el
-          botón para copiar tus datos.
+          {esRevendedor
+            ? 'A quién escribimos por tus comisiones y pagos. Si eres tú, usa el botón para copiar tus datos.'
+            : 'A quién escribimos para cada asunto. Si tu empresa eres tú, usa el botón para copiar tus datos.'}
         </p>
       </div>
 
@@ -1287,6 +1291,7 @@ export default function CompanySetupForm() {
           phone: aE164(sanityUser?.phone) || companyPhone,
         }}
         mostrarErrores={erroresContactos}
+        revendedor={esRevendedor}
       />
     </div>
   );

@@ -330,9 +330,10 @@ export default function Dashboard() {
 
         {/* Que falta de la empresa. Solo cuando falta algo: con la ficha
             completa, un recuadro verde fijo en el dashboard seria ruido. */}
-        {empresa && !calcularCompletitud(empresa).completa && (
+        {empresa && !calcularCompletitud(empresa, { revendedor: esReseller }).completa && (
           <CompanyProgress
             company={empresa}
+            revendedor={esReseller}
             onCompletar={() => router.push('/company-setup')}
             className="mb-6"
           />

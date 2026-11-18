@@ -10,6 +10,8 @@ interface CompanyProgressProps {
   /** Que hacer al pulsar "Completar". Si no se pasa, no se pinta el boton. */
   onCompletar?: () => void;
   className?: string;
+  /** Un revendedor no atiende reservas: no se le pide contacto de reservas. */
+  revendedor?: boolean;
 }
 
 /**
@@ -27,9 +29,10 @@ export default function CompanyProgress({
   company,
   onCompletar,
   className = '',
+  revendedor = false,
 }: CompanyProgressProps) {
   const { porcentaje, faltantes, faltantesObligatorios, rellenos, total, completa } =
-    calcularCompletitud(company);
+    calcularCompletitud(company, { revendedor });
 
   if (completa) {
     return (

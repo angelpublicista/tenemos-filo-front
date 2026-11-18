@@ -52,7 +52,10 @@ const tiene = (v: unknown): boolean => {
   return true;
 };
 
-export function calcularCompletitud(empresa: Company | null): Completitud {
+export function calcularCompletitud(
+  empresa: Company | null,
+  opts: { revendedor?: boolean } = {},
+): Completitud {
   const dir = empresa?.address;
 
   const campos: CampoEmpresa[] = [
@@ -109,12 +112,17 @@ export function calcularCompletitud(empresa: Company | null): Completitud {
       : []),
 
     // ─── Paso 3: contactos ───
-    {
-      etiqueta: 'Contacto de reservas',
-      relleno: tieneContacto(empresa, 'reservas'),
-      obligatorio: false,
-      paso: 3,
-    },
+    // Un revendedor no atiende reservas: solo se le pide contabilidad.
+    ...(opts.revendedor
+      ? []
+      : [
+          {
+            etiqueta: 'Contacto de reservas',
+            relleno: tieneContacto(empresa, 'reservas'),
+            obligatorio: false,
+            paso: 3 as const,
+          },
+        ]),
     {
       etiqueta: 'Contacto de contabilidad',
       relleno: tieneContacto(empresa, 'contabilidad'),

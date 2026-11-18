@@ -6,8 +6,8 @@ import { HiPlus, HiTrash, HiUser } from 'react-icons/hi';
 import TelefonoInput from '@/components/TelefonoInput';
 import { aE164 } from '@/lib/telefono';
 import {
-  CONTACTOS_OBLIGATORIOS,
   MAXIMO_LIBRES,
+  contactosObligatoriosPara,
   contactoVacio,
   errorDeContacto,
   type ContactoDeEmpresa,
@@ -21,6 +21,11 @@ interface Props {
   /** Marca en rojo lo que falta. Se activa al intentar continuar. */
   mostrarErrores?: boolean;
   disabled?: boolean;
+  /**
+   * Un revendedor solo tiene contacto de contabilidad: no atiende reservas ni
+   * tiene otros contactos que dar. Con esto salen solo lo que le corresponde.
+   */
+  revendedor?: boolean;
 }
 
 /**
@@ -40,6 +45,7 @@ export default function ContactosDeEmpresa({
   misDatos,
   mostrarErrores = false,
   disabled = false,
+  revendedor = false,
 }: Props) {
   const libres = valor.filter((c) => c.type === 'otro');
   const puedeAñadir = libres.length < MAXIMO_LIBRES;
@@ -129,7 +135,7 @@ export default function ContactosDeEmpresa({
 
   return (
     <div className="space-y-5">
-      {CONTACTOS_OBLIGATORIOS.map((obl) => {
+      {contactosObligatoriosPara(revendedor).map((obl) => {
         const i = valor.findIndex((c) => c.type === obl.type);
         if (i === -1) return null;
         return (
@@ -139,7 +145,11 @@ export default function ContactosDeEmpresa({
                 <h4 className="font-semibold text-[#334C5D]">
                   {obl.titulo} <span className="text-red-500">*</span>
                 </h4>
-                <p className="text-xs text-gray-500">{obl.ayuda}</p>
+                <p className="text-xs text-gray-500">
+                  {revendedor
+                    ? 'Es a quien escribe Tenemos Filo por tus comisiones y pagos.'
+                    : obl.ayuda}
+                </p>
               </div>
               {hayMisDatos && (
                 <Button size="xs" color="secondary" onClick={() => copiarMisDatos(i)} disabled={disabled}>
@@ -152,6 +162,7 @@ export default function ContactosDeEmpresa({
         );
       })}
 
+      {!revendedor && (
       <div className="rounded-xl border border-dashed border-gray-300 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -198,6 +209,7 @@ export default function ContactosDeEmpresa({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
